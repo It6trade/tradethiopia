@@ -126,7 +126,9 @@ const resolveCommissionForPeriod = async (
   month,
   year,
 ) => {
-  const commissionRecord = await Commission.findOne({ userId, month, year });
+  // Ensure year is a number (convert from string if needed)
+  const yearNum = typeof year === 'string' ? parseInt(year, 10) : year;
+  const commissionRecord = await Commission.findOne({ userId, month, year: yearNum });
   return commissionRecord || null;
 };
 
@@ -254,7 +256,10 @@ const getPayrollList = async (req, res) => {
     
     // Build query for existing payroll records
     let query = { month };
-    if (year) query.year = year;
+    if (year) {
+      // Ensure year is a number (convert from string if needed)
+      query.year = typeof year === 'string' ? parseInt(year, 10) : year;
+    }
     if (department) query.department = department;
     if (role) query.role = role;
     
@@ -456,7 +461,10 @@ const submitHRAdjustment = async (req, res) => {
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
-    
+
+    // Ensure year is a number (convert from string if needed)
+    const yearNum = typeof year === 'string' ? parseInt(year, 10) : year;
+
     // Upsert attendance record
     const attendanceRecord = await Attendance.findOneAndUpdate(
       { userId, date: { $gte: new Date(`${month}-01`), $lt: new Date(new Date(`${month}-01`).setMonth(new Date(`${month}-01`).getMonth() + 1)) } },
@@ -475,14 +483,14 @@ const submitHRAdjustment = async (req, res) => {
     );
     
     // Recalculate payroll for this user
-    const commissionData = await Commission.findOne({ userId, month, year });
+    const commissionData = await Commission.findOne({ userId, month, year: yearNum });
     const payrollData = await calculatePayrollForEmployee(user, attendanceRecord, commissionData);
-    const existingPayroll = await Payroll.findOne({ userId, month, year });
+    const existingPayroll = await Payroll.findOne({ userId, month, year: yearNum });
     const financeAdjustmentSnapshot = reapplyFinanceAdjustments(payrollData.netSalary, existingPayroll);
 
     // Update or create payroll record
     const payrollRecord = await Payroll.findOneAndUpdate(
-      { userId, month, year },
+      { userId, month, year: yearNum },
       {
         ...payrollData,
         financeAllowances: financeAdjustmentSnapshot.financeAllowances,
@@ -534,7 +542,10 @@ const submitFinanceAdjustment = async (req, res) => {
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
-    
+
+    // Ensure year is a number (convert from string if needed)
+    const yearNum = typeof year === 'string' ? parseInt(year, 10) : year;
+
     // Get existing attendance record
     const attendanceRecord = await Attendance.findOne({
       userId,
@@ -542,9 +553,9 @@ const submitFinanceAdjustment = async (req, res) => {
     });
     
     // Get existing commission data
-    const commissionData = await Commission.findOne({ userId, month, year });
+    const commissionData = await Commission.findOne({ userId, month, year: yearNum });
     
-    const existingPayroll = await Payroll.findOne({ userId, month, year });
+    const existingPayroll = await Payroll.findOne({ userId, month, year: yearNum });
     
     // Recalculate payroll with data that reflects HR adjustments only
     const payrollData = await calculatePayrollForEmployee(user, attendanceRecord, commissionData);
@@ -561,7 +572,7 @@ const submitFinanceAdjustment = async (req, res) => {
 
     // Update payroll record with finance adjustments
     const payrollRecord = await Payroll.findOneAndUpdate(
-      { userId, month, year },
+      { userId, month, year: yearNum },
       {
         ...payrollData,
         financeAllowances: financeAllowancesValue,
@@ -604,8 +615,11 @@ const getPayrollDetails = async (req, res) => {
       return res.status(400).json({ message: 'Month and year are required' });
     }
     
+    // Ensure year is a number (convert from string if needed)
+    const yearNum = typeof year === 'string' ? parseInt(year, 10) : year;
+    
     // Get payroll record
-    const payrollRecord = await Payroll.findOne({ userId, month, year })
+    const payrollRecord = await Payroll.findOne({ userId, month, year: yearNum })
       .populate('userId', 'username fullName role salary')
       .populate('hrSubmittedBy', 'username fullName')
       .populate('financeReviewedBy', 'username fullName')
@@ -740,22 +754,73 @@ const finalizePayrollForFinance = asyncHandler(async (req, res) => {
 
 // GET /payroll/history ?+' List historical payroll data
 const getPayrollHistory = asyncHandler(async (req, res) => {
-  const { userId, month, year, department } = req.query;
+  const { userId, username, month, year, department } = req.query;
   const filter = {};
-  if (userId) filter.userId = userId;
-  if (month) filter.month = month;
-  if (year) {
+
+  if (userId) {
+    filter.userId = userId;
+  }
+
+  if (username) {
+    filter.employeeName = { $regex: new RegExp(`${String(username).trim()}`, 'i') };
+  }
+
+  if (department) {
+    filter.department = { $regex: new RegExp(`^${String(department).trim()}$`, 'i') };
+  }
+
+  if (month) {
+    const monthValue = String(month).trim();
+    const yyyyMmMatch = monthValue.match(/^(\d{4})-(\d{1,2})$/);
+    const monthNameMap = {
+      january: '01', february: '02', march: '03', april: '04', may: '05', june: '06',
+      july: '07', august: '08', september: '09', october: '10', november: '11', december: '12'
+    };
+
+    if (yyyyMmMatch) {
+      filter.month = `${yyyyMmMatch[1]}-${yyyyMmMatch[2].padStart(2, '0')}`;
+      if (!year) {
+        filter.year = parseInt(yyyyMmMatch[1], 10);
+      }
+    } else if (/^(\d{1,2})$/.test(monthValue)) {
+      const monthNum = monthValue.padStart(2, '0');
+      if (year) {
+        const parsedYear = parseInt(year, 10);
+        if (!Number.isNaN(parsedYear)) {
+          filter.month = `${parsedYear}-${monthNum}`;
+          filter.year = parsedYear;
+        }
+      } else {
+        filter.month = { $regex: new RegExp(`-${monthNum}$`, 'i') };
+      }
+    } else {
+      const lowerMonth = monthValue.toLowerCase();
+      const key = Object.keys(monthNameMap).find(k => lowerMonth.includes(k.slice(0, 3)) || lowerMonth === k);
+      if (key) {
+        const monthNum = monthNameMap[key];
+        if (year) {
+          const parsedYear = parseInt(year, 10);
+          if (!Number.isNaN(parsedYear)) {
+            filter.month = `${parsedYear}-${monthNum}`;
+            filter.year = parsedYear;
+          }
+        } else {
+          filter.month = { $regex: new RegExp(`-${monthNum}$`, 'i') };
+        }
+      }
+    }
+  }
+
+  if (year && !filter.year) {
     const parsedYear = parseInt(year, 10);
     if (!Number.isNaN(parsedYear)) {
       filter.year = parsedYear;
     }
   }
-  if (department) filter.department = department;
 
   const historyList = await PayrollHistory.find(filter).sort({ finalizedAt: -1 });
   res.json(historyList);
 });
-
 // PUT /payroll/:id/approve → Approve payroll
 const approvePayroll = async (req, res) => {
   try {
@@ -844,7 +909,10 @@ const getCommissionByUser = async (req, res) => {
       return res.status(400).json({ message: 'Month and year are required' });
     }
     
-    const commissionRecord = await Commission.findOne({ userId, month, year });
+    // Ensure year is a number (convert from string if needed)
+    const yearNum = typeof year === 'string' ? parseInt(year, 10) : year;
+    
+    const commissionRecord = await Commission.findOne({ userId, month, year: yearNum });
     
     if (!commissionRecord) {
       return res.status(404).json({ message: 'Commission record not found' });
@@ -866,6 +934,9 @@ const submitCommission = async (req, res) => {
       return res.status(400).json({ message: 'User ID, month, and year are required' });
     }
     
+    // Ensure year is a number (convert from string if needed)
+    const yearNum = typeof year === 'string' ? parseInt(year, 10) : year;
+    
     // Check if user exists
     const user = await User.findById(userId);
     if (!user) {
@@ -874,9 +945,11 @@ const submitCommission = async (req, res) => {
     
     // Upsert commission record
     const commissionRecord = await Commission.findOneAndUpdate(
-      { userId, month, year },
+      { userId, month, year: yearNum },
       {
         userId,
+        employeeName: user.fullName || user.username || '',
+        department: user.department || '',
         month,
         year,
         numberOfSales: numberOfSales || 0,
@@ -899,7 +972,7 @@ const submitCommission = async (req, res) => {
     
     // Update payroll record
     const payrollRecord = await Payroll.findOneAndUpdate(
-      { userId, month, year },
+      { userId, month, year: yearNum },
       {
         ...payrollData,
         $push: {
@@ -934,7 +1007,10 @@ const clearCommissionRecord = async (req, res) => {
       return res.status(400).json({ message: 'User ID, month, and year are required' });
     }
 
-    const commissionRecord = await Commission.findOneAndDelete({ userId, month, year });
+    // Ensure year is a number (convert from string if needed)
+    const yearNum = typeof year === 'string' ? parseInt(year, 10) : year;
+
+    const commissionRecord = await Commission.findOneAndDelete({ userId, month, year: yearNum });
 
     if (!commissionRecord) {
       return res.status(404).json({ message: 'Commission record not found for the specified period' });
@@ -1094,3 +1170,4 @@ module.exports = {
   getSalesDataForCommission,
   deletePayrollRecord
 };
+

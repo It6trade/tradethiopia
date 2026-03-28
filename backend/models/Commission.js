@@ -8,11 +8,11 @@ const commissionSchema = new mongoose.Schema({
   },
   employeeName: {
     type: String,
-    required: true
+    default: ''
   },
   department: {
     type: String,
-    required: true
+    default: ''
   },
   month: {
     type: String, // Format: "YYYY-MM"

@@ -1,5 +1,6 @@
 const SalesCustomer = require('../models/SalesCustomer');
 const User = require('../models/user.model');
+const Followup = require('../models/Followup');
 const Notification = require('../models/Notification');
 const asyncHandler = require('express-async-handler');
 const { calculateCommission } = require('../utils/commission');
@@ -294,6 +295,8 @@ const updateCustomer = asyncHandler(async (req, res) => {
   }
 
   if (customer && customer.agentId && customer.agentId.toString() === req.user.id.toString()) {
+    const previousStatus = customer.followupStatus;
+    
     if (!customer.createdBy) {
       customer.createdBy = req.user._id;
     }
@@ -314,6 +317,51 @@ const updateCustomer = asyncHandler(async (req, res) => {
     customer.coursePrice = finalCoursePrice || 0;
     customer.commission = calculateCommission(customer.coursePrice);
     customer.packageScope = packageScope || customer.packageScope || '';
+
+    // Check if followupStatus is being changed to 'Completed' and create Followup record
+    if (followupStatus && followupStatus.toLowerCase() === 'completed' && previousStatus !== 'Completed') {
+      try {
+        // Check if Followup record already exists for this customer
+        const existingFollowup = await Followup.findOne({ email: customer.email });
+        
+        if (!existingFollowup) {
+          // Create new Followup record for customer success team
+          const followupData = {
+            clientName: customer.customerName,
+            companyName: customer.customerName, // Use customer name as company name
+            phoneNumber: customer.phone,
+            email: customer.email,
+            packageType: customer.courseName || customer.contactTitle || "Not specified",
+            country: customer.country || "",
+            packageScope: customer.packageScope || "",
+            customerType: "buyer", // Default to buyer, can be updated later
+            service: `Sales completed for ${customer.courseName || customer.contactTitle || "service"}`,
+            serviceProvided: "Sales process completed - ready for customer success follow-up",
+            serviceNotProvided: "Ongoing customer relationship management",
+            deadline: new Date(new Date().setMonth(new Date().getMonth() + 3)), // 3 months from now
+            createdBy: req.user._id,
+            agentId: customer.agentId, // Assign to the same agent initially
+            followupStatus: 'Completed', // Mark as completed in customer success system too
+            schedulePreference: customer.schedulePreference || 'Regular',
+            supervisorComment: customer.supervisorComment || '',
+            priority: 'Medium'
+          };
+          
+          const followup = new Followup(followupData);
+          await followup.save();
+          
+          // Create notification for customer success team
+          await createNotifications({
+            roles: ['customerservice', 'customer service', 'customersuccessmanager', 'customer success manager', 'customer_success_manager'],
+            text: `New completed sale ready for customer success: ${customer.customerName}`,
+            type: 'sales_completion'
+          });
+        }
+      } catch (error) {
+        console.error('Error creating followup record:', error);
+        // Don't fail the update if followup creation fails
+      }
+    }
 
     const updatedCustomer = await customer.save();
     res.json(updatedCustomer);

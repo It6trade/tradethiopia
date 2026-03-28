@@ -56,8 +56,8 @@ router.post('/hr-adjust', authorize('HR', 'hr'), submitHRAdjustment);
 router.post('/finance-adjust', authorize('finance', 'Finance'), submitFinanceAdjustment);
 
 // POST /payroll/commission → Submit or update commission data
-// Access: Admin, Finance
-router.post('/commission', authorize('admin', 'finance', 'Finance'), submitCommission);
+// Access: Admin, Finance, HR
+router.post('/commission', authorize('admin', 'finance', 'Finance', 'hr', 'HR'), submitCommission);
 
 // DELETE /payroll/commission ƒ+' Clear saved commission data
 // Access: Admin, Finance
