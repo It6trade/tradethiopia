@@ -70,6 +70,9 @@ export const fetchCourses = () =>
 export const fetchExternalCourses = () =>
   axiosInstance.get('/external-courses').then(response => response.data);
 
+export const fetchInternalCourses = () =>
+  axiosInstance.get('/internal-courses').then(response => response.data);
+
 export const createExternalCourse = (data) =>
   axiosInstance.post('/external-courses', data).then(response => response.data);
 

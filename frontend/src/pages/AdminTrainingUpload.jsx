@@ -29,12 +29,12 @@ import {
   useColorModeValue,
   useToast
 } from "@chakra-ui/react";
-import { AddIcon, DeleteIcon, EditIcon } from "@chakra-ui/icons";
+import { AddIcon, DeleteIcon } from "@chakra-ui/icons";
+import { Link as RouterLink } from "react-router-dom";
 import UploadTrainingMaterial from "../components/customer/UploadTrainingMaterial";
 import AdminTrainingMaterialList from "../components/customer/AdminTrainingMaterialList";
 import {
   createCourse,
-  deleteCourse,
   fetchCourses,
   updateCourse,
   uploadCourseSlideImage
@@ -72,6 +72,23 @@ const asText = (value, fallback = "") => {
   if (value === null || value === undefined) return fallback;
   return String(value).trim();
 };
+
+const hrKeywordPattern = /\bhr\b|human resources|handbook/i;
+
+const hasHrKeyword = (...values) =>
+  hrKeywordPattern.test(
+    values
+      .map((value) => asText(value, ""))
+      .filter(Boolean)
+      .join(" ")
+  );
+
+const hasHrTag = (tags = []) =>
+  (Array.isArray(tags) ? tags : []).some((tag) => hrKeywordPattern.test(asText(tag, "")));
+
+const isHrOwnedCourse = (course = {}) =>
+  hasHrKeyword(course?.name, course?.title, course?.overview, course?.description, course?.category) ||
+  hasHrTag(course?.tags);
 
 const normalizeSlideImageUrls = (slide = {}) => {
   const values = [asText(slide?.imageUrl, ""), ...asArray(slide?.imageUrls, [])]
@@ -154,11 +171,18 @@ const AdminTrainingUpload = () => {
     [course]
   );
 
+  const publishedCourse = useMemo(
+    () => courses.find((savedCourse) => savedCourse.status === "published") || null,
+    [courses]
+  );
+
   const loadCourses = async (preferredId = "") => {
     setLoading(true);
     try {
       const response = await fetchCourses();
-      const realCourses = (Array.isArray(response) ? response : []).filter(isPersistedCourse);
+      const realCourses = (Array.isArray(response) ? response : [])
+        .filter(isPersistedCourse)
+        .filter(isHrOwnedCourse);
       setCourses(realCourses);
 
       const fallbackCourse = realCourses[0] || null;
@@ -189,50 +213,9 @@ const AdminTrainingUpload = () => {
     loadCourses();
   }, []);
 
-  const handleSelectCourse = (courseId) => {
-    const selectedCourse = courses.find((item) => item._id === courseId);
-    setSelectedCourseId(courseId);
-    setCourse(selectedCourse ? normalizeForEditor(selectedCourse) : defaultCourse);
-  };
-
   const handleCreateNewCourse = () => {
     setSelectedCourseId("");
     setCourse(defaultCourse);
-  };
-
-  const handleEditCourse = (selected) => {
-    setSelectedCourseId(selected._id);
-    setCourse(normalizeForEditor(selected));
-  };
-
-  const handleDeleteCourse = async (courseId) => {
-    const selected = courses.find((item) => item._id === courseId);
-    if (!courseId || !selected) {
-      return;
-    }
-
-    if (!window.confirm(`Delete course "${selected.name}"?`)) {
-      return;
-    }
-
-    try {
-      await deleteCourse(courseId);
-      await loadCourses(courseId === selectedCourseId ? "" : selectedCourseId);
-      toast({
-        title: "Course deleted",
-        status: "success",
-        duration: 2500,
-        isClosable: true
-      });
-    } catch (error) {
-      toast({
-        title: "Failed to delete course",
-        description: error?.response?.data?.message || error.message || "",
-        status: "error",
-        duration: 3000,
-        isClosable: true
-      });
-    }
   };
 
   const updateCourseField = (field, value) => {
@@ -422,6 +405,9 @@ const AdminTrainingUpload = () => {
     name: asText(course.name, "HR Course"),
     description: asText(course.overview, ""),
     overview: asText(course.overview, ""),
+    category: "Human Resources",
+    level: "Internal",
+    tags: ["hr", "human-resources", "internal"],
     passPercentage: Number.isFinite(Number(course.passPercentage))
       ? Number(course.passPercentage)
       : 75,
@@ -543,6 +529,15 @@ const AdminTrainingUpload = () => {
           </Text>
         </Box>
         <HStack spacing={2}>
+          <Button
+            as={RouterLink}
+            to="/hr-training"
+            variant="outline"
+            colorScheme="teal"
+            isDisabled={loading || !publishedCourse}
+          >
+            HR Training
+          </Button>
           <Button variant="outline" onClick={() => loadCourses(selectedCourseId)} isDisabled={loading || saving || publishing}>
             Refresh
           </Button>
@@ -590,6 +585,17 @@ const AdminTrainingUpload = () => {
                 ? `Last published: ${new Date(course.publishedAt).toLocaleString()}`
                 : "Not published yet"}
             </Text>
+            <Button
+              as={RouterLink}
+              to="/hr-training"
+              size="sm"
+              mt={3}
+              colorScheme="teal"
+              variant="outline"
+              isDisabled={!publishedCourse}
+            >
+              Open HR Training
+            </Button>
           </CardBody>
         </Card>
       </SimpleGrid>
@@ -629,59 +635,6 @@ const AdminTrainingUpload = () => {
               </FormControl>
             </VStack>
           )}
-        </CardBody>
-      </Card>
-
-      <Card bg={cardBg} borderWidth="1px" borderColor={borderColor} mb={6}>
-        <CardBody>
-          <Flex justify="space-between" align={{ base: "flex-start", md: "center" }} direction={{ base: "column", md: "row" }} gap={3} mb={4}>
-            <Box>
-              <Heading size="md">Saved Courses</Heading>
-              <Text color="gray.500" mt={1}>
-                Select an HR course to edit, or start a new one.
-              </Text>
-            </Box>
-            {courses.length > 0 && (
-              <Select maxW={{ base: "100%", md: "320px" }} value={selectedCourseId} onChange={(event) => handleSelectCourse(event.target.value)}>
-                {courses.map((savedCourse) => (
-                  <option key={savedCourse._id} value={savedCourse._id}>
-                    {savedCourse.name}
-                  </option>
-                ))}
-              </Select>
-            )}
-          </Flex>
-
-          <VStack spacing={3} align="stretch">
-            {courses.length === 0 ? (
-              <Text color="gray.500">No saved HR courses yet.</Text>
-            ) : (
-              courses.map((savedCourse) => (
-                <Box key={savedCourse._id} borderWidth="1px" borderColor="gray.200" borderRadius="lg" p={4}>
-                  <Flex justify="space-between" align={{ base: "flex-start", md: "center" }} direction={{ base: "column", md: "row" }} gap={3}>
-                    <Box>
-                      <Text fontWeight="bold">{savedCourse.name}</Text>
-                      <Text fontSize="sm" color="gray.500">
-                        {savedCourse.status === "published" ? "Published" : "Draft"} | {savedCourse.slides?.length || 0} chapters | {savedCourse.quizQuestions?.length || 0} questions
-                      </Text>
-                    </Box>
-                    <HStack spacing={2}>
-                      <Button size="sm" leftIcon={<EditIcon />} onClick={() => handleEditCourse(savedCourse)}>
-                        Edit
-                      </Button>
-                      <IconButton
-                        aria-label={`Delete course ${savedCourse.name}`}
-                        icon={<DeleteIcon />}
-                        colorScheme="red"
-                        variant="ghost"
-                        onClick={() => handleDeleteCourse(savedCourse._id)}
-                      />
-                    </HStack>
-                  </Flex>
-                </Box>
-              ))
-            )}
-          </VStack>
         </CardBody>
       </Card>
 

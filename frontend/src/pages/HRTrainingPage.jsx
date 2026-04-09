@@ -136,6 +136,13 @@ const normalizeCourse = (course = {}) => {
   };
 };
 
+const isVisiblePublishedCourse = (course = {}) => {
+  const slides = Array.isArray(course?.slides) ? course.slides : [];
+  const quizQuestions = Array.isArray(course?.quizQuestions) ? course.quizQuestions : [];
+
+  return course?.status === "published" || (!course?.status && (slides.length > 0 || quizQuestions.length > 0));
+};
+
 const HRTrainingPage = () => {
   const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -160,7 +167,7 @@ const HRTrainingPage = () => {
         const data = await fetchCourses();
         const published = (Array.isArray(data) ? data : [])
           .filter(isPersistedCourse)
-          .filter((course) => course.status === "published")
+          .filter(isVisiblePublishedCourse)
           .map(normalizeCourse);
 
         setCourses(published);
@@ -183,6 +190,7 @@ const HRTrainingPage = () => {
   );
 
   const course = selectedCourse || fallbackCourse;
+  const heroCourse = selectedCourse || fallbackCourse;
   const slides = course.slides || [];
   const quizQuestions = course.quizQuestions || [];
   const currentSlide = slides[currentSlideIndex] || null;
@@ -309,10 +317,10 @@ const HRTrainingPage = () => {
           >
             <Box maxW="780px">
               <Heading size="lg" mb={2}>
-                {course.title}
+                {heroCourse.title}
               </Heading>
               <Text fontSize="sm" opacity={0.95}>
-                {course.overview}
+                {heroCourse.overview}
               </Text>
               <SimpleGrid columns={{ base: 1, md: 2 }} spacing={3} mt={4}>
                 <Box bg="whiteAlpha.250" borderRadius="md" p={3}>
@@ -352,13 +360,13 @@ const HRTrainingPage = () => {
 
         <Box bg="white" borderRadius="xl" boxShadow="sm" p={{ base: 4, md: 6 }} mb={6}>
           <Heading size="sm" mb={3}>
-            Course
+            Interactive HR Training
           </Heading>
           {loading ? (
             <HStack spacing={2}>
               <Spinner size="sm" color="teal.500" />
               <Text fontSize="sm" color="gray.600">
-                Loading published HR courses...
+                Loading published HR training...
               </Text>
             </HStack>
           ) : error ? (
@@ -367,7 +375,7 @@ const HRTrainingPage = () => {
             </Text>
           ) : courses.length === 0 ? (
             <Text fontSize="sm" color="gray.600">
-              No published HR training courses found.
+              No published interactive HR training courses found.
             </Text>
           ) : (
             <VStack align="stretch" spacing={3}>

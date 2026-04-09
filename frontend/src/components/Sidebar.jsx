@@ -126,19 +126,11 @@ const Sidebar = ({ isCollapsed: controlledIsCollapsed, onToggleCollapse }) => {
           </Flex>
         </Link>
 
-        {/* Training Tab */}
-        <Link as={RouterLink} to="/admin-training-upload" _hover={{ textDecoration: "none" }}>
-          <Flex align="center" p={1} borderRadius="md" _hover={{ bg: "gray.700" }}>
-            <Icon as={FiBookOpen} boxSize={4} />
-            {!effectiveIsCollapsed && <Text ml={3} fontSize="sm">Training</Text>}
-          </Flex>
-        </Link>
-
         {/* HR Course Link */}
         <Link as={RouterLink} to="/course" _hover={{ textDecoration: "none" }}>
           <Flex align="center" p={1} borderRadius="md" _hover={{ bg: "gray.700" }}>
             <Icon as={FiBookOpen} boxSize={4} />
-            {!effectiveIsCollapsed && <Text ml={3} fontSize="sm">HR Course</Text>}
+            {!effectiveIsCollapsed && <Text ml={3} fontSize="sm">HR Course Editor</Text>}
           </Flex>
         </Link>
 

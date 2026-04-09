@@ -1,8 +1,30 @@
 const asyncHandler = require('express-async-handler');
 const InternalCourse = require('../models/InternalCourse');
 
+const fallbackInternalCourses = [
+  {
+    name: 'Human Resources Handbook',
+    description: 'Core HR policies, onboarding standards, employee support workflows, and handbook guidance for internal teams.',
+    overview: 'Reference handbook for HR team capability building and day-to-day internal operations.',
+    price: 0,
+    category: 'Human Resources',
+    level: 'Internal',
+    duration: 'Self-paced',
+    tags: ['hr', 'handbook', 'internal'],
+    isActive: true,
+  },
+];
+
 const getInternalCourses = asyncHandler(async (_req, res) => {
   const courses = await InternalCourse.find().sort({ createdAt: -1 });
+  if (!courses.length) {
+    return res.json(
+      fallbackInternalCourses.map((course, index) => ({
+        ...course,
+        _id: `internal-seed-${index}`,
+      }))
+    );
+  }
   res.json(courses);
 });
 
