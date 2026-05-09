@@ -35,7 +35,6 @@ import {
   Select,
   Button,
   Flex,
-  ButtonGroup,
   Input,
   Wrap,
   WrapItem,
@@ -61,10 +60,11 @@ import {
   Divider,
   Tooltip,
 } from '@chakra-ui/react';
-import { DownloadIcon, ExternalLinkIcon, ChevronDownIcon, ChevronUpIcon, HamburgerIcon, SunIcon, MoonIcon, InfoIcon, BellIcon } from '@chakra-ui/icons';
+import { ExternalLinkIcon, ChevronDownIcon, ChevronUpIcon, HamburgerIcon, SunIcon, MoonIcon, InfoIcon, BellIcon } from '@chakra-ui/icons';
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from 'recharts';
 import { chakra } from '@chakra-ui/react';
 import { motion } from 'framer-motion';
+import { FiActivity, FiAlertTriangle, FiDollarSign, FiFileText, FiGrid, FiMoreHorizontal, FiMoon, FiShield, FiTrendingUp } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import { useUserStore } from '../store/user';
 
@@ -74,7 +74,6 @@ import NotificationsPanel from '../components/NotificationsPanel';
 import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import axios from 'axios';
 import apiClient from '../utils/apiClient';
-import NotesLauncher from '../components/notes/NotesLauncher';
 import {
   Drawer,
   DrawerBody,
@@ -121,6 +120,49 @@ const buildPieSegments = (data, key = 'value', radius = 42) => {
     return { ...item, pct: Math.round(pct * 100), dash, dashOffset, radius, circumference };
   });
 };
+
+const getInitials = (value = '') => {
+  const tokens = value
+    .toString()
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  if (!tokens.length) return 'NA';
+  return tokens
+    .slice(0, 2)
+    .map((token) => token[0]?.toUpperCase() || '')
+    .join('');
+};
+
+const fallbackExecutiveActionItems = [
+  {
+    id: 'fallback-1',
+    priority: 'high',
+    title: 'Social media approval',
+    department: 'Marketing',
+    assignee: 'AM',
+    dueDate: null,
+    status: 'completed',
+  },
+  {
+    id: 'fallback-2',
+    priority: 'high',
+    title: 'Chat response delay',
+    department: 'IT',
+    assignee: 'DK',
+    dueDate: null,
+    status: 'completed',
+  },
+  {
+    id: 'fallback-3',
+    priority: 'medium',
+    title: 'Vendor contract renewal',
+    department: 'Procurement',
+    assignee: 'NA',
+    dueDate: '2025-05-30',
+    status: 'in-progress',
+  },
+];
 
 const baseTradexSummary = [
   { label: 'Active follow-ups', value: '-', sublabel: '' },
@@ -935,6 +977,117 @@ const COODashboard = () => {
     { month: 'May', value: 9 },
     { month: 'Jun', value: 7 },
   ], []);
+  const executiveSummaryItems = useMemo(
+    () => [
+      { label: 'Operational Health', value: 'Stable' },
+      { label: 'Revenue Momentum', value: '+4.3%' },
+      { label: 'Open Decisions', value: '15' },
+      { label: 'High Risks', value: '2' },
+    ],
+    []
+  );
+  const executiveKpiCards = useMemo(
+    () => [
+      {
+        id: 'revenue',
+        label: 'Revenue',
+        value: 'ETB 1,783,654',
+        trend: '+4.3% MoM',
+        footer: 'Recognized this period',
+        accent: '#2563EB',
+        surface: '#EFF6FF',
+        icon: FiDollarSign,
+        sparkline: revenueTrendData,
+        sparkKey: 'value',
+      },
+      {
+        id: 'cash-flow',
+        label: 'Cash Flow',
+        value: 'ETB 867,553',
+        trend: 'Net',
+        footer: 'Available operating cash',
+        accent: '#059669',
+        surface: '#ECFDF5',
+        icon: FiTrendingUp,
+        sparkline: cashFlowTrendData,
+        sparkKey: 'value',
+      },
+      {
+        id: 'uptime',
+        label: 'Uptime',
+        value: '98.7%',
+        trend: 'Last 30 days',
+        footer: 'Core systems availability',
+        accent: '#6D28D9',
+        surface: '#F3E8FF',
+        icon: FiActivity,
+        sparkline: uptimeTrendData,
+        sparkKey: 'value',
+      },
+      {
+        id: 'risk-flags',
+        label: 'Risk Flags',
+        value: '25',
+        trend: 'Across departments',
+        footer: 'Monitored in current cycle',
+        accent: '#EA580C',
+        surface: '#FFF7ED',
+        icon: FiAlertTriangle,
+        sparkline: riskTrendData,
+        sparkKey: 'value',
+      },
+    ],
+    [cashFlowTrendData, revenueTrendData, riskTrendData, uptimeTrendData]
+  );
+  const actionQueueItems = useMemo(() => {
+    const source = actionItems.length ? actionItems : fallbackExecutiveActionItems;
+    return source.map((item) => {
+      const dueDateValue = item.dueDate ? new Date(item.dueDate) : null;
+      const dueDateLabel =
+        dueDateValue && !Number.isNaN(dueDateValue.getTime())
+          ? dueDateValue.toLocaleDateString('en-US', {
+              month: 'short',
+              day: 'numeric',
+              year: 'numeric',
+            })
+          : 'No due date';
+      return {
+        ...item,
+        owner: item.assignee && item.assignee.length <= 3 ? item.assignee.toUpperCase() : getInitials(item.assignee || 'NA'),
+        dueDateLabel,
+      };
+    });
+  }, [actionItems]);
+  const actionQueueCounts = useMemo(() => {
+    if (actionItems.length) {
+      return actionItemCount;
+    }
+    return { all: 15, critical: 0, high: 2, medium: 12, low: 1 };
+  }, [actionItemCount, actionItems.length]);
+  const queueFilteredItems = useMemo(() => {
+    if (actionItemsFilter === 'all') return actionQueueItems;
+    return actionQueueItems.filter((item) => item.priority === actionItemsFilter);
+  }, [actionItemsFilter, actionQueueItems]);
+  const performanceStorylineData = useMemo(
+    () => [
+      { month: 'Jan', current: 1210000, previous: 1120000 },
+      { month: 'Feb', current: 1285000, previous: 1190000 },
+      { month: 'Mar', current: 1368000, previous: 1260000 },
+      { month: 'Apr', current: 1452000, previous: 1340000 },
+      { month: 'May', current: 1594000, previous: 1468000 },
+      { month: 'Jun', current: 1783654, previous: 1654000 },
+    ],
+    []
+  );
+  const performanceSummaryItems = useMemo(
+    () => [
+      { label: 'Total Revenue', value: 'ETB 1,783,654' },
+      { label: 'Avg. Daily Revenue', value: 'ETB 59,455' },
+      { label: 'Best Performing Dept.', value: 'Sales' },
+      { label: 'Revenue Forecast', value: 'ETB 1.92M' },
+    ],
+    []
+  );
   const profitLossReport = useMemo(() => {
     const match = financeReports.find((r) => {
       const title = (r?.title || r?.name || '').toLowerCase();
@@ -1023,13 +1176,19 @@ const COODashboard = () => {
   const clearUser = useUserStore((state) => state.clearUser);
   const toast = useToast();
   const isCoo = (currentUser?.role || '').toLowerCase() === 'coo';
-  const cardBg = useColorModeValue('white', 'gray.800');
-  const borderColor = useColorModeValue('gray.200', 'gray.700');
-  const controlTextColor = useColorModeValue('gray.700', 'whiteAlpha.900');
-  const sidebarSectionBg = useColorModeValue('gray.100', 'gray.700');
-  const sidebarSectionActiveBg = useColorModeValue('purple.600', 'purple.500');
-  const sidebarSectionHover = useColorModeValue('gray.200', 'gray.600');
-  const sidebarSectionTextColor = useColorModeValue('gray.600', 'gray.300');
+  const cardBg = '#FFFFFF';
+  const borderColor = '#E5E7EB';
+  const controlTextColor = '#0F172A';
+  const sidebarSectionBg = '#F8FAFC';
+  const sidebarSectionActiveBg = '#F3E8FF';
+  const sidebarSectionHover = '#F1F5F9';
+  const sidebarSectionTextColor = '#64748B';
+  const appBg = '#F6F8FB';
+  const shellBg = '#FFFFFF';
+  const shellBorder = '#E5E7EB';
+  const shellMuted = '#64748B';
+  const sidebarSurface = '#FFFFFF';
+  const heroGradient = 'linear(135deg, #1E3A8A 0%, #2563EB 45%, #0D9488 100%)';
   const currentMonthName = useMemo(
     () =>
       new Date().toLocaleString('default', {
@@ -1051,6 +1210,19 @@ const COODashboard = () => {
     '30d': 'Last 30 days',
     '90d': 'Last 90 days',
     '365d': 'Last 12 months'
+  };
+  const desktopNavItems = [
+    { id: 'overview', label: 'Overview', ref: overviewRef, icon: InfoIcon },
+    { id: 'finance', label: 'Finance', ref: financeRef, icon: BellIcon },
+    { id: 'operations', label: 'Operations', ref: operationsRef, icon: HamburgerIcon },
+    { id: 'alerts', label: 'Alerts', ref: alertsRef, icon: ExternalLinkIcon },
+  ];
+  const controlStackTargetMap = {
+    expenses: financeRef,
+    costs: financeRef,
+    requests: alertsRef,
+    payroll: financeRef,
+    profit: operationsRef,
   };
   const revenueSummary = { total: '$12.4M', change: '+4.3% MoM' }; // placeholder aggregate for display
   const showSocialRequestsSection = false;
@@ -2036,89 +2208,95 @@ const COODashboard = () => {
     navigate('/login');
   };
 
+  const scrollToSection = useCallback((sectionId, ref) => {
+    setCurrentMobileTab(sectionId);
+    if (ref?.current) {
+      ref.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, []);
+
+  const handleControlStackSelect = useCallback((sectionId) => {
+    setActiveSidebarSection(sectionId);
+    const targetRef = controlStackTargetMap[sectionId];
+    if (targetRef?.current) {
+      targetRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [controlStackTargetMap]);
+
   return (
-    <Box bg={useColorModeValue('gray.50', 'gray.900')} minH="100vh" py={{ base: 5, md: 7 }} px={{ base: 4, md: 6 }}>
-      {/* Hero Section - Full Width */}
-      <MotionBox
-        ref={overviewRef}
-        bgGradient="linear(to-r, #dbeafe, #bfdbfe)"
-        color="blue.900"
-        p={{ base: 3, md: 4 }}
-        boxShadow="0 8px 20px rgba(59,130,246,0.1)"
-        mb={{ base: 3, md: 4 }}
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        borderRadius="0"  // Remove rounded corners for full-width effect
-      >
-        <Container maxW="8xl" mx="auto" px={{ base: 2, md: 3 }}>
-          {/* Top Bar with Navigation, Title, and User Profile */}
-          <Flex direction={{ base: 'column', md: 'row' }} justify="space-between" align={{ base: 'flex-start', md: 'center' }} gap={3} wrap="wrap" mb={3}>
-            <Flex align="center" gap={3}>
-              <IconButton
-                aria-label="Open reports sidebar"
-                icon={<HamburgerIcon />}
-                onClick={onOpenSidePanel}
-                size="sm"
-                variant="outline"
-                colorScheme="purple"
-                boxShadow="0 4px 10px rgba(88,28,135,0.15)"
-                _hover={{ transform: 'translateY(-1px)' }}
-              />
-              <Box>
-                <Heading fontSize={{ base: 'lg', md: 'xl', lg: '2xl' }} color="blue.900" mb={1}>
-                  Chief Operations Dashboard
-                </Heading>
-                <Text fontSize="xs" opacity={0.8}>Operations Control Center</Text>
-              </Box>
-            </Flex>
-            
-            <Flex align="center" gap={3}>
-              <Flex gap={2} wrap="wrap">
-                <Tag colorScheme="blue" variant="solid" size="sm">
-                  {timeRangeLabels[timeRange] || 'Custom window'}
+    <Box bg={appBg} minH="100vh" py={{ base: 4, md: 6 }} px={{ base: 3, md: 5 }}>
+      <Flex maxW="1900px" mx="auto" gap={{ base: 0, lg: 6 }} align="flex-start">
+        <Box
+          display={{ base: 'none', lg: 'block' }}
+          w="240px"
+          position="sticky"
+          top={0}
+          h="100vh"
+          borderRight="1px solid"
+          borderColor={shellBorder}
+          bg={sidebarSurface}
+          boxShadow="0 10px 30px rgba(15, 23, 42, 0.06)"
+        >
+          <Flex direction="column" h="full">
+          <VStack align="stretch" spacing={0} flex="1" overflowY="auto">
+            <Box p={5} borderBottom="1px solid" borderColor={shellBorder}>
+              <Text fontSize="10px" textTransform="uppercase" letterSpacing="0.18em" color={shellMuted} fontWeight="700">
+                TRADE ETHIOPIA
+              </Text>
+              <Heading fontSize="18px" mt={2} color="#0F172A">
+                COO Command Center
+              </Heading>
+              <Text fontSize="13px" color={shellMuted} mt={2} lineHeight="1.5">
+                Executive view across finance, operations, and delivery.
+              </Text>
+              <HStack spacing={2} mt={4}>
+                <Tag size="sm" bg="#EFF6FF" color="#2563EB" borderRadius="999px" fontWeight="600">
+                  {timeRangeLabels[timeRange]}
                 </Tag>
-                <Tag colorScheme="green" variant="subtle" size="sm">
-                  {activeDeptCount} Departments Active
+                <Tag size="sm" bg="#ECFDF5" color="#059669" borderRadius="999px" fontWeight="600">
+                  {activeDeptCount} teams
                 </Tag>
-              </Flex>
-              
-              <Tooltip label={`Switch to ${colorMode === "light" ? "dark" : "light"} mode`}>
-                <IconButton
-                  aria-label="Toggle theme"
-                  icon={colorMode === "light" ? <MoonIcon /> : <SunIcon />}
-                  onClick={toggleColorMode}
-                  variant="ghost"
-                  colorScheme="blue"
-                />
-              </Tooltip>
-              
-              <NotesLauncher
-                buttonProps={{
-                  variant: 'ghost',
-                  size: 'sm',
-                  'aria-label': 'Notes',
-                  colorScheme: 'blue',
-                }}
-                tooltipLabel="Notes"
-              />
-              
+              </HStack>
               <Menu placement="bottom-end" isLazy>
                 <MenuButton
                   as={Button}
-                  variant="ghost"
-                  colorScheme="blue"
-                  leftIcon={<Avatar name={currentUser?.username || 'User'} src={currentUser?.avatar} size="sm" />}
-                  rightIcon={<ChevronDownIcon />}
-                  px={2}
-                  minW={{ base: '150px', md: '180px' }}
+                  mt={4}
+                  w="full"
+                  variant="unstyled"
+                  color={controlTextColor}
+                  px={3}
+                  py={3}
+                  h="auto"
+                  borderRadius="16px"
+                  bg="#F8FAFC"
+                  border="1px solid"
+                  borderColor={shellBorder}
+                  _hover={{ bg: sidebarSectionHover }}
+                  _active={{ bg: sidebarSectionHover }}
                 >
-                  <Flex justify="space-between" align="center" w="100%">
-                    <Box textAlign="left">
-                      <Text fontWeight="semibold" fontSize="sm">{currentUser?.username || 'Unknown user'}</Text>
-                      <Text fontSize="xs" opacity={0.8}>{currentUser?.role || 'Role not set'}</Text>
+                  <HStack spacing={3} align="center" w="100%">
+                    <Avatar
+                      name="C"
+                      size="sm"
+                      bg="#2563EB"
+                      color="white"
+                    />
+                    <Box textAlign="left" flex="1" minW={0}>
+                      <Text fontWeight="semibold" fontSize="sm" noOfLines={1}>
+                        {currentUser?.username || 'Command User'}
+                      </Text>
+                      <Text
+                        fontSize="xs"
+                        color={shellMuted}
+                        textTransform="uppercase"
+                        letterSpacing="0.08em"
+                        noOfLines={1}
+                      >
+                        COO
+                      </Text>
                     </Box>
-                  </Flex>
+                    <ChevronDownIcon boxSize={4} color={shellMuted} />
+                  </HStack>
                 </MenuButton>
                 <MenuList>
                   <MenuItem isDisabled>COO: {currentUser?.username || 'Not set'}</MenuItem>
@@ -2129,40 +2307,491 @@ const COODashboard = () => {
                   <MenuItem color="red.500" onClick={handleLogout}>Logout</MenuItem>
                 </MenuList>
               </Menu>
-            </Flex>
+            </Box>
+
+            <Box p={4} borderBottom="1px solid" borderColor={shellBorder}>
+              <Text fontSize="10px" textTransform="uppercase" letterSpacing="0.14em" color={shellMuted} mb={3} fontWeight="700">
+                Navigation
+              </Text>
+              <VStack align="stretch" spacing={2}>
+                {desktopNavItems.map((item) => {
+                  const isActive = currentMobileTab === item.id;
+                  const Icon = item.icon;
+                  return (
+                    <Button
+                      key={item.id}
+                      leftIcon={<Icon />}
+                      justifyContent="flex-start"
+                      size="md"
+                      h="40px"
+                      borderRadius="12px"
+                      variant="ghost"
+                      bg={isActive ? '#2563EB' : 'transparent'}
+                      color={isActive ? 'white' : '#0F172A'}
+                      _hover={{ bg: isActive ? '#2563EB' : sidebarSectionHover }}
+                      onClick={() => scrollToSection(item.id, item.ref)}
+                    >
+                      {item.label}
+                    </Button>
+                  );
+                })}
+              </VStack>
+            </Box>
+
+            <Box p={4} borderBottom="1px solid" borderColor={shellBorder}>
+              <Text fontSize="10px" textTransform="uppercase" letterSpacing="0.14em" color={shellMuted} mb={3} fontWeight="700">
+                Control Stack
+              </Text>
+              <VStack align="stretch" spacing={2}>
+                {sidebarSections.map((section) => {
+                  const isActive = activeSidebarSection === section.id;
+                  return (
+                    <Button
+                      key={`desktop-section-${section.id}`}
+                      justifyContent="flex-start"
+                      variant="ghost"
+                      h="36px"
+                      px={3}
+                      borderRadius="10px"
+                      fontSize="13px"
+                      fontWeight="600"
+                      bg={isActive ? sidebarSectionActiveBg : 'transparent'}
+                      color={isActive ? '#6D28D9' : controlTextColor}
+                      _hover={{ bg: isActive ? sidebarSectionActiveBg : sidebarSectionHover }}
+                      onClick={() => handleControlStackSelect(section.id)}
+                    >
+                      {section.title}
+                    </Button>
+                  );
+                })}
+              </VStack>
+              <Box mt={4} borderRadius="16px" bg={sidebarSectionBg} p={4} border="1px solid" borderColor={shellBorder}>
+                {renderSidebarSectionContent()}
+              </Box>
+            </Box>
+
+            <Box p={4}>
+              <SimpleGrid columns={2} spacing={3}>
+                <Box borderRadius="16px" bg={sidebarSectionBg} p={3} border="1px solid" borderColor={shellBorder}>
+                  <Text fontSize="xs" color={shellMuted}>Action items</Text>
+                  <Heading size="md" mt={1}>{actionItemCount.all}</Heading>
+                </Box>
+                <Box borderRadius="16px" bg={sidebarSectionBg} p={3} border="1px solid" borderColor={shellBorder}>
+                  <Text fontSize="xs" color={shellMuted}>Period</Text>
+                  <Heading size="sm" mt={1}>{currentMonthName}</Heading>
+                </Box>
+              </SimpleGrid>
+              <Button mt={4} w="full" borderRadius="xl" colorScheme="blue" variant="outline" onClick={onOpenDeptDrawer}>
+                Open department list
+              </Button>
+              <Box mt={4} borderRadius="16px" bg={sidebarSectionBg} p={3} border="1px solid" borderColor={shellBorder}>
+                <HStack spacing={3} align="center">
+                  <Avatar name="C" size="sm" bg="#2563EB" color="white" />
+                  <Box flex="1" minW={0}>
+                    <Text fontWeight="semibold" fontSize="sm" noOfLines={1}>
+                      {currentUser?.username || 'Command User'}
+                    </Text>
+                    <Text fontSize="xs" color={shellMuted} textTransform="uppercase" letterSpacing="0.08em" noOfLines={1}>
+                      COO
+                    </Text>
+                  </Box>
+                </HStack>
+              </Box>
+            </Box>
+          </VStack>
+          <Box p={4} borderTop="1px solid" borderColor={shellBorder} bg="#FFFFFF">
+            <Button w="full" colorScheme="red" borderRadius="12px" onClick={handleLogout}>
+              Logout
+            </Button>
+          </Box>
           </Flex>
-          
-          <Flex direction={{ base: 'column', md: 'row' }} justify="space-between" gap={3} wrap="wrap">
-            <Text fontSize={{ base: 'xs', md: 'sm' }} maxW="600px">
-              Monitor cross-functional performance, track key metrics, and manage departmental operations from a centralized view.
-            </Text>
-            <Flex gap={2} wrap="wrap" align="center">
-              <ButtonGroup size="xs" variant="outline" colorScheme="blue">
-                <Button leftIcon={<DownloadIcon />} onClick={() => {}} size="xs">
-                  Export
-                </Button>
-                <Button leftIcon={<ExternalLinkIcon />} onClick={() => {}} size="xs">
-                  Share
-                </Button>
-              </ButtonGroup>
-              <Button size="xs" variant="solid" colorScheme="green" onClick={onOpenBroadcast} leftIcon={<ExternalLinkIcon />}>
-                Broadcast
-              </Button>
-              <Button size="xs" variant="solid" colorScheme="blue" onClick={onOpenReports} leftIcon={<ExternalLinkIcon />}>
-                Reports
-              </Button>
+        </Box>
+
+        <Box flex="1" minW={0}>
+      {/* Hero Section - Full Width */}
+      <MotionBox
+        ref={overviewRef}
+        bgGradient={heroGradient}
+        color="white"
+        p={{ base: 6, md: 7 }}
+        minH={{ base: 'auto', md: '160px' }}
+        boxShadow="0 10px 30px rgba(15, 23, 42, 0.16)"
+        mb={{ base: 4, md: 5 }}
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        borderRadius="24px"
+        overflow="hidden"
+      >
+        <Container maxW="8xl" mx="auto" px={{ base: 1, md: 2 }}>
+          <Flex direction={{ base: 'column', lg: 'row' }} justify="space-between" align={{ base: 'flex-start', lg: 'flex-start' }} gap={6}>
+            <Flex align="flex-start" gap={3} flex="1">
+              <IconButton
+                aria-label="Open reports sidebar"
+                icon={<HamburgerIcon />}
+                onClick={onOpenSidePanel}
+                display={{ base: 'inline-flex', lg: 'none' }}
+                size="sm"
+                variant="solid"
+                bg="whiteAlpha.200"
+                color="white"
+                _hover={{ bg: 'whiteAlpha.300' }}
+                boxShadow="0 8px 20px rgba(15,23,42,0.22)"
+              />
+              <Box>
+                <Text fontSize="10px" textTransform="uppercase" letterSpacing="0.24em" color="whiteAlpha.800" mb={2} fontWeight="700">
+                  EXECUTIVE WORKSPACE
+                </Text>
+                <Heading fontSize={{ base: '24px', md: '28px' }} lineHeight="1.1" color="white" mb={2}>
+                  Chief Operations Dashboard
+                </Heading>
+                <Text fontSize="14px" color="whiteAlpha.900" fontWeight="500" mb={2}>
+                  Decision-ready view across finance, operations, and delivery.
+                </Text>
+                <Text fontSize="13px" color="whiteAlpha.800" maxW="700px" lineHeight="1.6">
+                  Monitor cross-functional performance, track key metrics, and manage departmental operations from a centralized view.
+                </Text>
+              </Box>
             </Flex>
+            
+            <VStack align={{ base: 'stretch', lg: 'flex-end' }} spacing={4} minW={{ base: '100%', lg: '360px' }}>
+              <Flex align="center" gap={2} flexWrap="wrap" justify={{ base: 'flex-start', lg: 'flex-end' }}>
+                <Tag bg="whiteAlpha.180" color="white" size="sm" borderRadius="999px" px={3}>
+                  {timeRangeLabels[timeRange] || 'Custom window'}
+                </Tag>
+                <Tag bg="whiteAlpha.180" color="white" size="sm" borderRadius="999px" px={3}>
+                  {activeDeptCount} Departments Active
+                </Tag>
+                <IconButton
+                  aria-label="Toggle theme"
+                  icon={<FiMoon />}
+                  onClick={toggleColorMode}
+                  size="sm"
+                  borderRadius="12px"
+                  bg="whiteAlpha.180"
+                  color="white"
+                  _hover={{ bg: 'whiteAlpha.200' }}
+                />
+                <IconButton
+                  aria-label="Open reports"
+                  icon={<FiFileText />}
+                  onClick={onOpenReports}
+                  size="sm"
+                  borderRadius="12px"
+                  bg="whiteAlpha.180"
+                  color="white"
+                  _hover={{ bg: 'whiteAlpha.200' }}
+                />
+              </Flex>
+              <SimpleGrid columns={2} spacing={3} w={{ base: '100%', lg: '360px' }}>
+                {executiveSummaryItems.map((item) => (
+                  <Box key={item.label} bg="whiteAlpha.140" border="1px solid" borderColor="whiteAlpha.200" borderRadius="16px" px={4} py={3}>
+                    <Text fontSize="10px" textTransform="uppercase" letterSpacing="0.16em" color="whiteAlpha.700" fontWeight="700">
+                      {item.label}
+                    </Text>
+                    <Text mt={2} fontSize="18px" fontWeight="700" color="white">
+                      {item.value}
+                    </Text>
+                  </Box>
+                ))}
+              </SimpleGrid>
+            </VStack>
           </Flex>
         </Container>
       </MotionBox>
 
-      {/* Sticky KPI Summary Bar with Interactive Cards */}
+      <SimpleGrid columns={{ base: 1, md: 2, xl: 4 }} spacing={6} mb={6}>
+        {executiveKpiCards.map((card) => {
+          const CardIcon = card.icon;
+          return (
+            <Box
+              key={card.id}
+              bg={cardBg}
+              border="1px solid"
+              borderColor={shellBorder}
+              borderTopWidth="3px"
+              borderTopColor={card.accent}
+              borderRadius="16px"
+              px={5}
+              py={4}
+              minH="118px"
+              boxShadow="0 10px 30px rgba(15, 23, 42, 0.06)"
+            >
+              <Flex justify="space-between" align="flex-start" mb={4}>
+                <Box>
+                  <Text fontSize="12px" fontWeight="700" textTransform="uppercase" letterSpacing="0.12em" color="#475569">
+                    {card.label}
+                  </Text>
+                  <Text mt={2} fontSize={{ base: '24px', xl: '28px' }} fontWeight="800" color="#0F172A">
+                    {card.value}
+                  </Text>
+                </Box>
+                <Center boxSize="40px" borderRadius="12px" bg={card.surface} color={card.accent}>
+                  <CardIcon size={18} />
+                </Center>
+              </Flex>
+              <Flex justify="space-between" align="flex-end" gap={4}>
+                <Box>
+                  <Text fontSize="12px" fontWeight="600" color={card.accent}>
+                    {card.trend}
+                  </Text>
+                  <Text fontSize="12px" color="#64748B" mt={1}>
+                    {card.footer}
+                  </Text>
+                </Box>
+                <Box w="96px" h="28px">
+                  <svg width="100%" height="100%" viewBox="0 0 200 30">
+                    <polyline
+                      fill="none"
+                      stroke={card.accent}
+                      strokeWidth="2.4"
+                      points={buildPolyline(card.sparkline, card.sparkKey, 200, 30)}
+                    />
+                  </svg>
+                </Box>
+              </Flex>
+            </Box>
+          );
+        })}
+      </SimpleGrid>
+
+      <Box
+        ref={alertsRef}
+        bg={cardBg}
+        border="1px solid"
+        borderColor={shellBorder}
+        borderRadius="18px"
+        boxShadow="0 10px 30px rgba(15, 23, 42, 0.06)"
+        mb={6}
+        px={{ base: 4, md: 5 }}
+        py={4}
+      >
+        <Flex justify="space-between" align={{ base: 'flex-start', md: 'center' }} gap={4} mb={4} wrap="wrap">
+          <Box>
+            <Heading fontSize="20px" color="#0F172A">
+              Executive Action Queue
+            </Heading>
+            <Text fontSize="13px" color="#64748B" mt={1}>
+              Structured executive queue across finance, operations, and delivery.
+            </Text>
+          </Box>
+          <HStack spacing={2} flexWrap="wrap">
+            {[
+              { key: 'all', label: 'All', count: actionQueueCounts.all, bg: '#DBEAFE', color: '#2563EB' },
+              { key: 'critical', label: 'Critical', count: actionQueueCounts.critical, bg: '#FEF2F2', color: '#DC2626' },
+              { key: 'high', label: 'High', count: actionQueueCounts.high, bg: '#FFF7ED', color: '#EA580C' },
+              { key: 'medium', label: 'Medium', count: actionQueueCounts.medium, bg: '#FEF3C7', color: '#B45309' },
+              { key: 'low', label: 'Low', count: actionQueueCounts.low, bg: '#ECFDF5', color: '#059669' },
+            ].map((chip) => (
+              <Button
+                key={chip.key}
+                size="xs"
+                h="30px"
+                px={3}
+                borderRadius="999px"
+                border="1px solid"
+                borderColor={actionItemsFilter === chip.key ? 'transparent' : shellBorder}
+                bg={actionItemsFilter === chip.key ? chip.bg : '#FFFFFF'}
+                color={actionItemsFilter === chip.key ? chip.color : '#475569'}
+                fontSize="12px"
+                fontWeight="700"
+                onClick={() => setActionItemsFilter(chip.key)}
+              >
+                {chip.label} ({chip.count})
+              </Button>
+            ))}
+            <Button size="sm" variant="ghost" rightIcon={<ChevronDownIcon />} color="#475569">
+              View all
+            </Button>
+          </HStack>
+        </Flex>
+
+        {actionItemsLoading ? (
+          <Center py={6}>
+            <Spinner size="sm" />
+          </Center>
+        ) : (
+          <Box overflowX="auto">
+            <Box minW="980px">
+              <Grid templateColumns="120px 2.1fr 1.2fr 90px 140px 120px 56px" px={4} py={3} bg="#F8FAFC" borderRadius="14px" border="1px solid" borderColor={shellBorder} mb={2} alignItems="center">
+                {['Priority', 'Request', 'Department', 'Owner', 'Due Date', 'Status', 'Actions'].map((heading) => (
+                  <Text key={heading} fontSize="11px" fontWeight="700" textTransform="uppercase" letterSpacing="0.12em" color="#64748B">
+                    {heading}
+                  </Text>
+                ))}
+              </Grid>
+
+              <VStack align="stretch" spacing={0}>
+                {queueFilteredItems.length > 0 ? (
+                  queueFilteredItems.map((item) => {
+                    const priorityStyles = {
+                      critical: { bg: '#FEF2F2', color: '#DC2626', label: 'CRITICAL' },
+                      high: { bg: '#FFF7ED', color: '#EA580C', label: 'HIGH' },
+                      medium: { bg: '#FEF3C7', color: '#B45309', label: 'MEDIUM' },
+                      low: { bg: '#ECFDF5', color: '#059669', label: 'LOW' },
+                    };
+                    const statusStyles = {
+                      completed: { bg: '#ECFDF5', color: '#059669', label: 'Completed' },
+                      'in-progress': { bg: '#EFF6FF', color: '#2563EB', label: 'In Progress' },
+                      open: { bg: '#FEF2F2', color: '#DC2626', label: 'Open' },
+                      review: { bg: '#FEF3C7', color: '#B45309', label: 'Review' },
+                      pending: { bg: '#F8FAFC', color: '#64748B', label: 'Pending' },
+                    };
+                    const priorityStyle = priorityStyles[item.priority] || priorityStyles.medium;
+                    const statusStyle = statusStyles[item.status] || statusStyles.pending;
+                    return (
+                      <Grid
+                        key={item.id}
+                        templateColumns="120px 2.1fr 1.2fr 90px 140px 120px 56px"
+                        alignItems="center"
+                        minH="60px"
+                        px={4}
+                        py={3}
+                        borderBottom="1px solid"
+                        borderColor={shellBorder}
+                        _hover={{ bg: '#F8FAFC' }}
+                      >
+                        <Badge justifySelf="start" px={2.5} py={1.5} borderRadius="999px" bg={priorityStyle.bg} color={priorityStyle.color} fontSize="11px" fontWeight="700">
+                          {priorityStyle.label}
+                        </Badge>
+                        <Text fontSize="13px" fontWeight="700" color="#0F172A">
+                          {item.title}
+                        </Text>
+                        <Text fontSize="13px" color="#64748B">
+                          {item.department}
+                        </Text>
+                        <Text fontSize="13px" fontWeight="600" color="#0F172A">
+                          {item.owner}
+                        </Text>
+                        <Text fontSize="13px" color="#64748B">
+                          {item.dueDateLabel}
+                        </Text>
+                        <Badge justifySelf="start" px={2.5} py={1.5} borderRadius="999px" bg={statusStyle.bg} color={statusStyle.color} fontSize="11px" fontWeight="700">
+                          {statusStyle.label}
+                        </Badge>
+                        <IconButton
+                          aria-label="Open action details"
+                          icon={<FiMoreHorizontal />}
+                          variant="ghost"
+                          size="sm"
+                          color="#64748B"
+                          onClick={() => openActionDetail(item)}
+                        />
+                      </Grid>
+                    );
+                  })
+                ) : (
+                  <Center py={10}>
+                    <Text fontSize="13px" color="#64748B">
+                      No action items found for the selected filter.
+                    </Text>
+                  </Center>
+                )}
+              </VStack>
+            </Box>
+          </Box>
+        )}
+      </Box>
+
+      <Box
+        bg={cardBg}
+        borderRadius="22px"
+        border="1px solid"
+        borderColor={shellBorder}
+        boxShadow="0 10px 30px rgba(15, 23, 42, 0.06)"
+        mb={6}
+        px={{ base: 4, md: 6 }}
+        py={5}
+      >
+        <Flex justify="space-between" align={{ base: 'flex-start', md: 'center' }} gap={4} mb={5} wrap="wrap">
+          <Box>
+            <Heading fontSize="20px" color="#0F172A">
+              Performance Storyline
+            </Heading>
+            <Text fontSize="13px" color="#64748B" mt={1}>
+              Revenue trend and operational performance over time
+            </Text>
+          </Box>
+          <HStack spacing={3}>
+            <Select size="sm" w="120px" borderRadius="12px" borderColor={shellBorder} bg="#FFFFFF" defaultValue="Revenue">
+              <option>Revenue</option>
+            </Select>
+            <Select size="sm" w="120px" borderRadius="12px" borderColor={shellBorder} bg="#FFFFFF" defaultValue="Monthly">
+              <option>Monthly</option>
+            </Select>
+          </HStack>
+        </Flex>
+
+        <Grid templateColumns={{ base: '1fr', xl: 'minmax(0, 1fr) 300px' }} gap={5}>
+          <Box border="1px solid" borderColor={shellBorder} borderRadius="18px" p={4} bg="#FFFFFF">
+            <HStack spacing={4} mb={4}>
+              <HStack spacing={2}>
+                <Box w="10px" h="10px" borderRadius="full" bg="#2563EB" />
+                <Text fontSize="12px" color="#475569">Current Period</Text>
+              </HStack>
+              <HStack spacing={2}>
+                <Box w="10px" h="10px" borderRadius="full" bg="#94A3B8" />
+                <Text fontSize="12px" color="#475569">Previous Period</Text>
+              </HStack>
+            </HStack>
+
+            <Box h={{ base: '280px', md: '320px' }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={performanceStorylineData} margin={{ top: 10, right: 18, left: 0, bottom: 8 }}>
+                  <CartesianGrid stroke="#E2E8F0" vertical={false} />
+                  <XAxis dataKey="month" tick={{ fontSize: 12, fill: '#64748B' }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 12, fill: '#64748B' }} axisLine={false} tickLine={false} tickFormatter={(value) => `ETB ${(value / 1000000).toFixed(1)}M`} />
+                  <RechartsTooltip
+                    formatter={(value) => [etbFormatter.format(value), '']}
+                    contentStyle={{ backgroundColor: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: '12px' }}
+                  />
+                  <Line type="monotone" dataKey="current" name="Current Period" stroke="#2563EB" strokeWidth={3} dot={{ r: 0 }} activeDot={{ r: 5 }} />
+                  <Line type="monotone" dataKey="previous" name="Previous Period" stroke="#94A3B8" strokeWidth={2.5} strokeDasharray="6 6" dot={{ r: 0 }} />
+                </LineChart>
+              </ResponsiveContainer>
+            </Box>
+          </Box>
+
+          <Box border="1px solid" borderColor={shellBorder} borderRadius="18px" p={4} bg="#F8FAFC">
+            <Flex align="center" justify="space-between" mb={4}>
+              <Heading fontSize="16px" color="#0F172A">
+                Performance Summary
+              </Heading>
+              <Center boxSize="32px" borderRadius="10px" bg="#EFF6FF" color="#2563EB">
+                <FiShield size={16} />
+              </Center>
+            </Flex>
+            <VStack align="stretch" spacing={3}>
+              {performanceSummaryItems.map((item) => (
+                <Box key={item.label} borderRadius="14px" border="1px solid" borderColor={shellBorder} bg="#FFFFFF" px={3} py={3}>
+                  <Text fontSize="11px" textTransform="uppercase" letterSpacing="0.12em" fontWeight="700" color="#64748B">
+                    {item.label}
+                  </Text>
+                  <Text mt={1.5} fontSize="16px" fontWeight="700" color="#0F172A">
+                    {item.value}
+                  </Text>
+                </Box>
+              ))}
+            </VStack>
+            <Button mt={4} variant="link" color="#2563EB" fontSize="13px" justifyContent="flex-start" rightIcon={<ExternalLinkIcon />}>
+              View full performance analysis
+            </Button>
+          </Box>
+        </Grid>
+      </Box>
+
+      {/* Legacy KPI Summary Bar */}
       <Box 
+        display="none"
         position="sticky" 
         top="0" 
         zIndex="100" 
-        bg={useColorModeValue('white', 'gray.800')} 
-        boxShadow="0 2px 4px rgba(0,0,0,0.1)" 
+        bg={shellBg}
+        backdropFilter="blur(18px)"
+        border="1px solid"
+        borderColor={shellBorder}
+        boxShadow="0 16px 40px rgba(15,23,42,0.08)" 
+        borderRadius="24px"
         py={2}
         px={4}
         mb={6}
@@ -2419,6 +3048,7 @@ const COODashboard = () => {
 
       {/* Actionable Alerts Strip */}
       <Box 
+        display="none"
         bg={useColorModeValue('gray.50', 'gray.700')}
         borderRadius="lg"
         border="1px solid"
@@ -2426,7 +3056,6 @@ const COODashboard = () => {
         mb={6}
         px={4}
         py={2}
-        ref={alertsRef}
       >
         <Flex justify="space-between" align="center" mb={2}>
           <Flex align="center" gap={2}>
@@ -2583,6 +3212,7 @@ const COODashboard = () => {
 
       {/* Visual Storyline Section with Recharts */}
       <Box 
+        display="none"
         bg={useColorModeValue('white', 'gray.800')}
         borderRadius="xl"
         border="1px solid"
@@ -4214,6 +4844,8 @@ const COODashboard = () => {
         </MotionBox>
 
         </VStack>
+        </Box>
+      </Flex>
 
     {/* Collapsible Sidebar Drawer */}
     <Drawer isOpen={isSidePanelOpen} placement="left" onClose={onCloseSidePanel} size="xs">
@@ -4232,17 +4864,19 @@ const COODashboard = () => {
                     variant="ghost"
                     justifyContent="flex-start"
                     alignItems="flex-start"
-                    borderRadius="lg"
-                    px={4}
-                    py={3}
+                    h="36px"
+                    borderRadius="10px"
+                    px={3}
+                    py={2}
+                    fontSize="13px"
                     borderWidth="1px"
                     borderColor={isActive ? 'transparent' : borderColor}
-                    bg={isActive ? sidebarSectionActiveBg : sidebarSectionBg}
-                    color={isActive ? 'white' : controlTextColor}
+                    bg={isActive ? sidebarSectionActiveBg : 'transparent'}
+                    color={isActive ? '#6D28D9' : controlTextColor}
                     _hover={{
                       bg: isActive ? sidebarSectionActiveBg : sidebarSectionHover,
                     }}
-                    onClick={() => setActiveSidebarSection(section.id)}
+                    onClick={() => handleControlStackSelect(section.id)}
                     aria-pressed={isActive}
                   >
                     <Text fontWeight="semibold">{section.title}</Text>

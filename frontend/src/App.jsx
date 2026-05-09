@@ -23,6 +23,9 @@ import InventoryPage from "./pages/sales/InventoryPage.jsx";
 import OrdersPage from "./pages/sales/OrdersPage.jsx";
 import FinancePayrollPage from "./pages/sales/FinancePayrollPage.jsx";
 import CommissionApprovalPage from "./pages/sales/CommissionApprovalPage.jsx";
+import FinanceERPPage from "./pages/sales/FinanceERPPage.jsx";
+import FinanceDemandsPage from "./components/finance/DemandsPage.jsx";
+import FinancePaymentsPage from "./components/finance/PaymentsPage.jsx";
 import PDFList from './components/PDFList';
 import InfoForm from './pages/InfoForm';
 import EmployeeInfoPage from './pages/EmployeeInfoPage';
@@ -109,7 +112,7 @@ function App() {
     "/", "/login", "/secondpage", "/employee-info", "/employee-file-upload", 
     "/thirdpage", "/ttv", "/fourthpage", "/fifthpage", "/exam", "/sdashboard", "/sales", "/sales/dashboard", "/finance-dashboard", "/finance-dashboard/reports",
     "/finance-dashboard/inventory", "/finance-dashboard/orders", "/finance-dashboard/pricing", "/finance-dashboard/revenue", "/finance-dashboard/purchase",
-    "/finance/messages", "/finance/team-requests",
+    "/finance/messages", "/finance/team-requests", "/finance/demands", "/finance/payments", "/finance/inventory", "/finance/orders",
     "/addcustomer", "/resource", "/videolist", "/uploadpage", "/my-payroll",
     "/cdashboard", "/waitingforapproval", "/training","/comingsoonpage", "/customerreport", "/followup-report", "/customerfollowup", "/b2b-dashboard",
     "/coo-dashboard", "/tradextv-dashboard", "/customer-settings", "/it", "/salesmanager", "/social-media", "/requests", "/finance-dashboard/payroll", "/finance-dashboard/commission-approval", "/supervisor", "/supervisor/account", "/finance/requests", "/reception-dashboard"
@@ -147,10 +150,20 @@ return (
       <Route path="/sales" element={<Sdashboard />} />
       <Route path="/sales/dashboard" element={<Sdashboard />} />
       <Route path="/srequest" element={<Srequest />} />
-      <Route path="/finance-dashboard" element={<FinanceLayout><FinanceDashboardPage /></FinanceLayout>} />
-      <Route path="/finance-dashboard/reports" element={<FinanceLayout><FinanceReportsPage /></FinanceLayout>} />
+      <Route path="/finance-dashboard" element={<FinanceLayout><FinanceERPPage /></FinanceLayout>} />
+      <Route path="/finance-dashboard/erp" element={<FinanceLayout><FinanceERPPage /></FinanceLayout>} />
+      <Route path="/finance-dashboard/accounting" element={<FinanceLayout><FinanceERPPage /></FinanceLayout>} />
+      <Route path="/finance-dashboard/sales-finance" element={<FinanceLayout><FinanceERPPage /></FinanceLayout>} />
+      <Route path="/finance-dashboard/purchase-finance" element={<FinanceLayout><FinanceERPPage /></FinanceLayout>} />
+      <Route path="/finance-dashboard/bank-cash" element={<FinanceLayout><FinanceERPPage /></FinanceLayout>} />
+      <Route path="/finance-dashboard/expenses" element={<FinanceLayout><FinanceERPPage /></FinanceLayout>} />
+      <Route path="/finance-dashboard/tax" element={<FinanceLayout><FinanceERPPage /></FinanceLayout>} />
+      <Route path="/finance-dashboard/settings" element={<FinanceLayout><FinanceERPPage /></FinanceLayout>} />
+      <Route path="/finance-dashboard/reports" element={<FinanceLayout><FinanceERPPage /></FinanceLayout>} />
       <Route path="/finance-dashboard/inventory" element={<FinanceLayout><InventoryPage /></FinanceLayout>} />
       <Route path="/finance-dashboard/orders" element={<FinanceLayout><OrdersPage /></FinanceLayout>} />
+      <Route path="/finance-dashboard/demands" element={<FinanceLayout><FinanceDemandsPage /></FinanceLayout>} />
+      <Route path="/finance-dashboard/payments" element={<FinanceLayout><FinancePaymentsPage /></FinanceLayout>} />
       <Route path="/finance-dashboard/pricing" element={<FinanceLayout><PricingPage /></FinanceLayout>} />
       <Route path="/finance-dashboard/create-course" element={<FinanceLayout><PricingPage /></FinanceLayout>} />
       <Route path="/finance-dashboard/revenue" element={<FinanceLayout><RevenuePage /></FinanceLayout>} />
@@ -158,6 +171,10 @@ return (
       <Route path="/finance-dashboard/costs" element={<FinanceLayout><CostManagementPage /></FinanceLayout>} />
       <Route path="/finance-dashboard/payroll" element={<FinanceLayout><FinancePayrollPage /></FinanceLayout>} />
       <Route path="/finance-dashboard/commission-approval" element={<FinanceLayout><CommissionApprovalPage /></FinanceLayout>} />
+      <Route path="/finance/inventory" element={<Navigate to="/finance-dashboard/inventory" replace />} />
+      <Route path="/finance/orders" element={<Navigate to="/finance-dashboard/orders" replace />} />
+      <Route path="/finance/demands" element={<Navigate to="/finance-dashboard/demands" replace />} />
+      <Route path="/finance/payments" element={<Navigate to="/finance-dashboard/payments" replace />} />
       <Route path="/finance/team-requests" element={<FinanceLayout><TeamRequestsPage /></FinanceLayout>} />
       <Route
         path="/finance/messages"
@@ -323,7 +340,7 @@ return (
       />
       <Route path="/social-media" element={<LayoutWrapper><SocialMediaDashboardPage /></LayoutWrapper>} />
       <Route path="/requests" element={<LayoutWrapper><RequestPage /></LayoutWrapper>} />
-      <Route path="/finance/requests" element={<LayoutWrapper><RequestPage /></LayoutWrapper>} />
+      <Route path="/finance/requests" element={<FinanceLayout><RequestPage /></FinanceLayout>} />
       <Route path="/it" element={<ITDashboard />} />
       <Route
         path="/instructor"

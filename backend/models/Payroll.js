@@ -146,6 +146,10 @@ const payrollSchema = new mongoose.Schema({
   lockedAt: {
     type: Date
   },
+  journalEntry: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'JournalEntry'
+  },
   // Audit Log
   auditLog: [
     {

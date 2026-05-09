@@ -14,6 +14,13 @@ export default defineConfig({
   server: {
     host: 'localhost',
     port: 3002,             // Changed to port 3002 to avoid conflicts
-    open: true              // Automatically opens the browser when the server starts (optional)
+    open: true,             // Automatically opens the browser when the server starts (optional)
+    proxy: {
+      '/api': {
+        target: process.env.VITE_API_URL || 'http://127.0.0.1:5000',
+        changeOrigin: true,
+        secure: false
+      }
+    }
   }
 });

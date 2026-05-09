@@ -16,6 +16,11 @@ router.get('/', purchaseController.listPurchases);
 // @access  Private
 router.get('/stats', purchaseController.getPurchaseStats);
 
+// @desc    Export purchases to CSV
+// @route   GET /export
+// @access  Private
+router.get('/export', purchaseController.exportPurchasesToCSV);
+
 // @desc    Create new purchase
 // @route   POST /
 // @access  Private
@@ -35,10 +40,5 @@ router.put('/:id', purchaseController.updatePurchase);
 // @route   DELETE /:id
 // @access  Private
 router.delete('/:id', purchaseController.deletePurchase);
-
-// @desc    Export purchases to CSV
-// @route   GET /export
-// @access  Private
-router.get('/export', purchaseController.exportPurchasesToCSV);
 
 module.exports = router;

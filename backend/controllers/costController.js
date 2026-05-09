@@ -108,7 +108,7 @@ exports.deleteCost = async (req, res) => {
   try {
     const cost = await Cost.findById(req.params.id);
     if (!cost) return res.status(404).json({ message: 'Cost entry not found' });
-    await cost.remove();
+    await cost.deleteOne();
     res.json({ message: 'Cost deleted' });
   } catch (err) {
     console.error('Error deleting cost:', err);

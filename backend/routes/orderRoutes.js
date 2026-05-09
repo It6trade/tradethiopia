@@ -8,7 +8,8 @@ const {
   updateOrder,
   deleteOrder,
   getOrdersByCustomerId,
-  getOrderStats
+  getOrderStats,
+  exportOrdersToCSV
 } = require('../controllers/orderController');
 
 // All routes are protected
@@ -18,6 +19,9 @@ router.route('/')
 
 router.route('/stats')
   .get(protect, getOrderStats);
+
+router.route('/export')
+  .get(protect, exportOrdersToCSV);
 
 router.route('/customer/:customerId')
   .get(protect, getOrdersByCustomerId);

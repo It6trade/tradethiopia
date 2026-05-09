@@ -4,6 +4,8 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
+    "test:finance": "node tests/finance_erp_core.test.js",
+    "test:finance:e2e": "node tests/finance_erp_flow.e2e.js",
     "start": "node server.js",
     "seed:coo": "node scripts/seedCOO.js",
     "seed:tradextv": "node scripts/seedTradexTV.js",

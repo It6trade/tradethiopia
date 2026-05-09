@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import {
   Avatar,
   Badge,
@@ -18,7 +18,6 @@ import {
   MenuList,
   Text,
   Tooltip,
-  useBreakpointValue,
   useColorMode,
   useColorModeValue,
   useDisclosure,
@@ -28,14 +27,11 @@ import {
   FaArrowLeft, 
   FaBoxes, 
   FaBell, 
-  FaStickyNote, 
   FaMoon, 
   FaSun, 
   FaUserCircle, 
-  FaBars,
   FaHome,
   FaChartBar,
-  FaShoppingCart,
   FaDollarSign,
   FaTruck,
   FaUsers,
@@ -44,7 +40,10 @@ import {
   FaCogs,
   FaArrowRight,
   FaCommentDots,
-  FaChartLine
+  FaChevronDown,
+  FaChevronRight,
+  FaBook,
+  FaFileInvoiceDollar
 } from 'react-icons/fa';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useUserStore } from '../../store/user';
@@ -74,11 +73,14 @@ const FinanceLayout = ({ children }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { colorMode, toggleColorMode } = useColorMode();
-  const isMobile = useBreakpointValue({ base: true, md: false });
   
   // State variables
   const [isSidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [activeItem, setActiveItem] = useState('Dashboard');
+  const [openGroups, setOpenGroups] = useState({
+    Accounting: true,
+    'Sales Finance': true,
+    'Purchase Finance': false,
+  });
   
   // Get user data from Zustand store
   const currentUser = useUserStore((state) => state.currentUser);
@@ -105,33 +107,57 @@ const FinanceLayout = ({ children }) => {
   const [unreadNoticeCount, setUnreadNoticeCount] = useState(0);
   const unreadCountRef = useRef(0);
 
-  // Navigation items
-  const navItems = [
-    { label: 'Dashboard', icon: FaHome, path: '/finance-dashboard' },
-    { label: 'Financial Reports', icon: FaChartBar, path: '/finance-dashboard/reports' },
-    { label: 'Inventory', icon: FaBoxes, path: '/finance-dashboard/inventory' },
-    { label: 'Orders', icon: FaShoppingCart, path: '/finance-dashboard/orders' },
-    { label: 'Pricing', icon: FaDollarSign, path: '/finance-dashboard/pricing' },
-    { label: 'Create Course', icon: FaDollarSign, path: '/finance-dashboard/create-course' },
-    { label: 'Revenue', icon: FaDollarSign, path: '/finance-dashboard/revenue' },
-    { label: 'Imported Items', icon: FaUsers, path: '/finance-dashboard/purchase' },
-    { label: 'Costs', icon: FaMoneyBillWave, path: '/finance-dashboard/costs' },
-    { label: 'Payroll', icon: FaDollarSign, path: '/finance-dashboard/payroll' },
-    { label: 'Commission Approved', icon: FaChartLine, path: '/finance-dashboard/commission-approval' },
-    { label: 'Requests', icon: FaStickyNote, path: '/finance/requests' },
-    { label: 'Team Requests', icon: FaClipboardList, path: '/finance/team-requests' },
-    { label: 'Notice Board', icon: FaCommentDots, path: '/finance/messages' },
+  const navGroups = [
+    { label: 'Dashboard', icon: FaHome, path: '/finance-dashboard/erp' },
+    {
+      label: 'Accounting',
+      icon: FaBook,
+      children: [
+        { label: 'Chart of Accounts', path: '/finance-dashboard/accounting?tab=accounting' },
+        { label: 'Journal Entries', path: '/finance-dashboard/accounting?tab=journalEntries' },
+        { label: 'General Ledger', path: '/finance-dashboard/accounting?tab=ledger' },
+        { label: 'Trial Balance', path: '/finance-dashboard/accounting?tab=trialBalance' },
+        { label: 'Profit & Loss', path: '/finance-dashboard/accounting?tab=profitLoss' },
+        { label: 'Balance Sheet', path: '/finance-dashboard/accounting?tab=balanceSheet' },
+      ]
+    },
+    {
+      label: 'Sales Finance',
+      icon: FaFileInvoiceDollar,
+      children: [
+        { label: 'Customers', path: '/finance-dashboard/sales-finance?tab=customers' },
+        { label: 'Invoices', path: '/finance-dashboard/sales-finance?tab=invoices' },
+        { label: 'Payments', path: '/finance-dashboard/sales-finance?tab=salesPayments' },
+        { label: 'Receivables', path: '/finance-dashboard/sales-finance?tab=receivables' },
+      ]
+    },
+    {
+      label: 'Purchase Finance',
+      icon: FaTruck,
+      children: [
+        { label: 'Vendors', path: '/finance-dashboard/purchase-finance?tab=vendors' },
+        { label: 'Bills', path: '/finance-dashboard/purchase-finance?tab=bills' },
+        { label: 'Supplier Payments', path: '/finance-dashboard/purchase-finance?tab=supplierPayments' },
+        { label: 'Payables', path: '/finance-dashboard/purchase-finance?tab=payables' },
+      ]
+    },
+    { label: 'Banking', icon: FaMoneyBillWave, path: '/finance-dashboard/bank-cash' },
+    { label: 'Expenses', icon: FaDollarSign, path: '/finance-dashboard/expenses' },
+    { label: 'Payroll', icon: FaUsers, path: '/finance-dashboard/payroll' },
+    { label: 'Tax Management', icon: FaClipboardList, path: '/finance-dashboard/tax' },
+    { label: 'Reports', icon: FaChartBar, path: '/finance-dashboard/reports' },
     { label: 'Settings', icon: FaCogs, path: '/finance-dashboard/settings' },
-  ];
-  
-  // Set active item based on current location - Fixed to avoid infinite loops
-  useEffect(() => {
-    const currentItem = navItems.find(item => location.pathname === item.path);
-    if (currentItem) {
-      setActiveItem(currentItem.label);
+    {
+      label: 'Collaboration',
+      icon: FaCommentDots,
+      children: [
+        { label: 'Requests', path: '/finance/requests' },
+        { label: 'Team Requests', path: '/finance/team-requests' },
+        { label: 'Notice Board', path: '/finance/messages' },
+      ]
     }
-  }, [location.pathname]); // Dependency array is correct
-  
+  ];
+
     const handleNavigation = (path) => {
       navigate(path);
       onClose();
@@ -179,10 +205,6 @@ const FinanceLayout = ({ children }) => {
 
   const toggleSidebar = () => {
     setSidebarCollapsed(!isSidebarCollapsed);
-  };
-
-  const isCurrentPath = (path) => {
-    return location.pathname === path;
   };
 
   const normalizedTeamRequestSeen = lastTeamRequestSeen || new Date(0);
@@ -261,29 +283,30 @@ const FinanceLayout = ({ children }) => {
 
   // Removed duplicate useEffect for active item
 
-  const SidebarItem = ({ icon, label, path, isActive, onClick, badgeLabel }) => {
+  const SidebarItem = ({ icon, label, isActive, onClick, badgeLabel, depth = 0 }) => {
     return (
       <Tooltip label={isSidebarCollapsed ? label : ''} placement="right" hasArrow>
           <HStack
             as="button"
             spacing={isSidebarCollapsed ? 0 : 2}
-            p={isSidebarCollapsed ? 1 : 2}
+            px={isSidebarCollapsed ? 1 : 2}
+            py={1}
             w="100%"
-            bg={isActive ? 'teal.600' : 'gray.700'}
-            _hover={{ bg: isActive ? 'teal.500' : 'gray.600', transform: 'translateX(1px)', transition: 'all 0.2s ease' }}
-            borderRadius="md"
+            bg={isActive ? 'purple.600' : 'transparent'}
+            _hover={{ bg: isActive ? 'purple.500' : 'whiteAlpha.100' }}
+            borderRadius="4px"
             justifyContent={isSidebarCollapsed ? 'center' : 'flex-start'}
-            transition="all 0.3s ease"
+            transition="all 0.15s ease"
             onClick={onClick}
-            boxShadow={isActive ? 'sm' : 'xs'}
             cursor="pointer"
             position="relative"
-            minHeight="36px"
+            minHeight={depth ? '26px' : '30px'}
+            pl={isSidebarCollapsed ? 1 : depth ? 7 : 2}
           >
-            <Box as={icon} fontSize={isSidebarCollapsed ? "16px" : "18px"} />
+            {icon && <Box as={icon} fontSize={isSidebarCollapsed ? "15px" : "14px"} color={isActive ? 'white' : 'gray.300'} />}
             {!isSidebarCollapsed && (
               <>
-                <Text fontSize="xs" fontWeight="medium">{label}</Text>
+                <Text fontSize={depth ? '11px' : '12px'} fontWeight={isActive ? 'semibold' : 'medium'} color={isActive ? 'white' : 'gray.200'}>{label}</Text>
                 {badgeLabel && (
                   <Badge
                     colorScheme="red"
@@ -313,6 +336,71 @@ const FinanceLayout = ({ children }) => {
             )}
         </HStack>
       </Tooltip>
+    );
+  };
+
+  const SidebarGroup = ({ item }) => {
+    const isOpen = openGroups[item.label];
+    const fullPath = `${location.pathname}${location.search}`;
+    const hasActiveChild = item.children?.some((child) => fullPath === child.path || location.pathname === child.path);
+
+    if (!item.children) {
+      return (
+        <SidebarItem
+          icon={item.icon}
+          label={isSidebarCollapsed ? '' : item.label}
+          isActive={location.pathname === item.path}
+          onClick={() => {
+            handleNavigation(item.path);
+          }}
+        />
+      );
+    }
+
+    return (
+      <Box>
+        <HStack
+          as="button"
+          w="100%"
+          px={isSidebarCollapsed ? 1 : 2}
+          py={1}
+          minH="30px"
+          borderRadius="4px"
+          bg={hasActiveChild ? 'whiteAlpha.100' : 'transparent'}
+          _hover={{ bg: 'whiteAlpha.100' }}
+          justify={isSidebarCollapsed ? 'center' : 'space-between'}
+          onClick={() => setOpenGroups((current) => ({ ...current, [item.label]: !current[item.label] }))}
+        >
+          <HStack spacing={2}>
+            <Box as={item.icon} fontSize="14px" color={hasActiveChild ? 'purple.200' : 'gray.300'} />
+            {!isSidebarCollapsed && <Text fontSize="12px" fontWeight="semibold" color="gray.100">{item.label}</Text>}
+          </HStack>
+          {!isSidebarCollapsed && <Box as={isOpen ? FaChevronDown : FaChevronRight} fontSize="10px" color="gray.400" />}
+        </HStack>
+        {!isSidebarCollapsed && isOpen && (
+          <VStack align="stretch" spacing={0.5} mt={0.5}>
+            {item.children.map((child) => {
+              const badgeLabel = child.label === 'Team Requests'
+                ? teamRequestsBadgeLabel
+                : child.label === 'Notice Board' && unreadNoticeCount > 0
+                  ? unreadNoticeCount > 99 ? '99+' : `${unreadNoticeCount}`
+                  : undefined;
+              return (
+                <SidebarItem
+                  key={child.label}
+                  label={child.label}
+                  depth={1}
+                  isActive={fullPath === child.path}
+                  badgeLabel={badgeLabel}
+                  onClick={() => {
+                    handleNavigation(child.path);
+                  }}
+                />
+              );
+            })}
+          </VStack>
+        )}
+      </Box>
     );
   };
 
@@ -357,20 +445,9 @@ const FinanceLayout = ({ children }) => {
               />
             </HStack>
             <Divider mb={3} borderColor={borderColor} />
-                <VStack align="stretch" spacing={0.5} px={1.5} flex="1">
-                  {navItems.map((item) => (
-                    <SidebarItem
-                      key={item.label}
-                      icon={item.icon}
-                      label={item.label}
-                      path={item.path}
-                      isActive={activeItem === item.label}
-                      badgeLabel={item.label === 'Team Requests' ? teamRequestsBadgeLabel : item.label === 'Notice Board' ? (unreadNoticeCount > 0 ? (unreadNoticeCount > 99 ? '99+' : `${unreadNoticeCount}`) : undefined) : undefined}
-                      onClick={() => {
-                        setActiveItem(item.label);
-                        handleNavigation(item.path);
-                      }}
-                    />
+                <VStack align="stretch" spacing={0.5} px={1.5} flex="1" overflowY="auto">
+                  {navGroups.map((item) => (
+                    <SidebarGroup key={item.label} item={item} />
                   ))}
                 </VStack>
           </Flex>
@@ -396,20 +473,9 @@ const FinanceLayout = ({ children }) => {
                 />
               </HStack>
               <Divider mb={2} borderColor={borderColor} />
-              <VStack align="stretch" spacing={0.5} px={1.5} flex="1">
-                {navItems.map((item) => (
-                  <SidebarItem
-                    key={item.label}
-                    icon={item.icon}
-                    label={item.label}
-                    path={item.path}
-                    isActive={activeItem === item.label}
-                    badgeLabel={item.label === 'Team Requests' ? teamRequestsBadgeLabel : item.label === 'Notice Board' ? (unreadNoticeCount > 0 ? (unreadNoticeCount > 99 ? '99+' : `${unreadNoticeCount}`) : undefined) : undefined}
-                    onClick={() => {
-                      setActiveItem(item.label);
-                      handleNavigation(item.path);
-                    }}
-                  />
+              <VStack align="stretch" spacing={0.5} px={1.5} flex="1" overflowY="auto">
+                {navGroups.map((item) => (
+                  <SidebarGroup key={item.label} item={item} />
                 ))}
               </VStack>
             </Flex>

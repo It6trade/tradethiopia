@@ -1,4 +1,4 @@
-import React from 'react';
+import { useEffect, useState } from 'react';
 import {
   Box,
   SimpleGrid,
@@ -10,8 +10,6 @@ import {
   Heading,
   Text,
   Button,
-  HStack,
-  VStack,
   Card,
   CardBody,
   Wrap,
@@ -19,7 +17,6 @@ import {
   useBreakpointValue
 } from '@chakra-ui/react';
 import { Link } from 'react-router-dom';
-import { useEffect, useState } from 'react';
 import { getMetrics, getOrders, getDemands, getFinanceSummary } from '../../services/financeService';
 import { fetchCommissionTotals } from '../../services/payrollService';
 import AgentSalesReport from './AgentSalesReport';
@@ -27,7 +24,6 @@ import FinancePayrollTable from './FinancePayrollTable';
 
 const FinanceDashboard = () => {
   const [metrics, setMetrics] = useState(null);
-  const [loading, setLoading] = useState(false);
   const [openOrders, setOpenOrders] = useState(0);
   const [openDemands, setOpenDemands] = useState(0);
   const [financeSummary, setFinanceSummary] = useState(null);
@@ -46,7 +42,6 @@ const FinanceDashboard = () => {
 
   useEffect(() => {
     const load = async () => {
-      setLoading(true);
       try {
         const data = await getMetrics();
         setMetrics(data);
@@ -62,8 +57,6 @@ const FinanceDashboard = () => {
         } catch (e) { console.warn('failed to load demands count', e); }
       } catch (err) {
         console.error('Failed to load metrics', err);
-      } finally {
-        setLoading(false);
       }
     };
     load();
@@ -76,7 +69,6 @@ const FinanceDashboard = () => {
         setFinanceSummary(data);
       } catch (err) {
         console.warn('Failed to load finance summary', err);
-      } finally {
       }
     };
     loadFinanceSummary();
@@ -186,13 +178,13 @@ const FinanceDashboard = () => {
         <Heading size="xs" mb={2}>Quick Actions</Heading>
         <Wrap spacing={2}>
           <WrapItem>
-            <Button as={Link} to="/finance/inventory" colorScheme="teal" size="xs" height="24px" minH="unset">Manage Inventory</Button>
+            <Button as={Link} to="/finance-dashboard/inventory" colorScheme="teal" size="xs" height="24px" minH="unset">Manage Inventory</Button>
           </WrapItem>
           <WrapItem>
-            <Button as={Link} to="/finance/orders" colorScheme="purple" size="xs" height="24px" minH="unset">Manage Orders {openOrders ? `(${openOrders})` : ''}</Button>
+            <Button as={Link} to="/finance-dashboard/orders" colorScheme="purple" size="xs" height="24px" minH="unset">Manage Orders {openOrders ? `(${openOrders})` : ''}</Button>
           </WrapItem>
           <WrapItem>
-            <Button as={Link} to="/finance/demands" colorScheme="orange" size="xs" height="24px" minH="unset">View Demands {openDemands ? `(${openDemands})` : ''}</Button>
+            <Button as={Link} to="/finance-dashboard/demands" colorScheme="orange" size="xs" height="24px" minH="unset">View Demands {openDemands ? `(${openDemands})` : ''}</Button>
           </WrapItem>
           <WrapItem>
             <Button colorScheme="blue" size="xs" height="24px" minH="unset">Create Invoice</Button>

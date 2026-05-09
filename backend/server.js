@@ -7,7 +7,7 @@ const mongoose = require('mongoose');
 const http = require('http');
 const socketIo = require('socket.io');
 
-dotenv.config();
+dotenv.config({ path: path.join(__dirname, '.env') });
 
 const { connectDB, disconnectDB } = require('./config/db.js');
 const userRoutes = require('./routes/user.route.js');

@@ -64,6 +64,22 @@ const commissionSchema = new mongoose.Schema({
   submittedAt: {
     type: Date,
     default: Date.now
+  },
+  status: {
+    type: String,
+    enum: ['draft', 'submitted', 'posted', 'reversed'],
+    default: 'submitted'
+  },
+  journalEntry: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'JournalEntry'
+  },
+  postedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
+  postedAt: {
+    type: Date
   }
 }, {
   timestamps: true

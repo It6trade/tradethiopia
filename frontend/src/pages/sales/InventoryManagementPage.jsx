@@ -679,10 +679,11 @@ const InventoryManagementPage = () => {
   // Filter and sort stock items
   const filteredStockItems = stockItems
     .filter(item => {
-      const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           item.sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           item.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           item.supplier?.toLowerCase().includes(searchTerm.toLowerCase());
+      const normalizedSearch = searchTerm.toLowerCase();
+      const matchesSearch = String(item.name || '').toLowerCase().includes(normalizedSearch) ||
+                           String(item.sku || '').toLowerCase().includes(normalizedSearch) ||
+                           String(item.description || '').toLowerCase().includes(normalizedSearch) ||
+                           String(item.supplier || '').toLowerCase().includes(normalizedSearch);
       const matchesCategory = selectedCategory ? item.category === selectedCategory : true;
       return matchesSearch && matchesCategory;
     })

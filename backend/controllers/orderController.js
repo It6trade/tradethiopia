@@ -268,7 +268,7 @@ const deleteOrder = asyncHandler(async (req, res) => {
     const order = await Order.findById(req.params.id);
 
     if (order) {
-      await order.remove();
+      await order.deleteOne();
       res.json({ message: 'Order removed' });
     } else {
       res.status(404).json({ message: 'Order not found' });
@@ -277,6 +277,64 @@ const deleteOrder = asyncHandler(async (req, res) => {
     res.status(500).json({ 
       message: "Error deleting order", 
       error: error.message 
+    });
+  }
+});
+
+// @desc    Export orders to CSV
+// @route   GET /api/orders/export
+// @access  Private
+const exportOrdersToCSV = asyncHandler(async (req, res) => {
+  try {
+    const filter = {};
+    if (req.query.status) filter.status = req.query.status;
+    if (req.query.paymentStatus === 'Paid') {
+      filter.$expr = { $gte: ['$paymentAmount', '$totalAmount'] };
+    } else if (req.query.paymentStatus === 'Partial') {
+      filter.$expr = {
+        $and: [
+          { $gt: ['$paymentAmount', 0] },
+          { $lt: ['$paymentAmount', '$totalAmount'] }
+        ]
+      };
+    } else if (req.query.paymentStatus === 'Unpaid') {
+      filter.$or = [{ paymentAmount: { $exists: false } }, { paymentAmount: 0 }];
+    }
+
+    const orders = await Order.find(filter).sort({ createdAt: -1 }).lean();
+    const escapeCsv = (value) => `"${String(value ?? '').replace(/"/g, '""')}"`;
+    const headers = [
+      'Order ID',
+      'Customer',
+      'Phone',
+      'Status',
+      'Payment Type',
+      'Total Amount',
+      'Paid Amount',
+      'Balance',
+      'Sales Agent',
+      'Created At'
+    ];
+    const rows = orders.map((order) => [
+      order._id,
+      order.customerName,
+      order.customerPhone,
+      order.status,
+      order.paymentType,
+      Number(order.totalAmount || 0).toFixed(2),
+      Number(order.paymentAmount || 0).toFixed(2),
+      Number((order.totalAmount || 0) - (order.paymentAmount || 0)).toFixed(2),
+      order.salesAgent?.name,
+      order.createdAt ? new Date(order.createdAt).toISOString() : ''
+    ].map(escapeCsv).join(','));
+
+    res.header('Content-Type', 'text/csv');
+    res.attachment(`orders_${new Date().toISOString().slice(0, 10)}.csv`);
+    res.send([headers.join(','), ...rows].join('\n'));
+  } catch (error) {
+    res.status(500).json({
+      message: 'Error exporting orders',
+      error: error.message
     });
   }
 });
@@ -502,6 +560,7 @@ module.exports = {
   createOrder,
   updateOrder,
   deleteOrder,
+  exportOrdersToCSV,
   getOrdersByCustomerId,
   getOrderStats,
   reserveForFollowup,

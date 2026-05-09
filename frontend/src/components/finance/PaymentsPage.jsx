@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { Box, Table, Thead, Tbody, Tr, Th, Td, Text, Badge } from '@chakra-ui/react';
+import { useEffect, useState } from 'react';
+import { Box, Table, Thead, Tbody, Tr, Th, Td, Text } from '@chakra-ui/react';
 import { listPayments } from '../../services/paymentService';
 
 const PaymentsPage = () => {
