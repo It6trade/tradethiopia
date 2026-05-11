@@ -1,0 +1,6 @@
+Attempting to connect to database...
+Environment: { vercel: false, nodeEnv: undefined, hasMongoUri: true }
+Connecting to MongoDB...
+MongoDB connected: cluster0-shard-00-00.epkpn.mongodb.net
+Port 5000 is busy, trying 50001
+Server running on http://0.0.0.0:50001

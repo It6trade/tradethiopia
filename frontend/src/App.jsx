@@ -1,4 +1,4 @@
-
+import { Suspense, lazy } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import Dashboard from "./pages/Dashboard";
 import CreatePage from "./pages/CreatePage";
@@ -17,15 +17,6 @@ import QuizPage from "./pages/quizPage.jsx";
 import Sdashboard from "./pages/sales/Sdashboard.jsx";
 import Srequest from "./pages/sales/Srequest.jsx";
 import FinanceLayout from "./pages/sales/FinanceLayout.jsx";
-import FinanceDashboardPage from "./pages/sales/FinanceDashboardPage.jsx";
-import FinanceReportsPage from "./pages/sales/FinanceReportsPage.jsx";
-import InventoryPage from "./pages/sales/InventoryPage.jsx";
-import OrdersPage from "./pages/sales/OrdersPage.jsx";
-import FinancePayrollPage from "./pages/sales/FinancePayrollPage.jsx";
-import CommissionApprovalPage from "./pages/sales/CommissionApprovalPage.jsx";
-import FinanceERPPage from "./pages/sales/FinanceERPPage.jsx";
-import FinanceDemandsPage from "./components/finance/DemandsPage.jsx";
-import FinancePaymentsPage from "./components/finance/PaymentsPage.jsx";
 import PDFList from './components/PDFList';
 import InfoForm from './pages/InfoForm';
 import EmployeeInfoPage from './pages/EmployeeInfoPage';
@@ -49,19 +40,10 @@ import WaitingForApproval from "./pages/WaitingForApproval";
 import ComingSoonPage from "./pages/ComingSoonPage";
 import AdminTrainingUpload from "./pages/AdminTrainingUpload";
 import AdminCustomerReport from './components/AdminCSReport.jsx';
-import B2BDashboard from './pages/B2BDashboard';
 import CustomerSettings from "./components/customer/CustomerSettings";
-import COODashboard from './pages/COODashboard';
 import ReceptionDashboard from './pages/ReceptionDashboard';
-import TradexTVDashboard from './pages/TradexTVDashboard';
-import PricingPage from './pages/sales/PricingPage.jsx';
 import HRTrainingPage from './pages/HRTrainingPage.jsx';
-import RevenuePage from './pages/sales/RevenuePage.jsx';
-import PurchasePage from './pages/sales/PurchasePage.jsx';
-import CostManagementPage from './pages/sales/CostManagementPage.jsx';
-import ITDashboard from "./pages/ITDashboard";
 import ENISRALayout from "./components/ENSRA/ENSRALayout";
-import ENISRADashboard from "./components/ENSRA/ENSRADashboard";
 import ENISRAEnhancedDashboard from "./components/ENSRA/ENISRAEnhancedDashboard";
 import ENISRANoticeBoard from "./components/ENSRA/ENSRANoticeBoard";
 import ENISRARequest from "./components/ENSRA/ENSRARequest";
@@ -77,16 +59,6 @@ import SalesManagerLayout from "./components/salesmanager/Layout";
 import SalesManagerDashboard from "./components/salesmanager/SalesManagerDashboard";
 import SalesManagerProtectedRoute from "./components/salesmanager/SalesManagerProtectedRoute";
 import CustomerMessagesPage from "./pages/CustomerMessagesPage.jsx";
-import AllSalesPage from "./components/salesmanager/AllSalesPage";
-import PerformancePage from "./components/salesmanager/PerformancePage";
-import TeamManagementPage from "./components/salesmanager/TeamManagementPage";
-import TaskManagementPage from "./components/salesmanager/TaskManagementPage";
-import ReportsPage from "./components/salesmanager/ReportsPage";
-import CalendarPage from "./components/salesmanager/CalendarPage";
-import SettingsPage from "./components/salesmanager/SettingsPage";
-import ContentTrackerReport from "./components/salesmanager/ContentTrackerReport";
-import CourseManagerPage from "./components/salesmanager/CourseManagerPage";
-import PayrollPage from "./components/Payroll/PayrollPage";
 import EmployeePayrollView from "./components/Payroll/EmployeePayrollView";
 import KPIScorecardPage from "./pages/sales/KPIScorecardPage";
 import CustomerKPIPage from "./pages/customer/CustomerKPIPage";
@@ -96,13 +68,40 @@ import SalesMessagesPage from "./pages/SalesMessagesPage";
 import FinanceMessagesPage from "./pages/FinanceMessagesPage";
 import ITMessagesPage from "./pages/ITMessagesPage";
 import RedirectMessagesPage from "./pages/RedirectMessagesPage";
-import SocialMediaDashboardPage from "./pages/socialmedia/SocialMediaDashboardPage";
 import RequestPage from "./pages/RequestPage";
 import TeamRequestsPage from "./pages/sales/TeamRequestsPage.jsx";
 import AppLayout from "./components/AppLayout"; // Import the new AppLayout component
 import SupervisorLayout from "./pages/supervisor/SupervisorLayout.jsx";
 import SupervisorDashboardPage from "./pages/supervisor/SupervisorDashboardPage.jsx";
 import SupervisorAccountPage from "./pages/supervisor/SupervisorAccountPage.jsx";
+
+const FinanceERPPage = lazy(() => import("./pages/sales/FinanceERPPage.jsx"));
+const InventoryPage = lazy(() => import("./pages/sales/InventoryPage.jsx"));
+const OrdersPage = lazy(() => import("./pages/sales/OrdersPage.jsx"));
+const FinanceDemandsPage = lazy(() => import("./components/finance/DemandsPage.jsx"));
+const FinancePaymentsPage = lazy(() => import("./components/finance/PaymentsPage.jsx"));
+const PricingPage = lazy(() => import("./pages/sales/PricingPage.jsx"));
+const RevenuePage = lazy(() => import("./pages/sales/RevenuePage.jsx"));
+const PurchasePage = lazy(() => import("./pages/sales/PurchasePage.jsx"));
+const CostManagementPage = lazy(() => import("./pages/sales/CostManagementPage.jsx"));
+const FinancePayrollPage = lazy(() => import("./pages/sales/FinancePayrollPage.jsx"));
+const CommissionApprovalPage = lazy(() => import("./pages/sales/CommissionApprovalPage.jsx"));
+const B2BDashboard = lazy(() => import("./pages/B2BDashboard"));
+const COODashboard = lazy(() => import("./pages/COODashboard"));
+const TradexTVDashboard = lazy(() => import("./pages/TradexTVDashboard"));
+const ITDashboard = lazy(() => import("./pages/ITDashboard"));
+const SocialMediaDashboardPage = lazy(() => import("./pages/socialmedia/SocialMediaDashboardPage"));
+const ChatPage = lazy(() => import("./pages/ChatPage.jsx"));
+const PayrollPage = lazy(() => import("./components/Payroll/PayrollPage"));
+const AllSalesPage = lazy(() => import("./components/salesmanager/AllSalesPage"));
+const PerformancePage = lazy(() => import("./components/salesmanager/PerformancePage"));
+const TeamManagementPage = lazy(() => import("./components/salesmanager/TeamManagementPage"));
+const TaskManagementPage = lazy(() => import("./components/salesmanager/TaskManagementPage"));
+const ReportsPage = lazy(() => import("./components/salesmanager/ReportsPage"));
+const CalendarPage = lazy(() => import("./components/salesmanager/CalendarPage"));
+const SettingsPage = lazy(() => import("./components/salesmanager/SettingsPage"));
+const ContentTrackerReport = lazy(() => import("./components/salesmanager/ContentTrackerReport"));
+const CourseManagerPage = lazy(() => import("./components/salesmanager/CourseManagerPage"));
 
 function App() {
   const location = useLocation();
@@ -136,6 +135,7 @@ function App() {
   };
 
 return (
+    <Suspense fallback={<div style={{ padding: "24px" }}>Loading...</div>}>
     <Routes>
       <Route path="/" element={<WelcomePage />} />
       <Route path="/login" element={<LoginPage />} />
@@ -340,6 +340,21 @@ return (
       />
       <Route path="/social-media" element={<LayoutWrapper><SocialMediaDashboardPage /></LayoutWrapper>} />
       <Route path="/requests" element={<LayoutWrapper><RequestPage /></LayoutWrapper>} />
+      <Route
+        path="/chat"
+        element={
+          <ProtectedRoute>
+            <LayoutWrapper>
+              <ChatPage />
+            </LayoutWrapper>
+          </ProtectedRoute>
+        }
+      />
+      <Route path="/sales/chat" element={<Navigate to="/chat" replace />} />
+      <Route path="/finance/chat" element={<Navigate to="/chat" replace />} />
+      <Route path="/customer/chat" element={<Navigate to="/chat" replace />} />
+      <Route path="/salesmanager/chat" element={<Navigate to="/chat" replace />} />
+      <Route path="/supervisor/chat" element={<Navigate to="/chat" replace />} />
       <Route path="/finance/requests" element={<FinanceLayout><RequestPage /></FinanceLayout>} />
       <Route path="/it" element={<ITDashboard />} />
       <Route
@@ -402,6 +417,7 @@ return (
         
       </Route>
     </Routes>
+    </Suspense>
   );
 }
 

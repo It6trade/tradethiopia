@@ -11,11 +11,12 @@ import {
   useColorMode,
   useColorModeValue,
 } from '@chakra-ui/react';
-import { FiBell, FiLogOut, FiMoon, FiSun } from 'react-icons/fi';
+import { FiBell, FiLogOut, FiMessageSquare, FiMoon, FiSun } from 'react-icons/fi';
 import { SUPERVISOR_ROLE } from './supervisorRole';
 import SupervisorSidebar from './SupervisorSidebar';
 import { useUserStore } from '../../store/user';
 import { useNavigate, Outlet } from 'react-router-dom';
+import ChatLauncher from '../../components/chat/ChatLauncher';
 
 const SupervisorLayout = ({ children }) => {
   const { colorMode, toggleColorMode } = useColorMode();
@@ -67,6 +68,15 @@ const SupervisorLayout = ({ children }) => {
             <Badge colorScheme="green" variant="subtle">
               On Duty
             </Badge>
+            <ChatLauncher
+              icon={<FiMessageSquare />}
+              ariaLabel="Open supervisor workspace chat"
+              iconButtonProps={{
+                size: 'sm',
+                variant: 'ghost',
+                borderRadius: 'full',
+              }}
+            />
             <IconButton
               aria-label="Notifications"
               icon={<FiBell />}

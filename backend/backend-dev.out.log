@@ -1,0 +1,643 @@
+
+> learn-mern@1.0.0 dev
+> nodemon server.js
+
+[33m[nodemon] 3.1.14[39m
+[33m[nodemon] to restart at any time, enter `rs`[39m
+[33m[nodemon] watching path(s): *.*[39m
+[33m[nodemon] watching extensions: js,mjs,cjs,json[39m
+[32m[nodemon] starting `node server.js`[39m
+Attempting to connect to database...
+Environment: { vercel: false, nodeEnv: undefined, hasMongoUri: true }
+Connecting to MongoDB...
+Database failed to connect: querySrv ECONNREFUSED _mongodb._tcp.cluster0.epkpn.mongodb.net
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node server.js`[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node server.js`[39m
+Attempting to connect to database...
+Environment: { vercel: false, nodeEnv: undefined, hasMongoUri: true }
+Connecting to MongoDB...
+Database failed to connect: querySrv ECONNREFUSED _mongodb._tcp.cluster0.epkpn.mongodb.net
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node server.js`[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node server.js`[39m
+Attempting to connect to database...
+Environment: { vercel: false, nodeEnv: undefined, hasMongoUri: true }
+Connecting to MongoDB...
+MongoDB connected: cluster0-shard-00-00.epkpn.mongodb.net
+Port 5000 is busy, trying 50001
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node server.js`[39m
+Attempting to connect to database...
+Environment: { vercel: false, nodeEnv: undefined, hasMongoUri: true }
+Connecting to MongoDB...
+MongoDB connected: cluster0-shard-00-00.epkpn.mongodb.net
+Port 5000 is busy, trying 50001
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node server.js`[39m
+Attempting to connect to database...
+Environment: { vercel: false, nodeEnv: undefined, hasMongoUri: true }
+Connecting to MongoDB...
+MongoDB connected: cluster0-shard-00-00.epkpn.mongodb.net
+Server running on http://0.0.0.0:5000
+CORS check - Origin: http://localhost:3002
+Allowed origins: [
+  'https://www.tradeethiopian.com',
+  'https://tradeethiopian.com',
+  'https://main.d21vr1wgzmn1c2.amplifyapp.com',
+  'https://tradethiopia-pied.vercel.app',
+  'https://tradethiopia.vercel.app',
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'http://localhost:3002',
+  'http://localhost:3003',
+  'http://localhost:3004'
+]
+CORS check - Origin: http://localhost:3002
+Allowed origins: [
+  'https://www.tradeethiopian.com',
+  'https://tradeethiopian.com',
+  'https://main.d21vr1wgzmn1c2.amplifyapp.com',
+  'https://tradethiopia-pied.vercel.app',
+  'https://tradethiopia.vercel.app',
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'http://localhost:3002',
+  'http://localhost:3003',
+  'http://localhost:3004'
+]
+CORS check - Origin: http://localhost:3002
+Allowed origins: [
+  'https://www.tradeethiopian.com',
+  'https://tradeethiopian.com',
+  'https://main.d21vr1wgzmn1c2.amplifyapp.com',
+  'https://tradethiopia-pied.vercel.app',
+  'https://tradethiopia.vercel.app',
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'http://localhost:3002',
+  'http://localhost:3003',
+  'http://localhost:3004'
+]
+Get users called
+Environment: { vercel: false, nodeEnv: undefined }
+Fetching users from database
+CORS check - Origin: http://localhost:3002
+Allowed origins: [
+  'https://www.tradeethiopian.com',
+  'https://tradeethiopian.com',
+  'https://main.d21vr1wgzmn1c2.amplifyapp.com',
+  'https://tradethiopia-pied.vercel.app',
+  'https://tradethiopia.vercel.app',
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'http://localhost:3002',
+  'http://localhost:3003',
+  'http://localhost:3004'
+]
+CORS check - Origin: http://localhost:3002
+Allowed origins: [
+  'https://www.tradeethiopian.com',
+  'https://tradeethiopian.com',
+  'https://main.d21vr1wgzmn1c2.amplifyapp.com',
+  'https://tradethiopia-pied.vercel.app',
+  'https://tradethiopia.vercel.app',
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'http://localhost:3002',
+  'http://localhost:3003',
+  'http://localhost:3004'
+]
+CORS check - Origin: http://localhost:3002
+Allowed origins: [
+  'https://www.tradeethiopian.com',
+  'https://tradeethiopian.com',
+  'https://main.d21vr1wgzmn1c2.amplifyapp.com',
+  'https://tradethiopia-pied.vercel.app',
+  'https://tradethiopia.vercel.app',
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'http://localhost:3002',
+  'http://localhost:3003',
+  'http://localhost:3004'
+]
+CORS check - Origin: http://localhost:3002
+Allowed origins: [
+  'https://www.tradeethiopian.com',
+  'https://tradeethiopian.com',
+  'https://main.d21vr1wgzmn1c2.amplifyapp.com',
+  'https://tradethiopia-pied.vercel.app',
+  'https://tradethiopia.vercel.app',
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'http://localhost:3002',
+  'http://localhost:3003',
+  'http://localhost:3004'
+]
+CORS check - Origin: http://localhost:3002
+Allowed origins: [
+  'https://www.tradeethiopian.com',
+  'https://tradeethiopian.com',
+  'https://main.d21vr1wgzmn1c2.amplifyapp.com',
+  'https://tradethiopia-pied.vercel.app',
+  'https://tradethiopia.vercel.app',
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'http://localhost:3002',
+  'http://localhost:3003',
+  'http://localhost:3004'
+]
+CORS check - Origin: http://localhost:3002
+Allowed origins: [
+  'https://www.tradeethiopian.com',
+  'https://tradeethiopian.com',
+  'https://main.d21vr1wgzmn1c2.amplifyapp.com',
+  'https://tradethiopia-pied.vercel.app',
+  'https://tradethiopia.vercel.app',
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'http://localhost:3002',
+  'http://localhost:3003',
+  'http://localhost:3004'
+]
+CORS check - Origin: http://localhost:3002
+Allowed origins: [
+  'https://www.tradeethiopian.com',
+  'https://tradeethiopian.com',
+  'https://main.d21vr1wgzmn1c2.amplifyapp.com',
+  'https://tradethiopia-pied.vercel.app',
+  'https://tradethiopia.vercel.app',
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'http://localhost:3002',
+  'http://localhost:3003',
+  'http://localhost:3004'
+]
+Get users called
+Environment: { vercel: false, nodeEnv: undefined }
+Fetching users from database
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node server.js`[39m
+Attempting to connect to database...
+Environment: { vercel: false, nodeEnv: undefined, hasMongoUri: true }
+Connecting to MongoDB...
+MongoDB connected: cluster0-shard-00-00.epkpn.mongodb.net
+Port 5000 is busy, trying 50001
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node server.js`[39m
+Attempting to connect to database...
+Environment: { vercel: false, nodeEnv: undefined, hasMongoUri: true }
+Connecting to MongoDB...
+MongoDB connected: cluster0-shard-00-00.epkpn.mongodb.net
+Port 5000 is busy, trying 50001
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node server.js`[39m
+Attempting to connect to database...
+Environment: { vercel: false, nodeEnv: undefined, hasMongoUri: true }
+Connecting to MongoDB...
+MongoDB connected: cluster0-shard-00-00.epkpn.mongodb.net
+Server running on http://0.0.0.0:5000
+User connected: 9tc01eMWdYJmRnjcAAAB
+CORS check - Origin: http://localhost:3002
+Allowed origins: [
+  'https://www.tradeethiopian.com',
+  'https://tradeethiopian.com',
+  'https://main.d21vr1wgzmn1c2.amplifyapp.com',
+  'https://tradethiopia-pied.vercel.app',
+  'https://tradethiopia.vercel.app',
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'http://localhost:3002',
+  'http://localhost:3003',
+  'http://localhost:3004'
+]
+CORS check - Origin: http://localhost:3002
+Allowed origins: [
+  'https://www.tradeethiopian.com',
+  'https://tradeethiopian.com',
+  'https://main.d21vr1wgzmn1c2.amplifyapp.com',
+  'https://tradethiopia-pied.vercel.app',
+  'https://tradethiopia.vercel.app',
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'http://localhost:3002',
+  'http://localhost:3003',
+  'http://localhost:3004'
+]
+CORS check - Origin: http://localhost:3002
+Allowed origins: [
+  'https://www.tradeethiopian.com',
+  'https://tradeethiopian.com',
+  'https://main.d21vr1wgzmn1c2.amplifyapp.com',
+  'https://tradethiopia-pied.vercel.app',
+  'https://tradethiopia.vercel.app',
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'http://localhost:3002',
+  'http://localhost:3003',
+  'http://localhost:3004'
+]
+CORS check - Origin: http://localhost:3002
+Allowed origins: [
+  'https://www.tradeethiopian.com',
+  'https://tradeethiopian.com',
+  'https://main.d21vr1wgzmn1c2.amplifyapp.com',
+  'https://tradethiopia-pied.vercel.app',
+  'https://tradethiopia.vercel.app',
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'http://localhost:3002',
+  'http://localhost:3003',
+  'http://localhost:3004'
+]
+User disconnected: 9tc01eMWdYJmRnjcAAAB
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node server.js`[39m
+Attempting to connect to database...
+Environment: { vercel: false, nodeEnv: undefined, hasMongoUri: true }
+Connecting to MongoDB...
+MongoDB connected: cluster0-shard-00-00.epkpn.mongodb.net
+Server running on http://0.0.0.0:5000
+User connected: 4kkwR3eVmCLhsaJpAAAB
+User connected: ME52uAEmP9xh7elAAAAD
+User 691d9f91d3d3525138ee145b registered with socket ME52uAEmP9xh7elAAAAD
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node server.js`[39m
+Attempting to connect to database...
+Environment: { vercel: false, nodeEnv: undefined, hasMongoUri: true }
+Connecting to MongoDB...
+Dropped legacy conversations directKey_1 index
+Dropped legacy conversations departmentKey_1 index
+MongoDB connected: cluster0-shard-00-00.epkpn.mongodb.net
+Server running on http://0.0.0.0:5000
+User connected: zP50NnIMGlSqix9LAAAB
+User connected: ziGHgjBtXvimNutgAAAD
+User 691d9f91d3d3525138ee145b registered with socket ziGHgjBtXvimNutgAAAD
+CORS check - Origin: http://localhost:3002
+Allowed origins: [
+  'https://www.tradeethiopian.com',
+  'https://tradeethiopian.com',
+  'https://main.d21vr1wgzmn1c2.amplifyapp.com',
+  'https://tradethiopia-pied.vercel.app',
+  'https://tradethiopia.vercel.app',
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'http://localhost:3002',
+  'http://localhost:3003',
+  'http://localhost:3004'
+]
+CORS check - Origin: http://localhost:3002
+Allowed origins: [
+  'https://www.tradeethiopian.com',
+  'https://tradeethiopian.com',
+  'https://main.d21vr1wgzmn1c2.amplifyapp.com',
+  'https://tradethiopia-pied.vercel.app',
+  'https://tradethiopia.vercel.app',
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'http://localhost:3002',
+  'http://localhost:3003',
+  'http://localhost:3004'
+]
+CORS check - Origin: http://localhost:3002
+Allowed origins: [
+  'https://www.tradeethiopian.com',
+  'https://tradeethiopian.com',
+  'https://main.d21vr1wgzmn1c2.amplifyapp.com',
+  'https://tradethiopia-pied.vercel.app',
+  'https://tradethiopia.vercel.app',
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'http://localhost:3002',
+  'http://localhost:3003',
+  'http://localhost:3004'
+]
+CORS check - Origin: http://localhost:3002
+Allowed origins: [
+  'https://www.tradeethiopian.com',
+  'https://tradeethiopian.com',
+  'https://main.d21vr1wgzmn1c2.amplifyapp.com',
+  'https://tradethiopia-pied.vercel.app',
+  'https://tradethiopia.vercel.app',
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'http://localhost:3002',
+  'http://localhost:3003',
+  'http://localhost:3004'
+]
+CORS check - Origin: http://localhost:3002
+Allowed origins: [
+  'https://www.tradeethiopian.com',
+  'https://tradeethiopian.com',
+  'https://main.d21vr1wgzmn1c2.amplifyapp.com',
+  'https://tradethiopia-pied.vercel.app',
+  'https://tradethiopia.vercel.app',
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'http://localhost:3002',
+  'http://localhost:3003',
+  'http://localhost:3004'
+]
+CORS check - Origin: http://localhost:3002
+Allowed origins: [
+  'https://www.tradeethiopian.com',
+  'https://tradeethiopian.com',
+  'https://main.d21vr1wgzmn1c2.amplifyapp.com',
+  'https://tradethiopia-pied.vercel.app',
+  'https://tradethiopia.vercel.app',
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'http://localhost:3002',
+  'http://localhost:3003',
+  'http://localhost:3004'
+]
+CORS check - Origin: http://localhost:3002
+Allowed origins: [
+  'https://www.tradeethiopian.com',
+  'https://tradeethiopian.com',
+  'https://main.d21vr1wgzmn1c2.amplifyapp.com',
+  'https://tradethiopia-pied.vercel.app',
+  'https://tradethiopia.vercel.app',
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'http://localhost:3002',
+  'http://localhost:3003',
+  'http://localhost:3004'
+]
+CORS check - Origin: http://localhost:3002
+Allowed origins: [
+  'https://www.tradeethiopian.com',
+  'https://tradeethiopian.com',
+  'https://main.d21vr1wgzmn1c2.amplifyapp.com',
+  'https://tradethiopia-pied.vercel.app',
+  'https://tradethiopia.vercel.app',
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'http://localhost:3002',
+  'http://localhost:3003',
+  'http://localhost:3004'
+]
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node server.js`[39m
+Attempting to connect to database...
+Environment: { vercel: false, nodeEnv: undefined, hasMongoUri: true }
+Connecting to MongoDB...
+Dropped legacy conversations directKey_1 index
+Dropped legacy conversations departmentKey_1 index
+Dropped legacy conversations managedKey_1 index
+MongoDB connected: cluster0-shard-00-00.epkpn.mongodb.net
+Port 5000 is busy, trying 50001
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node server.js`[39m
+Attempting to connect to database...
+Environment: { vercel: false, nodeEnv: undefined, hasMongoUri: true }
+Connecting to MongoDB...
+Dropped legacy conversations directKey_1 index
+Dropped legacy conversations departmentKey_1 index
+MongoDB connected: cluster0-shard-00-00.epkpn.mongodb.net
+Port 5000 is busy, trying 50001
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node server.js`[39m
+Attempting to connect to database...
+Environment: { vercel: false, nodeEnv: undefined, hasMongoUri: true }
+Connecting to MongoDB...
+Dropped legacy conversations directKey_1 index
+MongoDB connected: cluster0-shard-00-00.epkpn.mongodb.net
+Server running on http://0.0.0.0:5000
+User connected: C2HZt80RcLTSfJTjAAAB
+User connected: INiK5uwlzA9-o4i4AAAD
+User 691d9f91d3d3525138ee145b registered with socket INiK5uwlzA9-o4i4AAAD
+User disconnected: INiK5uwlzA9-o4i4AAAD
+CORS check - Origin: http://localhost:3002
+Allowed origins: [
+  'https://www.tradeethiopian.com',
+  'https://tradeethiopian.com',
+  'https://main.d21vr1wgzmn1c2.amplifyapp.com',
+  'https://tradethiopia-pied.vercel.app',
+  'https://tradethiopia.vercel.app',
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'http://localhost:3002',
+  'http://localhost:3003',
+  'http://localhost:3004'
+]
+CORS check - Origin: http://localhost:3002
+Allowed origins: [
+  'https://www.tradeethiopian.com',
+  'https://tradeethiopian.com',
+  'https://main.d21vr1wgzmn1c2.amplifyapp.com',
+  'https://tradethiopia-pied.vercel.app',
+  'https://tradethiopia.vercel.app',
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'http://localhost:3002',
+  'http://localhost:3003',
+  'http://localhost:3004'
+]
+CORS check - Origin: http://localhost:3002
+Allowed origins: [
+  'https://www.tradeethiopian.com',
+  'https://tradeethiopian.com',
+  'https://main.d21vr1wgzmn1c2.amplifyapp.com',
+  'https://tradethiopia-pied.vercel.app',
+  'https://tradethiopia.vercel.app',
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'http://localhost:3002',
+  'http://localhost:3003',
+  'http://localhost:3004'
+]
+CORS check - Origin: http://localhost:3002
+Allowed origins: [
+  'https://www.tradeethiopian.com',
+  'https://tradeethiopian.com',
+  'https://main.d21vr1wgzmn1c2.amplifyapp.com',
+  'https://tradethiopia-pied.vercel.app',
+  'https://tradethiopia.vercel.app',
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'http://localhost:3002',
+  'http://localhost:3003',
+  'http://localhost:3004'
+]
+CORS check - Origin: http://localhost:3002
+Allowed origins: [
+  'https://www.tradeethiopian.com',
+  'https://tradeethiopian.com',
+  'https://main.d21vr1wgzmn1c2.amplifyapp.com',
+  'https://tradethiopia-pied.vercel.app',
+  'https://tradethiopia.vercel.app',
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'http://localhost:3002',
+  'http://localhost:3003',
+  'http://localhost:3004'
+]
+CORS check - Origin: http://localhost:3002
+Allowed origins: [
+  'https://www.tradeethiopian.com',
+  'https://tradeethiopian.com',
+  'https://main.d21vr1wgzmn1c2.amplifyapp.com',
+  'https://tradethiopia-pied.vercel.app',
+  'https://tradethiopia.vercel.app',
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'http://localhost:3002',
+  'http://localhost:3003',
+  'http://localhost:3004'
+]
+User connected: w5a1n13zQ-FdUgwBAAAF
+CORS check - Origin: http://localhost:3002
+Allowed origins: [
+  'https://www.tradeethiopian.com',
+  'https://tradeethiopian.com',
+  'https://main.d21vr1wgzmn1c2.amplifyapp.com',
+  'https://tradethiopia-pied.vercel.app',
+  'https://tradethiopia.vercel.app',
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'http://localhost:3002',
+  'http://localhost:3003',
+  'http://localhost:3004'
+]
+User 691d9f91d3d3525138ee145b registered with socket w5a1n13zQ-FdUgwBAAAF
+CORS check - Origin: http://localhost:3002
+Allowed origins: [
+  'https://www.tradeethiopian.com',
+  'https://tradeethiopian.com',
+  'https://main.d21vr1wgzmn1c2.amplifyapp.com',
+  'https://tradethiopia-pied.vercel.app',
+  'https://tradethiopia.vercel.app',
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'http://localhost:3002',
+  'http://localhost:3003',
+  'http://localhost:3004'
+]
+CORS check - Origin: http://localhost:3002
+Allowed origins: [
+  'https://www.tradeethiopian.com',
+  'https://tradeethiopian.com',
+  'https://main.d21vr1wgzmn1c2.amplifyapp.com',
+  'https://tradethiopia-pied.vercel.app',
+  'https://tradethiopia.vercel.app',
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'http://localhost:3002',
+  'http://localhost:3003',
+  'http://localhost:3004'
+]
+CORS check - Origin: http://localhost:3002
+Allowed origins: [
+  'https://www.tradeethiopian.com',
+  'https://tradeethiopian.com',
+  'https://main.d21vr1wgzmn1c2.amplifyapp.com',
+  'https://tradethiopia-pied.vercel.app',
+  'https://tradethiopia.vercel.app',
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'http://localhost:3002',
+  'http://localhost:3003',
+  'http://localhost:3004'
+]
+CORS check - Origin: http://localhost:3002
+Allowed origins: [
+  'https://www.tradeethiopian.com',
+  'https://tradeethiopian.com',
+  'https://main.d21vr1wgzmn1c2.amplifyapp.com',
+  'https://tradethiopia-pied.vercel.app',
+  'https://tradethiopia.vercel.app',
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'http://localhost:3002',
+  'http://localhost:3003',
+  'http://localhost:3004'
+]
+CORS check - Origin: http://localhost:3002
+Allowed origins: [
+  'https://www.tradeethiopian.com',
+  'https://tradeethiopian.com',
+  'https://main.d21vr1wgzmn1c2.amplifyapp.com',
+  'https://tradethiopia-pied.vercel.app',
+  'https://tradethiopia.vercel.app',
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'http://localhost:3002',
+  'http://localhost:3003',
+  'http://localhost:3004'
+]
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node server.js`[39m
+Attempting to connect to database...
+Environment: { vercel: false, nodeEnv: undefined, hasMongoUri: true }
+Connecting to MongoDB...
+MongoDB connected: cluster0-shard-00-00.epkpn.mongodb.net
+Server running on http://0.0.0.0:5000
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node server.js`[39m
+Attempting to connect to database...
+Environment: { vercel: false, nodeEnv: undefined, hasMongoUri: true }
+Connecting to MongoDB...
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node server.js`[39m
+Attempting to connect to database...
+Environment: { vercel: false, nodeEnv: undefined, hasMongoUri: true }
+Connecting to MongoDB...
+Dropped legacy conversations directKey_1 index
+Dropped legacy conversations departmentKey_1 index
+Dropped legacy conversations managedKey_1 index
+MongoDB connected: cluster0-shard-00-00.epkpn.mongodb.net
+Port 5000 is busy, trying 50001
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m

@@ -40,6 +40,7 @@ import {
   FaCogs,
   FaArrowRight,
   FaCommentDots,
+  FaComments,
   FaChevronDown,
   FaChevronRight,
   FaBook,
@@ -52,6 +53,7 @@ import { keyframes } from '@emotion/react';
 import apiClient from '../../utils/apiClient';
 import { getLatestRequestTimestamp, getRequestCreatedAt, markTeamRequestsAsRead, getTeamRequestsLastSeenAt } from '../../utils/teamRequestHelpers';
 import { getNotifications } from '../../services/notificationService';
+import ChatLauncher from '../../components/chat/ChatLauncher';
 
 const bellPulse = keyframes`
   0% {
@@ -612,6 +614,14 @@ const FinanceLayout = ({ children }) => {
                     'aria-label': 'Notes',
                   }}
                   tooltipLabel="Notes"
+                />
+                <ChatLauncher
+                  icon={<FaComments />}
+                  iconButtonProps={{
+                    variant: 'ghost',
+                    size: 'sm',
+                    'aria-label': 'Workspace chat',
+                  }}
                 />
                 <IconButton
                   icon={colorMode === 'light' ? <FaMoon /> : <FaSun />}

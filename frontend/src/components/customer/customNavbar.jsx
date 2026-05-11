@@ -42,6 +42,7 @@ import NotesLauncher from "../notes/NotesLauncher";
 import { Link as RouterLink, useNavigate } from "react-router-dom";
 import { useUserStore } from "../../store/user";
 import { MoonIcon, SunIcon } from "@chakra-ui/icons";
+import ChatLauncher from "../chat/ChatLauncher";
 
 const Cnavbar = () => {
   const navigate = useNavigate();
@@ -167,6 +168,10 @@ const Cnavbar = () => {
               />
             </Tooltip>
             <HStack spacing={3} align="center">
+              <ChatLauncher
+                icon={<FiMessageSquare size={20} />}
+                iconButtonProps={actionButtonProps}
+              />
               {/* Notifications Dropdown */}
               <Menu>
                 <MenuButton

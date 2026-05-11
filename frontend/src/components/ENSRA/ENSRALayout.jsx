@@ -13,11 +13,12 @@ import {
 } from '@chakra-ui/react';
 import ENISRASidebar from './ENSRASidebar';
 import { Outlet } from 'react-router-dom';
-import { FiBell, FiClipboard, FiMoon, FiSun } from 'react-icons/fi';
+import { FiBell, FiClipboard, FiMessageSquare, FiMoon, FiSun } from 'react-icons/fi';
 import axiosInstance from '../../services/axiosInstance';
 import { getNotifications } from '../../services/notificationService';
 import NotesDrawer from '../notes/NotesDrawer';
 import ENSRANotificationsDrawer from './ENSRANotificationsDrawer';
+import ChatLauncher from '../chat/ChatLauncher';
 
 const ENISRALayout = () => {
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -86,6 +87,19 @@ const ENISRALayout = () => {
           ENSRA Workspace
         </Text>
         <HStack spacing={3}>
+          <Tooltip label="Workspace chat">
+            <ChatLauncher
+              icon={<FiMessageSquare />}
+              ariaLabel="Open ENSRA workspace chat"
+              iconButtonProps={{
+                variant: 'ghost',
+                color: iconColor,
+                size: 'md',
+                borderRadius: 'full',
+              }}
+            />
+          </Tooltip>
+
           <Tooltip label="Notifications">
             <Box position="relative">
               <IconButton

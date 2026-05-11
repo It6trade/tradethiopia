@@ -81,6 +81,7 @@ import {
   YAxis,
 } from 'recharts';
 import KpiScorecardSection from '../kpi/KpiScorecardSection';
+import ChatLauncher from '../chat/ChatLauncher';
 
 const INTERNAL_PROJECTS = [
   'Tradeethiopian.com',
@@ -1389,6 +1390,16 @@ const ITLayout = ({ initialTab = 'dashboard' }) => {
                 <Button colorScheme="teal" variant="outline" onClick={() => navigate("/requests")}>
                   Requests
                 </Button>
+                <ChatLauncher
+                  icon={<FiMessageSquare />}
+                  ariaLabel="Open IT workspace chat"
+                  iconButtonProps={{
+                    size: 'sm',
+                    variant: 'ghost',
+                    colorScheme: 'blue',
+                    borderRadius: 'full',
+                  }}
+                />
                 <NotesLauncher
                   buttonProps={{
                     size: 'sm',

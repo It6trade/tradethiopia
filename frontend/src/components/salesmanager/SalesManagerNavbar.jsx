@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useUserStore } from '../../store/user';
 import { getNotifications, markNotificationAsRead, markAllNotificationsAsRead } from '../../services/notificationService';
 import { io } from 'socket.io-client';
-import {
+import { 
   Box,
   Flex,
   HStack,
@@ -42,6 +42,7 @@ import {
   FiChevronLeft,
   FiCheck
 } from 'react-icons/fi';
+import ChatLauncher from '../chat/ChatLauncher';
 
 const SalesManagerNavbar = ({ onMenuClick, onToggleSidebar, isSidebarCollapsed }) => {
   const navigate = useNavigate();
@@ -291,91 +292,18 @@ const SalesManagerNavbar = ({ onMenuClick, onToggleSidebar, isSidebarCollapsed }
             />
           </Tooltip>
 
-          {/* Messages */}
-          <Menu>
-            <MenuButton
-              as={IconButton}
-              icon={
-                <Box position="relative">
-                  <FiMessageSquare size="20px" />
-                  <Badge
-                    colorScheme="red"
-                    borderRadius="full"
-                    position="absolute"
-                    top="-2px"
-                    right="-2px"
-                    fontSize="10px"
-                    w="18px"
-                    h="18px"
-                    display="flex"
-                    alignItems="center"
-                    justifyContent="center"
-                  >
-                    3
-                  </Badge>
-                </Box>
-              }
-              variant="ghost"
-              aria-label="Messages"
-              color={iconColor}
-              _hover={{ 
+          <ChatLauncher
+            icon={<FiMessageSquare size="20px" />}
+            iconButtonProps={{
+              variant: 'ghost',
+              color: iconColor,
+              _hover: {
                 bg: 'rgba(255, 255, 255, 0.1)',
                 transform: 'scale(1.1)'
-              }}
-              transition="all 0.2s"
-            />
-            <MenuList zIndex="popover" minW="300px" p={0} overflow="hidden">
-              <Box
-                px={4}
-                py={3}
-                borderBottom="1px"
-                borderColor="inherit"
-                display="flex"
-                justifyContent="space-between"
-                alignItems="center"
-              >
-                <Text fontWeight="bold">Messages</Text>
-                <Button size="xs" variant="ghost" colorScheme="blue">
-                  View all
-                </Button>
-              </Box>
-              <VStack
-                spacing={0}
-                divider={<Divider m={0} />}
-                align="stretch"
-                maxH="300px"
-                overflowY="auto"
-              >
-                {[1, 2, 3].map((msg) => (
-                  <MenuItem
-                    key={msg}
-                    py={3}
-                    _hover={{ bg: hoverBg }}
-                  >
-                    <Flex align="center" w="100%">
-                      <Avatar
-                        size="sm"
-                        name="John Doe"
-                        src=""
-                        mr={3}
-                      />
-                      <Box flex="1">
-                        <Text fontSize="sm" fontWeight="medium">
-                          New message from John
-                        </Text>
-                        <Text fontSize="xs" color="gray.500" noOfLines={1}>
-                          Hey, can we schedule a meeting for tomorrow?
-                        </Text>
-                      </Box>
-                      <Text fontSize="xs" color="gray.500" whiteSpace="nowrap" ml={2}>
-                        2h ago
-                      </Text>
-                    </Flex>
-                  </MenuItem>
-                ))}
-              </VStack>
-            </MenuList>
-          </Menu>
+              },
+              transition: 'all 0.2s'
+            }}
+          />
 
           {/* Notifications */}
           <Menu>

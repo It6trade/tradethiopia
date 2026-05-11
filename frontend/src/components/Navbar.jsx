@@ -24,6 +24,7 @@ import { SunIcon } from "@chakra-ui/icons";
 import { Link, useNavigate } from "react-router-dom";
 import { useUserStore } from "../store/user";
 import { useEffect, useState } from "react";
+import ChatLauncher from "./chat/ChatLauncher";
 
 const NavbarPage = ({ sidebarWidth = "0px" }) => {
     const { colorMode, toggleColorMode } = useColorMode();
@@ -140,14 +141,10 @@ const NavbarPage = ({ sidebarWidth = "0px" }) => {
                     </Menu>
 
                     {/* Messages Dropdown */}
-                    <Menu>
-                        <MenuButton as={Button} variant="ghost">
-                            <BsChat color="inherit" />
-                        </MenuButton>
-                        <MenuList>
-                            <MenuItem>No new messages</MenuItem>
-                        </MenuList>
-                    </Menu>
+                    <ChatLauncher
+                        icon={<BsChat color="inherit" />}
+                        iconButtonProps={{ variant: "ghost", color: "white" }}
+                    />
 
                     {/* User Profile Dropdown */}
                     <Menu>

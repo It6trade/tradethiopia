@@ -13,10 +13,11 @@ import {
   Avatar,
   useToast,
 } from "@chakra-ui/react";
-import { FiHome, FiClipboard, FiBell, FiLogOut, FiBook } from "react-icons/fi";
+import { FiHome, FiClipboard, FiBell, FiLogOut, FiBook, FiMessageSquare } from "react-icons/fi";
 import { Link, useNavigate, Outlet } from "react-router-dom";
 import { useUserStore } from "../../store/user";
 import NotesLauncher from "../notes/NotesLauncher";
+import ChatLauncher from "../chat/ChatLauncher";
 
 const navItems = [
   { label: "Dashboard", icon: FiHome, to: "/instructor/dashboard" },
@@ -99,6 +100,15 @@ const InstructorLayout = ({ children }) => {
                 size: "sm",
               }}
               tooltipLabel="Notes"
+            />
+            <ChatLauncher
+              icon={<FiMessageSquare />}
+              ariaLabel="Open instructor workspace chat"
+              iconButtonProps={{
+                variant: "ghost",
+                size: "sm",
+                borderRadius: "full",
+              }}
             />
             <Flex align="center">
               <Text fontSize="sm" mr={2}>

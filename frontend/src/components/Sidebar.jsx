@@ -9,7 +9,7 @@ import {
   Icon,
   useBreakpointValue,
 } from "@chakra-ui/react";
-import { FiFolder, FiHome, FiPlusCircle, FiMenu, FiUsers, FiBookOpen, FiSearch, FiBriefcase, FiBarChart, FiDollarSign } from "react-icons/fi";
+import { FiFolder, FiHome, FiPlusCircle, FiMenu, FiUsers, FiBookOpen, FiSearch, FiBriefcase, FiBarChart, FiDollarSign, FiMessageSquare } from "react-icons/fi";
 import { Link as RouterLink } from "react-router-dom";
 import { FiFileText } from 'react-icons/fi';
 const Sidebar = ({ isCollapsed: controlledIsCollapsed, onToggleCollapse }) => {
@@ -147,6 +147,13 @@ const Sidebar = ({ isCollapsed: controlledIsCollapsed, onToggleCollapse }) => {
           <Flex align="center" p={1} borderRadius="md" _hover={{ bg: "gray.700" }}>
             <Icon as={FiBarChart} boxSize={4} />
             {!effectiveIsCollapsed && <Text ml={3} fontSize="sm">Awards</Text>}
+          </Flex>
+        </Link>
+
+        <Link as={RouterLink} to="/chat" _hover={{ textDecoration: "none" }}>
+          <Flex align="center" p={1} borderRadius="md" _hover={{ bg: "gray.700" }}>
+            <Icon as={FiMessageSquare} boxSize={4} />
+            {!effectiveIsCollapsed && <Text ml={3} fontSize="sm">Workspace Chat</Text>}
           </Flex>
         </Link>
       

@@ -19,8 +19,9 @@ import {
   Spinner,
   Button
 } from '@chakra-ui/react';
-import { FaBell, FaUserCircle, FaMoon, FaSun, FaBars, FaCheck } from 'react-icons/fa';
+import { FaBell, FaUserCircle, FaMoon, FaSun, FaBars, FaCheck, FaComments } from 'react-icons/fa';
 import NotesLauncher from '../notes/NotesLauncher';
+import ChatLauncher from '../chat/ChatLauncher';
 import { useUserStore } from '../../store/user';
 import { useNavigate } from 'react-router-dom';
 import { getNotifications, markNotificationAsRead, markAllNotificationsAsRead } from '../../services/notificationService';
@@ -290,6 +291,17 @@ const Snavbar = ({ onToggleSidebar }) => {
               'aria-label': 'Notes',
             }}
             tooltipLabel="Notes"
+          />
+          <ChatLauncher
+            icon={<FaComments />}
+            ariaLabel="Open workspace chat"
+            preferredView="sales"
+            iconButtonProps={{
+              variant: 'ghost',
+              color: 'white',
+              size: 'md',
+              _hover: { bg: 'whiteAlpha.200' },
+            }}
           />
           <IconButton
             icon={colorMode === 'light' ? <FaMoon /> : <FaSun />}

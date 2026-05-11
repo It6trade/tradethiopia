@@ -6,6 +6,7 @@ const path = require('path');
 const mongoose = require('mongoose');
 const http = require('http');
 const socketIo = require('socket.io');
+const { getConversationRoom, getUserRoom, setSocketServer } = require('./services/chatSocketService');
 
 dotenv.config({ path: path.join(__dirname, '.env') });
 
@@ -13,6 +14,7 @@ const { connectDB, disconnectDB } = require('./config/db.js');
 const userRoutes = require('./routes/user.route.js');
 const notificationRoutes = require('./routes/notificationRoutes.js');
 const messageRoutes = require('./routes/messageRoutes.js');
+const chatRoutes = require('./routes/chatRoutes.js');
 const quizRoutes = require('./routes/quiz.route.js');
 const customerFollowUpRoutes = require('./routes/customerFollowRoutes.js');
 const noteRoutes = require('./routes/noteRoutes.js');
@@ -71,9 +73,11 @@ const io = socketIo(server, {
     credentials: true
   }
 });
+setSocketServer(io);
 
 // Store connected users
 const connectedUsers = new Map();
+const onlineUsers = new Set();
 
 // Socket.IO connection handling
 io.on('connection', (socket) => {
@@ -82,7 +86,29 @@ io.on('connection', (socket) => {
   // Register user with their ID
   socket.on('registerUser', (userId) => {
     connectedUsers.set(userId, socket.id);
+    socket.join(getUserRoom(userId));
+    onlineUsers.add(String(userId));
+    io.emit('chat:presence', { userId: String(userId), isOnline: true });
     console.log(`User ${userId} registered with socket ${socket.id}`);
+  });
+
+  socket.on('joinConversation', (conversationId) => {
+    if (!conversationId) return;
+    socket.join(getConversationRoom(conversationId));
+  });
+
+  socket.on('leaveConversation', (conversationId) => {
+    if (!conversationId) return;
+    socket.leave(getConversationRoom(conversationId));
+  });
+
+  socket.on('chat:typing', ({ conversationId, userId, isTyping }) => {
+    if (!conversationId || !userId) return;
+    socket.to(getConversationRoom(conversationId)).emit('chat:typing', {
+      conversationId: String(conversationId),
+      userId: String(userId),
+      isTyping: !!isTyping,
+    });
   });
   
   // Handle disconnection
@@ -92,6 +118,8 @@ io.on('connection', (socket) => {
     for (let [userId, socketId] of connectedUsers.entries()) {
       if (socketId === socket.id) {
         connectedUsers.delete(userId);
+        onlineUsers.delete(String(userId));
+        io.emit('chat:presence', { userId: String(userId), isOnline: false });
         break;
       }
     }
@@ -253,6 +281,7 @@ app.use("/api/users", userRoutes);
 app.use("/api/quiz", quizRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/messages", messageRoutes);
+app.use("/api/chat", chatRoutes);
 app.use('/api/followup', customerFollowUpRoutes);
 app.use('/api/notes', noteRoutes);
 app.use('/api/resources', ResourceRoute);

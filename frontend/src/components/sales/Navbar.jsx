@@ -22,6 +22,7 @@ import { SunIcon } from "react-icons/sun";
 import { BsBell, BsChat } from "react-icons/bs";
 import { useNavigate, Link } from "react-router-dom";
 import { useUserStore } from '../store/user'; // Adjust the path as necessary
+import ChatLauncher from '../chat/ChatLauncher';
 
 const NavbarPage = () => {
   const { colorMode, toggleColorMode } = useColorMode();
@@ -86,18 +87,10 @@ const NavbarPage = () => {
           </Menu>
 
           {/* Messages Dropdown */}
-          <Menu>
-            <MenuButton as={IconButton} icon={<BsChat />} variant="ghost" color="white" />
-            <MenuList>
-              {messages.length === 0 ? (
-                <MenuItem>No new messages</MenuItem>
-              ) : (
-                messages.map((message, index) => (
-                  <MenuItem key={index}>{message}</MenuItem>
-                ))
-              )}
-            </MenuList>
-          </Menu>
+          <ChatLauncher
+            icon={<BsChat />}
+            iconButtonProps={{ variant: "ghost", color: "white" }}
+          />
 
           {/* Profile Dropdown */}
           <Menu>
