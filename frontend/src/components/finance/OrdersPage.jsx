@@ -307,48 +307,12 @@ const OrdersPage = () => {
     }
   };
 
-  const handleExportOrders = async () => {
-    try {
-      const response = await axios.get('/orders/export', {
-        params: {
-          status: selectedStatus || undefined,
-          paymentStatus: selectedPaymentStatus || undefined
-        },
-        responseType: 'blob'
-      });
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', `orders_${new Date().toISOString().slice(0, 10)}.csv`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
-      toast({
-        title: 'Export successful',
-        description: 'Orders have been exported to CSV.',
-        status: 'success',
-        duration: 3000,
-        isClosable: true
-      });
-    } catch (err) {
-      toast({
-        title: 'Export failed',
-        description: err.response?.data?.message || 'Failed to export orders',
-        status: 'error',
-        duration: 3000,
-        isClosable: true
-      });
-    }
-  };
-
   // Filter orders based on search term and status
   const filteredOrders = orders.filter(order => {
-    const normalizedSearch = searchTerm.toLowerCase();
-    const matchesSearch = String(order.customerName || '').toLowerCase().includes(normalizedSearch) ||
-                         String(order._id || '').toLowerCase().includes(normalizedSearch) ||
-                         String(order.customerEmail || '').toLowerCase().includes(normalizedSearch) ||
-                         String(order.customerPhone || '').toLowerCase().includes(normalizedSearch);
+    const matchesSearch = order.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         order._id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         (order.customerEmail && order.customerEmail.toLowerCase().includes(searchTerm.toLowerCase())) ||
+                         (order.customerPhone && order.customerPhone.toLowerCase().includes(searchTerm.toLowerCase()));
     const matchesStatus = selectedStatus ? order.status === selectedStatus : true;
     const matchesPaymentStatus = selectedPaymentStatus ? 
       (selectedPaymentStatus === 'Paid' && order.paymentAmount >= order.totalAmount) ||
@@ -369,11 +333,10 @@ const OrdersPage = () => {
 
   // Apply filters to each group
   const filteredProcessingOrders = processingOrders.filter(order => {
-    const normalizedSearch = searchTerm.toLowerCase();
-    const matchesSearch = String(order.customerName || '').toLowerCase().includes(normalizedSearch) ||
-                         String(order._id || '').toLowerCase().includes(normalizedSearch) ||
-                         String(order.customerEmail || '').toLowerCase().includes(normalizedSearch) ||
-                         String(order.customerPhone || '').toLowerCase().includes(normalizedSearch);
+    const matchesSearch = order.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         order._id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         (order.customerEmail && order.customerEmail.toLowerCase().includes(searchTerm.toLowerCase())) ||
+                         (order.customerPhone && order.customerPhone.toLowerCase().includes(searchTerm.toLowerCase()));
     const matchesStatus = selectedStatus ? order.status === selectedStatus : true;
     const matchesPaymentStatus = selectedPaymentStatus ? 
       (selectedPaymentStatus === 'Paid' && order.paymentAmount >= order.totalAmount) ||
@@ -383,11 +346,10 @@ const OrdersPage = () => {
   });
 
   const filteredDeliveredOrders = deliveredOrders.filter(order => {
-    const normalizedSearch = searchTerm.toLowerCase();
-    const matchesSearch = String(order.customerName || '').toLowerCase().includes(normalizedSearch) ||
-                         String(order._id || '').toLowerCase().includes(normalizedSearch) ||
-                         String(order.customerEmail || '').toLowerCase().includes(normalizedSearch) ||
-                         String(order.customerPhone || '').toLowerCase().includes(normalizedSearch);
+    const matchesSearch = order.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         order._id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         (order.customerEmail && order.customerEmail.toLowerCase().includes(searchTerm.toLowerCase())) ||
+                         (order.customerPhone && order.customerPhone.toLowerCase().includes(searchTerm.toLowerCase()));
     const matchesStatus = selectedStatus ? order.status === selectedStatus : true;
     const matchesPaymentStatus = selectedPaymentStatus ? 
       (selectedPaymentStatus === 'Paid' && order.paymentAmount >= order.totalAmount) ||
@@ -451,7 +413,6 @@ const OrdersPage = () => {
             leftIcon={<DownloadIcon />} 
             colorScheme="teal" 
             variant="outline"
-            onClick={handleExportOrders}
           >
             Export
           </Button>

@@ -4,9 +4,6 @@ const Notification = require('../models/Notification');
 const asyncHandler = require('express-async-handler');
 const mongoose = require('mongoose');
 
-const normalizeRole = (role = '') =>
-  role.toString().trim().toLowerCase().replace(/[^a-z0-9]/g, '');
-
 // @desc    Create a new task
 // @route   POST /api/tasks
 // @access  Private (Sales Manager only)
@@ -43,7 +40,7 @@ const createTask = asyncHandler(async (req, res) => {
     throw new Error('Assigned user not found');
   }
 
-  if (normalizeRole(assignedUser.role) !== 'sales') {
+  if (assignedUser.role !== 'sales') {
     res.status(400);
     throw new Error('Tasks can only be assigned to sales representatives');
   }
@@ -222,7 +219,7 @@ const deleteTask = asyncHandler(async (req, res) => {
 // @access  Private
 const getTaskStats = asyncHandler(async (req, res) => {
   const userId = req.user._id;
-  const userRole = normalizeRole(req.user.role);
+  const userRole = req.user.role;
 
   let stats = {};
 

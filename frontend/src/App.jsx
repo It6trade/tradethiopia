@@ -46,7 +46,7 @@ import HRTrainingPage from './pages/HRTrainingPage.jsx';
 import ENISRALayout from "./components/ENSRA/ENSRALayout";
 import ENISRAEnhancedDashboard from "./components/ENSRA/ENISRAEnhancedDashboard";
 import ENISRANoticeBoard from "./components/ENSRA/ENSRANoticeBoard";
-import ENISRARequest from "./components/ENSRA/ENSRARequest";
+// import ENISRARequest from "./components/ENSRA/ENSRARequest";
 import ENISRARequestEmbedded from "./components/ENSRA/ENISRARequestEmbedded";
 import ENISRAFollowUp from "./components/ENSRA/ENISRAFollowUp";
 import ProtectedRoute from "./routes/ProtectedRoute";
@@ -66,7 +66,7 @@ import CustomerKPIPage from "./pages/customer/CustomerKPIPage";
 import MessagesPage from "./pages/MessagesPage";
 import SalesMessagesPage from "./pages/SalesMessagesPage";
 import FinanceMessagesPage from "./pages/FinanceMessagesPage";
-import ITMessagesPage from "./pages/ITMessagesPage";
+// import ITMessagesPage from "./pages/ITMessagesPage";
 import RedirectMessagesPage from "./pages/RedirectMessagesPage";
 import RequestPage from "./pages/RequestPage";
 import TeamRequestsPage from "./pages/sales/TeamRequestsPage.jsx";
@@ -76,6 +76,8 @@ import SupervisorDashboardPage from "./pages/supervisor/SupervisorDashboardPage.
 import SupervisorAccountPage from "./pages/supervisor/SupervisorAccountPage.jsx";
 
 const FinanceERPPage = lazy(() => import("./pages/sales/FinanceERPPage.jsx"));
+const FinanceDashboardPage = lazy(() => import("./pages/sales/FinanceDashboardPage.jsx"));
+const FinanceReportsPage = lazy(() => import("./pages/sales/FinanceReportsPage.jsx"));
 const InventoryPage = lazy(() => import("./pages/sales/InventoryPage.jsx"));
 const OrdersPage = lazy(() => import("./pages/sales/OrdersPage.jsx"));
 const FinanceDemandsPage = lazy(() => import("./components/finance/DemandsPage.jsx"));
@@ -150,7 +152,7 @@ return (
       <Route path="/sales" element={<Sdashboard />} />
       <Route path="/sales/dashboard" element={<Sdashboard />} />
       <Route path="/srequest" element={<Srequest />} />
-      <Route path="/finance-dashboard" element={<FinanceLayout><FinanceERPPage /></FinanceLayout>} />
+      <Route path="/finance-dashboard" element={<FinanceLayout><FinanceDashboardPage /></FinanceLayout>} />
       <Route path="/finance-dashboard/erp" element={<FinanceLayout><FinanceERPPage /></FinanceLayout>} />
       <Route path="/finance-dashboard/accounting" element={<FinanceLayout><FinanceERPPage /></FinanceLayout>} />
       <Route path="/finance-dashboard/sales-finance" element={<FinanceLayout><FinanceERPPage /></FinanceLayout>} />
@@ -159,7 +161,7 @@ return (
       <Route path="/finance-dashboard/expenses" element={<FinanceLayout><FinanceERPPage /></FinanceLayout>} />
       <Route path="/finance-dashboard/tax" element={<FinanceLayout><FinanceERPPage /></FinanceLayout>} />
       <Route path="/finance-dashboard/settings" element={<FinanceLayout><FinanceERPPage /></FinanceLayout>} />
-      <Route path="/finance-dashboard/reports" element={<FinanceLayout><FinanceERPPage /></FinanceLayout>} />
+      <Route path="/finance-dashboard/reports" element={<FinanceLayout><FinanceReportsPage /></FinanceLayout>} />
       <Route path="/finance-dashboard/inventory" element={<FinanceLayout><InventoryPage /></FinanceLayout>} />
       <Route path="/finance-dashboard/orders" element={<FinanceLayout><OrdersPage /></FinanceLayout>} />
       <Route path="/finance-dashboard/demands" element={<FinanceLayout><FinanceDemandsPage /></FinanceLayout>} />

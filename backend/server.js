@@ -322,6 +322,7 @@ app.use('/api/product-followups', productFollowupRoutes);
 app.use('/api/it', itRoutes);
 app.use('/api/inventory', inventoryRoutes);
 app.use('/api/finance', require('./routes/financeRoutes'));
+app.use('/api/finance-erp', require('./routes/financeErpRoutes'));
 app.use('/api/purchases', require('./routes/purchaseRoutes'));
 app.use('/api/costs', costRoutes);
 app.use('/api/demands', demandRoutes);

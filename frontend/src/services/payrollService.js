@@ -83,15 +83,7 @@ export const finalizePayroll = async (payrollId) => {
 
 // Fetch finalized payroll history
 export const fetchPayrollHistory = async (params = {}) => {
-  const cleanParams = {};
-
-  Object.entries(params).forEach(([key, value]) => {
-    if (value !== undefined && value !== null && String(value).trim() !== '') {
-      cleanParams[key] = value;
-    }
-  });
-
-  const response = await axiosInstance.get('/payroll/history', { params: cleanParams });
+  const response = await axiosInstance.get('/payroll/history', { params });
   return response.data;
 };
 
@@ -177,43 +169,23 @@ export const fetchSalesDataForCommission = async (agentId, month, year, startDat
     console.log('Sales data response from sales manager:', response.data);
     
     // Process the response to match the expected format
-    // Handle both array response and { data: [] } response format
-    const responseData = response.data;
-    
-    // Check if response indicates an error
-    if (responseData && typeof responseData === 'object' && !Array.isArray(responseData) && responseData.message) {
-      console.log('Error response from sales manager:', responseData);
-      throw new Error(responseData.message);
-    }
-    
-    const sales = (responseData && typeof responseData === 'object' && Array.isArray(responseData.data)) 
-      ? responseData.data 
-      : (Array.isArray(responseData) ? responseData : []);
-    
-    if (!Array.isArray(sales)) {
-      console.log('Unexpected sales data format:', sales);
-      return { agentId, sales: [], grossCommission: 0, commissionTax: 0, totalCommission: 0, numberOfSales: 0, commissionDetails: [] };
-    }
-    
+    const sales = response.data || [];
     const numberOfSales = sales.length;
     
     console.log(`Found ${numberOfSales} sales records`);
     
-    // Only log details if we have sales
-    if (numberOfSales > 0) {
-      // Log detailed information about each sale record
-      sales.forEach((sale, index) => {
-        console.log(`Sale ${index + 1}:`, {
-          id: sale._id,
-          customerName: sale.customerName,
-          coursePrice: sale.coursePrice,
-          commission: sale.commission,
-          hasCommission: !!sale.commission,
-          commissionType: typeof sale.commission,
-          commissionKeys: sale.commission ? Object.keys(sale.commission) : null
-        });
+    // Log detailed information about each sale record
+    sales.forEach((sale, index) => {
+      console.log(`Sale ${index + 1}:`, {
+        id: sale._id,
+        customerName: sale.customerName,
+        coursePrice: sale.coursePrice,
+        commission: sale.commission,
+        hasCommission: !!sale.commission,
+        commissionType: typeof sale.commission,
+        commissionKeys: sale.commission ? Object.keys(sale.commission) : null
       });
-    }
+    });
     
     // Process sales data - use existing commission or calculate if missing
     let totalGrossCommission = 0;

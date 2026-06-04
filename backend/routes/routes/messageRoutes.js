@@ -1,0 +1,8 @@
+const express = require("express");
+const { getMessages } = require("../controllers/messageController.js"); // Named import
+
+const router = express.Router();
+
+router.get("/", getMessages);
+
+module.exports = router;

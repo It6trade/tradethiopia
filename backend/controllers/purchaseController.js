@@ -353,7 +353,7 @@ exports.deletePurchase = async (req, res) => {
       return res.status(404).json({ message: 'Purchase not found' });
     }
 
-    await purchase.deleteOne();
+    await purchase.remove();
     res.json({ message: 'Purchase deleted' });
   } catch (err) {
     console.error('Error deleting purchase:', err);

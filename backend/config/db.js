@@ -1,6 +1,5 @@
 const mongoose = require('mongoose');
 const Package = require('../models/Package');
-const Conversation = require('../models/Conversation');
 
 let isConnected = false; // Track connection status
 
@@ -26,49 +25,6 @@ const ensurePackageIndexSetup = async () => {
     await Package.init(); // ensure mongoose has created declared indexes
   } catch (error) {
     console.error('Package index setup error:', error);
-  }
-};
-
-const repairConversationIndexes = async () => {
-  if (!mongoose.connection.readyState) return;
-
-  try {
-    const collection = mongoose.connection.collection('conversations');
-
-    await collection.updateMany(
-      {
-        $or: [
-          { directKey: null },
-          { departmentKey: null },
-          { managedKey: null },
-        ],
-      },
-      {
-        $unset: {
-          directKey: '',
-          departmentKey: '',
-          managedKey: '',
-        },
-      }
-    );
-
-    const indexNames = await collection.indexes().then((indexes) => indexes.map((index) => index.name));
-    for (const legacyIndex of ['directKey_1', 'departmentKey_1', 'managedKey_1']) {
-      if (indexNames.includes(legacyIndex)) {
-        try {
-          await collection.dropIndex(legacyIndex);
-          console.log(`Dropped legacy conversations ${legacyIndex} index`);
-        } catch (error) {
-          if (error.codeName !== 'IndexNotFound') {
-            throw error;
-          }
-        }
-      }
-    }
-
-    await Conversation.syncIndexes();
-  } catch (error) {
-    console.error('Conversation index repair error:', error);
   }
 };
 
@@ -113,7 +69,6 @@ const connectDB = async () => {
         });
         isConnected = true;
         await ensurePackageIndexSetup();
-        await repairConversationIndexes();
         console.log(`MongoDB connected: ${conn.connection.host}`);
         return conn;
     }

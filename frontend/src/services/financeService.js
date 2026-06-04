@@ -3,6 +3,7 @@ import axiosInstance from './axiosInstance';
 const api = axiosInstance;
 
 const extractData = (response) => response?.data;
+const financeErpBase = '/finance-erp';
 
 // Metrics API
 export const getMetrics = () => api.get('/finance/metrics').then(extractData);
@@ -10,13 +11,22 @@ export const getRevenueSummary = () => api.get('/finance/revenue-summary').then(
 export const getRevenueReport = () => api.get('/finance/revenue-report').then(extractData);
 export const getExpenseReport = () => api.get('/finance/expense-report').then(extractData);
 export const getFinanceSummary = () => api.get('/finance/summary').then(extractData);
-export const getFinanceErpDashboard = () => api.get('/finance/erp/dashboard').then(extractData);
-export const getFinanceErpReports = () => api.get('/finance/erp/reports').then(extractData);
-export const getFinanceErpResource = (resource, params = {}) => api.get(`/finance/erp/${resource}`, { params }).then(extractData);
-export const createFinanceErpResource = (resource, payload) => api.post(`/finance/erp/${resource}`, payload).then(extractData);
-export const runFinanceWorkflow = (workflow, payload) => api.post(`/finance/erp/workflow/${workflow}`, payload).then(extractData);
-export const runFinanceCommand = (path, payload = {}) => api.post(`/finance/erp${path}`, payload).then(extractData);
-export const getFinanceAgeingReport = (type) => api.get(`/finance/erp/reports/aging/${type}`).then(extractData);
+
+// Finance ERP API
+export const getFinanceErpDashboard = () => api.get(`${financeErpBase}/dashboard`).then(extractData);
+export const getFinanceErpReports = () => api.get(`${financeErpBase}/reports`).then(extractData);
+export const getFinanceErpResource = (resource, filters = {}) => (
+  api.get(`${financeErpBase}/${resource}`, { params: filters }).then(extractData)
+);
+export const createFinanceErpResource = (resource, data) => (
+  api.post(`${financeErpBase}/${resource}`, data).then(extractData)
+);
+export const runFinanceCommand = (path, data = {}) => (
+  api.post(`${financeErpBase}${path}`, data).then(extractData)
+);
+export const runFinanceWorkflow = (workflow, data = {}) => (
+  api.post(`${financeErpBase}/workflow/${workflow}`, data).then(extractData)
+);
 
 // Agent Sales Performance API
 export const getAgentSalesPerformance = (range) => {

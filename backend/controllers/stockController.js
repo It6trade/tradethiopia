@@ -120,7 +120,7 @@ const deleteStockItem = asyncHandler(async (req, res) => {
     const stockItem = await Stock.findById(req.params.id);
 
     if (stockItem) {
-      await stockItem.deleteOne();
+      await stockItem.remove();
       res.json({ message: 'Stock item removed' });
     } else {
       res.status(404).json({ message: 'Stock item not found' });

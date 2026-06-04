@@ -1,41 +1,57 @@
-import axiosInstance from './axiosInstance';
+import axios from 'axios';
+
+const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const API = axios.create({ baseURL });
+
+const setAuthToken = (token) => {
+  if (token) API.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+  else delete API.defaults.headers.common['Authorization'];
+};
 
 export const getAllInventory = async () => {
-  const res = await axiosInstance.get('/inventory');
+  setAuthToken(localStorage.getItem('userToken'));
+  const res = await API.get('/api/inventory');
   return res.data;
 };
 
 export const createInventoryItem = async (data) => {
-  const res = await axiosInstance.post('/inventory', data);
+  setAuthToken(localStorage.getItem('userToken'));
+  const res = await API.post('/api/inventory', data);
   return res.data;
 };
 
 export const updateInventoryItem = async (id, data) => {
-  const res = await axiosInstance.put(`/inventory/${id}`, data);
+  setAuthToken(localStorage.getItem('userToken'));
+  const res = await API.put(`/api/inventory/${id}`, data);
   return res.data;
 };
 
 export const deleteInventoryItem = async (id) => {
-  const res = await axiosInstance.delete(`/inventory/${id}`);
+  setAuthToken(localStorage.getItem('userToken'));
+  const res = await API.delete(`/api/inventory/${id}`);
   return res.data;
 };
 
 export const deliverStock = async (id, amount) => {
-  const res = await axiosInstance.post(`/inventory/${id}/deliver`, { amount });
+  setAuthToken(localStorage.getItem('userToken'));
+  const res = await API.post(`/api/inventory/${id}/deliver`, { amount });
   return res.data;
 };
 
 export const addBufferStock = async (id, amount) => {
-  const res = await axiosInstance.post(`/inventory/${id}/add-buffer`, { amount });
+  setAuthToken(localStorage.getItem('userToken'));
+  const res = await API.post(`/api/inventory/${id}/add-buffer`, { amount });
   return res.data;
 };
 
 export const transferBufferToStock = async (id, amount) => {
-  const res = await axiosInstance.post(`/inventory/${id}/transfer-buffer`, { amount });
+  setAuthToken(localStorage.getItem('userToken'));
+  const res = await API.post(`/api/inventory/${id}/transfer-buffer`, { amount });
   return res.data;
 };
 
 export const getMovements = async (id) => {
-  const res = await axiosInstance.get(`/inventory/${id}/movements`);
+  setAuthToken(localStorage.getItem('userToken'));
+  const res = await API.get(`/api/inventory/${id}/movements`);
   return res.data;
 };

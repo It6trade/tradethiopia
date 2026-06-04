@@ -36,21 +36,6 @@ const getNotes = async (req, res) => {
   }
 };
 
-// Fetch one note by id
-const getNoteById = async (req, res) => {
-  const { id } = req.params;
-
-  try {
-    const note = await Note.findById(id);
-    if (!note) {
-      return res.status(404).json({ message: 'Note not found' });
-    }
-    res.status(200).json(note);
-  } catch (error) {
-    res.status(500).json({ message: 'Failed to fetch note', error });
-  }
-};
-
 // Delete a note
 const deleteNote = async (req, res) => {
   const { id } = req.params; // Get note id from URL params
@@ -95,7 +80,6 @@ const updateNote = async (req, res) => {
 module.exports = {
   createNote,
   getNotes,
-  getNoteById,
   deleteNote,
   updateNote
 };

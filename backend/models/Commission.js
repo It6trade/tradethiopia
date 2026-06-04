@@ -8,11 +8,11 @@ const commissionSchema = new mongoose.Schema({
   },
   employeeName: {
     type: String,
-    default: ''
+    required: true
   },
   department: {
     type: String,
-    default: ''
+    required: true
   },
   month: {
     type: String, // Format: "YYYY-MM"
@@ -64,22 +64,6 @@ const commissionSchema = new mongoose.Schema({
   submittedAt: {
     type: Date,
     default: Date.now
-  },
-  status: {
-    type: String,
-    enum: ['draft', 'submitted', 'posted', 'reversed'],
-    default: 'submitted'
-  },
-  journalEntry: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'JournalEntry'
-  },
-  postedBy: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User'
-  },
-  postedAt: {
-    type: Date
   }
 }, {
   timestamps: true

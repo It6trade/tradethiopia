@@ -209,10 +209,11 @@ const fetchPayrollDataHandler = async () => {
   }
 };
 
-  const fetchPayrollHistoryHandler = useCallback(async (filters = null) => {
+  const fetchPayrollHistoryHandler = useCallback(async (filters = {}) => {
     try {
       setHistoryLoading(true);
-      const params = filters && Object.keys(filters).length > 0 ? filters : historyFilters;
+      // If no specific filters provided, fetch all history
+      const params = Object.keys(filters).length > 0 ? filters : {};
       const history = await fetchPayrollHistory(params);
       setPayrollHistory(Array.isArray(history) ? history : []);
       setHistoryError('');
@@ -222,7 +223,7 @@ const fetchPayrollDataHandler = async () => {
     } finally {
       setHistoryLoading(false);
     }
-  }, [historyFilters]);
+  }, []);
 
   const handleHistoryFilterChange = (field, value) => {
     setHistoryFilters(prev => ({
@@ -230,10 +231,6 @@ const fetchPayrollDataHandler = async () => {
       [field]: value
     }));
   };
-
-  useEffect(() => {
-    fetchPayrollHistoryHandler(historyFilters);
-  }, [historyFilters, fetchPayrollHistoryHandler]);
 
   const filteredPayrollHistory = payrollHistory.filter((entry) => {
     console.log('Processing history entry:', entry);
@@ -246,37 +243,8 @@ const fetchPayrollDataHandler = async () => {
       return false;
     }
 
-    if (monthFilter) {
-      const normalizeToYm = (value) => {
-        if (!value) return '';
-        const str = String(value).trim();
-
-        // If YYYY-MM format
-        const isoMatch = str.match(/^(\d{4})-(\d{2})$/);
-        if (isoMatch) return `${isoMatch[1]}-${isoMatch[2]}`;
-
-        // If month name (May, June, etc.) and year is also available (from entry)
-        const monthNames = {
-          january: '01', february: '02', march: '03', april: '04', may: '05', june: '06',
-          july: '07', august: '08', september: '09', october: '10', november: '11', december: '12'
-        };
-
-        const lowered = str.toLowerCase();
-        const monthKey = Object.keys(monthNames).find((k) => lowered.includes(k.slice(0, 3)));
-        if (monthKey) {
-          const year = entry.year ? String(entry.year) : '';
-          return year ? `${year}-${monthNames[monthKey]}` : '';
-        }
-
-        return str;
-      };
-
-      const entryMonthNorm = normalizeToYm(entry.month);
-      const filterMonthNorm = normalizeToYm(monthFilter);
-
-      if (entryMonthNorm !== filterMonthNorm) {
-        return false;
-      }
+    if (monthFilter && entry.month !== monthFilter) {
+      return false;
     }
 
     if (departmentFilter && entry.department?.toLowerCase().indexOf(departmentFilter) === -1) {
@@ -526,35 +494,10 @@ const fetchPayrollDataHandler = async () => {
     navigate(`/my-payroll?userId=${employee.userId._id || employee.userId}&month=${selectedMonth}&year=${selectedYear}`);
   };
 
-  const normalizeMonthString = (month, year) => {
-    if (!month) return '';
-    const monthStr = String(month).trim();
-    const isoMatch = monthStr.match(/^(\d{4})-(\d{1,2})$/);
-    if (isoMatch) {
-      return `${isoMatch[1]}-${isoMatch[2].padStart(2, '0')}`;
-    }
-
-    const monthNames = {
-      january: '01', february: '02', march: '03', april: '04', may: '05', june: '06',
-      july: '07', august: '08', september: '09', october: '10', november: '11', december: '12'
-    };
-
-    const key = Object.keys(monthNames).find((m) => monthStr.toLowerCase().includes(m.slice(0, 3)));
-    if (key && year) {
-      return `${year}-${monthNames[key]}`;
-    }
-
-    return monthStr;
-  };
-
   const viewHistoryDetails = (historyEntry) => {
     const userId = historyEntry.payrollData?.userId?._id || historyEntry.payrollData?.userId;
     if (!userId) return;
-
-    const month = normalizeMonthString(historyEntry.month, historyEntry.year);
-    const year = historyEntry.year || (month ? month.split('-')[0] : '');
-
-    navigate(`/my-payroll?userId=${userId}&month=${month}&year=${year}`);
+    navigate(`/my-payroll?userId=${userId}&month=${historyEntry.month}&year=${historyEntry.year}`);
   };
 
   // Get current user role
@@ -820,7 +763,7 @@ const fetchPayrollDataHandler = async () => {
         setSalesData(salesArray);
         
         // Auto-calculate commission from sales data
-        if (salesArray && Array.isArray(salesArray) && salesArray.length > 0) {
+        if (salesArray.length > 0) {
           // Calculate totals from sales data
           let totalGross = 0;
           let totalTax = 0;
@@ -859,6 +802,13 @@ const fetchPayrollDataHandler = async () => {
     } catch (err) {
       console.error('Error fetching commission data:', err);
       console.error('Error details:', err.response?.data);
+      toast({
+        title: 'Error',
+        description: 'Failed to fetch commission data: ' + (err.response?.data?.message || err.message),
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+      });
       setLoadingSales(false);
     }
   };
@@ -891,13 +841,13 @@ const fetchPayrollDataHandler = async () => {
   const extractSalesArray = (payload) => {
     const raw = Array.isArray(payload)
       ? payload
-      : (Array.isArray(payload?.data) ? payload.data : payload?.commissionDetails || payload?.sales || []);
+      : payload?.commissionDetails || payload?.sales || [];
     return raw.map(normalizeSaleRecord).filter(Boolean);
   };
 
   // Auto-calculate commission based on sales data
   const calculateCommissionFromSales = () => {
-    if (salesData && Array.isArray(salesData) && salesData.length > 0) {
+    if (salesData && salesData.length > 0) {
       // Calculate totals from sales data
       let totalGross = 0;
       let totalTax = 0;
@@ -1017,7 +967,7 @@ const fetchPayrollDataHandler = async () => {
       console.log('Sales data state after setting:', salesArray);
       
       // Auto-calculate commission from sales data
-      if (salesArray && Array.isArray(salesArray) && salesArray.length > 0) {
+      if (salesArray.length > 0) {
         // Calculate totals from sales data
         let totalGross = 0;
         let totalTax = 0;
@@ -1055,6 +1005,13 @@ const fetchPayrollDataHandler = async () => {
     } catch (err) {
       console.error('Error fetching sales data:', err);
       console.error('Error response:', err.response?.data);
+      toast({
+        title: 'Error',
+        description: 'Failed to fetch sales data: ' + (err.response?.data?.message || err.message),
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+      });
       setLoadingSales(false);
     }
   };
@@ -2055,8 +2012,9 @@ const fetchPayrollDataHandler = async () => {
           <CardBody>
             <Flex justify="space-between" align="center" mb={4}>
               <Text fontSize="lg" fontWeight="bold" color={headerColor}>Payroll History</Text>
-              <Button size="sm" variant="ghost" onClick={() => fetchPayrollHistoryHandler(historyFilters)} isLoading={historyLoading}>Refresh History</Button>
+              <Button size="sm" variant="ghost" onClick={fetchPayrollHistoryHandler} isLoading={historyLoading}>Refresh History</Button>
             </Flex>
+
             <Grid templateColumns={{ base: '1fr', md: 'repeat(4, 1fr)' }} gap={3} mb={4}>
               <FormControl>
                 <FormLabel fontSize="xs">Username</FormLabel>
@@ -2268,7 +2226,7 @@ const fetchPayrollDataHandler = async () => {
                         })}
                       </div>
                       
-                      {salesData && Array.isArray(salesData) && salesData.length > 0 ? (
+                      {salesData && salesData.length > 0 ? (
                         <Box maxHeight="200px" overflowY="auto" border="1px" borderColor={borderColor} borderRadius="md" p={2}>
                           <Table size="sm">
                             <Thead>

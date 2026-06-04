@@ -4,16 +4,13 @@ const Notification = require('../models/Notification');
 const asyncHandler = require('express-async-handler');
 const mongoose = require('mongoose');
 
-const normalizeRole = (role = '') =>
-  role.toString().trim().toLowerCase().replace(/[^a-z0-9]/g, '');
-
 // @desc    Set or update sales targets for an agent
 // @route   POST /api/sales-targets
 // @access  Private (Sales Manager only)
 const setSalesTarget = asyncHandler(async (req, res) => {
   try {
     // Only sales managers can access this
-    if (normalizeRole(req.user.role) !== 'salesmanager') {
+    if (req.user.role !== 'salesmanager') {
       res.status(403);
       throw new Error('Access denied. Sales managers only.');
     }
@@ -167,7 +164,7 @@ const getSalesTargets = asyncHandler(async (req, res) => {
     console.log('User role:', req.user.role);
     
     // Check if user is a sales manager or if they're requesting their own targets
-    const isSalesManager = normalizeRole(req.user.role) === 'salesmanager';
+    const isSalesManager = req.user.role === 'salesmanager';
     
     // Convert both IDs to strings for comparison
     const userIdStr = req.user._id.toString();
@@ -230,7 +227,7 @@ const getSalesTargets = asyncHandler(async (req, res) => {
 const getCurrentSalesTargets = asyncHandler(async (req, res) => {
   try {
     // Only sales managers can access this
-    if (normalizeRole(req.user.role) !== 'salesmanager') {
+    if (req.user.role !== 'salesmanager') {
       res.status(403);
       throw new Error('Access denied. Sales managers only.');
     }
@@ -265,7 +262,7 @@ const getCurrentSalesTargets = asyncHandler(async (req, res) => {
 const deleteSalesTarget = asyncHandler(async (req, res) => {
   try {
     // Only sales managers can access this
-    if (normalizeRole(req.user.role) !== 'salesmanager') {
+    if (req.user.role !== 'salesmanager') {
       res.status(403);
       throw new Error('Access denied. Sales managers only.');
     }

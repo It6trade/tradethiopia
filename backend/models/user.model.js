@@ -30,7 +30,6 @@ const userSchema = new mongoose.Schema({
         default: 'sales',
         index: true, // Add index for faster queries
     },
-    permissions: [{ type: String, trim: true }],
     status: {
         type: String,
         enum: ['active', 'inactive'],

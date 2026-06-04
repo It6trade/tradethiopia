@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Box, Table, Thead, Tbody, Tr, Th, Td, Button, Text, Badge } from '@chakra-ui/react';
 import { getDemands, resolveDemand } from '../../services/financeService';
 

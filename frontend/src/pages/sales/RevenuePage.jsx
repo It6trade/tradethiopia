@@ -1,134 +1,87 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React from 'react';
 import {
-  Alert,
-  AlertDescription,
-  AlertIcon,
-  Badge,
   Box,
-  Button,
+  Flex,
+  Heading,
+  Text,
   Card,
   CardBody,
   CardHeader,
-  Flex,
-  HStack,
-  Heading,
-  Icon,
   SimpleGrid,
-  Spinner,
   Stat,
   StatLabel,
   StatNumber,
-  Tab,
-  TabList,
-  TabPanel,
-  TabPanels,
+  useColorModeValue,
+  Button,
+  HStack,
+  VStack,
   Table,
-  Tabs,
-  Tbody,
-  Td,
-  Text,
-  Th,
   Thead,
+  Tbody,
   Tr,
-  useColorModeValue
+  Th,
+  Td,
+  Badge,
+  Tabs,
+  TabList,
+  TabPanels,
+  Tab,
+  TabPanel,
+  Alert,
+  AlertIcon,
+  AlertTitle,
+  AlertDescription,
+  Divider,
+  Icon
 } from '@chakra-ui/react';
-import { FaChartBar, FaDollarSign, FaSync, FaTrophy, FaUsers } from 'react-icons/fa';
+import { FaChartBar, FaChartPie, FaDollarSign, FaUsers, FaMedal, FaTrophy } from 'react-icons/fa';
 import MonthlyReport from '../../components/finance/MonthlyReport';
-import { getFinanceSummary } from '../../services/financeService';
-
-const formatCurrency = (value) => `ETB ${Number(value || 0).toLocaleString(undefined, {
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2
-})}`;
-
-const normalizeTrend = (items = []) => {
-  return [...items]
-    .sort((a, b) => (a.order || 0) - (b.order || 0))
-    .map((item) => ({
-      label: item.label || item.month || item.period || 'Period',
-      total: Number(item.total || item.revenue || 0)
-    }));
-};
-
-const calculateChange = (items = []) => {
-  if (items.length < 2) return null;
-  const previous = Number(items[items.length - 2]?.total || 0);
-  const current = Number(items[items.length - 1]?.total || 0);
-  if (!previous) return current ? 100 : 0;
-  return ((current - previous) / previous) * 100;
-};
 
 const RevenuePage = () => {
   const cardBg = useColorModeValue('white', 'gray.800');
   const headerColor = useColorModeValue('teal.600', 'teal.200');
-  const rowHoverBg = useColorModeValue('gray.50', 'gray.700');
-  const [summary, setSummary] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
 
-  const loadReports = async () => {
-    setLoading(true);
-    setError('');
-    try {
-      const summaryData = await getFinanceSummary();
-      setSummary(summaryData || {});
-    } catch (err) {
-      setSummary({});
-      setError(err.response?.data?.message || err.message || 'Failed to load revenue data');
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Mock data for revenue metrics
+  const revenueMetrics = [
+    { title: 'Total Revenue', value: 'ETB 1,245,678', change: '+12.5%', icon: FaDollarSign, color: 'green' },
+    { title: 'Monthly Revenue', value: 'ETB 124,567', change: '+8.2%', icon: FaChartBar, color: 'blue' },
+    { title: 'Quarterly Revenue', value: 'ETB 373,703', change: '+5.7%', icon: FaChartPie, color: 'purple' },
+    { title: 'Annual Projection', value: 'ETB 1,494,814', change: '+10.0%', icon: FaDollarSign, color: 'orange' }
+  ];
 
-  useEffect(() => {
-    loadReports();
-  }, []);
+  // Mock data for revenue sources
+  const revenueSources = [
+    { source: 'Training Courses', amount: 'ETB 780,000', percentage: '62.6%', trend: 'up' },
+    { source: 'Consulting Services', amount: 'ETB 320,000', percentage: '25.7%', trend: 'up' },
+    { source: 'Software Licenses', amount: 'ETB 95,000', percentage: '7.6%', trend: 'down' },
+    { source: 'Support Contracts', amount: 'ETB 45,000', percentage: '3.6%', trend: 'up' },
+    { source: 'Other Services', amount: 'ETB 5,678', percentage: '0.5%', trend: 'stable' }
+  ];
 
-  const monthlyRevenue = useMemo(() => normalizeTrend(summary?.monthlyRevenue), [summary]);
-  const monthlyChange = calculateChange(monthlyRevenue);
-  const revenueSources = useMemo(() => {
-    const sources = [
-      { source: 'Follow-up Revenue', amount: Number(summary?.followupRevenue || 0) },
-      { source: 'Order Revenue', amount: Number(summary?.orderRevenue || 0) },
-      { source: 'Package Revenue', amount: Number(summary?.packageRevenue || 0) }
-    ];
-    const total = sources.reduce((sum, row) => sum + row.amount, 0);
-    return sources.map((row) => ({
-      ...row,
-      percentage: total ? (row.amount / total) * 100 : 0
-    }));
-  }, [summary]);
-
-  const metrics = [
-    { title: 'Total Revenue', value: summary?.revenue, icon: FaDollarSign, color: 'green', change: monthlyChange },
-    { title: 'Total Expenses', value: summary?.expenses, icon: FaChartBar, color: 'red' },
-    { title: 'Profit', value: summary?.profit, icon: FaChartBar, color: Number(summary?.profit || 0) >= 0 ? 'green' : 'red' },
-    { title: 'Payroll Cost', value: summary?.payrollCost, icon: FaUsers, color: 'purple' }
+  // Mock data for monthly revenue
+  const monthlyRevenue = [
+    { month: 'January', revenue: 'ETB 98,000' },
+    { month: 'February', revenue: 'ETB 87,500' },
+    { month: 'March', revenue: 'ETB 112,000' },
+    { month: 'April', revenue: 'ETB 105,000' },
+    { month: 'May', revenue: 'ETB 118,000' },
+    { month: 'June', revenue: 'ETB 124,567' }
   ];
 
   return (
     <Box>
-      <HStack justify="space-between" mb={6}>
-        <Heading as="h1" size="xl" color={headerColor}>
-          Revenue Management
-        </Heading>
-        <Button leftIcon={<FaSync />} colorScheme="teal" onClick={loadReports} isLoading={loading}>
-          Refresh
-        </Button>
-      </HStack>
+        <HStack justify="space-between" mb={6}>
+          <Heading as="h1" size="xl" color={headerColor}>
+            Revenue Management
+          </Heading>
+          <HStack>
+            <Button leftIcon={<FaChartBar />} colorScheme="teal">
+              Generate Report
+            </Button>
+            <Button colorScheme="blue">Export Data</Button>
+          </HStack>
+        </HStack>
 
-      {error && (
-        <Alert status="error" borderRadius="md" mb={4}>
-          <AlertIcon />
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      )}
-
-      {loading ? (
-        <Flex justify="center" py={16}>
-          <Spinner size="lg" />
-        </Flex>
-      ) : (
         <Tabs variant="enclosed" colorScheme="teal">
           <TabList mb="1em">
             <Tab>Revenue Overview</Tab>
@@ -141,27 +94,27 @@ const RevenuePage = () => {
           </TabList>
           <TabPanels>
             <TabPanel>
+              {/* Revenue Overview Cards */}
               <SimpleGrid columns={{ base: 1, md: 2, lg: 4 }} spacing={6} mb={8}>
-                {metrics.map((metric) => (
-                  <Card key={metric.title} bg={cardBg} boxShadow="md">
+                {revenueMetrics.map((metric, index) => (
+                  <Card key={index} bg={cardBg} boxShadow="md" _hover={{ transform: 'translateY(-5px)', boxShadow: 'xl' }} transition="all 0.3s">
                     <CardBody>
                       <Flex justify="space-between" align="center" mb={2}>
                         <Box as={metric.icon} fontSize="24px" color={`${metric.color}.500`} />
-                        {metric.change !== undefined && metric.change !== null && (
-                          <Badge colorScheme={metric.change >= 0 ? 'green' : 'red'}>
-                            {metric.change >= 0 ? '+' : ''}{metric.change.toFixed(1)}%
-                          </Badge>
-                        )}
+                        <Badge colorScheme={metric.change.startsWith('+') ? 'green' : 'red'}>
+                          {metric.change}
+                        </Badge>
                       </Flex>
                       <Stat>
                         <StatLabel fontSize="sm" mb={1}>{metric.title}</StatLabel>
-                        <StatNumber fontSize="lg" fontWeight="bold">{formatCurrency(metric.value)}</StatNumber>
+                        <StatNumber fontSize="lg" fontWeight="bold">{metric.value}</StatNumber>
                       </Stat>
                     </CardBody>
                   </Card>
                 ))}
               </SimpleGrid>
 
+              {/* Revenue Sources */}
               <Card bg={cardBg} boxShadow="md" mb={8}>
                 <CardHeader pb={0}>
                   <Heading as="h2" size="md">Revenue Sources</Heading>
@@ -172,15 +125,30 @@ const RevenuePage = () => {
                       <Tr>
                         <Th>Source</Th>
                         <Th isNumeric>Amount</Th>
-                        <Th isNumeric>Share</Th>
+                        <Th>Percentage</Th>
+                        <Th>Trend</Th>
                       </Tr>
                     </Thead>
                     <Tbody>
-                      {revenueSources.map((source) => (
-                        <Tr key={source.source} _hover={{ bg: rowHoverBg }}>
-                          <Td fontWeight="medium">{source.source}</Td>
-                          <Td isNumeric fontWeight="bold">{formatCurrency(source.amount)}</Td>
-                          <Td isNumeric>{source.percentage.toFixed(1)}%</Td>
+                      {revenueSources.map((source, index) => (
+                        <Tr key={index} _hover={{ bg: useColorModeValue('gray.50', 'gray.700') }}>
+                          <Td>
+                            <Text fontWeight="medium">{source.source}</Text>
+                          </Td>
+                          <Td isNumeric>
+                            <Text fontWeight="bold">{source.amount}</Text>
+                          </Td>
+                          <Td>
+                            <Text>{source.percentage}</Text>
+                          </Td>
+                          <Td>
+                            <Badge colorScheme={
+                              source.trend === 'up' ? 'green' : 
+                              source.trend === 'down' ? 'red' : 'yellow'
+                            }>
+                              {source.trend}
+                            </Badge>
+                          </Td>
                         </Tr>
                       ))}
                     </Tbody>
@@ -188,35 +156,62 @@ const RevenuePage = () => {
                 </CardBody>
               </Card>
 
-              <Card bg={cardBg} boxShadow="md">
+              {/* Detailed Monthly Revenue */}
+              <Card bg={cardBg} boxShadow="md" mb={8}>
                 <CardHeader pb={0}>
                   <Heading as="h2" size="md">Monthly Revenue Breakdown</Heading>
                 </CardHeader>
                 <CardBody>
-                  {monthlyRevenue.length ? (
-                    <Table variant="simple">
-                      <Thead>
-                        <Tr>
-                          <Th>Period</Th>
-                          <Th isNumeric>Revenue</Th>
+                  <Table variant="simple">
+                    <Thead>
+                      <Tr>
+                        <Th>Month</Th>
+                        <Th isNumeric>Revenue</Th>
+                        <Th>Growth</Th>
+                      </Tr>
+                    </Thead>
+                    <Tbody>
+                      {monthlyRevenue.map((data, index) => (
+                        <Tr key={index} _hover={{ bg: useColorModeValue('gray.50', 'gray.700') }}>
+                          <Td>
+                            <Text fontWeight="medium">{data.month}</Text>
+                          </Td>
+                          <Td isNumeric>
+                            <Text fontWeight="bold">{data.revenue}</Text>
+                          </Td>
+                          <Td>
+                            <Badge colorScheme="green">+{Math.floor(Math.random() * 15)}%</Badge>
+                          </Td>
                         </Tr>
-                      </Thead>
-                      <Tbody>
-                        {monthlyRevenue.map((item) => (
-                          <Tr key={item.label} _hover={{ bg: rowHoverBg }}>
-                            <Td fontWeight="medium">{item.label}</Td>
-                            <Td isNumeric fontWeight="bold">{formatCurrency(item.total)}</Td>
-                          </Tr>
-                        ))}
-                      </Tbody>
-                    </Table>
-                  ) : (
-                    <Text color="gray.500">No revenue records available.</Text>
-                  )}
+                      ))}
+                    </Tbody>
+                  </Table>
+                </CardBody>
+              </Card>
+
+              {/* Revenue Insights */}
+              <Card bg={cardBg} boxShadow="md">
+                <CardHeader pb={0}>
+                  <Heading as="h2" size="md">Revenue Insights</Heading>
+                </CardHeader>
+                <CardBody>
+                  <VStack align="stretch" spacing={4}>
+                    <Text>
+                      Our revenue has shown consistent growth over the past quarter, with training courses 
+                      remaining our primary income source. Consulting services continue to gain traction, 
+                      contributing significantly to our overall revenue.
+                    </Text>
+                    <Text>
+                      The projected annual revenue shows a positive trend, indicating strong performance 
+                      for the remainder of the fiscal year. We recommend focusing on expanding our consulting 
+                      services and software licensing to diversify revenue streams.
+                    </Text>
+                  </VStack>
                 </CardBody>
               </Card>
             </TabPanel>
             <TabPanel>
+              {/* Enhanced Monthly Report Component with attractive styling */}
               <Card bg={cardBg} boxShadow="md" borderRadius="lg">
                 <CardHeader pb={0}>
                   <HStack justify="space-between">
@@ -228,7 +223,11 @@ const RevenuePage = () => {
                     </Heading>
                     <Badge colorScheme="teal" fontSize="md">Live Data</Badge>
                   </HStack>
+                  <Text color="gray.500" mt={2}>
+                    Detailed commission and sales performance metrics for all agents
+                  </Text>
                 </CardHeader>
+                <Divider my={4} />
                 <CardBody>
                   <MonthlyReport />
                 </CardBody>
@@ -236,8 +235,7 @@ const RevenuePage = () => {
             </TabPanel>
           </TabPanels>
         </Tabs>
-      )}
-    </Box>
+      </Box>
   );
 };
 

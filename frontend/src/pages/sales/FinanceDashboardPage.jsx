@@ -1,4 +1,4 @@
-import React from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Box,
@@ -13,49 +13,35 @@ import {
   Stat,
   StatLabel,
   StatNumber,
-  StatHelpText,
   useColorModeValue,
   Tabs,
   TabList,
   TabPanels,
   Tab,
   TabPanel,
-  Divider,
   Grid,
-  GridItem,
   HStack,
   VStack,
   Icon,
   Badge,
-  Alert,
-  AlertIcon,
-  AlertTitle,
-  AlertDescription,
-  FormControl,
-  FormLabel,
-  Input,
-  Select,
-  Tag,
 } from '@chakra-ui/react';
 import { 
-  FaChartBar, 
-  FaChartPie, 
-  FaMoneyBillWave, 
   FaShoppingCart, 
   FaTruck, 
   FaUsers, 
   FaBoxes,
   FaDollarSign,
   FaReceipt,
-  FaBalanceScale,
-  FaWarehouse
 } from 'react-icons/fa';
 import { useTeamRequests } from '../../hooks/useTeamRequests';
 import FinanceDashboard from '../../components/finance/FinanceDashboard';
 import MonthlyReport from '../../components/finance/MonthlyReport';
 import FinanceMessagesPage from '../FinanceMessagesPage';
+import { getFinanceSummary } from '../../services/financeService';
 
 const FinanceDashboardPage = () => {
+  const [financeSummary, setFinanceSummary] = useState(null);
+  const [financeSummaryLoading, setFinanceSummaryLoading] = useState(true);
   const cardBg = useColorModeValue('white', 'gray.800');
   const headerColor = useColorModeValue('teal.600', 'teal.200');
   const cardTextColor = useColorModeValue('gray.900', 'gray.100');
@@ -71,15 +57,50 @@ const FinanceDashboardPage = () => {
     fetchRequests: refreshTeamRequests,
   } = useTeamRequests();
 
-  // Mock data for financial metrics
-  const financialMetrics = [
-    { title: 'Total Revenue', value: 'ETB 1,245,678', change: '+12.5%', icon: FaDollarSign, color: 'green' },
-    { title: 'Total Orders', value: '1,248', change: '+8.2%', icon: FaReceipt, color: 'blue' },
-    { title: 'Inventory Value', value: 'ETB 876,432', change: '+5.7%', icon: FaBoxes, color: 'purple' },
-    { title: 'Pending Orders', value: '42', change: '-3.1%', icon: FaShoppingCart, color: 'orange' },
-    { title: 'Suppliers', value: '24', change: '+2.0%', icon: FaTruck, color: 'teal' },
-    { title: 'Customers', value: '156', change: '+4.5%', icon: FaUsers, color: 'pink' }
-  ];
+  useEffect(() => {
+    let mounted = true;
+
+    const loadFinanceSummary = async () => {
+      try {
+        const data = await getFinanceSummary();
+        if (mounted) setFinanceSummary(data);
+      } catch (error) {
+        console.error('Failed to load finance summary', error);
+      } finally {
+        if (mounted) setFinanceSummaryLoading(false);
+      }
+    };
+
+    loadFinanceSummary();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const formatEtb = (value) => {
+    const amount = Number.isFinite(Number(value)) ? Number(value) : 0;
+    return `ETB ${amount.toLocaleString()}`;
+  };
+
+  const financialMetrics = useMemo(() => [
+    { title: 'Total Revenue', value: formatEtb(financeSummary?.revenue), icon: FaDollarSign, color: 'green' },
+    { title: 'Total Expenses', value: formatEtb(financeSummary?.expenses), icon: FaReceipt, color: 'red' },
+    { title: 'Net Profit', value: formatEtb(financeSummary?.profit), icon: FaBoxes, color: (financeSummary?.profit || 0) >= 0 ? 'green' : 'red' },
+    { title: 'Invoices', value: Number(financeSummary?.invoices || 0).toLocaleString(), icon: FaShoppingCart, color: 'orange' },
+    { title: 'Payroll Cost', value: formatEtb(financeSummary?.payrollCost), icon: FaTruck, color: 'teal' },
+    { title: 'Package Revenue', value: formatEtb(financeSummary?.packageRevenue), icon: FaUsers, color: 'pink' }
+  ], [financeSummary]);
+
+  const revenueSources = useMemo(() => [
+    { label: 'Follow-up revenue', value: financeSummary?.followupRevenue },
+    { label: 'Order revenue', value: financeSummary?.orderRevenue },
+    { label: 'Package revenue', value: financeSummary?.packageRevenue }
+  ], [financeSummary]);
+
+  const recentFinanceItems = Array.isArray(financeSummary?.recentExpenses)
+    ? financeSummary.recentExpenses
+    : [];
 
   const formatRequestDate = (value) => {
     if (!value) return 'No due date';
@@ -134,7 +155,7 @@ const FinanceDashboardPage = () => {
               </Box>
               <Button
                 as={Link}
-                to="/payroll"
+                to="/finance-dashboard/payroll"
                 colorScheme="purple"
                 variant="outline"
                 size="xs"
@@ -154,8 +175,8 @@ const FinanceDashboardPage = () => {
               <CardBody py={2} px={3}>
                 <Flex justify="space-between" align="center" mb={1}>
                   <Icon as={metric.icon} boxSize={5} color={`${metric.color}.500`} />
-                  <Badge fontSize="xs" colorScheme={metric.change.startsWith('+') ? 'green' : 'red'} px={1} py={0.5}>
-                    {metric.change}
+                  <Badge fontSize="xs" colorScheme={financeSummaryLoading ? 'gray' : 'green'} px={1} py={0.5}>
+                    {financeSummaryLoading ? 'Loading' : 'Live'}
                   </Badge>
                 </Flex>
                 <Stat>
@@ -189,15 +210,15 @@ const FinanceDashboardPage = () => {
                 
                 <Card bg={cardBg} boxShadow="xs" size="sm">
                   <CardHeader py={2} px={3}>
-                    <Heading as="h2" size="xs">Top Products</Heading>
+                    <Heading as="h2" size="xs">Revenue Sources</Heading>
                   </CardHeader>
                   <CardBody py={2} px={3}>
                     <VStack align="stretch" spacing={2}>
-                      {[1, 2, 3, 4, 5].map((item) => (
-                        <Flex key={item} justify="space-between" align="center">
-                      <Text fontSize="sm" color={cardTextColor}>Product {item}</Text>
+                      {revenueSources.map((item) => (
+                        <Flex key={item.label} justify="space-between" align="center">
+                      <Text fontSize="sm" color={cardTextColor}>{item.label}</Text>
                       <Text fontWeight="bold" color={cardTextColor} fontSize="sm">
-                        ETB {Math.floor(Math.random() * 10000) + 5000}
+                        {formatEtb(item.value)}
                       </Text>
                     </Flex>
                   ))}
@@ -234,34 +255,40 @@ const FinanceDashboardPage = () => {
           </CardBody>
         </Card>
 
-        {/* Recent Transactions */}
+        {/* Recent Finance Activity */}
         <Card bg={cardBg} boxShadow="xs" mb={4} size="sm">
           <CardHeader py={2} px={3}>
-            <Heading as="h2" size="xs">Recent Transactions</Heading>
+            <Heading as="h2" size="xs">Recent Finance Activity</Heading>
           </CardHeader>
           <CardBody py={2} px={3}>
             <VStack align="stretch" spacing={2}>
-              {[1, 2, 3, 4, 5].map((item) => (
-                <Flex
-                  key={item}
-                  justify="space-between"
-                  align="center"
-                  p={2}
-                  borderRadius="md"
-                  _hover={{ bg: insetBg }}
-                >
-                  <VStack align="start" spacing={0}>
-                    <Text fontWeight="bold" color={cardTextColor} fontSize="sm">
-                      Transaction #{1000 + item}
-                    </Text>
-                    <Text fontSize="xs" color={helperTextColor}>
-                      Customer Name {item}
-                    </Text>
-                  </VStack>
-                  <Text fontWeight="bold" color="green.500" fontSize="sm">+ETB {Math.floor(Math.random() * 5000) + 1000}</Text>
-                  <Badge fontSize="xs" colorScheme="green">Completed</Badge>
-                </Flex>
-              ))}
+              {recentFinanceItems.length ? (
+                recentFinanceItems.slice(0, 5).map((item) => (
+                  <Flex
+                    key={item._id || item.createdAt || item.title}
+                    justify="space-between"
+                    align="center"
+                    p={2}
+                    borderRadius="md"
+                    _hover={{ bg: insetBg }}
+                  >
+                    <VStack align="start" spacing={0}>
+                      <Text fontWeight="bold" color={cardTextColor} fontSize="sm">
+                        {item.title || item.category || 'Expense'}
+                      </Text>
+                      <Text fontSize="xs" color={helperTextColor}>
+                        {item.incurredOn ? new Date(item.incurredOn).toLocaleDateString() : 'Date unknown'}
+                      </Text>
+                    </VStack>
+                    <Text fontWeight="bold" color="red.500" fontSize="sm">{formatEtb(item.amount)}</Text>
+                    <Badge fontSize="xs" colorScheme="orange">{item.status || 'Recorded'}</Badge>
+                  </Flex>
+                ))
+              ) : (
+                <Text textAlign="center" color={helperTextColor} fontSize="xs">
+                  No recent finance activity yet.
+                </Text>
+              )}
             </VStack>
           </CardBody>
         </Card>
