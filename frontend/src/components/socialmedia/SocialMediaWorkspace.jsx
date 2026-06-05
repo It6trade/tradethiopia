@@ -47,6 +47,7 @@ import {
   FiGrid,
   FiLogOut,
   FiPackage,
+  FiShield,
 } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
 import { useUserStore } from "../../store/user";
@@ -54,25 +55,27 @@ import AssetList from "../AssetList";
 import NotesLauncher from "../notes/NotesLauncher";
 import RequestPage from "../../pages/RequestPage";
 import SocialMediaManager from "./SocialMediaManager";
+import SocialMediaAccountsManager from "./SocialMediaAccountsManager";
 import { EmptyStateBlock, SectionIntro, SurfaceCard } from "./SocialMediaPrimitives";
 
 const navGroups = [
   {
     label: "Overview",
     items: [
-      { key: "dashboard", label: "Dashboard", icon: FiBarChart2, description: "Performance and weekly operations" },
+      { key: "dashboard", label: "Dashboard", icon: FiBarChart2 },
     ],
   },
   {
     label: "Operations",
     items: [
-      { key: "assets", label: "Asset Library", icon: FiPackage, description: "Review approved HR-managed assets" },
+      { key: "assets", label: "Asset Library", icon: FiPackage },
+      { key: "accounts", label: "Social Media", icon: FiShield },
     ],
   },
   {
     label: "Collaboration",
     items: [
-      { key: "requests", label: "Requests", icon: FiClipboard, description: "Submit and track shared requests" },
+      { key: "requests", label: "Requests", icon: FiClipboard },
     ],
   },
 ];
@@ -80,18 +83,19 @@ const navGroups = [
 const sectionMeta = {
   dashboard: {
     eyebrow: "Overview",
-    title: "Social media operating system",
-    description: "A cleaner command center for planning, publishing, analytics, reporting, and team coordination.",
+    title: "",
   },
   assets: {
     eyebrow: "Operations",
     title: "Asset library",
-    description: "Browse the shared HR asset inventory for campaign planning, approvals, and publishing support.",
+  },
+  accounts: {
+    eyebrow: "Operations",
+    title: "Social media accounts",
   },
   requests: {
     eyebrow: "Collaboration",
     title: "Request center",
-    description: "Coordinate with other teams using the existing shared request workflow.",
   },
 };
 
@@ -117,16 +121,26 @@ function SidebarNav({
   toggleColorMode,
   onLogout,
 }) {
-  const sidebarBg = useColorModeValue("rgba(255,255,255,0.9)", "rgba(15,23,42,0.78)");
-  const borderColor = useColorModeValue("rgba(226,232,240,0.92)", "rgba(148,163,184,0.16)");
-  const muted = useColorModeValue("#64748B", "gray.400");
-  const titleColor = useColorModeValue("#0F172A", "white");
-  const activeBg = useColorModeValue("rgba(239,246,255,0.98)", "rgba(37,99,235,0.92)");
-  const activeText = useColorModeValue("#0F172A", "white");
-  const activeMeta = useColorModeValue("#2563EB", "whiteAlpha.800");
-  const hoverBg = useColorModeValue("rgba(248,250,252,0.9)", "whiteAlpha.100");
-  const collapsedLogoBg = useColorModeValue("rgba(239,246,255,0.98)", "blue.500");
-  const collapsedLogoColor = useColorModeValue("blue.700", "white");
+  const sidebarBg = "linear-gradient(180deg, #050505 0%, #0A0A0A 54%, #111827 100%)";
+  const borderColor = "rgba(255,255,255,0.08)";
+  const muted = "rgba(255,255,255,0.56)";
+  const titleColor = "white";
+  const activeBg = "linear-gradient(135deg, rgba(37,99,235,0.95), rgba(59,130,246,0.78))";
+  const activeText = "white";
+  const hoverBg = "rgba(255,255,255,0.08)";
+  const collapsedLogoBg = "rgba(37,99,235,0.18)";
+  const collapsedLogoColor = "#93C5FD";
+  const sidebarButtonProps = {
+    variant: "ghost",
+    borderRadius: "14px",
+    borderWidth: "1px",
+    borderColor: "rgba(255,255,255,0.08)",
+    color: "rgba(255,255,255,0.82)",
+    bg: "rgba(255,255,255,0.04)",
+    transition: "background 0.18s ease, border-color 0.18s ease, transform 0.18s ease",
+    _hover: { bg: "rgba(255,255,255,0.1)", borderColor: "rgba(255,255,255,0.16)", transform: "translateY(-1px)" },
+    _focusVisible: { boxShadow: "0 0 0 3px rgba(59,130,246,0.34)" },
+  };
 
   return (
     <Flex
@@ -136,48 +150,52 @@ function SidebarNav({
       backdropFilter="blur(24px) saturate(1.2)"
       borderRightWidth="1px"
       borderColor={borderColor}
-      px={collapsed ? 3 : 4}
-      py={4}
+      px={collapsed ? 3 : 5}
+      py={5}
+      boxShadow="18px 0 48px rgba(0,0,0,0.28)"
     >
       <VStack align="stretch" spacing={5} flex="1">
         <HStack justify="space-between">
           {!collapsed ? (
             <Box>
-              <Text fontSize="xs" textTransform="uppercase" letterSpacing="0.12em" color={muted} fontWeight="700">
-                Workspace
-              </Text>
               <Text fontSize="lg" fontWeight="700" letterSpacing="0" color={titleColor}>
-                Social Media
+                Social Media Manager
               </Text>
             </Box>
           ) : (
-            <Flex w="42px" h="42px" align="center" justify="center" borderRadius="16px" bg={collapsedLogoBg} color={collapsedLogoColor} boxShadow="inset 0 1px 0 rgba(255,255,255,0.45)">
+            <Flex w="42px" h="42px" align="center" justify="center" borderRadius="16px" bg={collapsedLogoBg} color={collapsedLogoColor} boxShadow="inset 0 1px 0 rgba(255,255,255,0.08)">
               <Icon as={FiGrid} boxSize={5} />
             </Flex>
           )}
 
           <HStack spacing={1}>
             {onClose ? (
-              <IconButton aria-label="Close sidebar" icon={<ChevronDownIcon transform="rotate(90deg)" />} onClick={onClose} {...utilityButtonProps} />
+              <IconButton aria-label="Close sidebar" icon={<ChevronDownIcon transform="rotate(90deg)" />} onClick={onClose} {...sidebarButtonProps} />
             ) : null}
             {!onClose ? (
               <IconButton
                 aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
                 icon={collapsed ? <FiChevronRight /> : <FiChevronLeft />}
                 onClick={onToggleCollapse}
-                {...utilityButtonProps}
+                {...sidebarButtonProps}
               />
             ) : null}
           </HStack>
         </HStack>
 
-        <SurfaceCard>
+        <Box
+          borderRadius="18px"
+          borderWidth="1px"
+          borderColor="rgba(255,255,255,0.08)"
+          bg="rgba(255,255,255,0.055)"
+          boxShadow="inset 0 1px 0 rgba(255,255,255,0.06), 0 14px 34px rgba(0,0,0,0.18)"
+        >
           <Box p={collapsed ? 3 : 4}>
             <HStack spacing={3} align="center" justify={collapsed ? "center" : "flex-start"}>
               <Avatar size="sm" name={currentUser?.username || currentUser?.email || "Social Media"} bg="#2563EB" color="white" />
               {!collapsed ? (
                 <Box minW={0}>
-                  <Text fontSize="sm" fontWeight="600" noOfLines={1}>
+                  <Text fontSize="sm" fontWeight="700" color="white" noOfLines={1}>
                     {currentUser?.username || currentUser?.email || "Social Media Manager"}
                   </Text>
                   <Text fontSize="xs" color={muted} noOfLines={1}>
@@ -187,7 +205,7 @@ function SidebarNav({
               ) : null}
             </HStack>
           </Box>
-        </SurfaceCard>
+        </Box>
 
         <VStack as="nav" aria-label="Social dashboard navigation" align="stretch" spacing={5} flex="1">
           {navGroups.map((group) => (
@@ -206,16 +224,16 @@ function SidebarNav({
                       justifyContent={collapsed ? "center" : "space-between"}
                       leftIcon={collapsed ? undefined : <Icon as={item.icon} boxSize={5} />}
                       variant="ghost"
-                      h="52px"
+                      h="46px"
                       px={collapsed ? 0 : 3}
-                      borderRadius="18px"
+                      borderRadius="15px"
                       bg={isActive ? activeBg : "transparent"}
-                      color={isActive ? activeText : undefined}
+                      color={isActive ? activeText : "rgba(255,255,255,0.78)"}
                       borderWidth="1px"
-                      borderColor={isActive ? "rgba(37,99,235,0.18)" : "transparent"}
-                      boxShadow={isActive ? "0 10px 24px rgba(37,99,235,0.12)" : "none"}
-                      _hover={{ bg: isActive ? activeBg : hoverBg, transform: "translateX(1px)" }}
-                      _focusVisible={{ boxShadow: "0 0 0 3px rgba(37,99,235,0.28)" }}
+                      borderColor={isActive ? "rgba(147,197,253,0.32)" : "transparent"}
+                      boxShadow={isActive ? "0 14px 28px rgba(37,99,235,0.26)" : "none"}
+                      _hover={{ bg: isActive ? activeBg : hoverBg, color: "white", transform: "translateX(2px)" }}
+                      _focusVisible={{ boxShadow: "0 0 0 3px rgba(59,130,246,0.34)" }}
                       transition="all 0.18s ease"
                       onClick={() => onSelect(item.key)}
                       aria-current={isActive ? "page" : undefined}
@@ -224,12 +242,9 @@ function SidebarNav({
                         <Icon as={item.icon} boxSize={5} />
                       ) : (
                         <>
-                          <Flex direction="column" align="start" flex="1" minW={0}>
+                          <Flex align="center" flex="1" minW={0}>
                             <Text fontSize="sm" fontWeight="600" noOfLines={1}>
                               {item.label}
-                            </Text>
-                            <Text fontSize="xs" color={isActive ? activeMeta : muted} noOfLines={1}>
-                              {item.description}
                             </Text>
                           </Flex>
                           {item.key === "requests" ? (
@@ -265,12 +280,12 @@ function SidebarNav({
                 aria-label="Toggle color mode"
                 icon={colorMode === "light" ? <MoonIcon /> : <SunIcon />}
                 onClick={toggleColorMode}
-                {...utilityButtonProps}
+                {...sidebarButtonProps}
               />
             </Tooltip>
             <NotesLauncher
               buttonProps={{
-                ...utilityButtonProps,
+                ...sidebarButtonProps,
                 "aria-label": "Open notes",
               }}
               tooltipLabel="Notes"
@@ -278,16 +293,26 @@ function SidebarNav({
           </HStack>
           {!collapsed ? (
             <>
-              <Button leftIcon={<SettingsIcon />} justifyContent="flex-start" variant="ghost" borderRadius="14px">
+              <Button leftIcon={<SettingsIcon />} justifyContent="flex-start" borderRadius="14px" {...sidebarButtonProps}>
                 Settings
               </Button>
-              <Button leftIcon={<Icon as={FiLogOut} />} justifyContent="flex-start" colorScheme="red" variant="ghost" borderRadius="14px" onClick={onLogout}>
+              <Button
+                leftIcon={<Icon as={FiLogOut} />}
+                justifyContent="flex-start"
+                borderRadius="14px"
+                color="red.200"
+                bg="rgba(239,68,68,0.08)"
+                borderWidth="1px"
+                borderColor="rgba(239,68,68,0.14)"
+                _hover={{ bg: "rgba(239,68,68,0.16)", borderColor: "rgba(248,113,113,0.3)" }}
+                onClick={onLogout}
+              >
                 Logout
               </Button>
             </>
           ) : (
             <Tooltip label="Logout" placement="right">
-              <IconButton aria-label="Logout" icon={<Icon as={FiLogOut} />} colorScheme="red" variant="ghost" borderRadius="14px" onClick={onLogout} />
+              <IconButton aria-label="Logout" icon={<Icon as={FiLogOut} />} color="red.200" bg="rgba(239,68,68,0.08)" borderRadius="14px" onClick={onLogout} />
             </Tooltip>
           )}
         </VStack>
@@ -349,7 +374,7 @@ export default function SocialMediaWorkspace() {
                     <Icon as={FiPackage} boxSize={7} />
                   </Flex>
                   <Box>
-                    <SectionIntro eyebrow={currentMeta.eyebrow} title={currentMeta.title} description={currentMeta.description} />
+                    <SectionIntro eyebrow={currentMeta.eyebrow} title={currentMeta.title} />
                   </Box>
                 </HStack>
                 <HStack spacing={2} flexWrap="wrap">
@@ -379,7 +404,7 @@ export default function SocialMediaWorkspace() {
     if (activeSection === "requests") {
       return (
         <VStack align="stretch" spacing={6}>
-          <SectionIntro eyebrow={currentMeta.eyebrow} title={currentMeta.title} description={currentMeta.description} />
+          <SectionIntro eyebrow={currentMeta.eyebrow} title={currentMeta.title} />
           <RequestPage
             maxWidth="100%"
             departmentOverride="Social Media"
@@ -391,13 +416,18 @@ export default function SocialMediaWorkspace() {
       );
     }
 
+    if (activeSection === "accounts") {
+      return (
+        <VStack align="stretch" spacing={6}>
+          <SectionIntro eyebrow={currentMeta.eyebrow} title={currentMeta.title} />
+          <SocialMediaAccountsManager />
+        </VStack>
+      );
+    }
+
     return (
       <VStack align="stretch" spacing={6}>
-        <SectionIntro
-          eyebrow={currentMeta.eyebrow}
-          title={currentMeta.title}
-          description={currentMeta.description}
-        />
+        <SectionIntro eyebrow={currentMeta.eyebrow} title={currentMeta.title} />
         <SocialMediaManager />
       </VStack>
     );
@@ -418,9 +448,9 @@ export default function SocialMediaWorkspace() {
         />
       </Box>
 
-      <Drawer isOpen={isOpen} placement="left" onClose={onClose} size="xs">
+      <Drawer isOpen={isOpen} placement="left" onClose={onClose} size="full">
         <DrawerOverlay />
-        <DrawerContent maxW="300px">
+        <DrawerContent maxW={{ base: "86vw", sm: "320px" }}>
           <DrawerHeader p={0} />
           <DrawerBody p={0}>
             <SidebarNav
@@ -447,17 +477,19 @@ export default function SocialMediaWorkspace() {
           position="sticky"
           top="0"
           zIndex="10"
-          px={{ base: 4, md: 6 }}
-          py={4}
-          align="center"
+          px={{ base: 3, sm: 4, md: 6 }}
+          py={{ base: 3, md: 4 }}
+          align={{ base: "stretch", md: "center" }}
           justify="space-between"
+          direction={{ base: "column", md: "row" }}
+          gap={{ base: 3, md: 0 }}
           bg={headerBg}
           backdropFilter="blur(22px) saturate(1.18)"
           borderBottomWidth="1px"
           borderColor={borderColor}
           boxShadow={useColorModeValue("0 1px 0 rgba(255,255,255,0.85)", "0 1px 0 rgba(255,255,255,0.04)")}
         >
-          <HStack spacing={3} minW={0} flex="1">
+          <HStack spacing={2} minW={0} flex="1" w="100%">
             <IconButton
               display={{ base: "inline-flex", lg: "none" }}
               aria-label="Open sidebar"
@@ -465,7 +497,7 @@ export default function SocialMediaWorkspace() {
               onClick={onOpen}
               {...utilityButtonProps}
             />
-            <InputGroup maxW={{ base: "100%", md: "380px" }}>
+            <InputGroup maxW={{ base: "none", md: "380px" }} flex="1" minW={0}>
               <InputLeftElement pointerEvents="none">
                 <SearchIcon color={muted} />
               </InputLeftElement>
@@ -482,7 +514,7 @@ export default function SocialMediaWorkspace() {
             </InputGroup>
           </HStack>
 
-          <HStack spacing={2} ml={4}>
+          <HStack spacing={2} ml={{ base: 0, md: 4 }} justify={{ base: "space-between", md: "flex-end" }} w={{ base: "100%", md: "auto" }}>
             <IconButton aria-label="Notifications" icon={<BellIcon />} {...utilityButtonProps} />
             <Menu>
               <MenuButton

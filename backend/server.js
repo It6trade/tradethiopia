@@ -61,6 +61,7 @@ const requestRoutes = require('./routes/requestRoutes.js');
 const actionItemRoutes = require('./routes/actionItemRoutes.js');
 const commissionApprovalRoutes = require('./routes/commissionApprovalRoutes.js');
 const salesOnboardingCourseRoutes = require('./routes/salesOnboardingCourseRoutes.js');
+const socialAccountCredentialRoutes = require('./routes/socialAccountCredentialRoutes.js');
 // Load environment variables
 
 // Initialize Express app
@@ -330,6 +331,7 @@ app.use('/api/payroll', payrollRoutes); // Add this line
 app.use('/api/payments', paymentRoutes);
 app.use('/api/requests', requestRoutes);
 app.use('/api/social-requests', requestRoutes);
+app.use('/api/social-account-credentials', socialAccountCredentialRoutes);
 app.use('/api/action-items', actionItemRoutes);
 app.use('/api/content-tracker', contentTrackerRoutes);
 // Awards
