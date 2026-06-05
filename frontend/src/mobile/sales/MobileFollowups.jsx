@@ -80,6 +80,17 @@ const packageFilterOptions = [
   { label: 'Expired', value: 'Expired' }
 ];
 
+const theme = {
+  navy: '#001f4d',
+  navyLight: '#062b63',
+  gold: '#D99A00',
+  goldSoft: '#FFF7DE',
+  ink: '#081A34',
+  muted: '#6E7890',
+  border: '#E8EDF5',
+  page: '#FAFBFD'
+};
+
 const defaultCourses = [
   { _id: 'external-seed-0', name: 'International Trade Import Export', price: 0 },
   { _id: 'external-seed-1', name: 'Stock Market Trading', price: 0 },
@@ -255,35 +266,35 @@ const MobileFollowupCard = ({ customer, visibleColumns, onOpenDetail }) => {
       bg="white"
       borderRadius="14px"
       p={4}
-      boxShadow="0 8px 22px rgba(15, 23, 42, 0.08)"
+      boxShadow="0 10px 26px rgba(8, 26, 52, 0.05)"
       borderWidth="1px"
-      borderColor="#edf2f7"
+      borderColor={theme.border}
       transition="transform 0.18s ease, box-shadow 0.18s ease"
       _active={{ transform: 'scale(0.99)' }}
       onClick={() => onOpenDetail(customer)}
     >
       <Flex align="flex-start" justify="space-between" gap={3}>
         <HStack align="flex-start" spacing={3} minW={0}>
-          <Center w="42px" h="42px" borderRadius="12px" bg="#e9f6ff" color="#1086d4" flexShrink={0} fontWeight="900">
+          <Center w="42px" h="42px" borderRadius="12px" bg={theme.goldSoft} color={theme.gold} flexShrink={0} fontWeight="900">
             {getInitials(customer.customerName)}
           </Center>
           <Box minW={0}>
-            <Text color="#162033" fontSize="15px" fontWeight="900" noOfLines={1}>
+            <Text color={theme.ink} fontSize="15px" fontWeight="900" noOfLines={1}>
               {customer.customerName || 'Unnamed customer'}
             </Text>
-            <HStack spacing={1.5} mt={1} color="#586579">
+            <HStack spacing={1.5} mt={1} color={theme.muted}>
               <Icon as={FiPhone} boxSize={3} />
               <Text fontSize="11px" fontWeight="700" noOfLines={1}>{customer.phone || 'No phone'}</Text>
             </HStack>
-            <HStack spacing={1.5} mt={1} color="#586579">
+            <HStack spacing={1.5} mt={1} color={theme.muted}>
               <Icon as={FiMail} boxSize={3} />
               <Text fontSize="11px" fontWeight="700" noOfLines={1}>{customer.email || 'No email'}</Text>
             </HStack>
           </Box>
         </HStack>
         <Box textAlign="right" flexShrink={0}>
-          <Text fontSize="10px" color="#283647" fontWeight="700">{formatDate(customer.date || customer.createdAt)}</Text>
-          <Text fontSize="10px" color="#283647" fontWeight="700" mt={1}>{formatTime(customer.date || customer.createdAt)}</Text>
+          <Text fontSize="10px" color={theme.ink} fontWeight="700">{formatDate(customer.date || customer.createdAt)}</Text>
+          <Text fontSize="10px" color={theme.ink} fontWeight="700" mt={1}>{formatTime(customer.date || customer.createdAt)}</Text>
         </Box>
       </Flex>
 
@@ -303,11 +314,11 @@ const MobileFollowupCard = ({ customer, visibleColumns, onOpenDetail }) => {
       {extraColumns.length > 0 && (
         <SimpleGrid columns={2} spacing={2} mt={4}>
           {extraColumns.slice(0, 4).map((column) => (
-            <Box key={column.key} bg="#f8fafc" borderRadius="10px" p={2} minW={0}>
-              <Text fontSize="8px" color="#718096" fontWeight="900" textTransform="uppercase" noOfLines={1}>
+            <Box key={column.key} bg={theme.page} borderRadius="10px" p={2} minW={0} borderWidth="1px" borderColor={theme.border}>
+              <Text fontSize="8px" color={theme.muted} fontWeight="900" textTransform="uppercase" noOfLines={1}>
                 {column.label}
               </Text>
-              <Text fontSize="10px" color="#253244" fontWeight="800" noOfLines={1}>
+              <Text fontSize="10px" color={theme.ink} fontWeight="800" noOfLines={1}>
                 {getFieldValue(customer, column.key)}
               </Text>
             </Box>
@@ -317,17 +328,17 @@ const MobileFollowupCard = ({ customer, visibleColumns, onOpenDetail }) => {
 
       <Flex align="center" justify="space-between" mt={4}>
         <HStack spacing={3}>
-          <Center as="span" w="30px" h="30px" borderRadius="8px" bg="#e9fbf1" color="#19a56b">
+          <Center as="span" w="30px" h="30px" borderRadius="9px" bg="#EAF8F0" color="#128650">
             <Icon as={FiPhone} boxSize={4} />
           </Center>
-          <Center as="span" w="30px" h="30px" borderRadius="8px" bg="#eaf4ff" color="#3182ce">
+          <Center as="span" w="30px" h="30px" borderRadius="9px" bg="#EAF2FF" color="#1C62C9">
             <Icon as={FiMail} boxSize={4} />
           </Center>
-          <Center as="span" w="30px" h="30px" borderRadius="8px" bg="#f2ecff" color="#8956dc">
+          <Center as="span" w="30px" h="30px" borderRadius="9px" bg={theme.goldSoft} color={theme.gold}>
             <Icon as={FiCalendar} boxSize={4} />
           </Center>
         </HStack>
-        <Icon as={FiMoreVertical} color="#253244" />
+        <Icon as={FiMoreVertical} color={theme.ink} />
       </Flex>
     </Box>
   );
@@ -345,35 +356,35 @@ const MobilePackageCard = ({ sale, onOpenDetail }) => {
       bg="white"
       borderRadius="14px"
       p={4}
-      boxShadow="0 8px 22px rgba(15, 23, 42, 0.08)"
+      boxShadow="0 10px 26px rgba(8, 26, 52, 0.05)"
       borderWidth="1px"
-      borderColor="#edf2f7"
+      borderColor={theme.border}
       transition="transform 0.18s ease, box-shadow 0.18s ease"
       _active={{ transform: 'scale(0.99)' }}
       onClick={() => onOpenDetail(sale)}
     >
       <Flex align="flex-start" justify="space-between" gap={3}>
         <HStack align="flex-start" spacing={3} minW={0}>
-          <Center w="42px" h="42px" borderRadius="12px" bg="#fff7df" color="#d9901f" flexShrink={0} fontWeight="900">
+          <Center w="42px" h="42px" borderRadius="12px" bg={theme.goldSoft} color={theme.gold} flexShrink={0} fontWeight="900">
             {getInitials(sale.customerName || sale.companyName || sale.contactPerson)}
           </Center>
           <Box minW={0}>
-            <Text color="#162033" fontSize="15px" fontWeight="900" noOfLines={1}>
+            <Text color={theme.ink} fontSize="15px" fontWeight="900" noOfLines={1}>
               {sale.customerName || sale.companyName || 'Package customer'}
             </Text>
-            <HStack spacing={1.5} mt={1} color="#586579">
+            <HStack spacing={1.5} mt={1} color={theme.muted}>
               <Icon as={FiPhone} boxSize={3} />
               <Text fontSize="11px" fontWeight="700" noOfLines={1}>{sale.phoneNumber || sale.phone || 'No phone'}</Text>
             </HStack>
-            <HStack spacing={1.5} mt={1} color="#586579">
+            <HStack spacing={1.5} mt={1} color={theme.muted}>
               <Icon as={FiMail} boxSize={3} />
               <Text fontSize="11px" fontWeight="700" noOfLines={1}>{sale.email || 'No email'}</Text>
             </HStack>
           </Box>
         </HStack>
         <Box textAlign="right" flexShrink={0}>
-          <Text fontSize="10px" color="#283647" fontWeight="700">{formatDate(sale.purchaseDate || sale.createdAt)}</Text>
-          <Text fontSize="10px" color="#283647" fontWeight="700" mt={1}>{sale.customerType || 'Package'}</Text>
+          <Text fontSize="10px" color={theme.ink} fontWeight="700">{formatDate(sale.purchaseDate || sale.createdAt)}</Text>
+          <Text fontSize="10px" color={theme.ink} fontWeight="700" mt={1}>{sale.customerType || 'Package'}</Text>
         </Box>
       </Flex>
 
@@ -387,35 +398,35 @@ const MobilePackageCard = ({ sale, onOpenDetail }) => {
       </HStack>
 
       <SimpleGrid columns={2} spacing={2} mt={4}>
-        <Box bg="#f8fafc" borderRadius="10px" p={2} minW={0}>
+        <Box bg={theme.page} borderRadius="10px" p={2} minW={0}>
           <Text fontSize="8px" color="#718096" fontWeight="900" textTransform="uppercase" noOfLines={1}>
             Package Type
           </Text>
-          <Text fontSize="10px" color="#253244" fontWeight="800" noOfLines={1}>
+          <Text fontSize="10px" color={theme.ink} fontWeight="800" noOfLines={1}>
             {sale.packageType ? `#${sale.packageType}` : 'N/A'}
           </Text>
         </Box>
-        <Box bg="#f8fafc" borderRadius="10px" p={2} minW={0}>
+        <Box bg={theme.page} borderRadius="10px" p={2} minW={0}>
           <Text fontSize="8px" color="#718096" fontWeight="900" textTransform="uppercase" noOfLines={1}>
             Value
           </Text>
-          <Text fontSize="10px" color="#253244" fontWeight="800" noOfLines={1}>
+          <Text fontSize="10px" color={theme.ink} fontWeight="800" noOfLines={1}>
             ETB {packageValue.toLocaleString()}
           </Text>
         </Box>
-        <Box bg="#f8fafc" borderRadius="10px" p={2} minW={0}>
+        <Box bg={theme.page} borderRadius="10px" p={2} minW={0}>
           <Text fontSize="8px" color="#718096" fontWeight="900" textTransform="uppercase" noOfLines={1}>
             Agent
           </Text>
-          <Text fontSize="10px" color="#253244" fontWeight="800" noOfLines={1}>
+          <Text fontSize="10px" color={theme.ink} fontWeight="800" noOfLines={1}>
             {sale.agentName || 'N/A'}
           </Text>
         </Box>
-        <Box bg="#f8fafc" borderRadius="10px" p={2} minW={0}>
+        <Box bg={theme.page} borderRadius="10px" p={2} minW={0}>
           <Text fontSize="8px" color="#718096" fontWeight="900" textTransform="uppercase" noOfLines={1}>
             Contact
           </Text>
-          <Text fontSize="10px" color="#253244" fontWeight="800" noOfLines={1}>
+          <Text fontSize="10px" color={theme.ink} fontWeight="800" noOfLines={1}>
             {sale.contactPerson || 'N/A'}
           </Text>
         </Box>
@@ -433,7 +444,7 @@ const MobilePackageCard = ({ sale, onOpenDetail }) => {
             <Icon as={FiCalendar} boxSize={4} />
           </Center>
         </HStack>
-        <Icon as={FiMoreVertical} color="#253244" />
+        <Icon as={FiMoreVertical} color={theme.ink} />
       </Flex>
     </Box>
   );
@@ -967,30 +978,35 @@ const MobileFollowups = () => {
   };
 
   return (
-    <Box position="relative">
+    <Box position="relative" bg={theme.page} minH="calc(100vh - 158px)">
       <InputGroup mb={3}>
         <InputLeftElement pointerEvents="none">
-          <Icon as={FiSearch} color="#8b98a8" />
+          <Icon as={FiSearch} color="#9AA4B5" />
         </InputLeftElement>
         <Input
           value={search}
           onChange={(event) => setSearch(event.target.value)}
           bg="white"
-          borderColor="#e2e8f0"
-          borderRadius="10px"
+          borderColor={theme.border}
+          borderRadius="12px"
           placeholder={section === 'packages' ? 'Search packages...' : 'Search contacts...'}
+          _placeholder={{ color: '#9AA4B5', fontWeight: 700 }}
           fontSize="14px"
-          h="42px"
+          h="44px"
+          color={theme.ink}
+          fontWeight="800"
+          boxShadow="0 8px 22px rgba(8, 26, 52, 0.04)"
         />
       </InputGroup>
 
       <Flex align="center" justify="space-between" mb={3} gap={2}>
-        <HStack spacing={1} borderWidth="1px" borderColor="#dce7ef" borderRadius="10px" p={0.5} bg="white">
+        <HStack spacing={1} borderWidth="1px" borderColor={theme.border} borderRadius="12px" p={0.5} bg="white" boxShadow="0 8px 22px rgba(8, 26, 52, 0.04)">
           <Button
             size="sm"
-            borderRadius="8px"
-            colorScheme={section === 'trainings' ? 'teal' : 'gray'}
-            variant={section === 'trainings' ? 'solid' : 'ghost'}
+            borderRadius="10px"
+            bg={section === 'trainings' ? theme.navy : 'transparent'}
+            color={section === 'trainings' ? 'white' : theme.muted}
+            _hover={{ bg: section === 'trainings' ? theme.navy : theme.goldSoft }}
             onClick={() => {
               setSection('trainings');
               setStatusFilter('');
@@ -1000,9 +1016,10 @@ const MobileFollowups = () => {
           </Button>
           <Button
             size="sm"
-            borderRadius="8px"
-            colorScheme={section === 'packages' ? 'teal' : 'gray'}
-            variant={section === 'packages' ? 'solid' : 'ghost'}
+            borderRadius="10px"
+            bg={section === 'packages' ? theme.navy : 'transparent'}
+            color={section === 'packages' ? 'white' : theme.muted}
+            _hover={{ bg: section === 'packages' ? theme.navy : theme.goldSoft }}
             onClick={() => {
               setSection('packages');
               setStatusFilter('');
@@ -1012,8 +1029,8 @@ const MobileFollowups = () => {
           </Button>
         </HStack>
         <HStack spacing={1}>
-          <IconButton aria-label="Search" icon={<FiSearch />} variant="ghost" color="#253244" size="sm" />
-          <IconButton aria-label="Filters" icon={<FiFilter />} variant="ghost" color="#253244" size="sm" />
+          <IconButton aria-label="Search" icon={<FiSearch />} variant="ghost" color={theme.ink} size="sm" />
+          <IconButton aria-label="Filters" icon={<FiFilter />} variant="ghost" color={theme.ink} size="sm" />
         </HStack>
       </Flex>
 
@@ -1025,25 +1042,28 @@ const MobileFollowups = () => {
               key={option.label}
               size="sm"
               flexShrink={0}
-              borderRadius="9px"
-              colorScheme={active ? 'teal' : 'gray'}
-              variant={active ? 'solid' : 'outline'}
+              borderRadius="10px"
+              bg={active ? theme.gold : 'white'}
+              color={active ? 'white' : theme.ink}
+              borderWidth="1px"
+              borderColor={active ? theme.gold : theme.border}
+              _hover={{ bg: active ? '#C98D00' : theme.goldSoft }}
               onClick={() => setStatusFilter(option.value)}
             >
               {option.label}
             </Button>
           );
         })}
-        <IconButton aria-label="Customize fields" icon={<FiSliders />} size="sm" variant="outline" flexShrink={0} />
+        <IconButton aria-label="Customize fields" icon={<FiSliders />} size="sm" variant="outline" color={theme.ink} borderColor={theme.border} flexShrink={0} />
       </HStack>
 
       {isLoading ? (
         <Center py={12}>
-          <Spinner color="teal.500" />
+          <Spinner color={theme.gold} />
         </Center>
       ) : (
         <VStack align="stretch" spacing={3}>
-          <Text fontSize="13px" color="#253244" fontWeight="900">
+          <Text fontSize="13px" color={theme.ink} fontWeight="900">
             {visibleItems.length} results
           </Text>
           {section === 'packages'
@@ -1073,23 +1093,23 @@ const MobileFollowups = () => {
         bottom="86px"
         size="lg"
         borderRadius="full"
-        bg="#13a6a3"
+        bg={theme.gold}
         color="white"
-        boxShadow="0 12px 28px rgba(19, 166, 163, 0.35)"
-        _hover={{ bg: '#0f8f8c' }}
+        boxShadow="0 14px 30px rgba(217, 154, 0, 0.38)"
+        _hover={{ bg: '#C98D00' }}
         onClick={addDisclosure.onOpen}
       />
 
       <Modal isOpen={detailDisclosure.isOpen} onClose={handleDetailClose} size="full" motionPreset="slideInRight">
         <ModalOverlay />
-        <ModalContent as="form" onSubmit={handleUpdateDetail} bg="#f8fafc" minH="100dvh" borderRadius={0}>
-          <Box bg="linear-gradient(135deg, #0f766e 0%, #0b5f63 58%, #12343b 100%)" color="white" px={4} pt={4} pb={5} boxShadow="0 12px 28px rgba(15, 23, 42, 0.18)">
+        <ModalContent as="form" onSubmit={handleUpdateDetail} bg={theme.page} minH="100dvh" borderRadius={0}>
+          <Box bg={`linear-gradient(135deg, ${theme.navy} 0%, ${theme.navyLight} 100%)`} color="white" px={4} pt={4} pb={5} boxShadow="0 14px 32px rgba(0, 31, 77, 0.18)">
             <Flex align="center" justify="space-between" gap={3}>
               <IconButton
                 aria-label="Back to follow-ups"
                 icon={<FiArrowLeft />}
                 variant="ghost"
-                color="#16b9c6"
+                color="white"
                 fontSize="24px"
                 onClick={handleDetailClose}
                 isDisabled={savingDetail}
@@ -1110,11 +1130,11 @@ const MobileFollowups = () => {
                 {getInitials(selectedCustomer?.customerName)}
               </Center>
               <Box minW={0} flex="1">
-                <Text fontSize="12px" color="#9fb3c8" fontWeight="900">Contact</Text>
+                <Text fontSize="12px" color="rgba(255,255,255,0.72)" fontWeight="900">Lead Details</Text>
                 <Text fontSize="22px" fontWeight="900" noOfLines={1}>
                   {selectedCustomer?.customerName || 'Customer detail'}
                 </Text>
-                <Text fontSize="12px" color="#c8d4e1" fontWeight="700" noOfLines={1}>
+                <Text fontSize="12px" color="rgba(255,255,255,0.78)" fontWeight="700" noOfLines={1}>
                   {selectedCustomer?.contactTitle || selectedCustomer?.courseName || 'Training follow-up'}
                 </Text>
               </Box>
@@ -1122,7 +1142,7 @@ const MobileFollowups = () => {
                 aria-label="More customer actions"
                 icon={<FiMoreVertical />}
                 variant="ghost"
-                color="#16b9c6"
+                color="white"
                 fontSize="22px"
               />
             </Flex>
@@ -1138,7 +1158,7 @@ const MobileFollowups = () => {
                   borderWidth="1px"
                   borderColor="rgba(255, 255, 255, 0.78)"
                   bg="rgba(255, 255, 255, 0.96)"
-                  color="#0f766e"
+                  color={theme.navy}
                   boxShadow="0 8px 18px rgba(15, 23, 42, 0.16)"
                 >
                   <Icon as={FiPhone} boxSize={5} />
@@ -1155,7 +1175,7 @@ const MobileFollowups = () => {
                   borderWidth="1px"
                   borderColor="rgba(255, 255, 255, 0.78)"
                   bg="rgba(255, 255, 255, 0.96)"
-                  color={detailForm.email ? '#0f766e' : '#94a3b8'}
+                  color={detailForm.email ? theme.navy : '#94a3b8'}
                   boxShadow="0 8px 18px rgba(15, 23, 42, 0.16)"
                   onClick={handleOpenEmailComposer}
                   isDisabled={!detailForm.email}
@@ -1174,7 +1194,7 @@ const MobileFollowups = () => {
                   borderWidth="1px"
                   borderColor="rgba(255, 255, 255, 0.78)"
                   bg="rgba(255, 255, 255, 0.96)"
-                  color={detailForm.phone ? '#0f766e' : '#94a3b8'}
+                  color={detailForm.phone ? theme.navy : '#94a3b8'}
                   boxShadow="0 8px 18px rgba(15, 23, 42, 0.16)"
                   onClick={handleOpenSmsComposer}
                   isDisabled={!detailForm.phone}
@@ -1191,9 +1211,9 @@ const MobileFollowups = () => {
                   h="54px"
                   borderRadius="full"
                   borderWidth="1px"
-                  borderColor={detailEditMode ? '#99f6e4' : 'rgba(255, 255, 255, 0.78)'}
+                  borderColor={detailEditMode ? theme.gold : 'rgba(255, 255, 255, 0.78)'}
                   bg="rgba(255, 255, 255, 0.96)"
-                  color={detailEditMode ? '#0d9488' : '#0f766e'}
+                  color={detailEditMode ? theme.gold : theme.navy}
                   boxShadow="0 8px 18px rgba(15, 23, 42, 0.16)"
                   onClick={() => setDetailEditMode((value) => !value)}
                 >
@@ -1205,22 +1225,22 @@ const MobileFollowups = () => {
 
             <SimpleGrid columns={3} spacing={2} mt={5}>
               <Box bg="rgba(255,255,255,0.08)" borderRadius="12px" p={3} minW={0}>
-                <Text fontSize="9px" color="#9fb3c8" fontWeight="900" textTransform="uppercase">Call</Text>
+                <Text fontSize="9px" color="rgba(255,255,255,0.72)" fontWeight="900" textTransform="uppercase">Call</Text>
                 <Text fontSize="12px" color="white" fontWeight="900" noOfLines={1}>{detailForm.callStatus}</Text>
               </Box>
               <Box bg="rgba(255,255,255,0.08)" borderRadius="12px" p={3} minW={0}>
-                <Text fontSize="9px" color="#9fb3c8" fontWeight="900" textTransform="uppercase">Follow-up</Text>
+                <Text fontSize="9px" color="rgba(255,255,255,0.72)" fontWeight="900" textTransform="uppercase">Follow-up</Text>
                 <Text fontSize="12px" color="white" fontWeight="900" noOfLines={1}>{detailForm.followupStatus}</Text>
               </Box>
               <Box bg="rgba(255,255,255,0.08)" borderRadius="12px" p={3} minW={0}>
-                <Text fontSize="9px" color="#9fb3c8" fontWeight="900" textTransform="uppercase">Scope</Text>
+                <Text fontSize="9px" color="rgba(255,255,255,0.72)" fontWeight="900" textTransform="uppercase">Scope</Text>
                 <Text fontSize="12px" color="white" fontWeight="900" noOfLines={1}>{detailForm.packageScope || 'Local'}</Text>
               </Box>
             </SimpleGrid>
           </Box>
 
           <ModalBody px={4} py={4} overflowY="auto">
-            <HStack spacing={2} borderBottomWidth="1px" borderBottomColor="#d9e2ea" mb={4} overflowX="auto">
+            <HStack spacing={4} borderBottomWidth="1px" borderBottomColor={theme.border} mb={4} overflowX="auto">
               {detailTabs.map((tab) => {
                 const active = detailTab === tab.key;
                 return (
@@ -1234,10 +1254,10 @@ const MobileFollowups = () => {
                     pb={2}
                     borderRadius={0}
                     borderBottomWidth="3px"
-                    borderBottomColor={active ? '#13a6a3' : 'transparent'}
-                    color={active ? '#0f766e' : '#64748b'}
+                    borderBottomColor={active ? theme.gold : 'transparent'}
+                    color={active ? theme.navy : theme.muted}
                     fontWeight="900"
-                    _hover={{ bg: 'transparent', color: '#0f766e' }}
+                    _hover={{ bg: 'transparent', color: theme.navy }}
                     onClick={() => setDetailTab(tab.key)}
                   >
                     {tab.label}
@@ -1247,11 +1267,11 @@ const MobileFollowups = () => {
             </HStack>
 
             {detailTab === 'activity' && (
-              <Box bg="white" borderRadius="16px" p={4} borderWidth="1px" borderColor="#e5edf3" boxShadow="0 10px 26px rgba(15, 23, 42, 0.07)">
+              <Box bg="white" borderRadius="16px" p={4} borderWidth="1px" borderColor={theme.border} boxShadow="0 10px 26px rgba(15, 23, 42, 0.07)">
                 <Flex align="center" justify="space-between" mb={4}>
                   <Box>
-                    <Text fontSize="16px" color="#172033" fontWeight="900">Activity center</Text>
-                    <Text fontSize="11px" color="#64748b" fontWeight="700">Quick actions and the current follow-up state.</Text>
+                    <Text fontSize="16px" color={theme.ink} fontWeight="900">Activity center</Text>
+                    <Text fontSize="11px" color={theme.muted} fontWeight="700">Quick actions and the current follow-up state.</Text>
                   </Box>
                   <Badge colorScheme={statusColor(detailForm.callStatus)} borderRadius="md" px={2} py={1}>
                     {detailForm.callStatus}
@@ -1260,7 +1280,7 @@ const MobileFollowups = () => {
 
                 <SimpleGrid columns={4} spacing={3}>
                   <VStack spacing={2} align="center">
-                    <Center as="a" href={detailForm.phone ? `tel:${detailForm.phone}` : undefined} w="48px" h="48px" borderRadius="full" bg="#e8fbf7" color="#13a6a3">
+                    <Center as="a" href={detailForm.phone ? `tel:${detailForm.phone}` : undefined} w="48px" h="48px" borderRadius="full" bg={theme.goldSoft} color={theme.gold}>
                       <Icon as={FiPhone} boxSize={5} />
                     </Center>
                     <Text fontSize="11px" color="#334155" fontWeight="900" textAlign="center">Call</Text>
@@ -1285,8 +1305,8 @@ const MobileFollowups = () => {
                   </VStack>
                 </SimpleGrid>
 
-                <Box bg="#f8fafc" borderRadius="12px" p={3} mt={4}>
-                  <Text fontSize="13px" color="#172033" fontWeight="900" noOfLines={2}>
+                <Box bg={theme.page} borderRadius="12px" p={3} mt={4}>
+                  <Text fontSize="13px" color={theme.ink} fontWeight="900" noOfLines={2}>
                     Follow-up for {detailForm.contactTitle || 'training'}
                   </Text>
                   <HStack mt={2} spacing={2} flexWrap="wrap">
@@ -1294,7 +1314,7 @@ const MobileFollowups = () => {
                     <Badge colorScheme={statusColor(detailForm.followupStatus)}>{detailForm.followupStatus}</Badge>
                     <Badge colorScheme="teal">{detailForm.schedulePreference}</Badge>
                   </HStack>
-                  <Text mt={2} fontSize="12px" color="#64748b" fontWeight="700">
+                  <Text mt={2} fontSize="12px" color={theme.muted} fontWeight="700">
                     Last activity: {formatDate(selectedCustomer?.date || selectedCustomer?.createdAt)}
                   </Text>
                 </Box>
@@ -1304,10 +1324,10 @@ const MobileFollowups = () => {
                       <Box key={email.id} bg="#ecfeff" borderRadius="12px" p={3} borderWidth="1px" borderColor="#b2f5ea">
                         <HStack justify="space-between" align="flex-start">
                           <Box minW={0}>
-                            <Text fontSize="10px" color="#0f766e" fontWeight="900" textTransform="uppercase">Logged Email</Text>
-                            <Text fontSize="13px" color="#172033" fontWeight="900" noOfLines={1}>{email.subject}</Text>
+                            <Text fontSize="10px" color={theme.navy} fontWeight="900" textTransform="uppercase">Logged Email</Text>
+                            <Text fontSize="13px" color={theme.ink} fontWeight="900" noOfLines={1}>{email.subject}</Text>
                           </Box>
-                          <Text fontSize="10px" color="#64748b" fontWeight="800" flexShrink={0}>{formatTime(email.sentAt)}</Text>
+                          <Text fontSize="10px" color={theme.muted} fontWeight="800" flexShrink={0}>{formatTime(email.sentAt)}</Text>
                         </HStack>
                         <Text mt={2} fontSize="12px" color="#334155" fontWeight="700" noOfLines={3} whiteSpace="pre-line">
                           {email.body}
@@ -1325,11 +1345,11 @@ const MobileFollowups = () => {
                             <Text fontSize="10px" color="#6d28d9" fontWeight="900" textTransform="uppercase">
                               {sms.providerConfigured ? 'Sent SMS' : 'Logged SMS'}
                             </Text>
-                            <Text fontSize="13px" color="#172033" fontWeight="900" noOfLines={1}>
+                            <Text fontSize="13px" color={theme.ink} fontWeight="900" noOfLines={1}>
                               To {sms.to}
                             </Text>
                           </Box>
-                          <Text fontSize="10px" color="#64748b" fontWeight="800" flexShrink={0}>{formatTime(sms.sentAt)}</Text>
+                          <Text fontSize="10px" color={theme.muted} fontWeight="800" flexShrink={0}>{formatTime(sms.sentAt)}</Text>
                         </HStack>
                         <Text mt={2} fontSize="12px" color="#334155" fontWeight="700" noOfLines={3} whiteSpace="pre-line">
                           {sms.body}
@@ -1345,11 +1365,11 @@ const MobileFollowups = () => {
             )}
 
             {detailTab === 'about' && (
-            <Box bg="white" borderRadius="16px" p={4} borderWidth="1px" borderColor="#e5edf3" boxShadow="0 10px 26px rgba(15, 23, 42, 0.07)">
+            <Box bg="white" borderRadius="16px" p={4} borderWidth="1px" borderColor={theme.border} boxShadow="0 10px 26px rgba(15, 23, 42, 0.07)">
               <Flex align="center" justify="space-between" mb={4}>
                 <Box>
-                  <Text fontSize="16px" color="#172033" fontWeight="900">Customer details</Text>
-                  <Text fontSize="11px" color="#64748b" fontWeight="700">Update the values for this follow-up record.</Text>
+                  <Text fontSize="16px" color={theme.ink} fontWeight="900">Customer details</Text>
+                  <Text fontSize="11px" color={theme.muted} fontWeight="700">Update the values for this follow-up record.</Text>
                 </Box>
                 <Badge colorScheme={statusColor(detailForm.followupStatus)} borderRadius="md" px={2} py={1}>
                   {detailForm.followupStatus}
@@ -1359,11 +1379,11 @@ const MobileFollowups = () => {
               <VStack spacing={3} align="stretch">
                 <FormControl isRequired>
                   <FormLabel fontSize="12px" color="#334155" fontWeight="800">Customer name</FormLabel>
-                  <Input name="customerName" value={detailForm.customerName} onChange={handleDetailChange} isReadOnly={!detailEditMode} bg="#f8fafc" h="46px" borderRadius="12px" />
+                  <Input name="customerName" value={detailForm.customerName} onChange={handleDetailChange} isReadOnly={!detailEditMode} bg={theme.page} h="46px" borderRadius="12px" />
                 </FormControl>
                 <FormControl>
                   <FormLabel fontSize="12px" color="#334155" fontWeight="800">Training</FormLabel>
-                  <Select name="contactTitle" value={detailForm.contactTitle} onChange={handleDetailChange} isDisabled={!detailEditMode} bg="#f8fafc" h="46px" borderRadius="12px" placeholder="Select training">
+                  <Select name="contactTitle" value={detailForm.contactTitle} onChange={handleDetailChange} isDisabled={!detailEditMode} bg={theme.page} h="46px" borderRadius="12px" placeholder="Select training">
                     {detailCourseOptions.map((course) => (
                       <option key={course._id} value={course.name}>
                         {course.name}{Number(course.price) ? ` - ETB ${Number(course.price).toLocaleString()}` : ''}
@@ -1374,17 +1394,17 @@ const MobileFollowups = () => {
                 <SimpleGrid columns={2} spacing={3}>
                   <FormControl>
                     <FormLabel fontSize="12px" color="#334155" fontWeight="800">Phone</FormLabel>
-                    <Input name="phone" value={detailForm.phone} onChange={handleDetailChange} isReadOnly={!detailEditMode} bg="#f8fafc" h="44px" borderRadius="12px" />
+                    <Input name="phone" value={detailForm.phone} onChange={handleDetailChange} isReadOnly={!detailEditMode} bg={theme.page} h="44px" borderRadius="12px" />
                   </FormControl>
                   <FormControl>
                     <FormLabel fontSize="12px" color="#334155" fontWeight="800">Email</FormLabel>
-                    <Input name="email" type="email" value={detailForm.email} onChange={handleDetailChange} isReadOnly={!detailEditMode} bg="#f8fafc" h="44px" borderRadius="12px" />
+                    <Input name="email" type="email" value={detailForm.email} onChange={handleDetailChange} isReadOnly={!detailEditMode} bg={theme.page} h="44px" borderRadius="12px" />
                   </FormControl>
                 </SimpleGrid>
                 <SimpleGrid columns={2} spacing={3}>
                   <FormControl>
                     <FormLabel fontSize="12px" color="#334155" fontWeight="800">Call status</FormLabel>
-                    <Select name="callStatus" value={detailForm.callStatus} onChange={handleDetailChange} isDisabled={!detailEditMode} bg="#f8fafc" h="44px" borderRadius="12px">
+                    <Select name="callStatus" value={detailForm.callStatus} onChange={handleDetailChange} isDisabled={!detailEditMode} bg={theme.page} h="44px" borderRadius="12px">
                       <option value="Not Called">Not Called</option>
                       <option value="Called">Called</option>
                       <option value="Busy">Busy</option>
@@ -1395,7 +1415,7 @@ const MobileFollowups = () => {
                   </FormControl>
                   <FormControl>
                     <FormLabel fontSize="12px" color="#334155" fontWeight="800">Follow-up</FormLabel>
-                    <Select name="followupStatus" value={detailForm.followupStatus} onChange={handleDetailChange} isDisabled={!detailEditMode} bg="#f8fafc" h="44px" borderRadius="12px">
+                    <Select name="followupStatus" value={detailForm.followupStatus} onChange={handleDetailChange} isDisabled={!detailEditMode} bg={theme.page} h="44px" borderRadius="12px">
                       <option value="Prospect">Prospect</option>
                       <option value="Pending">Pending</option>
                       <option value="Completed">Completed</option>
@@ -1408,7 +1428,7 @@ const MobileFollowups = () => {
                 <SimpleGrid columns={2} spacing={3}>
                   <FormControl>
                     <FormLabel fontSize="12px" color="#334155" fontWeight="800">Schedule</FormLabel>
-                    <Select name="schedulePreference" value={detailForm.schedulePreference} onChange={handleDetailChange} isDisabled={!detailEditMode} bg="#f8fafc" h="44px" borderRadius="12px">
+                    <Select name="schedulePreference" value={detailForm.schedulePreference} onChange={handleDetailChange} isDisabled={!detailEditMode} bg={theme.page} h="44px" borderRadius="12px">
                       <option value="Regular">Regular</option>
                       <option value="Weekend">Weekend</option>
                       <option value="Night">Night</option>
@@ -1417,7 +1437,7 @@ const MobileFollowups = () => {
                   </FormControl>
                   <FormControl>
                     <FormLabel fontSize="12px" color="#334155" fontWeight="800">Scope</FormLabel>
-                    <Select name="packageScope" value={detailForm.packageScope} onChange={handleDetailChange} isDisabled={!detailEditMode} bg="#f8fafc" h="44px" borderRadius="12px">
+                    <Select name="packageScope" value={detailForm.packageScope} onChange={handleDetailChange} isDisabled={!detailEditMode} bg={theme.page} h="44px" borderRadius="12px">
                       <option value="Local">Local</option>
                       <option value="International">International</option>
                     </Select>
@@ -1425,61 +1445,61 @@ const MobileFollowups = () => {
                 </SimpleGrid>
                 <FormControl>
                   <FormLabel fontSize="12px" color="#334155" fontWeight="800">Note</FormLabel>
-                  <Textarea name="note" value={detailForm.note} onChange={handleDetailChange} isReadOnly={!detailEditMode} bg="#f8fafc" borderRadius="12px" rows={4} />
+                  <Textarea name="note" value={detailForm.note} onChange={handleDetailChange} isReadOnly={!detailEditMode} bg={theme.page} borderRadius="12px" rows={4} />
                 </FormControl>
               </VStack>
             </Box>
             )}
 
             {detailTab === 'associations' && (
-            <Box bg="white" borderRadius="16px" p={4} borderWidth="1px" borderColor="#e5edf3" boxShadow="0 10px 26px rgba(15, 23, 42, 0.07)">
-              <Text fontSize="16px" color="#172033" fontWeight="900" mb={1}>Associations</Text>
-              <Text fontSize="11px" color="#64748b" fontWeight="700" mb={4}>Related training and sales context for this contact.</Text>
+            <Box bg="white" borderRadius="16px" p={4} borderWidth="1px" borderColor={theme.border} boxShadow="0 10px 26px rgba(15, 23, 42, 0.07)">
+              <Text fontSize="16px" color={theme.ink} fontWeight="900" mb={1}>Associations</Text>
+              <Text fontSize="11px" color={theme.muted} fontWeight="700" mb={4}>Related training and sales context for this contact.</Text>
               <SimpleGrid columns={1} spacing={3}>
-                <Box bg="#f8fafc" borderRadius="12px" p={3} borderWidth="1px" borderColor="#e5edf3">
-                  <Text fontSize="10px" color="#64748b" fontWeight="900" textTransform="uppercase">Training</Text>
-                  <Text fontSize="14px" color="#172033" fontWeight="900" mt={1}>{detailForm.contactTitle || 'No training selected'}</Text>
-                  <Text fontSize="12px" color="#64748b" fontWeight="700" mt={1}>Course price: ETB {Number(selectedCustomer?.coursePrice || 0).toLocaleString()}</Text>
+                <Box bg={theme.page} borderRadius="12px" p={3} borderWidth="1px" borderColor={theme.border}>
+                  <Text fontSize="10px" color={theme.muted} fontWeight="900" textTransform="uppercase">Training</Text>
+                  <Text fontSize="14px" color={theme.ink} fontWeight="900" mt={1}>{detailForm.contactTitle || 'No training selected'}</Text>
+                  <Text fontSize="12px" color={theme.muted} fontWeight="700" mt={1}>Course price: ETB {Number(selectedCustomer?.coursePrice || 0).toLocaleString()}</Text>
                 </Box>
-                <Box bg="#f8fafc" borderRadius="12px" p={3} borderWidth="1px" borderColor="#e5edf3">
-                  <Text fontSize="10px" color="#64748b" fontWeight="900" textTransform="uppercase">Sales status</Text>
+                <Box bg={theme.page} borderRadius="12px" p={3} borderWidth="1px" borderColor={theme.border}>
+                  <Text fontSize="10px" color={theme.muted} fontWeight="900" textTransform="uppercase">Sales status</Text>
                   <HStack mt={2} spacing={2} flexWrap="wrap">
                     <Badge colorScheme={statusColor(detailForm.callStatus)}>{detailForm.callStatus}</Badge>
                     <Badge colorScheme={statusColor(detailForm.followupStatus)}>{detailForm.followupStatus}</Badge>
                     <Badge colorScheme="teal">{detailForm.packageScope || 'Local'}</Badge>
                   </HStack>
                 </Box>
-                <Box bg="#f8fafc" borderRadius="12px" p={3} borderWidth="1px" borderColor="#e5edf3">
-                  <Text fontSize="10px" color="#64748b" fontWeight="900" textTransform="uppercase">Ownership</Text>
-                  <Text fontSize="14px" color="#172033" fontWeight="900" mt={1}>{selectedCustomer?.agentName || 'Assigned sales account'}</Text>
-                  <Text fontSize="12px" color="#64748b" fontWeight="700" mt={1}>Created {formatDate(selectedCustomer?.createdAt || selectedCustomer?.date)}</Text>
+                <Box bg={theme.page} borderRadius="12px" p={3} borderWidth="1px" borderColor={theme.border}>
+                  <Text fontSize="10px" color={theme.muted} fontWeight="900" textTransform="uppercase">Ownership</Text>
+                  <Text fontSize="14px" color={theme.ink} fontWeight="900" mt={1}>{selectedCustomer?.agentName || 'Assigned sales account'}</Text>
+                  <Text fontSize="12px" color={theme.muted} fontWeight="700" mt={1}>Created {formatDate(selectedCustomer?.createdAt || selectedCustomer?.date)}</Text>
                 </Box>
               </SimpleGrid>
             </Box>
             )}
 
             {detailTab === 'notes' && (
-            <Box bg="white" borderRadius="16px" p={4} borderWidth="1px" borderColor="#e5edf3" boxShadow="0 10px 26px rgba(15, 23, 42, 0.07)">
+            <Box bg="white" borderRadius="16px" p={4} borderWidth="1px" borderColor={theme.border} boxShadow="0 10px 26px rgba(15, 23, 42, 0.07)">
               <Flex align="center" justify="space-between" mb={3}>
                 <Box>
-                  <Text fontSize="16px" color="#172033" fontWeight="900">Notes</Text>
-                  <Text fontSize="11px" color="#64748b" fontWeight="700">View notes, then tap Edit to update them.</Text>
+                  <Text fontSize="16px" color={theme.ink} fontWeight="900">Notes</Text>
+                  <Text fontSize="11px" color={theme.muted} fontWeight="700">View notes, then tap Edit to update them.</Text>
                 </Box>
                 <Button type="button" size="sm" borderRadius="10px" colorScheme="teal" variant={detailEditMode ? 'solid' : 'outline'} onClick={() => setDetailEditMode((value) => !value)}>
                   {detailEditMode ? 'Editing' : 'Edit'}
                 </Button>
               </Flex>
-              <Textarea name="note" value={detailForm.note} onChange={handleDetailChange} isReadOnly={!detailEditMode} bg="#f8fafc" borderRadius="12px" rows={8} placeholder="No notes added yet." />
+              <Textarea name="note" value={detailForm.note} onChange={handleDetailChange} isReadOnly={!detailEditMode} bg={theme.page} borderRadius="12px" rows={8} placeholder="No notes added yet." />
             </Box>
             )}
 
             {detailTab === 'activity' && (
             <>
-            <Box bg="white" borderRadius="16px" p={4} mt={4} borderWidth="1px" borderColor="#e5edf3">
-              <Text fontSize="16px" color="#172033" fontWeight="900" mb={3}>Quick actions</Text>
+            <Box bg="white" borderRadius="16px" p={4} mt={4} borderWidth="1px" borderColor={theme.border}>
+              <Text fontSize="16px" color={theme.ink} fontWeight="900" mb={3}>Quick actions</Text>
               <SimpleGrid columns={3} spacing={3}>
                 <VStack spacing={2} align="center">
-                  <Center w="48px" h="48px" borderRadius="full" bg="#e8fbf7" color="#13a6a3">
+                  <Center w="48px" h="48px" borderRadius="full" bg={theme.goldSoft} color={theme.gold}>
                     <Icon as={FiEdit3} boxSize={5} />
                   </Center>
                   <Text fontSize="11px" color="#334155" fontWeight="900" textAlign="center">Add note</Text>
@@ -1499,17 +1519,17 @@ const MobileFollowups = () => {
               </SimpleGrid>
             </Box>
 
-            <Box bg="white" borderRadius="16px" p={4} mt={4} mb="86px" borderWidth="1px" borderColor="#e5edf3">
-              <Text fontSize="16px" color="#172033" fontWeight="900" mb={3}>Upcoming</Text>
-              <Box bg="#f8fafc" borderRadius="12px" p={3}>
-                <Text fontSize="13px" color="#172033" fontWeight="900" noOfLines={2}>
+            <Box bg="white" borderRadius="16px" p={4} mt={4} mb="86px" borderWidth="1px" borderColor={theme.border}>
+              <Text fontSize="16px" color={theme.ink} fontWeight="900" mb={3}>Upcoming</Text>
+              <Box bg={theme.page} borderRadius="12px" p={3}>
+                <Text fontSize="13px" color={theme.ink} fontWeight="900" noOfLines={2}>
                   Follow-up for {detailForm.contactTitle || 'training'}
                 </Text>
                 <HStack mt={2} spacing={2}>
                   <Badge colorScheme={statusColor(detailForm.callStatus)}>{detailForm.callStatus}</Badge>
                   <Badge colorScheme={statusColor(detailForm.followupStatus)}>{detailForm.followupStatus}</Badge>
                 </HStack>
-                <Text mt={2} fontSize="12px" color="#64748b" fontWeight="700">
+                <Text mt={2} fontSize="12px" color={theme.muted} fontWeight="700">
                   Last activity: {formatDate(selectedCustomer?.date || selectedCustomer?.createdAt)}
                 </Text>
               </Box>
@@ -1545,12 +1565,12 @@ const MobileFollowups = () => {
                 >
                   Cancel
                 </Button>
-                <Button flex={1} h="46px" borderRadius="12px" bg="#13a6a3" color="white" _hover={{ bg: '#0f8f8c' }} type="submit" isLoading={savingDetail}>
+                <Button flex={1} h="46px" borderRadius="12px" bg={theme.gold} color="white" _hover={{ bg: '#C98D00' }} type="submit" isLoading={savingDetail}>
                   Save changes
                 </Button>
               </>
             ) : (
-              <Button w="100%" h="46px" borderRadius="12px" bg="#13a6a3" color="white" _hover={{ bg: '#0f8f8c' }} type="button" onClick={handleDetailClose}>
+              <Button w="100%" h="46px" borderRadius="12px" bg={theme.gold} color="white" _hover={{ bg: '#C98D00' }} type="button" onClick={handleDetailClose}>
                 Done
               </Button>
             )}
@@ -1560,7 +1580,7 @@ const MobileFollowups = () => {
 
       <Modal isOpen={packageDetailDisclosure.isOpen} onClose={handlePackageDetailClose} size="full" motionPreset="slideInRight">
         <ModalOverlay />
-        <ModalContent bg="#f8fafc" minH="100dvh" borderRadius={0}>
+        <ModalContent bg={theme.page} minH="100dvh" borderRadius={0}>
           <Box bg="linear-gradient(135deg, #0f766e 0%, #0b5f63 58%, #12343b 100%)" color="white" px={4} pt={4} pb={5} boxShadow="0 12px 28px rgba(15, 23, 42, 0.18)">
             <Flex align="center" justify="space-between" gap={3}>
               <IconButton
@@ -1608,7 +1628,7 @@ const MobileFollowups = () => {
                   borderWidth="1px"
                   borderColor="rgba(255, 255, 255, 0.78)"
                   bg="rgba(255, 255, 255, 0.96)"
-                  color={selectedPackageContact.phone ? '#0f766e' : '#94a3b8'}
+                  color={selectedPackageContact.phone ? theme.navy : '#94a3b8'}
                   boxShadow="0 8px 18px rgba(15, 23, 42, 0.16)"
                 >
                   <Icon as={FiPhone} boxSize={5} />
@@ -1625,7 +1645,7 @@ const MobileFollowups = () => {
                   borderWidth="1px"
                   borderColor="rgba(255, 255, 255, 0.78)"
                   bg="rgba(255, 255, 255, 0.96)"
-                  color={selectedPackageContact.phone ? '#0f766e' : '#94a3b8'}
+                  color={selectedPackageContact.phone ? theme.navy : '#94a3b8'}
                   boxShadow="0 8px 18px rgba(15, 23, 42, 0.16)"
                   onClick={handleOpenPackageSmsComposer}
                   isDisabled={!selectedPackageContact.phone}
@@ -1635,7 +1655,7 @@ const MobileFollowups = () => {
                 <Text fontSize="12px" fontWeight="900">SMS</Text>
               </VStack>
               <VStack spacing={2}>
-                <Center w="54px" h="54px" borderRadius="full" borderWidth="1px" borderColor="rgba(255, 255, 255, 0.78)" bg="rgba(255, 255, 255, 0.96)" color="#0f766e" boxShadow="0 8px 18px rgba(15, 23, 42, 0.16)">
+                <Center w="54px" h="54px" borderRadius="full" borderWidth="1px" borderColor="rgba(255, 255, 255, 0.78)" bg="rgba(255, 255, 255, 0.96)" color={theme.navy} boxShadow="0 8px 18px rgba(15, 23, 42, 0.16)">
                   <Icon as={FiCalendar} boxSize={5} />
                 </Center>
                 <Text fontSize="12px" fontWeight="900">Follow-up</Text>
@@ -1644,11 +1664,11 @@ const MobileFollowups = () => {
           </Box>
 
           <ModalBody px={4} py={4} overflowY="auto" pb="88px">
-            <Box bg="white" borderRadius="16px" p={4} borderWidth="1px" borderColor="#e5edf3" boxShadow="0 10px 26px rgba(15, 23, 42, 0.07)">
+            <Box bg="white" borderRadius="16px" p={4} borderWidth="1px" borderColor={theme.border} boxShadow="0 10px 26px rgba(15, 23, 42, 0.07)">
               <Flex align="center" justify="space-between" mb={4}>
                 <Box>
-                  <Text fontSize="16px" color="#172033" fontWeight="900">Package details</Text>
-                  <Text fontSize="11px" color="#64748b" fontWeight="700">Customer and package context for this sale.</Text>
+                  <Text fontSize="16px" color={theme.ink} fontWeight="900">Package details</Text>
+                  <Text fontSize="11px" color={theme.muted} fontWeight="700">Customer and package context for this sale.</Text>
                 </Box>
                 <Badge colorScheme={statusColor(selectedPackageContact.status)} borderRadius="md" px={2} py={1}>
                   {selectedPackageContact.status}
@@ -1656,30 +1676,30 @@ const MobileFollowups = () => {
               </Flex>
 
               <SimpleGrid columns={2} spacing={3}>
-                <Box bg="#f8fafc" borderRadius="12px" p={3}>
-                  <Text fontSize="10px" color="#64748b" fontWeight="900" textTransform="uppercase">Phone</Text>
-                  <Text fontSize="13px" color="#172033" fontWeight="900" noOfLines={1}>{selectedPackageContact.phone || 'No phone'}</Text>
+                <Box bg={theme.page} borderRadius="12px" p={3}>
+                  <Text fontSize="10px" color={theme.muted} fontWeight="900" textTransform="uppercase">Phone</Text>
+                  <Text fontSize="13px" color={theme.ink} fontWeight="900" noOfLines={1}>{selectedPackageContact.phone || 'No phone'}</Text>
                 </Box>
-                <Box bg="#f8fafc" borderRadius="12px" p={3}>
-                  <Text fontSize="10px" color="#64748b" fontWeight="900" textTransform="uppercase">Email</Text>
-                  <Text fontSize="13px" color="#172033" fontWeight="900" noOfLines={1}>{selectedPackageContact.email || 'No email'}</Text>
+                <Box bg={theme.page} borderRadius="12px" p={3}>
+                  <Text fontSize="10px" color={theme.muted} fontWeight="900" textTransform="uppercase">Email</Text>
+                  <Text fontSize="13px" color={theme.ink} fontWeight="900" noOfLines={1}>{selectedPackageContact.email || 'No email'}</Text>
                 </Box>
-                <Box bg="#f8fafc" borderRadius="12px" p={3}>
-                  <Text fontSize="10px" color="#64748b" fontWeight="900" textTransform="uppercase">Package type</Text>
-                  <Text fontSize="13px" color="#172033" fontWeight="900" noOfLines={1}>{selectedPackageContact.packageType || 'N/A'}</Text>
+                <Box bg={theme.page} borderRadius="12px" p={3}>
+                  <Text fontSize="10px" color={theme.muted} fontWeight="900" textTransform="uppercase">Package type</Text>
+                  <Text fontSize="13px" color={theme.ink} fontWeight="900" noOfLines={1}>{selectedPackageContact.packageType || 'N/A'}</Text>
                 </Box>
-                <Box bg="#f8fafc" borderRadius="12px" p={3}>
-                  <Text fontSize="10px" color="#64748b" fontWeight="900" textTransform="uppercase">Customer type</Text>
-                  <Text fontSize="13px" color="#172033" fontWeight="900" noOfLines={1}>{selectedPackageContact.customerType}</Text>
+                <Box bg={theme.page} borderRadius="12px" p={3}>
+                  <Text fontSize="10px" color={theme.muted} fontWeight="900" textTransform="uppercase">Customer type</Text>
+                  <Text fontSize="13px" color={theme.ink} fontWeight="900" noOfLines={1}>{selectedPackageContact.customerType}</Text>
                 </Box>
               </SimpleGrid>
             </Box>
 
-            <Box bg="white" borderRadius="16px" p={4} mt={4} borderWidth="1px" borderColor="#e5edf3" boxShadow="0 10px 26px rgba(15, 23, 42, 0.07)">
+            <Box bg="white" borderRadius="16px" p={4} mt={4} borderWidth="1px" borderColor={theme.border} boxShadow="0 10px 26px rgba(15, 23, 42, 0.07)">
               <Flex align="center" justify="space-between" mb={3}>
                 <Box>
-                  <Text fontSize="16px" color="#172033" fontWeight="900">Activity</Text>
-                  <Text fontSize="11px" color="#64748b" fontWeight="700">Tracked actions for this package customer.</Text>
+                  <Text fontSize="16px" color={theme.ink} fontWeight="900">Activity</Text>
+                  <Text fontSize="11px" color={theme.muted} fontWeight="700">Tracked actions for this package customer.</Text>
                 </Box>
                 <Button size="sm" borderRadius="10px" colorScheme="teal" onClick={handleOpenPackageSmsComposer} isDisabled={!selectedPackageContact.phone}>
                   SMS
@@ -1687,8 +1707,8 @@ const MobileFollowups = () => {
               </Flex>
 
               {packageActivities.length === 0 ? (
-                <Box bg="#f8fafc" borderRadius="12px" p={4}>
-                  <Text fontSize="13px" color="#64748b" fontWeight="800">No package activities logged yet.</Text>
+                <Box bg={theme.page} borderRadius="12px" p={4}>
+                  <Text fontSize="13px" color={theme.muted} fontWeight="800">No package activities logged yet.</Text>
                 </Box>
               ) : (
                 <VStack align="stretch" spacing={3}>
@@ -1696,12 +1716,12 @@ const MobileFollowups = () => {
                     <Box key={activity._id || activity.id} bg={activity.activityType === 'sms' ? '#f5f3ff' : '#ecfeff'} borderRadius="12px" p={3} borderWidth="1px" borderColor={activity.activityType === 'sms' ? '#ddd6fe' : '#b2f5ea'}>
                       <HStack justify="space-between" align="flex-start">
                         <Box minW={0}>
-                          <Text fontSize="10px" color={activity.activityType === 'sms' ? '#6d28d9' : '#0f766e'} fontWeight="900" textTransform="uppercase">
+                          <Text fontSize="10px" color={activity.activityType === 'sms' ? '#6d28d9' : theme.navy} fontWeight="900" textTransform="uppercase">
                             {activity.activityType === 'sms' ? 'Logged SMS' : 'Activity'}
                           </Text>
-                          <Text fontSize="13px" color="#172033" fontWeight="900" noOfLines={1}>{activity.packageName || selectedPackageContact.packageName}</Text>
+                          <Text fontSize="13px" color={theme.ink} fontWeight="900" noOfLines={1}>{activity.packageName || selectedPackageContact.packageName}</Text>
                         </Box>
-                        <Text fontSize="10px" color="#64748b" fontWeight="800" flexShrink={0}>{formatTime(activity.createdAt)}</Text>
+                        <Text fontSize="10px" color={theme.muted} fontWeight="800" flexShrink={0}>{formatTime(activity.createdAt)}</Text>
                       </HStack>
                       <Text mt={2} fontSize="12px" color="#334155" fontWeight="700" noOfLines={3} whiteSpace="pre-line">
                         {activity.body}
@@ -1715,7 +1735,7 @@ const MobileFollowups = () => {
           </ModalBody>
 
           <ModalFooter position="fixed" left={0} right={0} bottom={0} px={4} py={3} bg="white" borderTopWidth="1px" borderTopColor="#d9e2ea">
-            <Button w="100%" h="46px" borderRadius="12px" bg="#13a6a3" color="white" _hover={{ bg: '#0f8f8c' }} type="button" onClick={handlePackageDetailClose}>
+            <Button w="100%" h="46px" borderRadius="12px" bg={theme.gold} color="white" _hover={{ bg: '#C98D00' }} type="button" onClick={handlePackageDetailClose}>
               Done
             </Button>
           </ModalFooter>
@@ -1736,7 +1756,7 @@ const MobileFollowups = () => {
           borderBottomRadius={0}
           overflow="hidden"
           bg="#13212b"
-          color="#e5edf3"
+          color={theme.border}
         >
           <Box w="54px" h="5px" bg="#526574" borderRadius="full" mx="auto" mt={3} />
           <ModalHeader px={5} pt={5} pb={2}>
@@ -1758,7 +1778,7 @@ const MobileFollowups = () => {
                   </Text>
                 </Box>
               </HStack>
-              <Button type="submit" size="sm" borderRadius="10px" bg="#13a6a3" color="white" _hover={{ bg: '#0f8f8c' }} isLoading={sendingEmail}>
+              <Button type="submit" size="sm" borderRadius="10px" bg={theme.gold} color="white" _hover={{ bg: '#C98D00' }} isLoading={sendingEmail}>
                 Send
               </Button>
             </Flex>
@@ -1779,7 +1799,7 @@ const MobileFollowups = () => {
                   onChange={handleEmailChange}
                   bg="#1d2c36"
                   borderColor="#334858"
-                  color="#e5edf3"
+                  color={theme.border}
                   h="46px"
                   borderRadius="12px"
                   _placeholder={{ color: '#718096' }}
@@ -1793,7 +1813,7 @@ const MobileFollowups = () => {
                   onChange={handleEmailChange}
                   bg="#1d2c36"
                   borderColor="#334858"
-                  color="#e5edf3"
+                  color={theme.border}
                   borderRadius="12px"
                   rows={12}
                   resize="vertical"
@@ -1807,7 +1827,7 @@ const MobileFollowups = () => {
             <Button flex={1} h="46px" borderRadius="12px" variant="ghost" color="#c8d4e1" onClick={() => emailDisclosure.onClose()} isDisabled={sendingEmail}>
               Cancel
             </Button>
-            <Button flex={1} h="46px" borderRadius="12px" bg="#13a6a3" color="white" _hover={{ bg: '#0f8f8c' }} type="submit" isLoading={sendingEmail}>
+            <Button flex={1} h="46px" borderRadius="12px" bg={theme.gold} color="white" _hover={{ bg: '#C98D00' }} type="submit" isLoading={sendingEmail}>
               Send Email
             </Button>
           </ModalFooter>
@@ -1828,7 +1848,7 @@ const MobileFollowups = () => {
           borderBottomRadius={0}
           overflow="hidden"
           bg="#13212b"
-          color="#e5edf3"
+          color={theme.border}
         >
           <Box w="54px" h="5px" bg="#526574" borderRadius="full" mx="auto" mt={3} />
           <ModalHeader px={5} pt={5} pb={2}>
@@ -1851,11 +1871,11 @@ const MobileFollowups = () => {
                 </Box>
               </HStack>
               {smsStep === 'compose' ? (
-                <Button type="submit" size="sm" borderRadius="10px" bg="#13a6a3" color="white" _hover={{ bg: '#0f8f8c' }}>
+                <Button type="submit" size="sm" borderRadius="10px" bg={theme.gold} color="white" _hover={{ bg: '#C98D00' }}>
                   Open
                 </Button>
               ) : (
-                <Button type="button" size="sm" borderRadius="10px" bg="#13a6a3" color="white" _hover={{ bg: '#0f8f8c' }} isLoading={sendingSms} onClick={handleLogSms}>
+                <Button type="button" size="sm" borderRadius="10px" bg={theme.gold} color="white" _hover={{ bg: '#C98D00' }} isLoading={sendingSms} onClick={handleLogSms}>
                   Log
                 </Button>
               )}
@@ -1878,7 +1898,7 @@ const MobileFollowups = () => {
                   isReadOnly={smsStep === 'confirm'}
                   bg="#1d2c36"
                   borderColor="#334858"
-                  color="#e5edf3"
+                  color={theme.border}
                   borderRadius="12px"
                   rows={7}
                   maxLength={480}
@@ -1905,7 +1925,7 @@ const MobileFollowups = () => {
                 <Button flex={1} h="46px" borderRadius="12px" variant="ghost" color="#c8d4e1" onClick={() => smsDisclosure.onClose()}>
                   Cancel
                 </Button>
-                <Button flex={1} h="46px" borderRadius="12px" bg="#13a6a3" color="white" _hover={{ bg: '#0f8f8c' }} type="submit">
+                <Button flex={1} h="46px" borderRadius="12px" bg={theme.gold} color="white" _hover={{ bg: '#C98D00' }} type="submit">
                   Open SMS App
                 </Button>
               </>
@@ -1914,7 +1934,7 @@ const MobileFollowups = () => {
                 <Button flex={1} h="46px" borderRadius="12px" variant="ghost" color="#c8d4e1" onClick={() => smsDisclosure.onClose()} isDisabled={sendingSms}>
                   Skip
                 </Button>
-                <Button flex={1} h="46px" borderRadius="12px" bg="#13a6a3" color="white" _hover={{ bg: '#0f8f8c' }} type="button" isLoading={sendingSms} onClick={handleLogSms}>
+                <Button flex={1} h="46px" borderRadius="12px" bg={theme.gold} color="white" _hover={{ bg: '#C98D00' }} type="button" isLoading={sendingSms} onClick={handleLogSms}>
                   Mark as Sent
                 </Button>
               </>
@@ -1937,7 +1957,7 @@ const MobileFollowups = () => {
           borderBottomRadius={0}
           overflow="hidden"
           bg="#13212b"
-          color="#e5edf3"
+          color={theme.border}
         >
           <Box w="54px" h="5px" bg="#526574" borderRadius="full" mx="auto" mt={3} />
           <ModalHeader px={5} pt={5} pb={2}>
@@ -1960,11 +1980,11 @@ const MobileFollowups = () => {
                 </Box>
               </HStack>
               {packageSmsStep === 'compose' ? (
-                <Button type="submit" size="sm" borderRadius="10px" bg="#13a6a3" color="white" _hover={{ bg: '#0f8f8c' }}>
+                <Button type="submit" size="sm" borderRadius="10px" bg={theme.gold} color="white" _hover={{ bg: '#C98D00' }}>
                   Open
                 </Button>
               ) : (
-                <Button type="button" size="sm" borderRadius="10px" bg="#13a6a3" color="white" _hover={{ bg: '#0f8f8c' }} isLoading={loggingPackageSms} onClick={handleLogPackageSms}>
+                <Button type="button" size="sm" borderRadius="10px" bg={theme.gold} color="white" _hover={{ bg: '#C98D00' }} isLoading={loggingPackageSms} onClick={handleLogPackageSms}>
                   Log
                 </Button>
               )}
@@ -1987,7 +2007,7 @@ const MobileFollowups = () => {
                   isReadOnly={packageSmsStep === 'confirm'}
                   bg="#1d2c36"
                   borderColor="#334858"
-                  color="#e5edf3"
+                  color={theme.border}
                   borderRadius="12px"
                   rows={7}
                   maxLength={480}
@@ -2014,7 +2034,7 @@ const MobileFollowups = () => {
                 <Button flex={1} h="46px" borderRadius="12px" variant="ghost" color="#c8d4e1" onClick={() => packageSmsDisclosure.onClose()}>
                   Cancel
                 </Button>
-                <Button flex={1} h="46px" borderRadius="12px" bg="#13a6a3" color="white" _hover={{ bg: '#0f8f8c' }} type="submit">
+                <Button flex={1} h="46px" borderRadius="12px" bg={theme.gold} color="white" _hover={{ bg: '#C98D00' }} type="submit">
                   Open SMS App
                 </Button>
               </>
@@ -2023,7 +2043,7 @@ const MobileFollowups = () => {
                 <Button flex={1} h="46px" borderRadius="12px" variant="ghost" color="#c8d4e1" onClick={() => packageSmsDisclosure.onClose()} isDisabled={loggingPackageSms}>
                   Skip
                 </Button>
-                <Button flex={1} h="46px" borderRadius="12px" bg="#13a6a3" color="white" _hover={{ bg: '#0f8f8c' }} type="button" isLoading={loggingPackageSms} onClick={handleLogPackageSms}>
+                <Button flex={1} h="46px" borderRadius="12px" bg={theme.gold} color="white" _hover={{ bg: '#C98D00' }} type="button" isLoading={loggingPackageSms} onClick={handleLogPackageSms}>
                   Mark as Sent
                 </Button>
               </>
@@ -2045,11 +2065,11 @@ const MobileFollowups = () => {
           borderTopRadius="26px"
           borderBottomRadius={0}
           overflow="hidden"
-          bg="#f8fafc"
+          bg={theme.page}
         >
           <ModalHeader px={5} pt={5} pb={2}>
             <Text fontSize="20px" color="#111827" fontWeight="900">{modalTitle}</Text>
-            <Text fontSize="12px" color="#64748b" fontWeight="700" mt={1}>
+            <Text fontSize="12px" color={theme.muted} fontWeight="700" mt={1}>
               {section === 'packages'
                 ? 'Create a package sales record for this sales account.'
                 : 'Create a customer follow-up from mobile with the same training data as desktop.'}
@@ -2189,7 +2209,7 @@ const MobileFollowups = () => {
             <Button flex={1} h="46px" borderRadius="12px" variant="ghost" onClick={handleAddClose} isDisabled={saving}>
               Cancel
             </Button>
-            <Button flex={1} h="46px" borderRadius="12px" bg="#13a6a3" color="white" _hover={{ bg: '#0f8f8c' }} type="submit" isLoading={saving}>
+            <Button flex={1} h="46px" borderRadius="12px" bg={theme.gold} color="white" _hover={{ bg: '#C98D00' }} type="submit" isLoading={saving}>
               Save
             </Button>
           </ModalFooter>
@@ -2200,3 +2220,5 @@ const MobileFollowups = () => {
 };
 
 export default MobileFollowups;
+
+

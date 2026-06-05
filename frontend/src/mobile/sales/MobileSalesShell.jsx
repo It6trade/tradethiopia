@@ -11,7 +11,7 @@ const titleByItem = {
   Home: 'Sales',
   Followup: 'Contacts',
   'Package Sales': 'Deals',
-  Tasks: 'Tasks',
+  Tasks: 'My Tasks',
   Search: 'Search'
 };
 
@@ -43,7 +43,7 @@ const MobileSalesShell = ({ activeItem, setActiveItem }) => {
   };
 
   return (
-    <Box minH="100vh" bg="#f8fafc" color="#162033" pb="92px">
+    <Box minH="100vh" bg="#FAFBFD" color="#081A34" pb="92px">
       {currentItem !== 'Home' && (
         <Box position="sticky" top={0} zIndex={10}>
           <MobileSalesTopBar title={titleByItem[currentItem] || currentItem || 'Sales'} />

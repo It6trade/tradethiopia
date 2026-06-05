@@ -45,6 +45,16 @@ const quickActions = [
   { label: 'Create Task', icon: FiCalendar, color: '#d9901f', bg: '#fff5dc' }
 ];
 
+const theme = {
+  navy: '#001f4d',
+  navyLight: '#062b63',
+  gold: '#D99A00',
+  goldSoft: '#FFF7DE',
+  ink: '#081A34',
+  muted: '#6E7890',
+  border: '#E8EDF5'
+};
+
 const getFirstName = () => {
   const storedName = localStorage.getItem('userName') || localStorage.getItem('name') || 'Amanuel';
   return storedName.split(' ')[0] || storedName;
@@ -57,13 +67,13 @@ const MobileSalesHome = ({ onNavigate }) => {
     <VStack align="stretch" spacing={5}>
       <Flex align="flex-start" justify="space-between">
         <Box>
-          <Text fontSize="12px" color="#5f6b7a" fontWeight="700" mb={1}>
-            Good Morning
+          <Text fontSize="12px" color={theme.muted} fontWeight="800" mb={1}>
+            Good Morning,
           </Text>
-          <Text fontSize="24px" color="#162033" fontWeight="900" lineHeight="1">
+          <Text fontSize="24px" color={theme.ink} fontWeight="900" lineHeight="1">
             {firstName}
           </Text>
-          <Text fontSize="11px" color="#7a8797" fontWeight="600" mt={4}>
+          <Text fontSize="11px" color={theme.muted} fontWeight="700" mt={4}>
             Here's what's happening with your sales today.
           </Text>
         </Box>
@@ -73,7 +83,7 @@ const MobileSalesHome = ({ onNavigate }) => {
               aria-label="Notifications"
               icon={<FiBell />}
               variant="ghost"
-              color="#162033"
+              color={theme.ink}
               fontSize="20px"
               size="sm"
             />
@@ -94,22 +104,25 @@ const MobileSalesHome = ({ onNavigate }) => {
               3
             </Badge>
           </Box>
-          <Avatar name={firstName} size="sm" bg="#2f855a" />
+          <Avatar name={firstName} size="sm" bg={theme.navy} color="white" />
         </HStack>
       </Flex>
 
       <Flex
         align="center"
         justify="space-between"
-        bgGradient="linear(to-r, #13a6a3, #128f8b)"
+        bg={`linear-gradient(135deg, ${theme.navy} 0%, ${theme.navyLight} 100%)`}
         color="white"
-        borderRadius="10px"
+        borderRadius="16px"
         px={4}
         py={4}
-        boxShadow="0 12px 26px rgba(19, 166, 163, 0.25)"
+        boxShadow="0 14px 32px rgba(0, 31, 77, 0.18)"
+        position="relative"
+        overflow="hidden"
       >
+        <Box position="absolute" right="-32px" top="-42px" w="132px" h="132px" borderRadius="full" bg="rgba(217,154,0,0.18)" />
         <HStack spacing={3}>
-          <Flex w="36px" h="36px" borderRadius="8px" bg="whiteAlpha.250" align="center" justify="center">
+          <Flex w="38px" h="38px" borderRadius="10px" bg="whiteAlpha.200" align="center" justify="center">
             <Icon as={FiCalendar} boxSize={5} />
           </Flex>
           <Box>
@@ -125,7 +138,7 @@ const MobileSalesHome = ({ onNavigate }) => {
         <Button
           size="xs"
           rightIcon={<FiChevronRight />}
-          bg="whiteAlpha.250"
+          bg="whiteAlpha.200"
           color="white"
           _hover={{ bg: 'whiteAlpha.300' }}
           onClick={() => onNavigate('Followup')}
@@ -136,17 +149,17 @@ const MobileSalesHome = ({ onNavigate }) => {
 
       <Box>
         <Flex justify="space-between" align="center" mb={3}>
-          <Text fontSize="13px" color="#162033" fontWeight="900">Overview</Text>
-          <Button variant="link" color="#13a6a3" size="xs" onClick={() => onNavigate('Followup')}>See all</Button>
+          <Text fontSize="13px" color={theme.ink} fontWeight="900">Overview</Text>
+          <Button variant="link" color={theme.gold} size="xs" onClick={() => onNavigate('Followup')}>See all</Button>
         </Flex>
         <SimpleGrid columns={3} spacing={2}>
           {metricCards.map((item) => (
-            <Box key={item.label} bg="white" borderRadius="10px" p={3} boxShadow="0 8px 20px rgba(15, 23, 42, 0.08)">
-              <Flex w="30px" h="30px" bg={item.bg} color={item.color} borderRadius="8px" align="center" justify="center" mb={4}>
+            <Box key={item.label} bg="white" borderRadius="14px" p={3} borderWidth="1px" borderColor={theme.border} boxShadow="0 10px 26px rgba(8, 26, 52, 0.05)">
+              <Flex w="30px" h="30px" bg={item.label === 'Total Commission' ? theme.goldSoft : item.bg} color={item.label === 'Total Commission' ? theme.gold : item.color} borderRadius="9px" align="center" justify="center" mb={4}>
                 <Icon as={item.icon} boxSize={4} />
               </Flex>
-              <Text fontSize="9px" color="#5f6b7a" fontWeight="800" minH="24px">{item.label}</Text>
-              <Text fontSize={item.label === 'Total Commission' ? '13px' : '23px'} color="#16304a" fontWeight="900" lineHeight="1.1" mt={1}>
+              <Text fontSize="9px" color={theme.muted} fontWeight="800" minH="24px">{item.label}</Text>
+              <Text fontSize={item.label === 'Total Commission' ? '13px' : '23px'} color={theme.ink} fontWeight="900" lineHeight="1.1" mt={1}>
                 {item.value}
               </Text>
               <Text fontSize="8px" color="#16a163" fontWeight="800" mt={1}>{item.detail}</Text>
@@ -157,19 +170,19 @@ const MobileSalesHome = ({ onNavigate }) => {
 
       <Box>
         <Flex justify="space-between" align="center" mb={3}>
-          <Text fontSize="13px" color="#162033" fontWeight="900">Today's Follow-ups</Text>
-          <Button variant="link" color="#13a6a3" size="xs" onClick={() => onNavigate('Followup')}>View all</Button>
+          <Text fontSize="13px" color={theme.ink} fontWeight="900">Today's Follow-ups</Text>
+          <Button variant="link" color={theme.gold} size="xs" onClick={() => onNavigate('Followup')}>View all</Button>
         </Flex>
-        <Box bg="white" borderRadius="12px" boxShadow="0 8px 22px rgba(15, 23, 42, 0.08)" overflow="hidden">
+        <Box bg="white" borderRadius="14px" borderWidth="1px" borderColor={theme.border} boxShadow="0 10px 26px rgba(8, 26, 52, 0.05)" overflow="hidden">
           {followups.map((item, index) => (
-            <Flex key={item.title} align="center" gap={3} px={3} py={3} borderBottom={index === followups.length - 1 ? 'none' : '1px solid'} borderColor="#edf2f7">
-              <Text w="52px" fontSize="10px" color="#162033" fontWeight="800">{item.time}</Text>
+            <Flex key={item.title} align="center" gap={3} px={3} py={3} borderBottom={index === followups.length - 1 ? 'none' : '1px solid'} borderColor={theme.border}>
+              <Text w="52px" fontSize="10px" color={theme.ink} fontWeight="800">{item.time}</Text>
               <Flex w="30px" h="30px" bg={`${item.color}.50`} color={item.iconColor} borderRadius="8px" align="center" justify="center" flexShrink={0}>
                 <Icon as={FiPhone} boxSize={4} />
               </Flex>
               <Box minW={0} flex="1">
-                <Text fontSize="11px" color="#162033" fontWeight="900" noOfLines={1}>{item.title}</Text>
-                <Text fontSize="9px" color="#697386" fontWeight="700" noOfLines={1}>{item.detail}</Text>
+                <Text fontSize="11px" color={theme.ink} fontWeight="900" noOfLines={1}>{item.title}</Text>
+                <Text fontSize="9px" color={theme.muted} fontWeight="700" noOfLines={1}>{item.detail}</Text>
               </Box>
               <Badge colorScheme={item.color} fontSize="8px" px={2} py={1} borderRadius="md">
                 {item.status}
@@ -180,30 +193,30 @@ const MobileSalesHome = ({ onNavigate }) => {
       </Box>
 
       <Box>
-        <Text fontSize="13px" color="#162033" fontWeight="900" mb={3}>Quick Actions</Text>
+        <Text fontSize="13px" color={theme.ink} fontWeight="900" mb={3}>Quick Actions</Text>
         <SimpleGrid columns={4} spacing={2}>
           {quickActions.map((item) => (
-            <Box key={item.label} bg="white" borderRadius="10px" p={3} textAlign="center" boxShadow="0 8px 20px rgba(15, 23, 42, 0.08)">
+            <Box key={item.label} bg="white" borderRadius="14px" p={3} textAlign="center" borderWidth="1px" borderColor={theme.border} boxShadow="0 10px 26px rgba(8, 26, 52, 0.05)">
               <Flex w="32px" h="32px" mx="auto" bg={item.bg} color={item.color} borderRadius="8px" align="center" justify="center" mb={2}>
                 <Icon as={item.icon} boxSize={4} />
               </Flex>
-              <Text fontSize="8px" color="#263445" fontWeight="900" lineHeight="1.1">{item.label}</Text>
+              <Text fontSize="8px" color={theme.ink} fontWeight="900" lineHeight="1.1">{item.label}</Text>
             </Box>
           ))}
         </SimpleGrid>
       </Box>
 
-      <Flex bg="#fbfaff" borderWidth="1px" borderColor="#d9c7ff" borderRadius="12px" p={3} gap={3} align="center">
-        <Flex w="42px" h="42px" bg="#ede4ff" color="#7c3fd5" borderRadius="10px" align="center" justify="center" flexShrink={0}>
+      <Flex bg="white" borderWidth="1px" borderColor={theme.border} borderRadius="14px" p={3} gap={3} align="center" boxShadow="0 10px 26px rgba(8, 26, 52, 0.05)">
+        <Flex w="42px" h="42px" bg={theme.goldSoft} color={theme.gold} borderRadius="10px" align="center" justify="center" flexShrink={0}>
           <Icon as={FiMic} boxSize={6} />
         </Flex>
         <Box minW={0} flex="1">
-          <Text fontSize="12px" color="#7c3fd5" fontWeight="900">AI Sales Assistant</Text>
-          <Text fontSize="9px" color="#697386" fontWeight="700" noOfLines={2}>
+          <Text fontSize="12px" color={theme.ink} fontWeight="900">AI Sales Assistant</Text>
+          <Text fontSize="9px" color={theme.muted} fontWeight="700" noOfLines={2}>
             Ask anything about your leads, follow-ups, and get instant insights.
           </Text>
         </Box>
-        <Button size="xs" bg="#8956dc" color="white" _hover={{ bg: '#7846c9' }}>
+        <Button size="xs" bg={theme.gold} color="white" _hover={{ bg: '#C98D00' }}>
           Ask AI
         </Button>
       </Flex>

@@ -19,11 +19,11 @@ const MobileBottomNav = ({ activeItem, onChange }) => (
     zIndex={20}
     bg="white"
     borderTop="1px solid"
-    borderColor="#edf2f7"
+    borderColor="#E8EDF5"
     px={2}
     pt={2}
     pb="calc(8px + env(safe-area-inset-bottom))"
-    boxShadow="0 -8px 24px rgba(15, 23, 42, 0.08)"
+    boxShadow="0 -8px 24px rgba(8, 26, 52, 0.08)"
   >
     <Flex justify="space-between">
       {navItems.map((item) => {
@@ -35,7 +35,7 @@ const MobileBottomNav = ({ activeItem, onChange }) => (
             type="button"
             flex="1"
             minW={0}
-            color={isActive ? '#13a6a3' : '#6b7280'}
+            color={isActive ? '#D99A00' : '#7A8497'}
             onClick={() => onChange(item.value)}
           >
             <Flex direction="column" align="center" gap={0.5}>
