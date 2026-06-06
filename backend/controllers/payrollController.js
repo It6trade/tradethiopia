@@ -77,6 +77,17 @@ const calculateOvertimePay = (hourlyWage, overtimeData) => {
   return totalOvertimePay;
 };
 
+const getMonthDateRange = (month) => {
+  const [yearStr, monthStr] = String(month || new Date().toISOString().slice(0, 7)).split('-');
+  const year = parseInt(yearStr, 10) || new Date().getFullYear();
+  const monthIndex = Math.max((parseInt(monthStr, 10) || 1) - 1, 0);
+
+  return {
+    start: new Date(year, monthIndex, 1),
+    end: new Date(year, monthIndex + 1, 1)
+  };
+};
+
 // Calculate late deduction (3000 ETB per day)
 const calculateLateDeduction = (lateDays) => {
   return (lateDays || 0) * 300;
@@ -148,12 +159,33 @@ const deriveHrNetFromRecord = (payrollRecord, fallbackBaseNet = 0) => {
   return recordedNet - financeAllowances + financeDeductions;
 };
 
+const applyDerivedFinanceAdjustmentsForDisplay = (payrollRecord = {}) => {
+  const financeAllowances = Number(payrollRecord.financeAllowances || 0);
+  const financeDeductions = Number(payrollRecord.financeDeductions || 0);
+  if (financeAllowances !== 0 || financeDeductions !== 0) {
+    return payrollRecord;
+  }
+
+  const grossSalary = Number(payrollRecord.grossSalary || payrollRecord.basicSalary || 0);
+  const netSalary = Number(payrollRecord.netSalary || payrollRecord.finalSalary || 0);
+  const derivedAdjustment = Number((grossSalary - netSalary).toFixed(2));
+  if (derivedAdjustment <= 0) {
+    return payrollRecord;
+  }
+
+  return {
+    ...payrollRecord,
+    financeAllowances: derivedAdjustment,
+    financeDeductions: 0
+  };
+};
+
 // Enhanced payroll calculation function
-const calculatePayrollForEmployee = async (userData, attendanceData, commissionData) => {
+const calculatePayrollForEmployee = (userData, attendanceData, commissionData, period = {}) => {
   try {
     const currentDate = new Date();
-    const month = currentDate.toISOString().slice(0, 7);
-    const year = currentDate.getFullYear();
+    const month = period.month || currentDate.toISOString().slice(0, 7);
+    const year = parseInt(period.year, 10) || currentDate.getFullYear();
     
     // Base salary from user data
     const basicSalary = userData.salary || 0;
@@ -251,10 +283,13 @@ const getPayrollList = async (req, res) => {
   try {
     const { month } = req.params;
     const { year, department, role } = req.query;
+    const [monthYear] = String(month || '').split('-');
+    const payrollYear = parseInt(year, 10) || parseInt(monthYear, 10) || new Date().getFullYear();
+    const { start: monthStart, end: monthEnd } = getMonthDateRange(month);
     
     // Build query for existing payroll records
     let query = { month };
-    if (year) query.year = year;
+    if (year) query.year = payrollYear;
     if (department) query.department = department;
     if (role) query.role = role;
     
@@ -268,6 +303,26 @@ const getPayrollList = async (req, res) => {
     if (role) userQuery.role = role;
     
     const allActiveUsers = await User.find(userQuery);
+    const activeUserIds = allActiveUsers.map((user) => user._id);
+    const [attendanceRecords, commissionRecords] = await Promise.all([
+      Attendance.find({
+        userId: { $in: activeUserIds },
+        date: { $gte: monthStart, $lt: monthEnd }
+      }),
+      Commission.find({
+        userId: { $in: activeUserIds },
+        month,
+        year: payrollYear
+      })
+    ]);
+    const attendanceRecordMap = {};
+    attendanceRecords.forEach((record) => {
+      attendanceRecordMap[record.userId.toString()] = record;
+    });
+    const commissionRecordMap = {};
+    commissionRecords.forEach((record) => {
+      commissionRecordMap[record.userId.toString()] = record;
+    });
     
     // Create a map of existing payroll records by userId for quick lookup
     const payrollRecordMap = {};
@@ -298,51 +353,27 @@ const getPayrollList = async (req, res) => {
           record.department = user.jobTitle || user.role || 'general';
         }
         record.basicSalary = currentSalary;
-        return record;
+        return applyDerivedFinanceAdjustmentsForDisplay(record);
       } else {
-        // Create a placeholder record for users without existing payroll data
-        const basicSalary = currentSalary;
-        
-        // For placeholder records, we only have basic salary (no overtime, commissions, or allowances)
-        const grossSalary = basicSalary;
-        
-        // Calculate income tax on gross salary
-        const incomeTax = calculateEthiopianIncomeTax(grossSalary);
-        
-        // Calculate pension (7% of basic salary)
-        const pension = calculatePension(basicSalary);
-        
-        // Calculate net salary (gross - tax - pension)
-        const netSalary = grossSalary - incomeTax - pension;
-        
+        const calculatedRecord = calculatePayrollForEmployee(
+          user,
+          attendanceRecordMap[userIdStr],
+          commissionRecordMap[userIdStr],
+          { month, year: payrollYear }
+        );
+
         const placeholderRecord = {
+          ...calculatedRecord,
           _id: `placeholder-${userIdStr}`, // Add a temporary ID for frontend use
           userId: user._id,
-          employeeName: user.fullName || user.username,
-          department: user.jobTitle || user.role || 'general', // Use jobTitle or role as fallback
-          month,
-          year: parseInt(year) || new Date().getFullYear(),
-          basicSalary: basicSalary,
-          grossSalary: grossSalary,
-          incomeTax: incomeTax,
-          pension: pension,
-          overtimeHours: 0,
-          overtimePay: 0,
-          lateDays: 0,
-          lateDeduction: 0,
-          absenceDays: 0,
-          absenceDeduction: 0,
-          numberOfSales: 0,
-          salesCommission: 0,
-          hrAllowances: 0,
-          financeAllowances: 0,
-          financeDeductions: 0,
-          netSalary: netSalary,
+          department: calculatedRecord.department && calculatedRecord.department !== 'general'
+            ? calculatedRecord.department
+            : user.jobTitle || user.role || 'general',
           status: 'draft',
           auditLog: []
         };
         
-        return placeholderRecord;
+        return applyDerivedFinanceAdjustmentsForDisplay(placeholderRecord);
       }
     });
     
@@ -380,7 +411,7 @@ const calculatePayrollForAll = async (req, res) => {
         const commissionData = await resolveCommissionForPeriod(user._id, month, year);
         
         // Calculate payroll for the employee
-        const payrollData = await calculatePayrollForEmployee(user, attendanceData, commissionData);
+        const payrollData = calculatePayrollForEmployee(user, attendanceData, commissionData, { month, year });
         
         // Check if payroll record already exists
         const existingRecord = await Payroll.findOne({
@@ -476,7 +507,7 @@ const submitHRAdjustment = async (req, res) => {
     
     // Recalculate payroll for this user
     const commissionData = await Commission.findOne({ userId, month, year });
-    const payrollData = await calculatePayrollForEmployee(user, attendanceRecord, commissionData);
+    const payrollData = calculatePayrollForEmployee(user, attendanceRecord, commissionData, { month, year });
     const existingPayroll = await Payroll.findOne({ userId, month, year });
     const financeAdjustmentSnapshot = reapplyFinanceAdjustments(payrollData.netSalary, existingPayroll);
 
@@ -547,7 +578,7 @@ const submitFinanceAdjustment = async (req, res) => {
     const existingPayroll = await Payroll.findOne({ userId, month, year });
     
     // Recalculate payroll with data that reflects HR adjustments only
-    const payrollData = await calculatePayrollForEmployee(user, attendanceRecord, commissionData);
+    const payrollData = calculatePayrollForEmployee(user, attendanceRecord, commissionData, { month, year });
 
     const fallbackFinanceAllowances = existingPayroll?.financeAllowances ?? payrollData.financeAllowances ?? 0;
     const fallbackFinanceDeductions = existingPayroll?.financeDeductions ?? payrollData.financeDeductions ?? 0;
@@ -644,10 +675,11 @@ const getPayrollDetails = async (req, res) => {
         createdAt: new Date(),
         updatedAt: new Date()
       };
-      return res.json(placeholder);
+      return res.json(applyDerivedFinanceAdjustmentsForDisplay(placeholder));
     }
     
-    res.json(payrollRecord);
+    const record = payrollRecord.toObject ? payrollRecord.toObject() : payrollRecord;
+    res.json(applyDerivedFinanceAdjustmentsForDisplay(record));
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -895,7 +927,7 @@ const submitCommission = async (req, res) => {
     });
     
     // Recalculate payroll with new commission data
-    const payrollData = await calculatePayrollForEmployee(user, attendanceData, commissionRecord);
+    const payrollData = calculatePayrollForEmployee(user, attendanceData, commissionRecord, { month, year });
     
     // Update payroll record
     const payrollRecord = await Payroll.findOneAndUpdate(
