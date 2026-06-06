@@ -9,7 +9,7 @@ import MobileTasks from './MobileTasks';
 
 const titleByItem = {
   Home: 'Sales',
-  Followup: 'Contacts',
+  Followup: 'Followup',
   'Package Sales': 'Deals',
   Tasks: 'My Tasks',
   Search: 'Search'
@@ -25,8 +25,6 @@ const MobileSalesShell = ({ activeItem, setActiveItem }) => {
     switch (currentItem) {
       case 'Home':
         return <MobileSalesHome onNavigate={setMobileItem} />;
-      case 'Contacts':
-        return <MobileSalesPlaceholder title="Contacts" description="Mobile contact cards and contact detail views will live here." />;
       case 'Followup':
         return <MobileFollowups />;
       case 'Package Sales':
