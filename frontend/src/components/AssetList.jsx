@@ -76,7 +76,6 @@ const AssetList = ({ readOnly = false }) => {
   };
 
   const handleAssetClick = (asset) => {
-    if (readOnly) return;
     setSelectedAsset(asset);
     onOpen();
   };
@@ -319,13 +318,14 @@ const AssetList = ({ readOnly = false }) => {
         </VStack>
       </Box>
 
-      <Box width={{ base: '100%', md: '70%' }} p={4}>
-        <Flex justify="flex-end" mb={3}>
+      <Box width={{ base: '100%', md: '70%' }} p={{ base: 0, md: 4 }}>
+        <Flex justify={{ base: 'stretch', md: 'flex-end' }} mb={3}>
           <Button
             leftIcon={<DownloadIcon />}
             variant="outline"
             colorScheme="teal"
             size="sm"
+            w={{ base: '100%', md: 'auto' }}
             onClick={handleExportToExcel}
           >
             Export Excel
@@ -333,21 +333,34 @@ const AssetList = ({ readOnly = false }) => {
         </Flex>
         <List spacing={3}>
           {filteredAssets.map(asset => (
-            <ListItem key={asset?._id || asset?.nameTag} p={4} borderWidth={1} borderRadius="md" boxShadow="sm" bg={assetRowBg} _hover={{ bg: assetRowHoverBg }} display="flex" alignItems="center">
+            <ListItem
+              key={asset?._id || asset?.nameTag}
+              p={{ base: 3, md: 4 }}
+              borderWidth={1}
+              borderRadius="md"
+              boxShadow="sm"
+              bg={assetRowBg}
+              _hover={{ bg: assetRowHoverBg }}
+              display="flex"
+              flexDirection={{ base: 'column', sm: 'row' }}
+              alignItems={{ base: 'stretch', sm: 'center' }}
+              gap={{ base: 3, sm: 0 }}
+            >
               <Box
                 width="10px"
                 height="10px"
                 borderRadius="full"
                 bg={getStatusColor(asset?.status)}
-                mr={3}
+                mr={{ base: 0, sm: 3 }}
               />
-              <HStack spacing={2} flexGrow={1}>
+              <HStack spacing={2} flexGrow={1} minW={0} align="start">
                 <Box
                   as="span"
                   onClick={() => handleAssetClick(asset)}
                   fontWeight="bold"
-                  cursor={readOnly ? "default" : "pointer"}
+                  cursor="pointer"
                   color="teal.500"
+                  wordBreak="break-word"
                 >
                   {asset?.nameTag} - {asset?.assignedTo}
                 </Box>
@@ -366,15 +379,14 @@ const AssetList = ({ readOnly = false }) => {
           ))}
         </List>
 
-        {!readOnly && (
-          <AssetDetailDrawer 
-            isOpen={isOpen} 
-            onClose={onClose} 
-            selectedAsset={selectedAsset} 
-            setSelectedAsset={setSelectedAsset} 
-            handleUpdateAsset={handleUpdateAsset}
-          />
-        )}
+        <AssetDetailDrawer
+          isOpen={isOpen}
+          onClose={onClose}
+          selectedAsset={selectedAsset}
+          setSelectedAsset={setSelectedAsset}
+          handleUpdateAsset={handleUpdateAsset}
+          readOnly={readOnly}
+        />
       </Box>
     </Flex>
 

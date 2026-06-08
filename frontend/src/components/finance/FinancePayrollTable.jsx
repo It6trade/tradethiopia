@@ -41,6 +41,21 @@ const getStatusColor = (status) => {
   }
 };
 
+const getDisplayGrossSalary = (employee) => {
+  return employee.grossSalaryWithBonus ?? employee.grossSalary ?? employee.basicSalary ?? 0;
+};
+
+const getDisplayFinanceAdjustment = (employee, field) => {
+  const storedValue = Number(employee[field]) || 0;
+  if (storedValue !== 0) return storedValue;
+
+  const grossSalary = Number(getDisplayGrossSalary(employee)) || 0;
+  const netSalary = Number(employee.netSalary || employee.finalSalary) || 0;
+  const derivedAdjustment = grossSalary - netSalary;
+
+  return derivedAdjustment > 0 ? derivedAdjustment : 0;
+};
+
 const FinancePayrollTable = ({
   data = [],
   loading,
@@ -134,7 +149,7 @@ const FinancePayrollTable = ({
                       </Badge>
                     </Td>
                     <Td py={2} px={3} fontSize="xs">
-                      {formatCurrency(employee.grossSalary || employee.basicSalary)}
+                      {formatCurrency(getDisplayGrossSalary(employee))}
                     </Td>
                     <Td py={2} px={3} fontSize="xs">
                       {formatCurrency(employee.incomeTax)}
@@ -149,7 +164,7 @@ const FinancePayrollTable = ({
                       {formatCurrency(employee.salesCommission)}
                     </Td>
                     <Td py={2} px={3} fontSize="xs">
-                      {formatCurrency(employee.financeAllowances)}
+                      {formatCurrency(getDisplayFinanceAdjustment(employee, 'financeAllowances'))}
                     </Td>
                     <Td py={2} px={3} fontSize="xs">
                       {formatCurrency(employee.financeDeductions)}

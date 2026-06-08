@@ -570,10 +570,10 @@ const fetchPayrollDataHandler = async () => {
           employee.overtimePay || 0,
           employee.salesCommission || 0,
           employee.hrAllowances || 0,
-          employee.financeAllowances || 0,
+          getDisplayFinanceAllowances(employee),
           employee.lateDeduction || 0,
           employee.absenceDeduction || 0,
-          employee.financeDeductions || 0,
+          getDisplayFinanceDeductions(employee),
           employee.netSalary || employee.finalSalary || 0,
           employee.status
         ].join(','))
@@ -629,10 +629,10 @@ const fetchPayrollDataHandler = async () => {
         pdfContent += `  Overtime Pay: ${formatCurrency(employee.overtimePay || 0)}\n`;
         pdfContent += `  Sales Commission: ${formatCurrency(employee.salesCommission || 0)}\n`;
         pdfContent += `  HR Allowances: ${formatCurrency(employee.hrAllowances || 0)}\n`;
-        pdfContent += `  Finance Allowances: ${formatCurrency(employee.financeAllowances || 0)}\n`;
+        pdfContent += `  Finance Allowances: ${formatCurrency(getDisplayFinanceAllowances(employee))}\n`;
         pdfContent += `  Late Deductions: ${formatCurrency(employee.lateDeduction || 0)}\n`;
         pdfContent += `  Absence Deductions: ${formatCurrency(employee.absenceDeduction || 0)}\n`;
-        pdfContent += `  Finance Deductions: ${formatCurrency(employee.financeDeductions || 0)}\n`;
+        pdfContent += `  Finance Deductions: ${formatCurrency(getDisplayFinanceDeductions(employee))}\n`;
         pdfContent += `  Net Salary: ${formatCurrency(employee.netSalary || employee.finalSalary || 0)}\n`;
         pdfContent += `  Status: ${employee.status}\n\n`;
       });
@@ -688,8 +688,8 @@ const fetchPayrollDataHandler = async () => {
     setSelectedEmployee(employee);
     setFinanceFormData({
       userId: employee.userId._id || employee.userId,
-      financeAllowances: employee.financeAllowances || 0,
-      financeDeductions: employee.financeDeductions || 0,
+      financeAllowances: getDisplayFinanceAllowances(employee),
+      financeDeductions: getDisplayFinanceDeductions(employee),
       hrAllowances: employee.hrAllowances || 0
     });
     setIsFinanceModalOpen(true);
@@ -1098,6 +1098,25 @@ const fetchPayrollDataHandler = async () => {
   const getDisplayGrossSalary = (employee) => {
     return employee.grossSalaryWithBonus ?? employee.grossSalary ?? employee.basicSalary ?? 0;
   };
+
+  const getDisplayFinanceAdjustment = (employee, field) => {
+    const storedValue = Number(employee[field]) || 0;
+    if (storedValue !== 0) return storedValue;
+
+    const grossSalary = Number(getDisplayGrossSalary(employee)) || 0;
+    const netSalary = Number(employee.netSalary || employee.finalSalary) || 0;
+    const derivedAdjustment = grossSalary - netSalary;
+
+    return derivedAdjustment > 0 ? derivedAdjustment : 0;
+  };
+
+  const getDisplayFinanceAllowances = (employee) => {
+    return getDisplayFinanceAdjustment(employee, 'financeAllowances');
+  };
+
+  const getDisplayFinanceDeductions = (employee) => {
+    return Number(employee.financeDeductions) || 0;
+  };
   
   // Get status badge color
   const getStatusColor = (status) => {
@@ -1327,7 +1346,7 @@ const fetchPayrollDataHandler = async () => {
           />
           <StatCard 
             title="Total Deductions" 
-            value={formatCurrency(payrollData.reduce((sum, emp) => sum + (emp.incomeTax || 0) + (emp.pension || 0) + (emp.lateDeduction || 0) + (emp.absenceDeduction || 0) + (emp.financeDeductions || 0), 0))} 
+            value={formatCurrency(payrollData.reduce((sum, emp) => sum + (emp.incomeTax || 0) + (emp.pension || 0) + (emp.lateDeduction || 0) + (emp.absenceDeduction || 0) + getDisplayFinanceDeductions(emp), 0))} 
             color="orange.500" 
           />
           <StatCard 
@@ -1593,10 +1612,10 @@ const fetchPayrollDataHandler = async () => {
                         {formatCurrency(employee.salesCommission || 0)}
                       </Td>
                       <Td py={1} px={2} fontSize="xs" borderBottom="1px solid" borderColor={borderColor}>
-                        {formatCurrency(employee.financeAllowances || 0)}
+                        {formatCurrency(getDisplayFinanceAllowances(employee))}
                       </Td>
                       <Td py={1} px={2} fontSize="xs" borderBottom="1px solid" borderColor={borderColor}>
-                        {formatCurrency(employee.financeDeductions || 0)}
+                        {formatCurrency(getDisplayFinanceDeductions(employee))}
                       </Td>
                       <Td py={1} px={2} fontSize="xs" borderBottom="1px solid" borderColor={borderColor} fontWeight="bold" color="teal.500">
                         {formatCurrency(employee.netSalary || employee.finalSalary || 0)}
@@ -1774,10 +1793,10 @@ const fetchPayrollDataHandler = async () => {
                       {formatCurrency(payrollData.reduce((sum, emp) => sum + (emp.salesCommission || 0), 0))}
                     </Td>
                     <Td py={1} px={2} fontSize="xs" borderTop="2px solid" borderColor={borderColor}>
-                      {formatCurrency(payrollData.reduce((sum, emp) => sum + (emp.financeAllowances || 0), 0))}
+                      {formatCurrency(payrollData.reduce((sum, emp) => sum + getDisplayFinanceAllowances(emp), 0))}
                     </Td>
                     <Td py={1} px={2} fontSize="xs" borderTop="2px solid" borderColor={borderColor}>
-                      {formatCurrency(payrollData.reduce((sum, emp) => sum + (emp.financeDeductions || 0), 0))}
+                      {formatCurrency(payrollData.reduce((sum, emp) => sum + getDisplayFinanceDeductions(emp), 0))}
                     </Td>
                     <Td py={1} px={2} fontSize="xs" borderTop="2px solid" borderColor={borderColor}>
                       {formatCurrency(payrollData.reduce((sum, emp) => sum + (emp.netSalary || emp.finalSalary || 0), 0))}
