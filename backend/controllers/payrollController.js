@@ -5,6 +5,7 @@ const Commission = require('../models/Commission');
 const PayrollHistory = require('../models/PayrollHistory');
 const User = require('../models/user.model');
 const SalesCustomer = require('../models/SalesCustomer');
+const PackageSale = require('../models/PackageSale');
 const { resolveSaleCommission } = require('../utils/commission');
 const asyncHandler = require('express-async-handler');
 
@@ -88,6 +89,39 @@ const getMonthDateRange = (month) => {
   };
 };
 
+const buildMonthlyActivityDateFilter = (start, end) => ({
+  $or: [
+    { date: { $gte: start, $lt: end } },
+    { updatedAt: { $gte: start, $lt: end } },
+    { createdAt: { $gte: start, $lt: end } },
+    { purchaseDate: { $gte: start, $lt: end } }
+  ]
+});
+
+const toNumber = (value, fallback = 0) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+};
+
+const selectLatestAttendanceRecord = (records = []) => {
+  if (!Array.isArray(records) || records.length === 0) {
+    return null;
+  }
+
+  return records.reduce((latest, record) => {
+    if (!latest) return record;
+
+    const latestTime = new Date(
+      latest.updatedAt || latest.approvedAt || latest.submittedAt || latest.date || 0
+    ).getTime();
+    const recordTime = new Date(
+      record.updatedAt || record.approvedAt || record.submittedAt || record.date || 0
+    ).getTime();
+
+    return recordTime >= latestTime ? record : latest;
+  }, null);
+};
+
 // Calculate late deduction (3000 ETB per day)
 const calculateLateDeduction = (lateDays) => {
   return (lateDays || 0) * 300;
@@ -132,51 +166,237 @@ const buildCommissionSnapshot = (sales = []) => {
   };
 };
 
+const buildCommissionRecordFromSales = (userId, userData = {}, month, year, sales = []) => {
+  const { commissionDetails, totals } = buildCommissionSnapshot(sales);
+  return {
+    userId,
+    employeeName: userData.fullName || userData.username || 'Unknown',
+    department: userData.jobTitle || userData.department || userData.role || 'general',
+    month,
+    year,
+    numberOfSales: sales.length,
+    totalCommission: totals.net,
+    grossCommission: totals.gross,
+    commissionTax: totals.tax,
+    commissionDetails
+  };
+};
+
+const calculatePackageSaleCommission = (sale = {}) => {
+  const packageValue = Number(sale.packageValue) || ((Number(sale.packageType) || 0) * 1000);
+  const grossCommission = packageValue * 0.075;
+  const commissionTax = 0;
+  const netCommission = grossCommission - commissionTax;
+
+  return {
+    packageValue,
+    grossCommission: Number(grossCommission.toFixed(2)),
+    commissionTax,
+    netCommission: Number(netCommission.toFixed(2))
+  };
+};
+
+const buildCommissionRecordFromPackageSales = (userId, userData = {}, month, year, sales = []) => {
+  let gross = 0;
+  let tax = 0;
+  let net = 0;
+
+  const commissionDetails = (Array.isArray(sales) ? sales : []).map((sale) => {
+    const commission = calculatePackageSaleCommission(sale);
+    gross += commission.grossCommission;
+    tax += commission.commissionTax;
+    net += commission.netCommission;
+
+    return {
+      customerId: sale._id || sale.customerId,
+      customerName: sale.customerName || sale.contactPerson || 'Unknown',
+      saleAmount: commission.packageValue,
+      commissionRate: 0.075,
+      commissionAmount: commission.netCommission,
+      grossCommission: commission.grossCommission,
+      commissionTax: commission.commissionTax,
+      netCommission: commission.netCommission,
+      date: sale.purchaseDate || sale.createdAt
+    };
+  });
+
+  return {
+    userId,
+    employeeName: userData.fullName || userData.username || 'Unknown',
+    department: userData.jobTitle || userData.department || userData.role || 'general',
+    month,
+    year,
+    numberOfSales: sales.length,
+    totalCommission: Math.round(net),
+    grossCommission: Math.round(gross),
+    commissionTax: Math.round(tax),
+    commissionDetails
+  };
+};
+
+const mergeCommissionRecords = (userId, userData = {}, month, year, records = []) => {
+  const activeRecords = records.filter(Boolean);
+  if (!activeRecords.length) {
+    return null;
+  }
+
+  return activeRecords.reduce((merged, record) => ({
+    ...merged,
+    numberOfSales: (Number(merged.numberOfSales) || 0) + (Number(record.numberOfSales) || 0),
+    totalCommission: (Number(merged.totalCommission) || 0) + (Number(record.totalCommission) || 0),
+    grossCommission: (Number(merged.grossCommission) || 0) + (Number(record.grossCommission) || 0),
+    commissionTax: (Number(merged.commissionTax) || 0) + (Number(record.commissionTax) || 0),
+    commissionDetails: [
+      ...(Array.isArray(merged.commissionDetails) ? merged.commissionDetails : []),
+      ...(Array.isArray(record.commissionDetails) ? record.commissionDetails : [])
+    ]
+  }), {
+    userId,
+    employeeName: userData.fullName || userData.username || 'Unknown',
+    department: userData.jobTitle || userData.department || userData.role || 'general',
+    month,
+    year,
+    numberOfSales: 0,
+    totalCommission: 0,
+    grossCommission: 0,
+    commissionTax: 0,
+    commissionDetails: []
+  });
+};
+
+const hasCommissionValue = (record = {}) => (
+  Number(record.totalCommission) > 0
+  || Number(record.grossCommission) > 0
+  || Number(record.netCommission) > 0
+  || (Array.isArray(record.commissionDetails) && record.commissionDetails.some((detail) => (
+    Number(detail.netCommission) > 0
+    || Number(detail.grossCommission) > 0
+    || Number(detail.commissionAmount) > 0
+  )))
+);
+
+const uniqueRecordsById = (records = []) => {
+  const seen = new Set();
+  return records.filter((record) => {
+    const key = String(record?._id || record?.customerId || '');
+    if (!key) return true;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+};
+
+const getUserSalesAgentKeys = (userData = {}) => {
+  return [
+    userData._id,
+    userData.id,
+    userData.username,
+    userData.fullName,
+    userData.name,
+    userData.email
+  ]
+    .filter(Boolean)
+    .map((value) => String(value).trim())
+    .filter(Boolean);
+};
+
+const normalizeSalesAgentKey = (value) => String(value || '').trim().toLowerCase();
+
 const resolveCommissionForPeriod = async (
   userId,
   month,
   year,
 ) => {
   const commissionRecord = await Commission.findOne({ userId, month, year });
-  return commissionRecord || null;
+  if (hasCommissionValue(commissionRecord)) {
+    return commissionRecord;
+  }
+
+  const { start, end } = getMonthDateRange(month);
+  const user = await User.findById(userId).select('username fullName name email jobTitle department role').lean();
+  const agentKeys = new Set(
+    [String(userId), ...getUserSalesAgentKeys(user || {})].map(normalizeSalesAgentKey)
+  );
+  const [monthlySales, monthlyPackageSales] = await Promise.all([
+    SalesCustomer.find({
+      coursePrice: { $gt: 0 },
+      ...buildMonthlyActivityDateFilter(start, end)
+    }).lean(),
+    PackageSale.find({
+      agentId: { $exists: true, $ne: null },
+      packageType: { $exists: true, $nin: [null, ''] },
+      ...buildMonthlyActivityDateFilter(start, end)
+    }).lean()
+  ]);
+  const sales = monthlySales.filter((sale) => (
+    agentKeys.has(normalizeSalesAgentKey(sale.agentId))
+    || agentKeys.has(normalizeSalesAgentKey(sale.createdBy))
+  ));
+  const packageSales = monthlyPackageSales.filter((sale) => agentKeys.has(normalizeSalesAgentKey(sale.agentId)));
+
+  const calculatedCommission = mergeCommissionRecords(userId, user || {}, month, year, [
+    buildCommissionRecordFromSales(userId, user || {}, month, year, sales),
+    buildCommissionRecordFromPackageSales(userId, user || {}, month, year, packageSales)
+  ]);
+
+  return hasCommissionValue(calculatedCommission) ? calculatedCommission : null;
 };
 
 // Apply stored finance adjustments back onto a new HR net
 const reapplyFinanceAdjustments = (baseNet, payrollRecord = {}) => {
-  const financeAllowances = payrollRecord.financeAllowances || 0;
-  const financeDeductions = payrollRecord.financeDeductions || 0;
+  const financeAllowances = toNumber(payrollRecord?.financeAllowances, 0);
+  const financeDeductions = toNumber(payrollRecord?.financeDeductions, 0);
   return {
     financeAllowances,
     financeDeductions,
-    netSalary: baseNet + financeAllowances - financeDeductions
+    netSalary: toNumber(baseNet, 0) + financeAllowances - financeDeductions
+  };
+};
+
+const reapplyStoredCommission = (payrollData = {}, payrollRecord = {}) => {
+  const storedCommission = Number(payrollRecord?.salesCommission) || 0;
+  const calculatedCommission = Number(payrollData.salesCommission) || 0;
+  if (storedCommission <= calculatedCommission) {
+    return payrollData;
+  }
+
+  const commissionDelta = storedCommission - calculatedCommission;
+  const grossSalary = Number(payrollData.grossSalary || 0) + commissionDelta;
+  const incomeTax = calculateEthiopianIncomeTax(grossSalary);
+  const pension = Number(payrollData.pension) || calculatePension(payrollData.basicSalary || 0);
+  const lateDeduction = Number(payrollData.lateDeduction) || 0;
+  const absenceDeduction = Number(payrollData.absenceDeduction) || 0;
+  const financeDeductions = Number(payrollData.financeDeductions) || 0;
+  const netSalary = grossSalary - incomeTax - pension - lateDeduction - absenceDeduction - financeDeductions;
+
+  return {
+    ...payrollData,
+    grossSalary,
+    incomeTax,
+    pension,
+    salesCommission: storedCommission,
+    numberOfSales: Math.max(
+      Number(payrollData.numberOfSales) || 0,
+      Number(payrollRecord.numberOfSales) || 0
+    ),
+    firstCommissionTotal: Number(payrollRecord.firstCommissionTotal) || payrollData.firstCommissionTotal || 0,
+    secondCommissionTotal: Number(payrollRecord.secondCommissionTotal) || payrollData.secondCommissionTotal || 0,
+    netSalary
   };
 };
 
 const deriveHrNetFromRecord = (payrollRecord, fallbackBaseNet = 0) => {
-  const recordedNet = payrollRecord?.netSalary ?? fallbackBaseNet;
-  const financeAllowances = payrollRecord?.financeAllowances || 0;
-  const financeDeductions = payrollRecord?.financeDeductions || 0;
-  return recordedNet - financeAllowances + financeDeductions;
+  const recordedNet = toNumber(payrollRecord?.netSalary, fallbackBaseNet);
+  const financeAllowances = toNumber(payrollRecord?.financeAllowances, 0);
+  const financeDeductions = toNumber(payrollRecord?.financeDeductions, 0);
+  return recordedNet + financeAllowances - financeDeductions;
 };
 
 const applyDerivedFinanceAdjustmentsForDisplay = (payrollRecord = {}) => {
-  const financeAllowances = Number(payrollRecord.financeAllowances || 0);
-  const financeDeductions = Number(payrollRecord.financeDeductions || 0);
-  if (financeAllowances !== 0 || financeDeductions !== 0) {
-    return payrollRecord;
-  }
-
-  const grossSalary = Number(payrollRecord.grossSalary || payrollRecord.basicSalary || 0);
-  const netSalary = Number(payrollRecord.netSalary || payrollRecord.finalSalary || 0);
-  const derivedAdjustment = Number((grossSalary - netSalary).toFixed(2));
-  if (derivedAdjustment <= 0) {
-    return payrollRecord;
-  }
-
   return {
     ...payrollRecord,
-    financeAllowances: derivedAdjustment,
-    financeDeductions: 0
+    financeAllowances: Number(payrollRecord.financeAllowances) || 0,
+    financeDeductions: Number(payrollRecord.financeDeductions) || 0
   };
 };
 
@@ -223,9 +443,13 @@ const calculatePayrollForEmployee = (userData, attendanceData, commissionData, p
     // Calculate commission
     let salesCommission = 0;
     let numberOfSales = 0;
+    let commissionGross = 0;
+    let commissionTax = 0;
     if (commissionData) {
       salesCommission = commissionData.totalCommission || 0;
       numberOfSales = commissionData.numberOfSales || 0;
+      commissionGross = commissionData.grossCommission || salesCommission;
+      commissionTax = commissionData.commissionTax || 0;
     }
     
     // Calculate allowances
@@ -264,6 +488,8 @@ const calculatePayrollForEmployee = (userData, attendanceData, commissionData, p
       absenceDeduction,
       numberOfSales,
       salesCommission,
+      commissionGross,
+      commissionTax,
       hrAllowances,
       financeAllowances,
       financeDeductions,
@@ -290,7 +516,9 @@ const getPayrollList = async (req, res) => {
     // Build query for existing payroll records
     let query = { month };
     if (year) query.year = payrollYear;
-    if (department) query.department = department;
+    if (department) {
+      query.department = { $regex: new RegExp(department, 'i') };
+    }
     if (role) query.role = role;
     
     // Get existing payroll records
@@ -299,12 +527,22 @@ const getPayrollList = async (req, res) => {
     
     // Get all active users matching the filters
     let userQuery = { status: 'active' };
-    if (department) userQuery.jobTitle = department; // Use jobTitle instead of department
+    if (department) {
+      userQuery.$or = [
+        { jobTitle: { $regex: new RegExp(department, 'i') } },
+        { department: { $regex: new RegExp(department, 'i') } },
+        { role: { $regex: new RegExp(`^${department}$`, 'i') } }
+      ];
+    }
     if (role) userQuery.role = role;
     
     const allActiveUsers = await User.find(userQuery);
     const activeUserIds = allActiveUsers.map((user) => user._id);
-    const [attendanceRecords, commissionRecords] = await Promise.all([
+    const userSalesAgentKeyMap = {};
+    allActiveUsers.forEach((user) => {
+      userSalesAgentKeyMap[user._id.toString()] = getUserSalesAgentKeys(user).map(normalizeSalesAgentKey);
+    });
+    const [attendanceRecords, commissionRecords, salesRecords, packageSalesRecords] = await Promise.all([
       Attendance.find({
         userId: { $in: activeUserIds },
         date: { $gte: monthStart, $lt: monthEnd }
@@ -313,15 +551,46 @@ const getPayrollList = async (req, res) => {
         userId: { $in: activeUserIds },
         month,
         year: payrollYear
+      }),
+      SalesCustomer.find({
+        coursePrice: { $gt: 0 },
+        ...buildMonthlyActivityDateFilter(monthStart, monthEnd)
+      }),
+      PackageSale.find({
+        agentId: { $exists: true, $ne: null },
+        packageType: { $exists: true, $nin: [null, ''] },
+        ...buildMonthlyActivityDateFilter(monthStart, monthEnd)
       })
     ]);
-    const attendanceRecordMap = {};
+    const attendanceRecordsByUser = {};
     attendanceRecords.forEach((record) => {
-      attendanceRecordMap[record.userId.toString()] = record;
+      const key = record.userId.toString();
+      attendanceRecordsByUser[key] = attendanceRecordsByUser[key] || [];
+      attendanceRecordsByUser[key].push(record);
+    });
+    const attendanceRecordMap = {};
+    Object.entries(attendanceRecordsByUser).forEach(([userId, records]) => {
+      attendanceRecordMap[userId] = selectLatestAttendanceRecord(records);
     });
     const commissionRecordMap = {};
     commissionRecords.forEach((record) => {
       commissionRecordMap[record.userId.toString()] = record;
+    });
+    const salesRecordsByAgent = {};
+    salesRecords.forEach((sale) => {
+      [sale.agentId, sale.createdBy].forEach((agentKey) => {
+        const key = normalizeSalesAgentKey(agentKey);
+        if (!key) return;
+        salesRecordsByAgent[key] = salesRecordsByAgent[key] || [];
+        salesRecordsByAgent[key].push(sale);
+      });
+    });
+    const packageSalesRecordsByAgent = {};
+    packageSalesRecords.forEach((sale) => {
+      const key = normalizeSalesAgentKey(sale.agentId);
+      if (!key) return;
+      packageSalesRecordsByAgent[key] = packageSalesRecordsByAgent[key] || [];
+      packageSalesRecordsByAgent[key].push(sale);
     });
     
     // Create a map of existing payroll records by userId for quick lookup
@@ -336,10 +605,50 @@ const getPayrollList = async (req, res) => {
     const payrollRecords = allActiveUsers.map(user => {
       const userIdStr = user._id.toString();
       const currentSalary = user.salary || 0;
+      const userSalesRecords = uniqueRecordsById(
+        (userSalesAgentKeyMap[userIdStr] || []).flatMap((key) => salesRecordsByAgent[key] || [])
+      );
+      const userPackageSalesRecords = uniqueRecordsById(
+        (userSalesAgentKeyMap[userIdStr] || []).flatMap((key) => packageSalesRecordsByAgent[key] || [])
+      );
+      const calculatedCommissionData = mergeCommissionRecords(user._id, user, month, payrollYear, [
+          buildCommissionRecordFromSales(user._id, user, month, payrollYear, userSalesRecords),
+          buildCommissionRecordFromPackageSales(user._id, user, month, payrollYear, userPackageSalesRecords)
+        ]);
+      const storedCommissionData = commissionRecordMap[userIdStr];
+      const commissionData = hasCommissionValue(storedCommissionData)
+        ? storedCommissionData
+        : calculatedCommissionData;
       if (payrollRecordMap[userIdStr]) {
         // Return existing record (make sure department and employeeName are populated)
         const doc = payrollRecordMap[userIdStr];
         const record = doc.toObject ? doc.toObject() : doc;
+        const recalculatedRecord = reapplyStoredCommission(calculatePayrollForEmployee(
+          user,
+          attendanceRecordMap[userIdStr],
+          commissionData,
+          { month, year: payrollYear }
+        ), record);
+        const financeAdjustmentSnapshot = reapplyFinanceAdjustments(recalculatedRecord.netSalary, record);
+        Object.assign(record, {
+          ...recalculatedRecord,
+          _id: record._id,
+          financeAllowances: financeAdjustmentSnapshot.financeAllowances,
+          financeDeductions: financeAdjustmentSnapshot.financeDeductions,
+          netSalary: financeAdjustmentSnapshot.netSalary,
+          status: record.status,
+          auditLog: record.auditLog,
+          createdAt: record.createdAt,
+          updatedAt: record.updatedAt,
+          hrSubmittedBy: record.hrSubmittedBy,
+          financeReviewedBy: record.financeReviewedBy,
+          approvedBy: record.approvedBy,
+          lockedBy: record.lockedBy,
+          hrSubmittedAt: record.hrSubmittedAt,
+          financeReviewedAt: record.financeReviewedAt,
+          approvedAt: record.approvedAt,
+          lockedAt: record.lockedAt
+        });
         // Ensure employeeName is set from user data if not already set
         if (!record.employeeName) {
           record.employeeName = user.fullName || user.username;
@@ -358,7 +667,7 @@ const getPayrollList = async (req, res) => {
         const calculatedRecord = calculatePayrollForEmployee(
           user,
           attendanceRecordMap[userIdStr],
-          commissionRecordMap[userIdStr],
+          commissionData,
           { month, year: payrollYear }
         );
 
@@ -399,13 +708,14 @@ const calculatePayrollForAll = async (req, res) => {
     for (const user of users) {
       try {
         // Get attendance data for the user
-        const attendanceData = await Attendance.findOne({
+        const attendanceRecords = await Attendance.find({
           userId: user._id,
           date: {
             $gte: new Date(`${month}-01`),
             $lt: new Date(new Date(`${month}-01`).setMonth(new Date(`${month}-01`).getMonth() + 1))
           }
         });
+        const attendanceData = selectLatestAttendanceRecord(attendanceRecords);
         
         // Get commission data for the user
         const commissionData = await resolveCommissionForPeriod(user._id, month, year);
@@ -422,17 +732,25 @@ const calculatePayrollForAll = async (req, res) => {
         
         let payrollRecord;
         if (existingRecord) {
+          const payrollDataWithStoredCommission = reapplyStoredCommission(payrollData, existingRecord);
+          const financeAdjustmentSnapshot = reapplyFinanceAdjustments(payrollDataWithStoredCommission.netSalary, existingRecord);
           // Update existing record
           payrollRecord = await Payroll.findByIdAndUpdate(
             existingRecord._id,
-            { ...payrollData, auditLog: [...existingRecord.auditLog, {
-              changedBy: req.user._id,
-              changedAt: new Date(),
-              fieldName: 'Payroll Recalculation',
-              oldValue: null,
-              newValue: 'Recalculated',
-              role: req.user.role
-            }] },
+            {
+              ...payrollDataWithStoredCommission,
+              financeAllowances: financeAdjustmentSnapshot.financeAllowances,
+              financeDeductions: financeAdjustmentSnapshot.financeDeductions,
+              netSalary: financeAdjustmentSnapshot.netSalary,
+              auditLog: [...existingRecord.auditLog, {
+                changedBy: req.user._id,
+                changedAt: new Date(),
+                fieldName: 'Payroll Recalculation',
+                oldValue: null,
+                newValue: 'Recalculated',
+                role: req.user.role
+              }]
+            },
             { new: true }
           );
         } else {
@@ -506,9 +824,12 @@ const submitHRAdjustment = async (req, res) => {
     );
     
     // Recalculate payroll for this user
-    const commissionData = await Commission.findOne({ userId, month, year });
-    const payrollData = calculatePayrollForEmployee(user, attendanceRecord, commissionData, { month, year });
+    const commissionData = await resolveCommissionForPeriod(userId, month, year);
     const existingPayroll = await Payroll.findOne({ userId, month, year });
+    const payrollData = reapplyStoredCommission(
+      calculatePayrollForEmployee(user, attendanceRecord, commissionData, { month, year }),
+      existingPayroll
+    );
     const financeAdjustmentSnapshot = reapplyFinanceAdjustments(payrollData.netSalary, existingPayroll);
 
     // Update or create payroll record
@@ -567,18 +888,22 @@ const submitFinanceAdjustment = async (req, res) => {
     }
     
     // Get existing attendance record
-    const attendanceRecord = await Attendance.findOne({
+    const attendanceRecords = await Attendance.find({
       userId,
       date: { $gte: new Date(`${month}-01`), $lt: new Date(new Date(`${month}-01`).setMonth(new Date(`${month}-01`).getMonth() + 1)) }
     });
+    const attendanceRecord = selectLatestAttendanceRecord(attendanceRecords);
     
     // Get existing commission data
-    const commissionData = await Commission.findOne({ userId, month, year });
+    const commissionData = await resolveCommissionForPeriod(userId, month, year);
     
     const existingPayroll = await Payroll.findOne({ userId, month, year });
     
     // Recalculate payroll with data that reflects HR adjustments only
-    const payrollData = calculatePayrollForEmployee(user, attendanceRecord, commissionData, { month, year });
+    const payrollData = reapplyStoredCommission(
+      calculatePayrollForEmployee(user, attendanceRecord, commissionData, { month, year }),
+      existingPayroll
+    );
 
     const fallbackFinanceAllowances = existingPayroll?.financeAllowances ?? payrollData.financeAllowances ?? 0;
     const fallbackFinanceDeductions = existingPayroll?.financeDeductions ?? payrollData.financeDeductions ?? 0;
@@ -876,7 +1201,7 @@ const getCommissionByUser = async (req, res) => {
       return res.status(400).json({ message: 'Month and year are required' });
     }
     
-    const commissionRecord = await Commission.findOne({ userId, month, year });
+    const commissionRecord = await resolveCommissionForPeriod(userId, month, year);
     
     if (!commissionRecord) {
       return res.status(404).json({ message: 'Commission record not found' });
@@ -921,19 +1246,29 @@ const submitCommission = async (req, res) => {
     );
     
     // Get existing attendance data
-    const attendanceData = await Attendance.findOne({
+    const attendanceRecords = await Attendance.find({
       userId,
       date: { $gte: new Date(`${month}-01`), $lt: new Date(new Date(`${month}-01`).setMonth(new Date(`${month}-01`).getMonth() + 1)) }
     });
+    const attendanceData = selectLatestAttendanceRecord(attendanceRecords);
     
+    const existingPayroll = await Payroll.findOne({ userId, month, year });
+
     // Recalculate payroll with new commission data
-    const payrollData = calculatePayrollForEmployee(user, attendanceData, commissionRecord, { month, year });
+    const payrollData = reapplyStoredCommission(
+      calculatePayrollForEmployee(user, attendanceData, commissionRecord, { month, year }),
+      existingPayroll
+    );
+    const financeAdjustmentSnapshot = reapplyFinanceAdjustments(payrollData.netSalary, existingPayroll);
     
     // Update payroll record
     const payrollRecord = await Payroll.findOneAndUpdate(
       { userId, month, year },
       {
         ...payrollData,
+        financeAllowances: financeAdjustmentSnapshot.financeAllowances,
+        financeDeductions: financeAdjustmentSnapshot.financeDeductions,
+        netSalary: financeAdjustmentSnapshot.netSalary,
         $push: {
           auditLog: {
             changedBy: req.user._id,
@@ -1124,5 +1459,8 @@ module.exports = {
   submitCommission,
   clearCommissionRecord,
   getSalesDataForCommission,
-  deletePayrollRecord
+  deletePayrollRecord,
+  selectLatestAttendanceRecord,
+  deriveHrNetFromRecord,
+  reapplyFinanceAdjustments
 };

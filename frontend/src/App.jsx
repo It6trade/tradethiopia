@@ -420,6 +420,7 @@ return (
         <Route path="team" element={<TeamManagementPage />} />
         <Route path="tasks" element={<TaskManagementPage />} />
         <Route path="reports" element={<ReportsPage />} />
+        <Route path="it-report" element={<ReportsPage />} />
         <Route path="content-tracker-report" element={<ContentTrackerReport />} />
         <Route path="calendar" element={<CalendarPage />} />
         <Route path="settings" element={<SettingsPage />} />

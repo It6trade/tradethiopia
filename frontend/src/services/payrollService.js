@@ -169,7 +169,11 @@ export const fetchSalesDataForCommission = async (agentId, month, year, startDat
     console.log('Sales data response from sales manager:', response.data);
     
     // Process the response to match the expected format
-    const sales = response.data || [];
+    const sales = Array.isArray(response.data)
+      ? response.data
+      : Array.isArray(response.data?.data)
+        ? response.data.data
+        : [];
     const numberOfSales = sales.length;
     
     console.log(`Found ${numberOfSales} sales records`);

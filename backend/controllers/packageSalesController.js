@@ -151,7 +151,7 @@ const createPackageSale = async (req, res) => {
     }
 
     const currentAgent = req.user || {};
-    const resolvedAgentId = agentId || currentAgent._id;
+    const resolvedAgentId = agentId || currentAgent._id?.toString?.() || currentAgent.id;
     const resolvedAgentName = agentName || currentAgent.fullName || currentAgent.username || currentAgent.name || 'Package Sales';
 
     const sale = new PackageSale({

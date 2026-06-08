@@ -315,7 +315,7 @@ const approveCommission = asyncHandler(async (req, res) => {
       payrollRecord.totalCommission = (payrollRecord.totalCommission || 0) + commissionToAdd;
       addCommissionTotalsToPayroll(payrollRecord, part, firstCommission, secondCommission);
       const financeAllowances = Number(payrollRecord.financeAllowances || 0);
-      payrollRecord.finalSalary = payrollRecord.grossSalary +
+      payrollRecord.netSalary = payrollRecord.grossSalary +
                                 payrollRecord.salesCommission +
                                 financeAllowances -
                                 payrollRecord.incomeTax -

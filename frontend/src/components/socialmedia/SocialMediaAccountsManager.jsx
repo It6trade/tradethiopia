@@ -60,7 +60,7 @@ const initialForm = {
   active: true,
 };
 
-const preferredPlatforms = ["All", "Facebook", "Instagram", "TikTok", "YouTube", "LinkedIn", "Telegram", "X", "Other"];
+const preferredPlatforms = ["All", "Facebook", "Instagram", "TikTok", "YouTube", "LinkedIn", "Telegram", "X", "Email", "Other"];
 const tableRowShadow = "0 2px 10px rgba(15,23,42,0.035)";
 const tableRowHoverShadow = "0 14px 34px rgba(15,23,42,0.08)";
 const platformVisuals = {
@@ -72,12 +72,13 @@ const platformVisuals = {
   LinkedIn: { icon: FaLinkedinIn, color: "#0A66C2", bg: "rgba(10,102,194,0.1)" },
   Telegram: { icon: FaTelegramPlane, color: "#26A5E4", bg: "rgba(38,165,228,0.1)" },
   X: { icon: FaTwitter, color: "#111827", bg: "rgba(17,24,39,0.08)" },
+  Email: { icon: FiMail, color: "#2563EB", bg: "rgba(37,99,235,0.1)" },
   Other: { icon: FiGlobe, color: "#64748B", bg: "rgba(100,116,139,0.1)" },
 };
 
 const getPlatformVisual = (platform) => platformVisuals[platform] || platformVisuals.Other;
 
-export default function SocialMediaAccountsManager() {
+export default function SocialMediaAccountsManager({ emailOnly = false }) {
   const toast = useToast();
   const { isOpen, onOpen, onClose } = useDisclosure();
   const [accounts, setAccounts] = useState([]);
@@ -87,6 +88,9 @@ export default function SocialMediaAccountsManager() {
   const [editingAccount, setEditingAccount] = useState(null);
   const [form, setForm] = useState(initialForm);
   const [activePlatformTab, setActivePlatformTab] = useState("All");
+  const [hrAssets, setHrAssets] = useState([]);
+  const [assetsLoading, setAssetsLoading] = useState(false);
+  const [assetsError, setAssetsError] = useState("");
 
   const borderColor = useColorModeValue("rgba(226,232,240,0.9)", "rgba(148,163,184,0.16)");
   const muted = useColorModeValue("#64748B", "gray.400");
@@ -102,8 +106,8 @@ export default function SocialMediaAccountsManager() {
   const platformTabsBg = useColorModeValue("rgba(248,250,252,0.72)", "whiteAlpha.50");
 
   const platformTabs = useMemo(() => {
-    return preferredPlatforms;
-  }, []);
+    return emailOnly ? ["Email"] : preferredPlatforms;
+  }, [emailOnly]);
 
   const platformCounts = useMemo(() => {
     return accounts.reduce(
@@ -114,6 +118,31 @@ export default function SocialMediaAccountsManager() {
       { All: accounts.length },
     );
   }, [accounts]);
+
+  const assetAssignees = useMemo(() => {
+    const assignees = new Map();
+
+    hrAssets.forEach((asset) => {
+      const assignedTo = asset?.assignedTo?.trim();
+      if (!assignedTo) return;
+
+      const current = assignees.get(assignedTo) || { name: assignedTo, count: 0, assets: [] };
+      current.count += 1;
+      current.assets.push([asset.name, asset.nameTag, asset.assets].filter(Boolean).join(" - "));
+      assignees.set(assignedTo, current);
+    });
+
+    if (form.employeeFullName && !assignees.has(form.employeeFullName)) {
+      assignees.set(form.employeeFullName, { name: form.employeeFullName, count: 0, assets: [] });
+    }
+
+    return Array.from(assignees.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [form.employeeFullName, hrAssets]);
+
+  const selectedAssignee = useMemo(
+    () => assetAssignees.find((assignee) => assignee.name === form.employeeFullName),
+    [assetAssignees, form.employeeFullName],
+  );
 
   const fetchAccounts = async () => {
     try {
@@ -134,6 +163,25 @@ export default function SocialMediaAccountsManager() {
   }, []);
 
   useEffect(() => {
+    const fetchHrAssets = async () => {
+      try {
+        setAssetsLoading(true);
+        const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/assets`);
+        setHrAssets(Array.isArray(response.data) ? response.data : response.data?.data || []);
+        setAssetsError("");
+      } catch (fetchError) {
+        console.error("Failed to fetch HR asset users for account assignment", fetchError);
+        setHrAssets([]);
+        setAssetsError("Could not load HR asset users for assignment.");
+      } finally {
+        setAssetsLoading(false);
+      }
+    };
+
+    fetchHrAssets();
+  }, []);
+
+  useEffect(() => {
     if (!platformTabs.includes(activePlatformTab)) {
       setActivePlatformTab("All");
     }
@@ -143,7 +191,7 @@ export default function SocialMediaAccountsManager() {
     setEditingAccount(null);
     setForm({
       ...initialForm,
-      platform: activePlatformTab !== "All" ? activePlatformTab : "",
+      platform: emailOnly ? "Email" : activePlatformTab !== "All" ? activePlatformTab : "",
     });
     onOpen();
   };
@@ -151,7 +199,7 @@ export default function SocialMediaAccountsManager() {
   const openEditModal = (account) => {
     setEditingAccount(account);
     setForm({
-      platform: account.platform || "",
+      platform: emailOnly ? "Email" : account.platform || "",
       employeeFullName: account.employeeFullName || "",
       accountName: account.accountName || "",
       email: account.email || "",
@@ -176,6 +224,17 @@ export default function SocialMediaAccountsManager() {
   const handleSave = async () => {
     if (!form.platform.trim() || !form.accountName.trim()) {
       toast({ title: "Missing fields", description: "Platform and account name are required.", status: "warning", duration: 3000, isClosable: true });
+      return;
+    }
+
+    if (!form.employeeFullName.trim()) {
+      toast({
+        title: "Assigned user required",
+        description: "Choose a user from the HR asset user dropdown before saving.",
+        status: "warning",
+        duration: 3000,
+        isClosable: true,
+      });
       return;
     }
 
@@ -244,7 +303,7 @@ export default function SocialMediaAccountsManager() {
                   </Box>
                   <Box minW={0}>
                     <Text fontWeight="800" noOfLines={1}>{account.platform}</Text>
-                    <Text fontSize="sm" color={muted} noOfLines={1}>{account.employeeFullName || "No employee name"}</Text>
+                    <Text fontSize="sm" color={muted} noOfLines={1}>{account.employeeFullName || "No assigned user"}</Text>
                   </Box>
                 </HStack>
                 <Badge borderRadius="full" px={2.5} py={1} colorScheme={isActive ? "green" : "gray"} variant="subtle" flexShrink={0}>
@@ -293,7 +352,7 @@ export default function SocialMediaAccountsManager() {
         <Table variant="unstyled" sx={{ borderCollapse: "separate", borderSpacing: "0 10px" }}>
           <Thead>
             <Tr>
-              {["Platform", "Employee Full Name", "Username", "Email", "Password", "Phone Number", "Status", "Actions"].map((heading) => (
+              {["Platform", "Assigned User", "Username", "Email", "Password", "Phone Number", "Status", "Actions"].map((heading) => (
                 <Th
                   key={heading}
                   px={4}
@@ -395,11 +454,11 @@ export default function SocialMediaAccountsManager() {
   return (
     <VStack align="stretch" spacing={6}>
       <SectionIntro
-        eyebrow="Social Accounts"
-        title="Manage social media credentials"
+        eyebrow={emailOnly ? "Email Accounts" : "Social Accounts"}
+        title={emailOnly ? "Manage email credentials" : "Manage social media credentials"}
         actions={[
           <Button key="create" leftIcon={<AddIcon />} borderRadius="16px" onClick={openCreateModal} colorScheme="blue">
-            Add account
+            {emailOnly ? "Add email" : "Add account"}
           </Button>,
         ]}
       />
@@ -410,6 +469,16 @@ export default function SocialMediaAccountsManager() {
           <Box>
             <AlertTitle>Credential sync issue</AlertTitle>
             <AlertDescription>{error}</AlertDescription>
+          </Box>
+        </Alert>
+      ) : null}
+
+      {assetsError ? (
+        <Alert status="warning" borderRadius="18px" borderWidth="1px" borderColor={borderColor}>
+          <AlertIcon />
+          <Box>
+            <AlertTitle>HR asset users unavailable</AlertTitle>
+            <AlertDescription>{assetsError}</AlertDescription>
           </Box>
         </Alert>
       ) : null}
@@ -441,7 +510,7 @@ export default function SocialMediaAccountsManager() {
                   bg={platformTabsBg}
                 >
                   <Text px={3} py={2} fontSize="11px" fontWeight="800" letterSpacing="0.12em" textTransform="uppercase" color={muted}>
-                    Social Media
+                    {emailOnly ? "Email" : "Social Media"}
                   </Text>
                   <TabList gap={2} overflowX="auto" flexWrap={{ base: "nowrap", lg: "wrap" }}>
                     {platformTabs.map((platform) => {
@@ -501,7 +570,7 @@ export default function SocialMediaAccountsManager() {
                             badge={platform === "All" ? "Accounts Empty" : "No Records"}
                             action={
                               <Button size="sm" borderRadius="14px" onClick={openCreateModal} colorScheme="blue">
-                                {platform === "All" ? "Add first account" : "Add account"}
+                                {emailOnly ? "Add email" : platform === "All" ? "Add first account" : "Add account"}
                               </Button>
                             }
                           />
@@ -519,17 +588,42 @@ export default function SocialMediaAccountsManager() {
       <Modal isOpen={isOpen} onClose={closeModal} size="lg">
         <ModalOverlay />
         <ModalContent borderRadius="24px" boxShadow="0 24px 70px rgba(15,23,42,0.24)">
-          <ModalHeader>{editingAccount ? "Edit social account" : "Add social account"}</ModalHeader>
+          <ModalHeader>{editingAccount ? (emailOnly ? "Edit email account" : "Edit social account") : emailOnly ? "Add email account" : "Add social account"}</ModalHeader>
           <ModalCloseButton />
           <ModalBody>
             <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}>
               <FormControl isRequired>
                 <FormLabel>Platform</FormLabel>
-                <Input value={form.platform} onChange={(event) => handleChange("platform", event.target.value)} borderRadius="16px" borderColor={borderColor} />
+                <Input
+                  value={form.platform}
+                  onChange={(event) => handleChange("platform", event.target.value)}
+                  borderRadius="16px"
+                  borderColor={borderColor}
+                  isReadOnly={emailOnly}
+                />
               </FormControl>
-              <FormControl>
-                <FormLabel>Employee Full Name</FormLabel>
-                <Input value={form.employeeFullName} onChange={(event) => handleChange("employeeFullName", event.target.value)} borderRadius="16px" borderColor={borderColor} />
+              <FormControl isRequired>
+                <FormLabel>Assign HR Asset User</FormLabel>
+                <Select
+                  placeholder={assetsLoading ? "Loading HR asset users..." : "Select HR asset user"}
+                  value={form.employeeFullName}
+                  onChange={(event) => handleChange("employeeFullName", event.target.value)}
+                  borderRadius="16px"
+                  borderColor={borderColor}
+                  isDisabled={assetsLoading || assetAssignees.length === 0}
+                >
+                  {assetAssignees.map((assignee) => (
+                    <option key={assignee.name} value={assignee.name}>
+                      {assignee.count ? `${assignee.name} (${assignee.count} asset${assignee.count === 1 ? "" : "s"})` : assignee.name}
+                    </option>
+                  ))}
+                </Select>
+                {selectedAssignee?.assets?.length ? (
+                  <Text mt={2} fontSize="xs" color={muted} noOfLines={2}>
+                    Assets: {selectedAssignee.assets.slice(0, 3).join(", ")}
+                    {selectedAssignee.assets.length > 3 ? ` +${selectedAssignee.assets.length - 3} more` : ""}
+                  </Text>
+                ) : null}
               </FormControl>
               <FormControl isRequired>
                 <FormLabel>Username</FormLabel>

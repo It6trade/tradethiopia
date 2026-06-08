@@ -46,6 +46,7 @@ import {
   FiClipboard,
   FiGrid,
   FiLogOut,
+  FiMail,
   FiPackage,
   FiShield,
 } from "react-icons/fi";
@@ -70,6 +71,7 @@ const navGroups = [
     items: [
       { key: "assets", label: "Asset Library", icon: FiPackage },
       { key: "accounts", label: "Social Media", icon: FiShield },
+      { key: "email", label: "Email", icon: FiMail },
     ],
   },
   {
@@ -92,6 +94,10 @@ const sectionMeta = {
   accounts: {
     eyebrow: "Operations",
     title: "Social media accounts",
+  },
+  email: {
+    eyebrow: "Operations",
+    title: "Email accounts",
   },
   requests: {
     eyebrow: "Collaboration",
@@ -421,6 +427,15 @@ export default function SocialMediaWorkspace() {
         <VStack align="stretch" spacing={6}>
           <SectionIntro eyebrow={currentMeta.eyebrow} title={currentMeta.title} />
           <SocialMediaAccountsManager />
+        </VStack>
+      );
+    }
+
+    if (activeSection === "email") {
+      return (
+        <VStack align="stretch" spacing={6}>
+          <SectionIntro eyebrow={currentMeta.eyebrow} title={currentMeta.title} />
+          <SocialMediaAccountsManager emailOnly />
         </VStack>
       );
     }

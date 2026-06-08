@@ -237,6 +237,12 @@ const AllSalesPage = () => {
           case 'today':
             fromDate.setHours(0, 0, 0, 0);
             break;
+          case 'yesterday':
+            fromDate.setDate(now.getDate() - 1);
+            fromDate.setHours(0, 0, 0, 0);
+            now.setDate(now.getDate() - 1);
+            now.setHours(23, 59, 59, 999);
+            break;
           case 'week':
             fromDate.setDate(now.getDate() - 7);
             break;

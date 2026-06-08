@@ -284,7 +284,7 @@ const ReportsPage = () => {
       {/* Header and Controls */}
       <Flex justify="space-between" align="center" mb={3} wrap="wrap" gap={2}>
         <Heading size="md" color={textColor} fontWeight="semibold">
-          Sales Reports
+          Reports
         </Heading>
         <Flex gap={2} wrap="wrap">
           <Select
@@ -300,6 +300,7 @@ const ReportsPage = () => {
             fontSize="sm"
             fontWeight="medium"
           >
+            <option value="daily">Daily</option>
             <option value="week">This Week</option>
             <option value="month">This Month</option>
             <option value="quarter">This Quarter</option>
@@ -616,6 +617,38 @@ const ReportsPage = () => {
                 </CardBody>
               </Card>
             </Grid>
+
+            <Card variant="outline" size="sm" mb={4}>
+              <CardHeader pb={1} px={4} pt={3}>
+                <Heading size="sm" color={textColor}>
+                  Top Sales Agents
+                </Heading>
+              </CardHeader>
+              <CardBody p={0}>
+                <Box overflowX="auto" fontSize="sm">
+                  <Box as="table" w="full">
+                    <Box as="thead">
+                      <Box as="tr" bg={useColorModeValue('gray.50', 'gray.700')} borderBottomWidth="1px" borderColor={borderColor}>
+                        <Box as="th" px={3} py={2} textAlign="left" fontWeight="600" color={textColor}>Rank</Box>
+                        <Box as="th" px={3} py={2} textAlign="left" fontWeight="600" color={textColor}>Agent</Box>
+                        <Box as="th" px={3} py={2} textAlign="right" fontWeight="600" color={textColor}>Sales</Box>
+                        <Box as="th" px={3} py={2} textAlign="right" fontWeight="600" color={textColor}>Revenue</Box>
+                      </Box>
+                    </Box>
+                    <Box as="tbody">
+                      {reportData.agentPerformance.slice(0, 6).map((agent, index) => (
+                        <Box as="tr" key={agent.id || `${agent.name}-${index}`} _hover={{ bg: hoverBg }} borderBottomWidth="1px" borderColor={tableBorderColor} _last={{ borderBottom: 'none' }}>
+                          <Box as="td" px={3} py={2.5} color={textColor} whiteSpace="nowrap">#{index + 1}</Box>
+                          <Box as="td" px={3} py={2.5} color={textColor} whiteSpace="nowrap">{agent.name}</Box>
+                          <Box as="td" px={3} py={2.5} color={textColor} textAlign="right" fontFamily="mono" whiteSpace="nowrap">{agent.sales.toLocaleString()}</Box>
+                          <Box as="td" px={3} py={2.5} color={textColor} textAlign="right" fontFamily="mono" whiteSpace="nowrap">ETB {agent.revenue.toLocaleString(undefined, { maximumFractionDigits: 0 })}</Box>
+                        </Box>
+                      ))}
+                    </Box>
+                  </Box>
+                </Box>
+              </CardBody>
+            </Card>
           </TabPanel>
           
           {/* Sales Trends Tab */}
@@ -1370,6 +1403,37 @@ const ReportsPage = () => {
                 
                 <Card variant="outline">
                   <CardBody>
+                    <Heading size="sm" color={textColor} mb={3}>
+                      Sales Summary Table
+                    </Heading>
+                    <Box overflowX="auto" fontSize="sm" mb={4}>
+                      <Box as="table" w="full">
+                        <Box as="thead">
+                          <Box as="tr" bg={useColorModeValue('gray.50', 'gray.700')} borderBottomWidth="1px" borderColor={borderColor}>
+                            <Box as="th" px={3} py={2} textAlign="left" fontWeight="600" color={textColor}>Metric</Box>
+                            <Box as="th" px={3} py={2} textAlign="right" fontWeight="600" color={textColor}>Value</Box>
+                          </Box>
+                        </Box>
+                        <Box as="tbody">
+                          <Box as="tr" borderBottomWidth="1px" borderColor={tableBorderColor}>
+                            <Box as="td" px={3} py={2.5} color={textColor}>Total Sales</Box>
+                            <Box as="td" px={3} py={2.5} color={textColor} textAlign="right" fontFamily="mono">{reportData.teamStats.totalTeamSales}</Box>
+                          </Box>
+                          <Box as="tr" borderBottomWidth="1px" borderColor={tableBorderColor}>
+                            <Box as="td" px={3} py={2.5} color={textColor}>Total Revenue</Box>
+                            <Box as="td" px={3} py={2.5} color={textColor} textAlign="right" fontFamily="mono">ETB {reportData.teamStats.totalTeamCommission?.toLocaleString()}</Box>
+                          </Box>
+                          <Box as="tr" borderBottomWidth="1px" borderColor={tableBorderColor}>
+                            <Box as="td" px={3} py={2.5} color={textColor}>Avg. Revenue / Agent</Box>
+                            <Box as="td" px={3} py={2.5} color={textColor} textAlign="right" fontFamily="mono">ETB {Math.round(reportData.teamStats.averageCommissionPerAgent || 0).toLocaleString()}</Box>
+                          </Box>
+                          <Box as="tr">
+                            <Box as="td" px={3} py={2.5} color={textColor}>Active Agents</Box>
+                            <Box as="td" px={3} py={2.5} color={textColor} textAlign="right" fontFamily="mono">{reportData.teamStats.totalAgents}</Box>
+                          </Box>
+                        </Box>
+                      </Box>
+                    </Box>
                     <Heading size="sm" color={textColor} mb={3}>
                       Performance Insights
                     </Heading>

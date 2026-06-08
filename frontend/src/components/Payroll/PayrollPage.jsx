@@ -115,6 +115,7 @@ const PayrollPage = ({ wrapLayout = true }) => {
     month: '',
     department: ''
   });
+  const [hasLoadedHistory, setHasLoadedHistory] = useState(false);
 
   const createEmptyCommissionForm = (userId = '') => ({
     userId,
@@ -212,11 +213,10 @@ const fetchPayrollDataHandler = async () => {
   const fetchPayrollHistoryHandler = useCallback(async (filters = {}) => {
     try {
       setHistoryLoading(true);
-      // If no specific filters provided, fetch all history
-      const params = Object.keys(filters).length > 0 ? filters : {};
-      const history = await fetchPayrollHistory(params);
+      const history = await fetchPayrollHistory(filters);
       setPayrollHistory(Array.isArray(history) ? history : []);
       setHistoryError('');
+      setHasLoadedHistory(true);
     } catch (err) {
       console.error('Error fetching payroll history:', err);
       setHistoryError('Failed to load payroll history');
@@ -224,6 +224,22 @@ const fetchPayrollDataHandler = async () => {
       setHistoryLoading(false);
     }
   }, []);
+
+  const fetchFilteredPayrollHistory = useCallback(() => {
+    if (!historyFilters.month) {
+      setPayrollHistory([]);
+      setHasLoadedHistory(false);
+      setHistoryError('Please choose a payroll month before loading history.');
+      return Promise.resolve();
+    }
+
+    const params = {};
+    params.month = historyFilters.month;
+    if (historyFilters.department) {
+      params.department = historyFilters.department;
+    }
+    return fetchPayrollHistoryHandler(params);
+  }, [fetchPayrollHistoryHandler, historyFilters.department, historyFilters.month]);
 
   const handleHistoryFilterChange = (field, value) => {
     setHistoryFilters(prev => ({
@@ -233,7 +249,6 @@ const fetchPayrollDataHandler = async () => {
   };
 
   const filteredPayrollHistory = payrollHistory.filter((entry) => {
-    console.log('Processing history entry:', entry);
     const userFilter = historyFilters.username.toLowerCase().trim();
     const monthFilter = historyFilters.month;
     const departmentFilter = historyFilters.department.toLowerCase().trim();
@@ -253,6 +268,7 @@ const fetchPayrollDataHandler = async () => {
 
     return true;
   });
+  const canDisplayPayrollHistory = hasLoadedHistory && Boolean(historyFilters.month);
   
   // Fetch departments
   const fetchDepartments = async () => {
@@ -412,12 +428,9 @@ const fetchPayrollDataHandler = async () => {
       
       fetchPayrollDataHandler();
       
-      if (data?.history) {
-        setPayrollHistory((prev) => [data.history, ...prev]);
-      }
-      
+      setPayrollHistory([]);
+      setHasLoadedHistory(false);
       setHistoryFilters({ username: '', month: '', department: '' });
-      fetchPayrollHistoryHandler({});
     } catch (err) {
       console.error('Error finalizing payroll:', err);
       toast({
@@ -1083,9 +1096,7 @@ const fetchPayrollDataHandler = async () => {
   useEffect(() => {
     fetchPayrollDataHandler();
     fetchDepartments();
-    // Fetch all history initially
-    fetchPayrollHistoryHandler({});
-  }, [selectedMonth, selectedYear, selectedDepartment, selectedRole, fetchPayrollHistoryHandler]);
+  }, [selectedMonth, selectedYear, selectedDepartment, selectedRole]);
   
   // Format currency
   const formatCurrency = (amount) => {
@@ -1099,23 +1110,12 @@ const fetchPayrollDataHandler = async () => {
     return employee.grossSalaryWithBonus ?? employee.grossSalary ?? employee.basicSalary ?? 0;
   };
 
-  const getDisplayFinanceAdjustment = (employee, field) => {
-    const storedValue = Number(employee[field]) || 0;
-    if (storedValue !== 0) return storedValue;
-
-    const grossSalary = Number(getDisplayGrossSalary(employee)) || 0;
-    const netSalary = Number(employee.netSalary || employee.finalSalary) || 0;
-    const derivedAdjustment = grossSalary - netSalary;
-
-    return derivedAdjustment > 0 ? derivedAdjustment : 0;
-  };
-
   const getDisplayFinanceAllowances = (employee) => {
-    return getDisplayFinanceAdjustment(employee, 'financeAllowances');
+    return Number(employee.financeAllowances ?? 0);
   };
 
   const getDisplayFinanceDeductions = (employee) => {
-    return Number(employee.financeDeductions) || 0;
+    return Number(employee.financeDeductions ?? 0);
   };
   
   // Get status badge color
@@ -1366,6 +1366,13 @@ const fetchPayrollDataHandler = async () => {
           />
         </Grid>
 
+        <Tabs variant="enclosed" colorScheme="teal">
+          <TabList mb={3}>
+            <Tab fontSize="sm" fontWeight="semibold">Current Payroll</Tab>
+            <Tab fontSize="sm" fontWeight="semibold">Payroll History</Tab>
+          </TabList>
+          <TabPanels>
+            <TabPanel px={0} pt={0}>
         {/* Payroll Table */}
         <Card bg={cardBg} boxShadow="md" borderRadius="lg">
           <CardBody py={2} px={2}>
@@ -1815,6 +1822,8 @@ const fetchPayrollDataHandler = async () => {
             )}
           </CardBody>
         </Card>
+            </TabPanel>
+            <TabPanel px={0} pt={0}>
         
         {/* HR Adjustment Modal */}
         <Modal isOpen={isHrModalOpen} onClose={() => setIsHrModalOpen(false)} size="xl">
@@ -2031,7 +2040,15 @@ const fetchPayrollDataHandler = async () => {
           <CardBody>
             <Flex justify="space-between" align="center" mb={4}>
               <Text fontSize="lg" fontWeight="bold" color={headerColor}>Payroll History</Text>
-              <Button size="sm" variant="ghost" onClick={fetchPayrollHistoryHandler} isLoading={historyLoading}>Refresh History</Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={fetchFilteredPayrollHistory}
+                isLoading={historyLoading}
+                isDisabled={!historyFilters.month}
+              >
+                Refresh History
+              </Button>
             </Flex>
 
             <Grid templateColumns={{ base: '1fr', md: 'repeat(4, 1fr)' }} gap={3} mb={4}>
@@ -2044,7 +2061,7 @@ const fetchPayrollDataHandler = async () => {
                   placeholder="Filter by name"
                 />
               </FormControl>
-              <FormControl>
+              <FormControl isRequired>
                 <FormLabel fontSize="xs">Month</FormLabel>
                 <Input
                   type="month"
@@ -2069,8 +2086,23 @@ const fetchPayrollDataHandler = async () => {
               <Box display="flex" alignItems="flex-end">
                 <Button
                   size="sm"
+                  colorScheme="teal"
+                  mr={2}
+                  onClick={fetchFilteredPayrollHistory}
+                  isLoading={historyLoading}
+                  isDisabled={!historyFilters.month}
+                >
+                  Search
+                </Button>
+                <Button
+                  size="sm"
                   variant="outline"
-                  onClick={() => setHistoryFilters({ username: '', month: '', department: '' })}
+                  onClick={() => {
+                    setHistoryFilters({ username: '', month: '', department: '' });
+                    setPayrollHistory([]);
+                    setHasLoadedHistory(false);
+                    setHistoryError('');
+                  }}
                 >
                   Clear Filters
                 </Button>
@@ -2084,7 +2116,7 @@ const fetchPayrollDataHandler = async () => {
               <Flex justify="center" py={6}>
                 <Spinner size="sm" color="teal.500" />
               </Flex>
-            ) : filteredPayrollHistory.length > 0 ? (
+            ) : canDisplayPayrollHistory && filteredPayrollHistory.length > 0 ? (
               <Box overflowX="auto">
                 <Table variant="simple" size="sm">
                   <Thead>
@@ -2134,11 +2166,18 @@ const fetchPayrollDataHandler = async () => {
                   </Tbody>
                 </Table>
               </Box>
+            ) : !historyFilters.month ? (
+              <Text fontSize="sm" color="gray.500">Choose a payroll month, then click Search to load history.</Text>
+            ) : !hasLoadedHistory ? (
+              <Text fontSize="sm" color="gray.500">Click Search to load payroll history for the selected month.</Text>
             ) : (
-              <Text fontSize="sm" color="gray.500">No payroll history records found. Finalize payroll records to see them in history.</Text>
+              <Text fontSize="sm" color="gray.500">No payroll history records found for the selected filters.</Text>
             )}
           </CardBody>
         </Card>
+            </TabPanel>
+          </TabPanels>
+        </Tabs>
 
         {/* Commission Modal */}
         <Modal isOpen={isCommissionModalOpen} onClose={() => setIsCommissionModalOpen(false)} size="xl">

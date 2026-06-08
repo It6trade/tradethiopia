@@ -15,6 +15,7 @@ import { Outlet, useLocation } from 'react-router-dom';
 import { FiMenu } from 'react-icons/fi';
 import SalesManagerSidebar from './SalesManagerSidebar';
 import SalesManagerNavbar from './SalesManagerNavbar';
+import SalesManagerBottomNav from './SalesManagerBottomNav';
 
 const SalesManagerLayout = () => {
   const { colorMode } = useColorMode();
@@ -107,6 +108,7 @@ const SalesManagerLayout = () => {
         {/* Page Content */}
         <Box
           p={{ base: 4, md: 6 }}
+          pb={{ base: 24, md: 6 }}
           bg={contentBg}
           minH={`calc(100vh - 60px)`}
           borderLeftWidth="1px"
@@ -114,6 +116,7 @@ const SalesManagerLayout = () => {
         >
           <Outlet />
         </Box>
+        {isMobile && <SalesManagerBottomNav />}
       </Box>
     </Flex>
   );
