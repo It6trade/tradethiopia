@@ -453,7 +453,7 @@ const MobilePackageCard = ({ sale, onOpenDetail }) => {
   );
 };
 
-const MobileFollowups = () => {
+const MobileFollowups = ({ openAddSignal = 0 }) => {
   const [customers, setCustomers] = useState([]);
   const [packageSales, setPackageSales] = useState([]);
   const [courses, setCourses] = useState(defaultCourses);
@@ -490,6 +490,12 @@ const MobileFollowups = () => {
   const packageDetailDisclosure = useDisclosure();
   const packageSmsDisclosure = useDisclosure();
   const visibleColumns = useMemo(readVisibleColumns, []);
+
+  useEffect(() => {
+    if (openAddSignal > 0) {
+      addDisclosure.onOpen();
+    }
+  }, [openAddSignal, addDisclosure]);
 
   const loadCustomers = useCallback(async () => {
     try {

@@ -10,7 +10,7 @@ const navItems = [
   { label: 'Profile', value: 'More', icon: FiUser }
 ];
 
-const MobileBottomNav = ({ activeItem, onChange }) => (
+const MobileBottomNav = ({ activeItem, onChange, onAdd }) => (
   <Box
     position="fixed"
     left={0}
@@ -38,7 +38,7 @@ const MobileBottomNav = ({ activeItem, onChange }) => (
               flex="1"
               minW={0}
               aria-label="Add"
-              onClick={() => onChange('Followup')}
+              onClick={onAdd}
             >
               <Flex direction="column" align="center" gap={1}>
                 <Center

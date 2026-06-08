@@ -229,7 +229,7 @@ const MobileTaskCard = ({ task, onOpen, onStatus }) => {
   );
 };
 
-const MobileTasks = () => {
+const MobileTasks = ({ openAddSignal = 0 }) => {
   const [tasks, setTasks] = useState([]);
   const [stats, setStats] = useState({ totalTasks: 0, completedTasks: 0, pendingTasks: 0, overdueTasks: 0 });
   const [loading, setLoading] = useState(true);
@@ -266,6 +266,12 @@ const MobileTasks = () => {
   useEffect(() => {
     loadTasks();
   }, []);
+
+  useEffect(() => {
+    if (openAddSignal > 0) {
+      openTask();
+    }
+  }, [openAddSignal]);
 
   const filteredTasks = useMemo(() => {
     const query = search.trim().toLowerCase();

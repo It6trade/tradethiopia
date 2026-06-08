@@ -1,0 +1,34 @@
+{
+  "expo": {
+    "name": "TradeEthiopia Sales",
+    "slug": "tradethiopia-sales",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "scheme": "tradethiopia",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.tradethiopia.sales"
+    },
+    "android": {
+      "package": "com.tradethiopia.sales",
+      "adaptiveIcon": {
+        "backgroundColor": "#001f4d",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      }
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-secure-store"
+    ],
+    "extra": {
+      "apiUrl": "Set EXPO_PUBLIC_API_URL in mobile/.env",
+      "portalUrl": "Set EXPO_PUBLIC_PORTAL_URL in mobile/.env"
+    }
+  }
+}

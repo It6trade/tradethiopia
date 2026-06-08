@@ -19,6 +19,7 @@ import {
   FiChevronRight,
   FiClock,
   FiDollarSign,
+  FiMenu,
   FiMic,
   FiPhone,
   FiPlus,
@@ -60,23 +61,35 @@ const getFirstName = () => {
   return storedName.split(' ')[0] || storedName;
 };
 
-const MobileSalesHome = ({ onNavigate }) => {
+const MobileSalesHome = ({ onNavigate, onMenu }) => {
   const firstName = getFirstName();
 
   return (
     <VStack align="stretch" spacing={5}>
       <Flex align="flex-start" justify="space-between">
-        <Box>
-          <Text fontSize="12px" color={theme.muted} fontWeight="800" mb={1}>
-            Good Morning,
-          </Text>
-          <Text fontSize="24px" color={theme.ink} fontWeight="900" lineHeight="1">
-            {firstName}
-          </Text>
-          <Text fontSize="11px" color={theme.muted} fontWeight="700" mt={4}>
-            Here's what's happening with your sales today.
-          </Text>
-        </Box>
+        <HStack spacing={3} align="flex-start" minW={0}>
+          <IconButton
+            aria-label="Open menu"
+            icon={<FiMenu />}
+            size="sm"
+            variant="ghost"
+            color={theme.ink}
+            fontSize="21px"
+            mt="-4px"
+            onClick={onMenu}
+          />
+          <Box minW={0}>
+            <Text fontSize="12px" color={theme.muted} fontWeight="800" mb={1}>
+              Good Morning,
+            </Text>
+            <Text fontSize="24px" color={theme.ink} fontWeight="900" lineHeight="1" noOfLines={1}>
+              {firstName}
+            </Text>
+            <Text fontSize="11px" color={theme.muted} fontWeight="700" mt={4}>
+              Here's what's happening with your sales today.
+            </Text>
+          </Box>
+        </HStack>
         <HStack spacing={3} align="center">
           <Box position="relative">
             <IconButton

@@ -1,0 +1,4 @@
+export const appConfig = {
+  apiUrl: process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5000',
+  portalUrl: process.env.EXPO_PUBLIC_PORTAL_URL || 'http://localhost:3002/sdashboard'
+};
