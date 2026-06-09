@@ -14,6 +14,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import BrandHeader from '../components/BrandHeader';
 import { login } from '../services/authService';
+import { appConfig } from '../config/appConfig';
 import { theme } from '../theme/theme';
 
 export default function LoginScreen({ onLogin, isOnline }) {
@@ -63,6 +64,19 @@ export default function LoginScreen({ onLogin, isOnline }) {
             {!isOnline && (
               <View style={styles.offlinePill}>
                 <Text style={styles.offlineText}>Offline login view</Text>
+              </View>
+            )}
+
+            <View style={styles.endpointBox}>
+              <Text style={styles.endpointLabel}>API</Text>
+              <Text style={styles.endpointValue} numberOfLines={1}>{appConfig.apiUrl}</Text>
+            </View>
+
+            {appConfig.isUsingLocalhostFallback && (
+              <View style={styles.warningBox}>
+                <Text style={styles.warningText}>
+                  This build is still using localhost. Set `EXPO_PUBLIC_API_URL` to your computer IP for phone login.
+                </Text>
               </View>
             )}
 
@@ -207,6 +221,39 @@ const styles = StyleSheet.create({
     color: theme.colors.goldBright,
     fontSize: 11,
     fontWeight: '900'
+  },
+  endpointBox: {
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.16)',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    backgroundColor: 'rgba(255,255,255,0.06)'
+  },
+  endpointLabel: {
+    color: 'rgba(255,255,255,0.58)',
+    fontSize: 10,
+    fontWeight: '900',
+    marginBottom: 4
+  },
+  endpointValue: {
+    color: theme.colors.white,
+    fontSize: 12,
+    fontWeight: '800'
+  },
+  warningBox: {
+    borderWidth: 1,
+    borderColor: 'rgba(217,154,0,0.32)',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    backgroundColor: 'rgba(217,154,0,0.10)'
+  },
+  warningText: {
+    color: '#FFD772',
+    fontSize: 11,
+    lineHeight: 16,
+    fontWeight: '800'
   },
   input: {
     height: 54,
