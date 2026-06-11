@@ -46,7 +46,7 @@ import {
 } from "@chakra-ui/react";
 import { AddIcon, DeleteIcon, EditIcon } from "@chakra-ui/icons";
 import { FiGlobe, FiLock, FiMail, FiPhone } from "react-icons/fi";
-import { FaFacebookF, FaInstagram, FaLinkedinIn, FaTelegramPlane, FaTiktok, FaTwitter, FaYoutube } from "react-icons/fa";
+import { FaFacebookF, FaInstagram, FaLinkedinIn, FaTelegramPlane, FaTiktok, FaTwitter, FaWhatsapp, FaYoutube } from "react-icons/fa";
 import { EmptyStateBlock, SectionIntro, SurfaceCard } from "./SocialMediaPrimitives";
 
 const initialForm = {
@@ -60,7 +60,7 @@ const initialForm = {
   active: true,
 };
 
-const preferredPlatforms = ["All", "Facebook", "Instagram", "TikTok", "YouTube", "LinkedIn", "Telegram", "X", "Email", "Other"];
+const preferredPlatforms = ["All", "Facebook", "Instagram", "TikTok", "YouTube", "LinkedIn", "WhatsApp", "Telegram", "X", "Email", "Other"];
 const tableRowShadow = "0 2px 10px rgba(15,23,42,0.035)";
 const tableRowHoverShadow = "0 14px 34px rgba(15,23,42,0.08)";
 const platformVisuals = {
@@ -70,6 +70,7 @@ const platformVisuals = {
   TikTok: { icon: FaTiktok, color: "#111827", bg: "rgba(17,24,39,0.08)" },
   YouTube: { icon: FaYoutube, color: "#FF0000", bg: "rgba(255,0,0,0.1)" },
   LinkedIn: { icon: FaLinkedinIn, color: "#0A66C2", bg: "rgba(10,102,194,0.1)" },
+  WhatsApp: { icon: FaWhatsapp, color: "#25D366", bg: "rgba(37,211,102,0.1)" },
   Telegram: { icon: FaTelegramPlane, color: "#26A5E4", bg: "rgba(38,165,228,0.1)" },
   X: { icon: FaTwitter, color: "#111827", bg: "rgba(17,24,39,0.08)" },
   Email: { icon: FiMail, color: "#2563EB", bg: "rgba(37,99,235,0.1)" },

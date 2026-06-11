@@ -71,6 +71,7 @@ import {
   FaTelegramPlane,
   FaTiktok,
   FaTwitter,
+  FaWhatsapp,
   FaYoutube,
 } from "react-icons/fa";
 import NoticeBoardPanel from "../NoticeBoardPanel";
@@ -82,6 +83,7 @@ const initialTargets = [
   { platform: "LinkedIn", weeklyTarget: 3, posted: 2, actual: 2, completed: false },
   { platform: "TikTok", weeklyTarget: 4, posted: 1, actual: 1, completed: false },
   { platform: "Twitter (X)", weeklyTarget: 4, posted: 1, actual: 1, completed: false },
+  { platform: "WhatsApp", weeklyTarget: 5, posted: 2, actual: 2, completed: false },
   { platform: "Telegram", weeklyTarget: 5, posted: 2, actual: 2, completed: false },
   { platform: "Google", weeklyTarget: 3, posted: 1, actual: 1, completed: false },
   { platform: "YouTube", weeklyTarget: 2, posted: 0, actual: 0, completed: false },
@@ -142,6 +144,7 @@ const platformAccentMap = {
   LinkedIn: "linkedin",
   TikTok: "purple",
   "Twitter (X)": "gray",
+  WhatsApp: "whatsapp",
   Telegram: "telegram",
   Google: "red",
   YouTube: "red",
@@ -153,6 +156,7 @@ const platformBrandMap = {
   LinkedIn: { icon: FaLinkedinIn, bg: "rgba(10,102,194,0.12)", color: "#0A66C2" },
   TikTok: { icon: FaTiktok, bg: "rgba(15,23,42,0.08)", color: "#0F172A" },
   "Twitter (X)": { icon: FaTwitter, bg: "rgba(29,161,242,0.12)", color: "#1DA1F2" },
+  WhatsApp: { icon: FaWhatsapp, bg: "rgba(37,211,102,0.12)", color: "#25D366" },
   Telegram: { icon: FaTelegramPlane, bg: "rgba(34,158,217,0.12)", color: "#229ED9" },
   Google: { icon: FaGoogle, bg: "rgba(234,67,53,0.12)", color: "#EA4335" },
   YouTube: { icon: FaYoutube, bg: "rgba(255,0,0,0.12)", color: "#FF0000" },
@@ -165,6 +169,7 @@ const socialPlatformKpiSeeds = [
   { platform: "Facebook", videos: 4, graphics: 6, views: 28400, likes: 3200, shares: 480 },
   { platform: "YouTube", videos: 3, graphics: 1, views: 22100, likes: 1900, shares: 260 },
   { platform: "LinkedIn", videos: 2, graphics: 5, views: 12600, likes: 980, shares: 180 },
+  { platform: "WhatsApp", videos: 2, graphics: 5, views: 18400, likes: 820, shares: 420 },
   { platform: "Telegram", videos: 2, graphics: 4, views: 15400, likes: 760, shares: 320 },
 ];
 
