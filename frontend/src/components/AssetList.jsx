@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import {
   List,
   ListItem,
@@ -16,13 +16,16 @@ import {
   Select,
   useColorModeValue,
   useToast,
+  Badge,
+  Icon,
 } from '@chakra-ui/react';
 import { DeleteIcon, DownloadIcon } from '@chakra-ui/icons';
+import { FiMail, FiGlobe, FiPhone, FiShield } from 'react-icons/fi';
 import axios from 'axios';
 import * as XLSX from 'xlsx';
 import AssetDetailDrawer from './AssetDetailDrawer';
 
-const AssetList = ({ readOnly = false }) => {
+const AssetList = ({ readOnly = false, intangibleOnly = false }) => {
   const [assets, setAssets] = useState([]);
   const { isOpen, onOpen, onClose } = useDisclosure();
   const [selectedAsset, setSelectedAsset] = useState(null);
@@ -34,17 +37,14 @@ const AssetList = ({ readOnly = false }) => {
   const [selectedGroup, setSelectedGroup] = useState('');
   const toast = useToast();
 
-
   const fetchAssetsData = async () => {
     try {
       const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/assets`);
-      // The API returns {success: true, data: [...]} structure
-      // We need to extract the actual assets array from response.data.data
       const assetsData = response.data && response.data.data ? response.data.data : [];
       setAssets(assetsData);
     } catch (error) {
       console.error("Error fetching assets:", error);
-      setAssets([]); // Set to empty array on error
+      setAssets([]);
     }
   };
 
@@ -103,8 +103,36 @@ const AssetList = ({ readOnly = false }) => {
     }
   };
 
-  const filteredAssets = assets.filter(asset => {
-    // Ensure asset exists before accessing properties
+  // Helper to determine if an asset is intangible (digital assets, credentials, software licenses, domains, etc.)
+  const isIntangible = (asset) => {
+    if (!asset) return false;
+    const group = (asset.assets || "").toLowerCase().trim();
+    const cat = (asset.category || "").toLowerCase().trim();
+    
+    // Explicitly tangible if tagged Tangible
+    if (group === "tangible") return false;
+    
+    // Explicitly intangible if tagged Intangible
+    if (group === "intangible") return true;
+    
+    // Fallback search keywords for items classified loosely in categories
+    const intangibleKeywords = ["intangible", "email", "gmail", "social", "linkedin", "linkden", "account", "credential", "phone number"];
+    return (
+      intangibleKeywords.some(keyword => cat.includes(keyword)) ||
+      intangibleKeywords.some(keyword => group.includes(keyword))
+    );
+  };
+
+  // Restrict the active pool of assets if intangibleOnly is enabled
+  const filteredAssetPool = useMemo(() => {
+    if (!Array.isArray(assets)) return [];
+    if (intangibleOnly) {
+      return assets.filter(isIntangible);
+    }
+    return assets;
+  }, [assets, intangibleOnly]);
+
+  const filteredAssets = filteredAssetPool.filter(asset => {
     if (!asset) return false;
     
     const matchesSearch = 
@@ -119,19 +147,19 @@ const AssetList = ({ readOnly = false }) => {
     const matchesAssets = location ? asset.assets === location : true;
     const matchesLocation = location ? asset.location === location : true;
     const matchesStatus = status ? asset.status === status : true;
-    const matchesGroup = selectedGroup ? asset.assets === selectedGroup : true; // Add this line
+    const matchesGroup = selectedGroup ? asset.assets === selectedGroup : true;
   
-    return matchesSearch && matchesCategory && matchesAssignedTo && matchesLocation && matchesStatus && matchesAssets && matchesGroup; // Include matchesGroup
+    return matchesSearch && matchesCategory && matchesAssignedTo && matchesLocation && matchesStatus && matchesAssets && matchesGroup;
   });
 
   const handleExportToExcel = () => {
-    if (!Array.isArray(assets) || assets.length === 0) {
+    if (!Array.isArray(filteredAssetPool) || filteredAssetPool.length === 0) {
       toast({ title: 'No assets to export', status: 'info', duration: 2500, isClosable: true });
       return;
     }
 
     try {
-      const exportData = assets.map((asset) => ({
+      const exportData = filteredAssets.map((asset) => ({
         'Name Tag': asset?.nameTag || '',
         Name: asset?.name || '',
         Category: asset?.category || '',
@@ -155,11 +183,11 @@ const AssetList = ({ readOnly = false }) => {
     }
   };
 
-  // Ensure assets is an array before mapping
-  const uniqueCategories = Array.isArray(assets) ? [...new Set(assets.map(asset => asset?.category).filter(Boolean))] : [];
-  const uniqueAssignedTo = Array.isArray(assets) ? [...new Set(assets.map(asset => asset?.assignedTo).filter(Boolean))] : [];
-  const uniqueAssets = Array.isArray(assets) ? [...new Set(assets.map(asset => asset?.assets).filter(Boolean))] : [];
-  const uniqueStatuses = Array.isArray(assets) ? [...new Set(assets.map(asset => asset?.status).filter(Boolean))] : [];
+  const uniqueCategories = Array.isArray(filteredAssetPool) ? [...new Set(filteredAssetPool.map(asset => asset?.category).filter(Boolean))] : [];
+  const uniqueAssignedTo = Array.isArray(filteredAssetPool) ? [...new Set(filteredAssetPool.map(asset => asset?.assignedTo).filter(Boolean))] : [];
+  const uniqueAssets = Array.isArray(filteredAssetPool) ? [...new Set(filteredAssetPool.map(asset => asset?.assets).filter(Boolean))] : [];
+  const uniqueStatuses = Array.isArray(filteredAssetPool) ? [...new Set(filteredAssetPool.map(asset => asset?.status).filter(Boolean))] : [];
+
   const filterPanelBg = useColorModeValue(
     'linear-gradient(180deg, rgba(255,255,255,0.98), rgba(248,250,252,0.94))',
     'linear-gradient(180deg, rgba(15,23,42,0.96), rgba(30,41,59,0.88))'
@@ -208,7 +236,7 @@ const AssetList = ({ readOnly = false }) => {
           <Box>
             <Text fontSize="xl" fontWeight="800" color={filterLabelColor}>Asset Filters</Text>
             <Text fontSize="sm" color={filterMuted} mt={1}>
-              {filteredAssets.length} of {assets.length} visible
+              {filteredAssets.length} of {filteredAssetPool.length} visible
             </Text>
           </Box>
           <Box px={3} py={1} borderRadius="full" bg={filterAccentBg} color="#2563EB" fontSize="xs" fontWeight="800">
@@ -239,33 +267,22 @@ const AssetList = ({ readOnly = false }) => {
           ))}
         </Select>
 
-        <Text {...filterLabelProps}>Group</Text>
-<Select
-  placeholder="Select Group"
-  value={selectedGroup} // Use selectedGroup instead of assets
-  onChange={(e) => setSelectedGroup(e.target.value)} // Update state on change
-  mb={4}
-  {...fieldStyles}
->
-  {uniqueAssets.filter(group => group).map((group) => ( // Filter out empty values
-    <option key={group} value={group}>{group}</option>
-  ))}
-</Select>
-
-        {/* <Text fontWeight="bold" mb={2} color="teal.600" _dark={{ color: "teal.300" }}>Location</Text>
-        <Select
-          placeholder="Select Location"
-          value={location}
-          onChange={(e) => setLocation(e.target.value)}
-          mb={4}
-          borderColor={useColorModeValue("gray.300", "gray.600")}
-          _hover={{ borderColor: 'teal.500' }}
-          _focus={{ borderColor: 'teal.500', boxShadow: '0 0 0 1px teal.500' }}
-        >
-          {uniqueLocation.map((loca) => (
-            <option key={loca} value={loca}>{loca}</option>
-          ))}
-        </Select> */}
+        {!intangibleOnly && (
+          <>
+            <Text {...filterLabelProps}>Group</Text>
+            <Select
+              placeholder="Select Group"
+              value={selectedGroup}
+              onChange={(e) => setSelectedGroup(e.target.value)}
+              mb={4}
+              {...fieldStyles}
+            >
+              {uniqueAssets.filter(group => group).map((group) => (
+                <option key={group} value={group}>{group}</option>
+              ))}
+            </Select>
+          </>
+        )}
 
         <Text {...filterLabelProps}>Status</Text>
         <Select
@@ -283,7 +300,7 @@ const AssetList = ({ readOnly = false }) => {
         <Divider my={5} borderColor={filterPanelBorder} />
 
         <Text {...filterLabelProps}>Categories</Text>
-        <VStack align="stretch" spacing={2}>
+        <VStack align="stretch" spacing={2} maxH="300px" overflowY="auto">
           <Checkbox 
             isChecked={selectedCategories.length === uniqueCategories.length && uniqueCategories.length > 0}
             onChange={() => {
@@ -317,7 +334,7 @@ const AssetList = ({ readOnly = false }) => {
           ))}
         </VStack>
       </Box>
-
+ 
       <Box width={{ base: '100%', md: '70%' }} p={{ base: 0, md: 4 }}>
         <Flex justify={{ base: 'stretch', md: 'flex-end' }} mb={3}>
           <Button
@@ -332,51 +349,104 @@ const AssetList = ({ readOnly = false }) => {
           </Button>
         </Flex>
         <List spacing={3}>
-          {filteredAssets.map(asset => (
-            <ListItem
-              key={asset?._id || asset?.nameTag}
-              p={{ base: 3, md: 4 }}
-              borderWidth={1}
-              borderRadius="md"
-              boxShadow="sm"
-              bg={assetRowBg}
-              _hover={{ bg: assetRowHoverBg }}
-              display="flex"
-              flexDirection={{ base: 'column', sm: 'row' }}
-              alignItems={{ base: 'stretch', sm: 'center' }}
-              gap={{ base: 3, sm: 0 }}
-            >
-              <Box
-                width="10px"
-                height="10px"
-                borderRadius="full"
-                bg={getStatusColor(asset?.status)}
-                mr={{ base: 0, sm: 3 }}
-              />
-              <HStack spacing={2} flexGrow={1} minW={0} align="start">
-                <Box
-                  as="span"
-                  onClick={() => handleAssetClick(asset)}
-                  fontWeight="bold"
-                  cursor="pointer"
-                  color="teal.500"
-                  wordBreak="break-word"
-                >
-                  {asset?.nameTag} - {asset?.assignedTo}
-                </Box>
-                <Text fontSize="sm" color="gray.500">({asset?.category})</Text>
-              </HStack>
-              {!readOnly && (
-                <IconButton
-                  icon={<DeleteIcon />}
-                  onClick={() => handleDelete(asset?._id)}
-                  aria-label="Delete Asset"
-                  variant="outline"
-                  colorScheme="red"
-                />
-              )}
-            </ListItem>
-          ))}
+          {filteredAssets.map(asset => {
+            const statusColor = getStatusColor(asset?.status);
+            
+            // Context-aware icon assignment
+            let assetIcon = FiShield;
+            const cat = (asset?.category || "").toLowerCase();
+            if (cat.includes("email") || cat.includes("gmail")) {
+              assetIcon = FiMail;
+            } else if (cat.includes("social") || cat.includes("linkedin") || cat.includes("linkden") || cat.includes("youtube") || cat.includes("facebook")) {
+              assetIcon = FiGlobe;
+            } else if (cat.includes("phone")) {
+              assetIcon = FiPhone;
+            }
+
+            return (
+              <ListItem
+                key={asset?._id || asset?.nameTag}
+                p={3}
+                borderWidth={1}
+                borderColor={filterPanelBorder}
+                borderRadius="16px"
+                bg={assetRowBg}
+                _hover={{ bg: assetRowHoverBg, borderColor: 'blue.200' }}
+                display="flex"
+                alignItems="center"
+                justifyContent="space-between"
+                transition="all 0.15s ease"
+              >
+                <HStack spacing={3.5} minW={0} flex="1">
+                  <Flex
+                    w="34px"
+                    h="34px"
+                    align="center"
+                    justify="center"
+                    borderRadius="10px"
+                    bg={filterAccentBg}
+                    color="blue.500"
+                    flexShrink={0}
+                  >
+                    <Icon as={assetIcon} boxSize={4} />
+                  </Flex>
+
+                  <Box minW={0} flex="1">
+                    <HStack spacing={2} align="center" flexWrap="wrap">
+                      <Text
+                        onClick={() => handleAssetClick(asset)}
+                        fontWeight="700"
+                        fontSize="sm"
+                        cursor="pointer"
+                        color="blue.500"
+                        _hover={{ textDecoration: 'underline' }}
+                        noOfLines={1}
+                      >
+                        {asset?.nameTag}
+                      </Text>
+                      <Badge colorScheme="blue" variant="subtle" size="sm" borderRadius="6px" px={2}>
+                        {asset?.category}
+                      </Badge>
+                      <Badge colorScheme={asset?.assets === "Intangible" ? "purple" : "gray"} variant="outline" size="sm" borderRadius="6px" px={1.5} fontSize="9px">
+                        {asset?.assets || "Group"}
+                      </Badge>
+                    </HStack>
+                    <Text fontSize="xs" color={filterMuted} mt={0.5} noOfLines={1}>
+                      {asset?.name} · Assigned: <Text as="span" fontWeight="700" color={useColorModeValue('gray.800', 'white')}>{asset?.assignedTo || "Unassigned"}</Text>
+                    </Text>
+                  </Box>
+                </HStack>
+
+                <HStack spacing={4} flexShrink={0}>
+                  <HStack spacing={1.5}>
+                    <Box w="6px" h="6px" borderRadius="full" bg={statusColor} />
+                    <Text fontSize="xs" fontWeight="700">{asset?.status}</Text>
+                  </HStack>
+
+                  <Button
+                    size="xs"
+                    variant="outline"
+                    borderRadius="8px"
+                    onClick={() => handleAssetClick(asset)}
+                  >
+                    Details
+                  </Button>
+
+                  {!readOnly && (
+                    <IconButton
+                      icon={<DeleteIcon />}
+                      onClick={() => handleDelete(asset?._id)}
+                      aria-label="Delete Asset"
+                      variant="outline"
+                      colorScheme="red"
+                      size="xs"
+                      borderRadius="8px"
+                    />
+                  )}
+                </HStack>
+              </ListItem>
+            );
+          })}
         </List>
 
         <AssetDetailDrawer
@@ -389,7 +459,6 @@ const AssetList = ({ readOnly = false }) => {
         />
       </Box>
     </Flex>
-
   );
 };
 

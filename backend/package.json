@@ -9,6 +9,8 @@
     "start": "node server.js",
     "seed:coo": "node scripts/seedCOO.js",
     "seed:tradextv": "node scripts/seedTradexTV.js",
+    "seed:social": "node scripts/seedSocialMedia.js",
+    "check:assets": "node scripts/checkAssets.js",
     "dev": "nodemon server.js"
   },
   "keywords": [],
