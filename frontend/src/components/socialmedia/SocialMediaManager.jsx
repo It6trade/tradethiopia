@@ -24,6 +24,28 @@ import {
   useToast,
 } from "@chakra-ui/react";
 import axios from "axios";
+import {
+  FiActivity,
+  FiBarChart2,
+  FiCalendar,
+  FiCheckCircle,
+  FiClock,
+  FiFileText,
+  FiLayers,
+  FiTrendingUp,
+  FiUsers,
+} from "react-icons/fi";
+import {
+  FaFacebookF,
+  FaGoogle,
+  FaInstagram,
+  FaLinkedinIn,
+  FaTelegramPlane,
+  FaTiktok,
+  FaTwitter,
+  FaWhatsapp,
+  FaYoutube,
+} from "react-icons/fa";
 import NoticeBoardPanel from "../NoticeBoardPanel";
 import { SurfaceCard, useSocialStyles } from "./SocialMediaPrimitives";
 import DashboardOverview from "./DashboardOverview";
@@ -43,6 +65,7 @@ const initialTargets = [
   { platform: "LinkedIn", weeklyTarget: 3, posted: 2, actual: 2, completed: false },
   { platform: "TikTok", weeklyTarget: 4, posted: 1, actual: 1, completed: false },
   { platform: "Twitter (X)", weeklyTarget: 4, posted: 1, actual: 1, completed: false },
+  { platform: "WhatsApp", weeklyTarget: 5, posted: 2, actual: 2, completed: false },
   { platform: "Telegram", weeklyTarget: 5, posted: 2, actual: 2, completed: false },
   { platform: "Google", weeklyTarget: 3, posted: 1, actual: 1, completed: false },
   { platform: "YouTube", weeklyTarget: 2, posted: 0, actual: 0, completed: false },
@@ -57,6 +80,69 @@ const calendarSlots = [
   { day: "Fri", slot: "1:00 PM", type: "Poster", staff: "Lily", approval: "Draft", topic: "Awareness", completed: false },
 ];
 
+const engagementMetrics = [
+  { label: "Total Impressions", value: "124,831" },
+  { label: "Engagement Rate", value: "5.6%" },
+  { label: "Post Reach", value: "68,400" },
+  { label: "Best Content", value: "Instagram Carousel (Onboarding)" },
+];
+
+const growthMetrics = [
+  { label: "New Followers", value: "+1,420" },
+  { label: "Followers by Platform", value: "FB 18k · IG 24k · LI 9k · TT 12k" },
+  { label: "% vs Last Week", value: "+3.1%" },
+];
+
+const leadMetrics = [
+  { label: "Leads Collected", value: "142" },
+  { label: "Inquiries by Platform", value: "FB 60 · IG 45 · LI 20 · TT 17" },
+  { label: "Conversion Rate", value: "18.4%" },
+];
+
+const reportCharts = [
+  { label: "Posts vs Target", actual: 80, target: 100 },
+  { label: "Engagement vs Target", actual: 65, target: 80 },
+  { label: "Response Time vs Target", actual: 55, target: 70 },
+];
+
+const tabItems = [
+  { key: "targets", label: "Weekly Targets" },
+  { key: "planner", label: "Content Planner" },
+  { key: "analytics", label: "Analytics" },
+  { key: "reports", label: "Reports" },
+  { key: "notice", label: "Notice Board" },
+];
+
+const statusToneMap = {
+  Draft: { bg: "gray.100", color: "gray.700" },
+  "Pending Review": { bg: "orange.100", color: "orange.700" },
+  Scheduled: { bg: "blue.100", color: "blue.700" },
+  Posted: { bg: "green.100", color: "green.700" },
+};
+
+const platformAccentMap = {
+  Facebook: "blue",
+  Instagram: "pink",
+  LinkedIn: "linkedin",
+  TikTok: "purple",
+  "Twitter (X)": "gray",
+  WhatsApp: "whatsapp",
+  Telegram: "telegram",
+  Google: "red",
+  YouTube: "red",
+};
+
+const platformBrandMap = {
+  Facebook: { icon: FaFacebookF, bg: "rgba(24,119,242,0.12)", color: "#1877F2" },
+  Instagram: { icon: FaInstagram, bg: "rgba(225,48,108,0.12)", color: "#E1306C" },
+  LinkedIn: { icon: FaLinkedinIn, bg: "rgba(10,102,194,0.12)", color: "#0A66C2" },
+  TikTok: { icon: FaTiktok, bg: "rgba(15,23,42,0.08)", color: "#0F172A" },
+  "Twitter (X)": { icon: FaTwitter, bg: "rgba(29,161,242,0.12)", color: "#1DA1F2" },
+  WhatsApp: { icon: FaWhatsapp, bg: "rgba(37,211,102,0.12)", color: "#25D366" },
+  Telegram: { icon: FaTelegramPlane, bg: "rgba(34,158,217,0.12)", color: "#229ED9" },
+  Google: { icon: FaGoogle, bg: "rgba(234,67,53,0.12)", color: "#EA4335" },
+  YouTube: { icon: FaYoutube, bg: "rgba(255,0,0,0.12)", color: "#FF0000" },
+};
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 const socialPlatformKpiSeeds = [
@@ -65,6 +151,7 @@ const socialPlatformKpiSeeds = [
   { platform: "Facebook", videos: 4, graphics: 6, views: 28400, likes: 3200, shares: 480 },
   { platform: "YouTube", videos: 3, graphics: 1, views: 22100, likes: 1900, shares: 260 },
   { platform: "LinkedIn", videos: 2, graphics: 5, views: 12600, likes: 980, shares: 180 },
+  { platform: "WhatsApp", videos: 2, graphics: 5, views: 18400, likes: 820, shares: 420 },
   { platform: "Telegram", videos: 2, graphics: 4, views: 15400, likes: 760, shares: 320 },
 ];
 

@@ -120,6 +120,7 @@ const defaultSocialTargets = [
   { platform: 'TikTok', target: 1666, actual: 1810 },
   { platform: 'Facebook', target: 4166, actual: 3920 },
   { platform: 'LinkedIn', target: 416, actual: 402 },
+  { platform: 'WhatsApp', target: 833, actual: 0 },
   { platform: 'Telegram', target: 833, actual: 910 },
   { platform: 'Instagram', target: 1666, actual: 0 },
   { platform: 'Twitter', target: 1666, actual: 0 },

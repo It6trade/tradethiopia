@@ -1,7 +1,7 @@
 const ContentTrackerEntry = require('../models/ContentTrackerEntry');
 
 const ALLOWED_TYPES = new Set(['Video', 'Graphics', 'Live Session', 'Testimonial', 'Bulk Email', 'Messages', 'Leads']);
-const GLOBAL_CONTENT_ACCESS_ROLES = new Set(['salesmanager', 'admin', 'finance', 'hr', 'coo']);
+const GLOBAL_CONTENT_ACCESS_ROLES = new Set(['salesmanager', 'socialmediamanager', 'socialmedia', 'admin', 'finance', 'hr', 'coo']);
 
 const normalizeRole = (role = '') => role.toString().trim().toLowerCase().replace(/[^a-z0-9]/g, '');
 
@@ -29,6 +29,10 @@ exports.getEntries = async (req, res) => {
     const query = {};
     if (req.query.type && ALLOWED_TYPES.has(req.query.type)) {
       query.type = req.query.type;
+    }
+
+    if (req.query.platform) {
+      query.platform = req.query.platform.toString().trim();
     }
 
     if (req.query.approved === 'true' || req.query.approved === 'false') {
@@ -113,7 +117,7 @@ const parsePositiveNumber = (value) => {
 
 exports.createEntry = async (req, res) => {
   try {
-    const { title, description = '', type = 'Video', link = '', approved = false, date, shares = 0 } = req.body;
+    const { title, description = '', type = 'Video', link = '', platform = '', approved = false, date, shares = 0 } = req.body;
     if (!title) {
       return res.status(400).json({ success: false, message: 'Title is required' });
     }
@@ -129,6 +133,7 @@ exports.createEntry = async (req, res) => {
       description,
       type,
       link,
+      platform: platform.toString().trim(),
       approved: normalizedApproved,
       date: date ? new Date(date) : undefined,
       shares: parsePositiveNumber(shares),
@@ -158,7 +163,7 @@ exports.updateEntry = async (req, res) => {
       return res.status(403).json({ success: false, message: 'Not authorized to approve content entries' });
     }
 
-    const updatableFields = ['title', 'description', 'type', 'link', 'approved', 'date', 'shares'];
+    const updatableFields = ['title', 'description', 'type', 'link', 'platform', 'approved', 'date', 'shares'];
     updatableFields.forEach((field) => {
       if (Object.prototype.hasOwnProperty.call(req.body, field)) {
         if (field === 'type' && req.body.type && !ALLOWED_TYPES.has(req.body.type)) {
@@ -166,6 +171,10 @@ exports.updateEntry = async (req, res) => {
         }
         if (field === 'shares') {
           entry.shares = parsePositiveNumber(req.body.shares);
+          return;
+        }
+        if (field === 'platform') {
+          entry.platform = (req.body.platform || '').toString().trim();
           return;
         }
         entry[field] = req.body[field];

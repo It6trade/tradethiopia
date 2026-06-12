@@ -44,6 +44,7 @@ import {
   FiChevronLeft,
   FiChevronRight,
   FiClipboard,
+  FiEdit3,
   FiGrid,
   FiLogOut,
   FiMail,
@@ -59,6 +60,7 @@ import { useUserStore } from "../../store/user";
 import AssetList from "../AssetList";
 import NotesLauncher from "../notes/NotesLauncher";
 import RequestPage from "../../pages/RequestPage";
+import ContentTrackerPage from "../sales/ContentTrackerPage";
 import SocialMediaManager from "./SocialMediaManager";
 import SocialMediaAccountsManager from "./SocialMediaAccountsManager";
 import { EmptyStateBlock, SectionIntro, SurfaceCard } from "./SocialMediaPrimitives";
@@ -75,6 +77,7 @@ const navGroups = [
     items: [
       { key: "targets", label: "Weekly Targets", icon: FiTarget },
       { key: "planner", label: "Content Planner", icon: FiCalendar },
+      { key: "postTracker", label: "Post Tracker", icon: FiEdit3 },
       { key: "assets", label: "Asset Library", icon: FiPackage },
       { key: "accounts", label: "Social Media", icon: FiShield },
       { key: "email", label: "Email", icon: FiMail },
@@ -95,6 +98,8 @@ const navGroups = [
   },
 ];
 
+const socialPostPlatforms = ["Facebook", "Instagram", "TikTok", "YouTube", "LinkedIn", "WhatsApp", "Telegram", "Twitter (X)", "Google"];
+
 const sectionMeta = {
   dashboard: {
     eyebrow: "Overview",
@@ -111,6 +116,10 @@ const sectionMeta = {
   assets: {
     eyebrow: "Operations",
     title: "Asset library",
+  },
+  postTracker: {
+    eyebrow: "Operations",
+    title: "Post tracker",
   },
   accounts: {
     eyebrow: "Operations",
@@ -427,6 +436,19 @@ export default function SocialMediaWorkspace() {
             backLabelOverride="Social Media"
             hideBackButton
           />
+        </VStack>
+      );
+    }
+
+    if (activeSection === "postTracker") {
+      return (
+        <VStack align="stretch" spacing={6}>
+          <SectionIntro eyebrow={currentMeta.eyebrow} title={currentMeta.title} />
+          <SurfaceCard>
+            <Box p={{ base: 4, md: 5 }}>
+              <ContentTrackerPage title="Post Tracker" addButtonLabel="Add post" platformOptions={socialPostPlatforms} />
+            </Box>
+          </SurfaceCard>
         </VStack>
       );
     }
