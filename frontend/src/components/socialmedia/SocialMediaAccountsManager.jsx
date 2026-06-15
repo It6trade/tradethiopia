@@ -107,15 +107,11 @@ export default function SocialMediaAccountsManager({ emailOnly = false, onSocial
   const [hrAssets, setHrAssets] = useState([]);
   const [assetsLoading, setAssetsLoading] = useState(false);
   const [assetsError, setAssetsError] = useState("");
-<<<<<<< HEAD
   const [syncingPlatforms, setSyncingPlatforms] = useState([]);
-=======
-  
   const [visiblePasswords, setVisiblePasswords] = useState({});
   const [showModalPassword, setShowModalPassword] = useState(false);
   const [copiedField, setCopiedField] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
->>>>>>> 1489f98071704be9dec3479cb72932296170d5b1
 
   const borderColor = useColorModeValue("rgba(226,232,240,0.9)", "rgba(148,163,184,0.16)");
   const muted = useColorModeValue("#64748B", "gray.400");
@@ -402,32 +398,6 @@ export default function SocialMediaAccountsManager({ emailOnly = false, onSocial
     setVisiblePasswords((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
-<<<<<<< HEAD
-              <VStack align="stretch" spacing={2.5} mt={4}>
-                <HStack justify="space-between" gap={3}>
-                  <Text fontSize="xs" color={muted} fontWeight="800" textTransform="uppercase">Username</Text>
-                  <Text fontSize="sm" fontWeight="700" textAlign="right" noOfLines={1}>{account.accountName}</Text>
-                </HStack>
-                <HStack justify="space-between" gap={3}>
-                  <Text fontSize="xs" color={muted} fontWeight="800" textTransform="uppercase">Email</Text>
-                  <Text fontSize="sm" textAlign="right" noOfLines={1}>{account.email || "-"}</Text>
-                </HStack>
-                {emailOnly ? (
-                  <Box>
-                    <Text mb={1.5} fontSize="xs" color={muted} fontWeight="800" textTransform="uppercase">Created Social Media</Text>
-                    {renderSocialPlatformBadges(account.socialPlatforms)}
-                  </Box>
-                ) : null}
-                <HStack justify="space-between" gap={3}>
-                  <Text fontSize="xs" color={muted} fontWeight="800" textTransform="uppercase">Password</Text>
-                  <Text fontFamily="mono" fontSize="sm" fontWeight="700" textAlign="right" noOfLines={1}>{account.password || "-"}</Text>
-                </HStack>
-                <HStack justify="space-between" gap={3}>
-                  <Text fontSize="xs" color={muted} fontWeight="800" textTransform="uppercase">Phone</Text>
-                  <Text fontSize="sm" textAlign="right" noOfLines={1}>{account.phoneNumber || "-"}</Text>
-                </HStack>
-              </VStack>
-=======
   const handleCopy = (accountId, field, text) => {
     if (!text) return;
     navigator.clipboard.writeText(text);
@@ -443,7 +413,6 @@ export default function SocialMediaAccountsManager({ emailOnly = false, onSocial
       setCopiedField(null);
     }, 2000);
   };
->>>>>>> 1489f98071704be9dec3479cb72932296170d5b1
 
   const handleRowClick = (account) => {
     setSelectedAccount(account);
@@ -554,112 +523,6 @@ export default function SocialMediaAccountsManager({ emailOnly = false, onSocial
             </HStack>
           )}
 
-<<<<<<< HEAD
-      <Box display={{ base: "none", md: "block" }} overflowX="auto">
-        <Table variant="unstyled" sx={{ borderCollapse: "separate", borderSpacing: "0 10px" }}>
-          <Thead>
-            <Tr>
-              {["Platform", ...(emailOnly ? ["Created Social Media"] : []), "Assigned User", "Username", "Email", "Password", "Phone Number", "Status", "Actions"].map((heading) => (
-                <Th
-                  key={heading}
-                  px={4}
-                  py={3}
-                  fontSize="11px"
-                  textTransform="uppercase"
-                  letterSpacing="0.12em"
-                  color={muted}
-                  bg={tableHeaderBg}
-                  borderYWidth="1px"
-                  borderColor={borderColor}
-                  _first={{ borderLeftWidth: "1px", borderLeftRadius: "16px" }}
-                  _last={{ borderRightWidth: "1px", borderRightRadius: "16px" }}
-                >
-                  {heading}
-                </Th>
-              ))}
-            </Tr>
-          </Thead>
-          <Tbody>
-            {rows.map((account) => {
-              const platformVisual = getPlatformVisual(account.platform);
-              const isActive = account.active !== false;
-              return (
-                <Tr
-                  key={account._id}
-                  bg={tableRowBg}
-                  boxShadow={tableRowShadow}
-                  transition="all 0.2s ease"
-                  _hover={{ bg: tableHover, transform: "translateY(-1px)", boxShadow: tableRowHoverShadow }}
-                >
-                  <Td px={4} py={4} borderYWidth="1px" borderColor={borderColor} _first={{ borderLeftWidth: "1px", borderLeftRadius: "18px" }}>
-                    <HStack spacing={3}>
-                      <Box p={2.5} borderRadius="14px" bg={platformVisual.bg} color={platformVisual.color}>
-                        <Icon as={platformVisual.icon} />
-                      </Box>
-                      <Box>
-                        <Text fontWeight="700">{account.platform}</Text>
-                        <Badge mt={1} borderRadius="full" px={2.5} py={0.5} colorScheme={isActive ? "green" : "gray"} variant="subtle">
-                          {isActive ? "Active" : "Deactive"}
-                        </Badge>
-                      </Box>
-                    </HStack>
-                  </Td>
-                  {emailOnly ? (
-                    <Td px={4} py={4} borderYWidth="1px" borderColor={borderColor}>
-                      {renderSocialPlatformBadges(account.socialPlatforms)}
-                    </Td>
-                  ) : null}
-                  <Td px={4} py={4} borderYWidth="1px" borderColor={borderColor}>
-                    <Text fontWeight="700">{account.employeeFullName || "-"}</Text>
-                  </Td>
-                  <Td px={4} py={4} borderYWidth="1px" borderColor={borderColor}>
-                    <Text fontWeight="700">{account.accountName}</Text>
-                    {account.notes ? <Text mt={1} fontSize="sm" color={muted}>{account.notes}</Text> : null}
-                  </Td>
-                  <Td px={4} py={4} borderYWidth="1px" borderColor={borderColor}>
-                    <HStack spacing={2}>
-                      <Icon as={FiMail} color={muted} />
-                      <Text>{account.email || "-"}</Text>
-                    </HStack>
-                  </Td>
-                  <Td px={4} py={4} borderYWidth="1px" borderColor={borderColor}>
-                    <Text fontFamily="mono" fontSize="sm" fontWeight="700">{account.password || "-"}</Text>
-                  </Td>
-                  <Td px={4} py={4} borderYWidth="1px" borderColor={borderColor}>
-                    <HStack spacing={2}>
-                      <Icon as={FiPhone} color={muted} />
-                      <Text>{account.phoneNumber || "-"}</Text>
-                    </HStack>
-                  </Td>
-                  <Td px={4} py={4} borderYWidth="1px" borderColor={borderColor}>
-                    <HStack spacing={2}>
-                      <Box w="8px" h="8px" borderRadius="full" bg={isActive ? "#22C55E" : "#94A3B8"} />
-                      <Badge borderRadius="full" px={2.5} py={1} colorScheme={isActive ? "green" : "gray"} variant="subtle">
-                        {isActive ? "Active" : "Deactive"}
-                      </Badge>
-                    </HStack>
-                  </Td>
-                  <Td px={4} py={4} borderYWidth="1px" borderColor={borderColor} _last={{ borderRightWidth: "1px", borderRightRadius: "18px" }}>
-                    <HStack spacing={2}>
-                      <IconButton aria-label={`Edit ${account.accountName}`} icon={<EditIcon />} size="sm" variant="outline" borderRadius="12px" onClick={() => openEditModal(account)} />
-                      <IconButton
-                        aria-label={`Deactivate ${account.accountName}`}
-                        icon={<DeleteIcon />}
-                        size="sm"
-                        variant="outline"
-                        colorScheme="red"
-                        borderRadius="12px"
-                        isDisabled={!isActive}
-                        onClick={() => handleDelete(account._id)}
-                      />
-                    </HStack>
-                  </Td>
-                </Tr>
-              );
-            })}
-          </Tbody>
-        </Table>
-=======
           <HStack justify="space-between">
             <Text color={muted} fontWeight="600">Password</Text>
             <HStack spacing={1.5}>
@@ -714,7 +577,6 @@ export default function SocialMediaAccountsManager({ emailOnly = false, onSocial
             onClick={() => handleDelete(account._id)}
           />
         </HStack>
->>>>>>> 1489f98071704be9dec3479cb72932296170d5b1
       </Box>
     );
   };
@@ -1198,14 +1060,9 @@ export default function SocialMediaAccountsManager({ emailOnly = false, onSocial
           <ModalBody>
             <SimpleGrid columns={{ base: 1, md: 2 }} spacing={3.5}>
               <FormControl isRequired>
-<<<<<<< HEAD
-                <FormLabel>Platform</FormLabel>
+                <FormLabel fontSize="xs">Platform</FormLabel>
                 <Select
                   placeholder={emailOnly ? undefined : "Select social platform"}
-=======
-                <FormLabel fontSize="xs">Platform</FormLabel>
-                <Input
->>>>>>> 1489f98071704be9dec3479cb72932296170d5b1
                   value={form.platform}
                   onChange={(event) => handleChange("platform", event.target.value)}
                   borderRadius="10px"

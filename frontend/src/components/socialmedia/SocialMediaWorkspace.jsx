@@ -51,14 +51,11 @@ import {
   FiPackage,
   FiPower,
   FiShield,
-<<<<<<< HEAD
   FiUsers,
-=======
   FiCalendar,
   FiFileText,
   FiTarget,
   FiTrendingUp,
->>>>>>> 1489f98071704be9dec3479cb72932296170d5b1
 } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
 import { useUserStore } from "../../store/user";
@@ -138,7 +135,6 @@ const sectionMeta = {
     eyebrow: "Operations",
     title: "Email accounts",
   },
-<<<<<<< HEAD
   accountSummary: {
     eyebrow: "Operations",
     title: "Account",
@@ -146,7 +142,7 @@ const sectionMeta = {
   activations: {
     eyebrow: "Operations",
     title: "Account activations",
-=======
+  },
   analytics: {
     eyebrow: "Analytics",
     title: "Analytics Dashboard",
@@ -154,7 +150,6 @@ const sectionMeta = {
   reports: {
     eyebrow: "Analytics",
     title: "Reports Archive",
->>>>>>> 1489f98071704be9dec3479cb72932296170d5b1
   },
   requests: {
     eyebrow: "Collaboration",
@@ -482,7 +477,6 @@ export default function SocialMediaWorkspace() {
 
     if (activeSection === "email") {
       return (
-<<<<<<< HEAD
         <VStack align="stretch" spacing={6}>
           <SectionIntro eyebrow={currentMeta.eyebrow} title={currentMeta.title} />
           <SocialMediaAccountsManager
@@ -517,10 +511,6 @@ export default function SocialMediaWorkspace() {
             description="Filter all media and other accounts, then activate or deactivate each account."
           />
           <SocialMediaActivationsManager />
-=======
-        <VStack align="stretch" spacing={4}>
-          <SocialMediaAccountsManager emailOnly />
->>>>>>> 1489f98071704be9dec3479cb72932296170d5b1
         </VStack>
       );
     }
