@@ -10,6 +10,9 @@ const SocialAccountCredentialSchema = new mongoose.Schema(
     password: { type: String, trim: true, default: '' },
     notes: { type: String, trim: true, default: '' },
     active: { type: Boolean, default: true },
+    pageId: { type: String, trim: true, default: '' },
+    accessToken: { type: String, trim: true, default: '' },
+    isConnected: { type: Boolean, default: false },
   },
   { timestamps: true }
 );
