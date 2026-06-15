@@ -1,5 +1,42 @@
 const SocialAccountCredential = require('../models/SocialAccountCredential');
 
+const normalizeSocialPlatforms = (value) => {
+  if (!Array.isArray(value)) return [];
+  return [...new Set(value.map((platform) => String(platform || '').trim()).filter(Boolean))];
+};
+
+const syncEmailSocialAccounts = async (payload) => {
+  if (payload.platform !== 'Email' || !payload.socialPlatforms.length) return [];
+
+  const socialPayload = {
+    employeeFullName: payload.employeeFullName,
+    accountName: payload.accountName,
+    email: payload.email,
+    phoneNumber: payload.phoneNumber,
+    password: payload.password,
+    notes: payload.notes,
+    active: payload.active,
+    socialPlatforms: [],
+  };
+
+  return Promise.all(
+    payload.socialPlatforms
+      .filter((platform) => platform && platform !== 'Email')
+      .map((platform) =>
+        SocialAccountCredential.findOneAndUpdate(
+          { platform, accountName: payload.accountName },
+          { $set: { ...socialPayload, platform } },
+          {
+            new: true,
+            runValidators: true,
+            setDefaultsOnInsert: true,
+            upsert: true,
+          }
+        )
+      )
+  );
+};
+
 exports.listSocialAccountCredentials = async (_req, res) => {
   try {
     const docs = await SocialAccountCredential.find({}).sort({ platform: 1, active: -1, accountName: 1 }).lean();
@@ -18,6 +55,7 @@ exports.createSocialAccountCredential = async (req, res) => {
       email: (req.body.email || '').trim(),
       phoneNumber: (req.body.phoneNumber || '').trim(),
       password: (req.body.password || '').trim(),
+      socialPlatforms: normalizeSocialPlatforms(req.body.socialPlatforms),
       notes: (req.body.notes || '').trim(),
       active: req.body.active !== false,
     };
@@ -27,9 +65,35 @@ exports.createSocialAccountCredential = async (req, res) => {
     }
 
     const doc = await SocialAccountCredential.create(payload);
-    res.status(201).json(doc);
+    const syncedAccounts = await syncEmailSocialAccounts(payload);
+    res.status(201).json({ ...doc.toObject(), syncedAccounts });
   } catch (error) {
     res.status(500).json({ message: 'Failed to create social account credential', error: error.message });
+  }
+};
+
+exports.syncEmailSocialAccount = async (req, res) => {
+  try {
+    const payload = {
+      platform: 'Email',
+      employeeFullName: (req.body.employeeFullName || '').trim(),
+      accountName: (req.body.accountName || '').trim(),
+      email: (req.body.email || '').trim(),
+      phoneNumber: (req.body.phoneNumber || '').trim(),
+      password: (req.body.password || '').trim(),
+      socialPlatforms: normalizeSocialPlatforms(req.body.socialPlatforms),
+      notes: (req.body.notes || '').trim(),
+      active: req.body.active !== false,
+    };
+
+    if (!payload.accountName || !payload.socialPlatforms.length) {
+      return res.status(400).json({ message: 'Username and at least one social media platform are required' });
+    }
+
+    const syncedAccounts = await syncEmailSocialAccounts(payload);
+    res.json({ syncedAccounts });
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to sync social media account', error: error.message });
   }
 };
 
@@ -42,6 +106,7 @@ exports.updateSocialAccountCredential = async (req, res) => {
       email: (req.body.email || '').trim(),
       phoneNumber: (req.body.phoneNumber || '').trim(),
       password: (req.body.password || '').trim(),
+      socialPlatforms: normalizeSocialPlatforms(req.body.socialPlatforms),
       notes: (req.body.notes || '').trim(),
       active: req.body.active !== false,
     };
@@ -56,7 +121,8 @@ exports.updateSocialAccountCredential = async (req, res) => {
     });
 
     if (!doc) return res.status(404).json({ message: 'Social account credential not found' });
-    res.json(doc);
+    const syncedAccounts = await syncEmailSocialAccounts(payload);
+    res.json({ ...doc.toObject(), syncedAccounts });
   } catch (error) {
     res.status(500).json({ message: 'Failed to update social account credential', error: error.message });
   }

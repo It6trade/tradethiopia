@@ -15,7 +15,28 @@ const {
 // All routes are protected
 // All endpoints allow Sales Manager, HR, Finance, and Admin roles to access data
 router.route('/all-sales')
-  .get(protect, authorize('salesmanager', 'hr', 'HR', 'finance', 'Finance', 'admin'), getAllSales);
+  .get(
+    protect,
+    authorize(
+      'salesmanager',
+      'hr',
+      'HR',
+      'finance',
+      'Finance',
+      'admin',
+      'coo',
+      'COO',
+      'ceo',
+      'CEO',
+      'customerservice',
+      'CustomerService',
+      'CustomerSuccessManager',
+      'customer_success_manager',
+      'customer service',
+      'customer success manager'
+    ),
+    getAllSales
+  );
 
 router.route('/sales/:id/supervisor-comment')
   .put(protect, authorize('salesmanager'), updateSupervisorComment);

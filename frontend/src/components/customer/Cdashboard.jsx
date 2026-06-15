@@ -48,6 +48,7 @@ import {
 } from 'chart.js';
 import { Link } from 'react-router-dom';
 import CustomerMessagesPage from '../../pages/CustomerMessagesPage';
+import CompletedSalesTable from '../salesmanager/CompletedSalesTable';
 
 // Register Chart.js components
 ChartJS.register(
@@ -580,6 +581,10 @@ const CDashboard = ({ initialTab = 'dashboard' }) => {
               </CardBody>
             </Card>
           </Grid>
+
+          <Box mt={6}>
+            <CompletedSalesTable title="Completed Sales Follow-ups" />
+          </Box>
         </Box>
       )}
     </Layout>

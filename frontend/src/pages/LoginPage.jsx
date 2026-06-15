@@ -84,6 +84,9 @@ const handleLogin = async (event) => {
                     case 'coo':
                         navigate('/coo-dashboard');
                         break;
+                    case 'ceo':
+                        navigate('/ceo-dashboard');
+                        break;
                     case 'reception':
                         navigate('/reception-dashboard');
                         break;

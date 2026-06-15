@@ -7,7 +7,19 @@ const mongoose = require('mongoose');
 const escapeRegex = (value) => String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const normalizeRoleValue = (value) => (value || '').toString().trim().toLowerCase();
 const isAllowedManagerRole = (role) => (
-  ['salesmanager', 'hr', 'finance', 'admin'].includes(normalizeRoleValue(role))
+  [
+    'salesmanager',
+    'hr',
+    'finance',
+    'admin',
+    'coo',
+    'ceo',
+    'customerservice',
+    'customer service',
+    'customersuccessmanager',
+    'customer success manager',
+    'customer_success_manager'
+  ].includes(normalizeRoleValue(role))
 );
 
 const resolveAgentId = async (agentValue) => {
@@ -41,11 +53,11 @@ const getAllSales = asyncHandler(async (req, res) => {
     console.log('User:', req.user);
     console.log('Query parameters:', req.query);
     
-    // Only sales managers, HR, Finance, and Admin can access this
+    // Sales leadership and admin roles can access this report.
     if (!isAllowedManagerRole(req.user?.role)) {
       console.log('Access denied - User role:', req.user.role);
       res.status(403);
-      throw new Error('Access denied. Sales managers, HR, Finance, or Admin only.');
+      throw new Error('Access denied. Sales Manager, COO, CEO, Admin, HR, or Finance only.');
     }
 
     // Pagination (defaults)
@@ -91,7 +103,7 @@ const getAllSales = asyncHandler(async (req, res) => {
         .sort({ date: -1 })
         .skip(skip)
         .limit(limit)
-        .select('customerName courseName coursePrice followupStatus phone date agentId supervisorComment commission createdAt updatedAt')
+        .select('customerName contactTitle phone callStatus followupStatus packageScope date schedulePreference email note supervisorComment courseName courseId coursePrice productInterest source pipelineStatus agentId assignedAt commission commissionApproved approvedAt createdAt updatedAt')
         .lean(),
       SalesCustomer.countDocuments(filter)
     ]);
@@ -116,7 +128,17 @@ const getAllSales = asyncHandler(async (req, res) => {
     // Filter out any falsy agent IDs
     const validAgentIds = agentIds.filter(id => id);
     if (validAgentIds.length === 0) {
-      return res.json(sales.map(sale => sale.toObject()));
+      return res.json({
+        data: sales.map((sale) => ({
+          ...sale,
+          commission: calculateCommission(Number(sale.coursePrice) || 0),
+          agentId: null
+        })),
+        page,
+        limit,
+        total: totalCount,
+        totalPages: Math.max(1, Math.ceil(totalCount / limit))
+      });
     }
     
     const agents = await User.find({ _id: { $in: validAgentIds } }, 'username fullName email');

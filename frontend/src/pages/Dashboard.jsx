@@ -8,6 +8,7 @@ import TasksAndAlerts from '../components/TasksAndAlerts';
 import NotificationsPanel from '../components/NotificationsPanel';
 import AssetDashboard from '../components/AssetDashboard';
 import AwardsPanel from '../components/AwardsPanel';
+import CompletedSalesTable from '../components/salesmanager/CompletedSalesTable';
 import { useUserStore } from '../store/user';
 import { calculateAwards } from '../services/awardService';
 
@@ -72,6 +73,9 @@ const Dashboard = () => {
           <AdminAssetSection currentUser={currentUser} />
           <Box mb={4}>
             <AwardsPanel month={getCurrentMonth()} />
+          </Box>
+          <Box mb={4}>
+            <CompletedSalesTable title="Completed Sales Follow-ups" />
           </Box>
         </>
       )}

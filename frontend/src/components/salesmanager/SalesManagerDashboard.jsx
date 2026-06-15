@@ -97,6 +97,7 @@ import { getPendingReceptionCustomers, assignCustomerToAgent } from '../../servi
 import { getTasksForManager, getTaskStats } from '../../services/taskService';
 import { useUserStore } from '../../store/user';
 import { fetchContentTrackerEntries } from '../../services/contentTrackerService';
+import CompletedSalesTable from './CompletedSalesTable';
 import {
   buildMonthKey,
   getMonthRange,
@@ -1271,6 +1272,10 @@ const SalesManagerDashboard = () => {
             </Card>
           </Box>
         </Grid>
+
+        <Box mt={6}>
+          <CompletedSalesTable title="Completed Sales Follow-ups" compact />
+        </Box>
       </Box>
   );
 };

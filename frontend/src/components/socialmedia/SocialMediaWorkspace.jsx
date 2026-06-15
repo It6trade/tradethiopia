@@ -49,7 +49,9 @@ import {
   FiLogOut,
   FiMail,
   FiPackage,
+  FiPower,
   FiShield,
+  FiUsers,
 } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
 import { useUserStore } from "../../store/user";
@@ -59,6 +61,8 @@ import RequestPage from "../../pages/RequestPage";
 import ContentTrackerPage from "../sales/ContentTrackerPage";
 import SocialMediaManager from "./SocialMediaManager";
 import SocialMediaAccountsManager from "./SocialMediaAccountsManager";
+import SocialMediaActivationsManager from "./SocialMediaActivationsManager";
+import SocialMediaAccountSummary from "./SocialMediaAccountSummary";
 import { EmptyStateBlock, SectionIntro, SurfaceCard } from "./SocialMediaPrimitives";
 
 const navGroups = [
@@ -75,6 +79,8 @@ const navGroups = [
       { key: "assets", label: "Asset Library", icon: FiPackage },
       { key: "accounts", label: "Social Media", icon: FiShield },
       { key: "email", label: "Email", icon: FiMail },
+      { key: "accountSummary", label: "Account", icon: FiUsers },
+      { key: "activations", label: "Activations", icon: FiPower },
     ],
   },
   {
@@ -107,6 +113,14 @@ const sectionMeta = {
   email: {
     eyebrow: "Operations",
     title: "Email accounts",
+  },
+  accountSummary: {
+    eyebrow: "Operations",
+    title: "Account",
+  },
+  activations: {
+    eyebrow: "Operations",
+    title: "Account activations",
   },
   requests: {
     eyebrow: "Collaboration",
@@ -457,7 +471,38 @@ export default function SocialMediaWorkspace() {
       return (
         <VStack align="stretch" spacing={6}>
           <SectionIntro eyebrow={currentMeta.eyebrow} title={currentMeta.title} />
-          <SocialMediaAccountsManager emailOnly />
+          <SocialMediaAccountsManager
+            emailOnly
+            onSocialAccountsCreated={(_syncedAccounts, options = {}) => {
+              if (!options.stayOnEmail) setActiveSection("accounts");
+            }}
+          />
+        </VStack>
+      );
+    }
+
+    if (activeSection === "accountSummary") {
+      return (
+        <VStack align="stretch" spacing={6}>
+          <SectionIntro
+            eyebrow={currentMeta.eyebrow}
+            title={currentMeta.title}
+            description="Review employee emails and the social media accounts created from the selected media checkboxes."
+          />
+          <SocialMediaAccountSummary />
+        </VStack>
+      );
+    }
+
+    if (activeSection === "activations") {
+      return (
+        <VStack align="stretch" spacing={6}>
+          <SectionIntro
+            eyebrow={currentMeta.eyebrow}
+            title={currentMeta.title}
+            description="Filter all media and other accounts, then activate or deactivate each account."
+          />
+          <SocialMediaActivationsManager />
         </VStack>
       );
     }

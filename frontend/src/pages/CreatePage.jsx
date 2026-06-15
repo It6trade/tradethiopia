@@ -145,6 +145,7 @@ return (
                             <option value="salesmanager">Sales Manager</option>
                             <option value="reception">Reception</option>
                             <option value="COO">COO</option>
+                            <option value="CEO">CEO</option>
                         </Select>
                         <Input
                             placeholder="Salary"

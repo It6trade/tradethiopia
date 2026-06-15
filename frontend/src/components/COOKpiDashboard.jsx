@@ -31,6 +31,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
+import CompletedSalesTable from './salesmanager/CompletedSalesTable';
 
 const PRIMARY = '#185FA5';
 const TARGET_GRAY = '#8A94A6';
@@ -666,6 +667,10 @@ const COOKpiDashboard = () => {
             </Table>
           </Box>
         )}
+
+        <Box mt={5}>
+          <CompletedSalesTable title="Completed Sales Follow-ups" />
+        </Box>
       </Box>
     </Box>
   );

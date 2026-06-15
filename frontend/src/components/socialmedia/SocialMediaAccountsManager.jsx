@@ -8,6 +8,7 @@ import {
   Badge,
   Box,
   Button,
+  Checkbox,
   FormControl,
   FormLabel,
   HStack,
@@ -56,11 +57,14 @@ const initialForm = {
   email: "",
   phoneNumber: "",
   password: "",
+  socialPlatforms: [],
   notes: "",
   active: true,
 };
 
 const preferredPlatforms = ["All", "Facebook", "Instagram", "TikTok", "YouTube", "LinkedIn", "WhatsApp", "Telegram", "X", "Email", "Other"];
+const accountPlatformOptions = preferredPlatforms.filter((platform) => platform !== "All");
+const emailSocialPlatformOptions = accountPlatformOptions.filter((platform) => platform !== "Email");
 const tableRowShadow = "0 2px 10px rgba(15,23,42,0.035)";
 const tableRowHoverShadow = "0 14px 34px rgba(15,23,42,0.08)";
 const platformVisuals = {
@@ -79,7 +83,7 @@ const platformVisuals = {
 
 const getPlatformVisual = (platform) => platformVisuals[platform] || platformVisuals.Other;
 
-export default function SocialMediaAccountsManager({ emailOnly = false }) {
+export default function SocialMediaAccountsManager({ emailOnly = false, onSocialAccountsCreated }) {
   const toast = useToast();
   const { isOpen, onOpen, onClose } = useDisclosure();
   const [accounts, setAccounts] = useState([]);
@@ -92,6 +96,7 @@ export default function SocialMediaAccountsManager({ emailOnly = false }) {
   const [hrAssets, setHrAssets] = useState([]);
   const [assetsLoading, setAssetsLoading] = useState(false);
   const [assetsError, setAssetsError] = useState("");
+  const [syncingPlatforms, setSyncingPlatforms] = useState([]);
 
   const borderColor = useColorModeValue("rgba(226,232,240,0.9)", "rgba(148,163,184,0.16)");
   const muted = useColorModeValue("#64748B", "gray.400");
@@ -206,6 +211,7 @@ export default function SocialMediaAccountsManager({ emailOnly = false }) {
       email: account.email || "",
       phoneNumber: account.phoneNumber || "",
       password: account.password || "",
+      socialPlatforms: Array.isArray(account.socialPlatforms) ? account.socialPlatforms : [],
       notes: account.notes || "",
       active: account.active !== false,
     });
@@ -220,6 +226,85 @@ export default function SocialMediaAccountsManager({ emailOnly = false }) {
 
   const handleChange = (field, value) => {
     setForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const updateSelectedSocialPlatform = (platform, checked) => {
+    setForm((prev) => {
+      const selected = new Set(prev.socialPlatforms || []);
+      if (checked) {
+        selected.add(platform);
+      } else {
+        selected.delete(platform);
+      }
+      return { ...prev, socialPlatforms: Array.from(selected) };
+    });
+  };
+
+  const handleSocialPlatformToggle = async (platform, checked) => {
+    if (!checked) {
+      updateSelectedSocialPlatform(platform, false);
+      return;
+    }
+
+    if (!form.accountName.trim() || !form.employeeFullName.trim()) {
+      toast({
+        title: "Fill required details first",
+        description: "Choose the HR asset user and enter the username before creating the social media account.",
+        status: "warning",
+        duration: 3500,
+        isClosable: true,
+      });
+      return;
+    }
+
+    try {
+      setSyncingPlatforms((prev) => [...prev, platform]);
+      const response = await axios.post(`${import.meta.env.VITE_API_URL}/api/social-account-credentials/sync-email-social-account`, {
+        ...form,
+        socialPlatforms: [platform],
+      });
+      updateSelectedSocialPlatform(platform, true);
+      toast({
+        title: `${platform} account added`,
+        description: "This email is now saved as a full social media account record too.",
+        status: "success",
+        duration: 3000,
+        isClosable: true,
+      });
+
+      const syncedAccounts = response?.data?.syncedAccounts || [];
+      if (typeof onSocialAccountsCreated === "function") {
+        onSocialAccountsCreated(syncedAccounts, { stayOnEmail: true });
+      }
+    } catch (syncError) {
+      console.error("Failed to create social media account from email", syncError);
+      toast({
+        title: "Social account not created",
+        description: syncError.response?.data?.message || `Could not add ${platform} to social media accounts.`,
+        status: "error",
+        duration: 3500,
+        isClosable: true,
+      });
+    } finally {
+      setSyncingPlatforms((prev) => prev.filter((item) => item !== platform));
+    }
+  };
+
+  const renderSocialPlatformBadges = (platforms = []) => {
+    const selectedPlatforms = Array.isArray(platforms) ? platforms.filter(Boolean) : [];
+    if (!selectedPlatforms.length) {
+      return <Text fontSize="sm" color={muted}>No media selected</Text>;
+    }
+
+    return (
+      <HStack spacing={1.5} flexWrap="wrap">
+        {selectedPlatforms.map((platform) => (
+          <Badge key={platform} borderRadius="full" px={2.5} py={1} colorScheme="blue" variant="subtle">
+            {platform}
+          </Badge>
+        ))}
+      </HStack>
+    );
   };
 
   const handleSave = async () => {
@@ -241,15 +326,21 @@ export default function SocialMediaAccountsManager({ emailOnly = false }) {
 
     try {
       setSaving(true);
+      let response;
       if (editingAccount?._id) {
-        await axios.put(`${import.meta.env.VITE_API_URL}/api/social-account-credentials/${editingAccount._id}`, form);
+        response = await axios.put(`${import.meta.env.VITE_API_URL}/api/social-account-credentials/${editingAccount._id}`, form);
         toast({ title: "Account updated", status: "success", duration: 3000, isClosable: true });
       } else {
-        await axios.post(`${import.meta.env.VITE_API_URL}/api/social-account-credentials`, form);
+        response = await axios.post(`${import.meta.env.VITE_API_URL}/api/social-account-credentials`, form);
         toast({ title: "Account created", status: "success", duration: 3000, isClosable: true });
       }
       closeModal();
-      fetchAccounts();
+      await fetchAccounts();
+
+      const syncedAccounts = response?.data?.syncedAccounts || [];
+      if (emailOnly && (form.socialPlatforms || []).length && typeof onSocialAccountsCreated === "function") {
+        onSocialAccountsCreated(syncedAccounts);
+      }
     } catch (saveError) {
       console.error("Failed to save social account credential", saveError);
       toast({
@@ -321,6 +412,12 @@ export default function SocialMediaAccountsManager({ emailOnly = false }) {
                   <Text fontSize="xs" color={muted} fontWeight="800" textTransform="uppercase">Email</Text>
                   <Text fontSize="sm" textAlign="right" noOfLines={1}>{account.email || "-"}</Text>
                 </HStack>
+                {emailOnly ? (
+                  <Box>
+                    <Text mb={1.5} fontSize="xs" color={muted} fontWeight="800" textTransform="uppercase">Created Social Media</Text>
+                    {renderSocialPlatformBadges(account.socialPlatforms)}
+                  </Box>
+                ) : null}
                 <HStack justify="space-between" gap={3}>
                   <Text fontSize="xs" color={muted} fontWeight="800" textTransform="uppercase">Password</Text>
                   <Text fontFamily="mono" fontSize="sm" fontWeight="700" textAlign="right" noOfLines={1}>{account.password || "-"}</Text>
@@ -353,7 +450,7 @@ export default function SocialMediaAccountsManager({ emailOnly = false }) {
         <Table variant="unstyled" sx={{ borderCollapse: "separate", borderSpacing: "0 10px" }}>
           <Thead>
             <Tr>
-              {["Platform", "Assigned User", "Username", "Email", "Password", "Phone Number", "Status", "Actions"].map((heading) => (
+              {["Platform", ...(emailOnly ? ["Created Social Media"] : []), "Assigned User", "Username", "Email", "Password", "Phone Number", "Status", "Actions"].map((heading) => (
                 <Th
                   key={heading}
                   px={4}
@@ -398,6 +495,11 @@ export default function SocialMediaAccountsManager({ emailOnly = false }) {
                       </Box>
                     </HStack>
                   </Td>
+                  {emailOnly ? (
+                    <Td px={4} py={4} borderYWidth="1px" borderColor={borderColor}>
+                      {renderSocialPlatformBadges(account.socialPlatforms)}
+                    </Td>
+                  ) : null}
                   <Td px={4} py={4} borderYWidth="1px" borderColor={borderColor}>
                     <Text fontWeight="700">{account.employeeFullName || "-"}</Text>
                   </Td>
@@ -595,13 +697,20 @@ export default function SocialMediaAccountsManager({ emailOnly = false }) {
             <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}>
               <FormControl isRequired>
                 <FormLabel>Platform</FormLabel>
-                <Input
+                <Select
+                  placeholder={emailOnly ? undefined : "Select social platform"}
                   value={form.platform}
                   onChange={(event) => handleChange("platform", event.target.value)}
                   borderRadius="16px"
                   borderColor={borderColor}
-                  isReadOnly={emailOnly}
-                />
+                  isDisabled={emailOnly}
+                >
+                  {(emailOnly ? ["Email"] : accountPlatformOptions).map((platform) => (
+                    <option key={platform} value={platform}>
+                      {platform}
+                    </option>
+                  ))}
+                </Select>
               </FormControl>
               <FormControl isRequired>
                 <FormLabel>Assign HR Asset User</FormLabel>
@@ -665,6 +774,27 @@ export default function SocialMediaAccountsManager({ emailOnly = false }) {
                   </InputRightElement>
                 </InputGroup>
               </FormControl>
+              {emailOnly ? (
+                <FormControl gridColumn={{ md: "span 2" }}>
+                  <FormLabel>Created Social Media</FormLabel>
+                  <SimpleGrid columns={{ base: 2, md: 4 }} spacing={2}>
+                    {emailSocialPlatformOptions.map((platform) => (
+                      <Checkbox
+                        key={platform}
+                        isChecked={(form.socialPlatforms || []).includes(platform)}
+                        onChange={(event) => handleSocialPlatformToggle(platform, event.target.checked)}
+                        isDisabled={syncingPlatforms.includes(platform)}
+                        colorScheme="blue"
+                      >
+                        {platform}
+                      </Checkbox>
+                    ))}
+                  </SimpleGrid>
+                  <Text mt={2} fontSize="xs" color={muted}>
+                    Select the social media accounts created using this email.
+                  </Text>
+                </FormControl>
+              ) : null}
               <FormControl gridColumn={{ md: "span 2" }}>
                 <FormLabel>Notes</FormLabel>
                 <Textarea value={form.notes} onChange={(event) => handleChange("notes", event.target.value)} borderRadius="16px" borderColor={borderColor} rows={4} />

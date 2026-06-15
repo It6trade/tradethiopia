@@ -8,6 +8,7 @@ const SocialAccountCredentialSchema = new mongoose.Schema(
     email: { type: String, trim: true, default: '' },
     phoneNumber: { type: String, trim: true, default: '' },
     password: { type: String, trim: true, default: '' },
+    socialPlatforms: [{ type: String, trim: true }],
     notes: { type: String, trim: true, default: '' },
     active: { type: Boolean, default: true },
   },

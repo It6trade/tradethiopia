@@ -116,7 +116,7 @@ function App() {
     "/finance/messages", "/finance/team-requests", "/finance/demands", "/finance/payments", "/finance/inventory", "/finance/orders",
     "/addcustomer", "/resource", "/videolist", "/uploadpage", "/my-payroll",
     "/cdashboard", "/waitingforapproval", "/training","/comingsoonpage", "/customerreport", "/followup-report", "/customerfollowup", "/b2b-dashboard",
-    "/coo-dashboard", "/tradextv-dashboard", "/customer-settings", "/it", "/salesmanager", "/social-media", "/requests", "/finance-dashboard/payroll", "/finance-dashboard/commission-approval", "/supervisor", "/supervisor/account", "/finance/requests", "/reception-dashboard"
+    "/coo-dashboard", "/ceo-dashboard", "/tradextv-dashboard", "/customer-settings", "/it", "/salesmanager", "/social-media", "/requests", "/finance-dashboard/payroll", "/finance-dashboard/commission-approval", "/supervisor", "/supervisor/account", "/finance/requests", "/reception-dashboard"
   ].map((path) => path.toLowerCase());
 
   // Hide the navbar and sidebar for legacy/fullscreen pages; root should only match exactly
@@ -328,6 +328,7 @@ return (
       />
       <Route path="/b2b-dashboard" element={<B2BDashboard />} />
       <Route path="/coo-dashboard" element={<COODashboard />} />
+      <Route path="/ceo-dashboard" element={<COODashboard />} />
       <Route path="/tradextv-dashboard" element={<TradexTVDashboard />} />
       <Route path="/reception-dashboard" element={<LayoutWrapper><ReceptionDashboard /></LayoutWrapper>} />
       <Route
