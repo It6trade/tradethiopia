@@ -629,6 +629,10 @@ export default function SocialMediaWorkspace() {
     if (fbSuccess || fbError) {
       setActiveSection("integrations");
     }
+    const tab = searchParams.get("tab");
+    if (tab) {
+      setActiveSection(tab);
+    }
   }, [searchParams]);
 
   useEffect(() => {

@@ -1,4 +1,3 @@
-
 import {
     Container,
     Flex,
@@ -21,10 +20,11 @@ import {
 import { BsBell, BsChat } from "react-icons/bs";
 import { IoMoon } from "react-icons/io5";
 import { SunIcon } from "@chakra-ui/icons";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useUserStore } from "../store/user";
 import { useEffect, useState } from "react";
 import ChatLauncher from "./chat/ChatLauncher";
+import axiosInstance from "../services/axiosInstance";
 
 const NavbarPage = ({ sidebarWidth = "0px" }) => {
     const { colorMode, toggleColorMode } = useColorMode();
@@ -39,6 +39,7 @@ const NavbarPage = ({ sidebarWidth = "0px" }) => {
     const currentUser = useUserStore((state) => state.currentUser);
     const users = useUserStore((state) => state.users);
     const [notifications, setNotifications] = useState([]);
+    const [todayPlans, setTodayPlans] = useState([]);
 
     const clearUser = useUserStore((state) => state.clearUser);
 
@@ -49,14 +50,80 @@ const NavbarPage = ({ sidebarWidth = "0px" }) => {
         navigate('/login');
     };
 
+    // User info status notifications
     useEffect(() => {
         const pendingNotifications = users.filter(user => user.infoStatus === 'pending');
         setNotifications(pendingNotifications);
     }, [users]);
 
+    // Request browser notification permissions on mount
+    useEffect(() => {
+        if (typeof window !== "undefined" && "Notification" in window) {
+            if (Notification.permission === "default") {
+                Notification.requestPermission();
+            }
+        }
+    }, []);
+
+    // Fetch incomplete content plans scheduled for today
+    useEffect(() => {
+        if (!currentUser) return;
+        const fetchTodayPlans = async () => {
+            try {
+                const res = await axiosInstance.get("/api/content-plans");
+                const plans = res.data?.data || res.data || [];
+                const todayString = new Date().toDateString();
+                const todayIncomplete = plans.filter((p) => {
+                    if (!p.scheduledDate || p.completed) return false;
+                    return new Date(p.scheduledDate).toDateString() === todayString;
+                });
+                setTodayPlans(todayIncomplete);
+            } catch (error) {
+                console.error("Failed to fetch today's content plans for navbar", error);
+            }
+        };
+        fetchTodayPlans();
+
+        // Listen for internal content plan updates to immediately sync navbar counts
+        window.addEventListener("contentPlansUpdated", fetchTodayPlans);
+
+        const interval = setInterval(fetchTodayPlans, 60000);
+        return () => {
+            window.removeEventListener("contentPlansUpdated", fetchTodayPlans);
+            clearInterval(interval);
+        };
+    }, [currentUser]);
+
+    // Trigger push notification for today's incomplete plans (once per day session)
+    useEffect(() => {
+        if (
+            todayPlans.length > 0 &&
+            typeof window !== "undefined" &&
+            "Notification" in window &&
+            Notification.permission === "granted" &&
+            !sessionStorage.getItem("hasNotifiedToday")
+        ) {
+            const bullets = todayPlans
+                .map((p) => `• [${p.platform.toUpperCase()}] ${p.type}: ${p.title || "Untitled"}`)
+                .join("\n");
+            new Notification("Action Required: Today's Scheduled Content", {
+                body: bullets,
+                icon: "/favicon.ico",
+                requireInteraction: true,
+            });
+            sessionStorage.setItem("hasNotifiedToday", "true");
+        }
+    }, [todayPlans]);
+
     const navigateToUser = (userId) => {
         navigate("/users");
     };
+
+    const combinedNotificationsCount = notifications.length + todayPlans.length;
+    const planBg = useColorModeValue("red.50", "rgba(239, 68, 68, 0.15)");
+    const planBorderColor = useColorModeValue("red.200", "rgba(239, 68, 68, 0.3)");
+    const planHoverBg = useColorModeValue("red.100", "rgba(239, 68, 68, 0.25)");
+    const planTextColor = useColorModeValue("red.800", "red.200");
 
     return (
         <Container
@@ -95,41 +162,77 @@ const NavbarPage = ({ sidebarWidth = "0px" }) => {
                         Dashboard
                     </Text>
                 </Flex>
-{/* Navigation Icons */}
+
+                {/* Navigation Icons */}
                 <HStack spacing={4} alignItems="center">
                     {/* Notifications Dropdown */}
                     <Menu>
-                        <MenuButton as={Button} variant="ghost">
-                            <BsBell color="inherit" />
-                            {notifications.length > 0 && (
-                                <Badge ml={1} colorScheme="red">
-                                    {notifications.length}
+                        <MenuButton as={Button} variant="ghost" _hover={{ bg: "whiteAlpha.200" }} _active={{ bg: "whiteAlpha.300" }}>
+                            <BsBell color="white" size={18} />
+                            {combinedNotificationsCount > 0 && (
+                                <Badge ml={1} colorScheme="red" borderRadius="full" px={2} py={0.5}>
+                                    {combinedNotificationsCount}
                                 </Badge>
                             )}
                         </MenuButton>
-                        <MenuList p={3} minW="250px" boxShadow="lg">
-                            <Text fontWeight="bold" mb={2}>Notifications</Text>
-                            <Divider />
-                            {notifications.length === 0 ? (
-                                <Text mt={2} textAlign="center">No new notifications</Text>
+                        <MenuList p={3} minW="300px" maxH="400px" overflowY="auto" boxShadow="lg" zIndex="9999">
+                            <Text fontWeight="bold" mb={2} fontSize="sm">Notifications</Text>
+                            <Divider mb={2} />
+                            {combinedNotificationsCount === 0 ? (
+                                <Text mt={2} textAlign="center" fontSize="xs" color="gray.500">No new notifications</Text>
                             ) : (
-                                <VStack spacing={3} align="stretch">
+                                <VStack spacing={2} align="stretch">
+                                    {/* User Approval Notifications */}
                                     {notifications.map(user => (
                                         <Box
                                             key={user._id}
-                                            p={2}
+                                            p={2.5}
                                             borderRadius="md"
-                                            bg="gray.100"
+                                            bg={useColorModeValue("gray.100", "gray.800")}
+                                            borderWidth="1px"
+                                            borderColor={useColorModeValue("gray.200", "gray.700")}
                                             cursor="pointer"
-                                            _hover={{ bg: "gray.200" }}
+                                            _hover={{ bg: useColorModeValue("gray.200", "gray.700") }}
                                             onClick={() => navigateToUser(user._id)}
                                         >
-                                            <HStack>
+                                            <HStack spacing={2}>
                                                 <Avatar size="sm" name={user.username} src={user.photoURL} />
-                                                <Box>
-                                                    <Text fontWeight="bold">{user.username}</Text>
-                                                    <Text fontSize="sm" color="gray.500">
-                                                        {user.infoStatus}
+                                                <Box minW="0" flex="1">
+                                                    <Text fontWeight="bold" fontSize="xs" isTruncated>{user.username}</Text>
+                                                    <Text fontSize="10px" color="gray.500" isTruncated>
+                                                        HR Verification Pending Approval
+                                                    </Text>
+                                                </Box>
+                                            </HStack>
+                                        </Box>
+                                    ))}
+
+                                    {/* Today's Scheduled Content Notifications */}
+                                    {todayPlans.map(plan => (
+                                        <Box
+                                            key={plan._id}
+                                            p={2.5}
+                                            borderRadius="md"
+                                            bg={planBg}
+                                            borderWidth="1px"
+                                            borderColor={planBorderColor}
+                                            cursor="pointer"
+                                            _hover={{ bg: planHoverBg }}
+                                            onClick={() => {
+                                                navigate("/social-media?tab=planner");
+                                            }}
+                                        >
+                                            <HStack spacing={2} align="center">
+                                                <Avatar size="xs" name={plan.platform} bg="red.500" color="white" icon={<BsBell />} />
+                                                <Box flex="1" minW="0">
+                                                    <Text fontWeight="bold" fontSize="xs" isTruncated color={planTextColor}>
+                                                        [{plan.platform.toUpperCase()}] {plan.type}
+                                                    </Text>
+                                                    <Text fontSize="xs" isTruncated color={useColorModeValue("gray.700", "gray.300")}>
+                                                        {plan.title || plan.topic || "Untitled Post"}
+                                                    </Text>
+                                                    <Text fontSize="10px" color="gray.500">
+                                                        Today • {plan.slot || "Scheduled"}
                                                     </Text>
                                                 </Box>
                                             </HStack>
@@ -142,13 +245,13 @@ const NavbarPage = ({ sidebarWidth = "0px" }) => {
 
                     {/* Messages Dropdown */}
                     <ChatLauncher
-                        icon={<BsChat color="inherit" />}
+                        icon={<BsChat color="white" size={18} />}
                         iconButtonProps={{ variant: "ghost", color: "white" }}
                     />
 
                     {/* User Profile Dropdown */}
                     <Menu>
-                        <MenuButton as={Avatar} size="sm" name={currentUser?.username} src={currentUser?.photoURL} />
+                        <MenuButton as={Avatar} size="sm" name={currentUser?.username} src={currentUser?.photoURL} cursor="pointer" />
                         <MenuList>
                             <Box p={3} textAlign="center">
                                 <Avatar size="lg" name={currentUser?.username} src={currentUser?.photoURL} mb={2} />
@@ -160,8 +263,7 @@ const NavbarPage = ({ sidebarWidth = "0px" }) => {
                         </MenuList>
                     </Menu>
 
-
-{/* Dark Mode Toggle */}
+                    {/* Dark Mode Toggle */}
                     <IconButton
                         icon={colorMode === "light" ? <IoMoon /> : <SunIcon />}
                         onClick={toggleColorMode}

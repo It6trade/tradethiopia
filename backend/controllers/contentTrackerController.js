@@ -183,6 +183,44 @@ exports.updateEntry = async (req, res) => {
     });
 
     await entry.save();
+
+    // Two-way sync: Find and update the linked ContentPlan
+    try {
+      const ContentPlan = require('../models/ContentPlan');
+      const linkedPlan = await ContentPlan.findOne({ trackerEntryId: entry._id });
+      if (linkedPlan) {
+        if (req.body.approved !== undefined) {
+          linkedPlan.completed = req.body.approved;
+          if (req.body.approved) {
+            linkedPlan.approval = 'Posted';
+          } else {
+            linkedPlan.approval = 'Scheduled';
+          }
+        }
+        if (req.body.date !== undefined) {
+          linkedPlan.scheduledDate = new Date(req.body.date);
+          const daysOfWeek = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+          linkedPlan.day = daysOfWeek[linkedPlan.scheduledDate.getDay()];
+        }
+        if (req.body.title !== undefined) {
+          linkedPlan.title = req.body.title;
+          linkedPlan.topic = req.body.title;
+        }
+        if (req.body.description !== undefined) {
+          linkedPlan.description = req.body.description;
+        }
+        if (req.body.platform !== undefined) {
+          linkedPlan.platform = req.body.platform;
+        }
+        if (req.body.type !== undefined) {
+          linkedPlan.type = req.body.type;
+        }
+        await linkedPlan.save();
+      }
+    } catch (syncError) {
+      console.error('Failed to sync updated tracker entry back to content plan', syncError);
+    }
+
     res.json({ success: true, data: entry });
   } catch (error) {
     console.error('ContentTrackerController.updateEntry', error);
@@ -198,6 +236,20 @@ exports.deleteEntry = async (req, res) => {
     }
     if (!canAccessEntry(entry, req.user)) {
       return res.status(403).json({ success: false, message: 'Not authorized to delete this content entry' });
+    }
+
+    // Two-way sync: Find and update the linked ContentPlan
+    try {
+      const ContentPlan = require('../models/ContentPlan');
+      const linkedPlan = await ContentPlan.findOne({ trackerEntryId: entry._id });
+      if (linkedPlan) {
+        linkedPlan.completed = false;
+        linkedPlan.approval = 'Draft';
+        linkedPlan.trackerEntryId = null;
+        await linkedPlan.save();
+      }
+    } catch (syncError) {
+      console.error('Failed to sync deleted tracker entry back to content plan', syncError);
     }
 
     await entry.deleteOne();

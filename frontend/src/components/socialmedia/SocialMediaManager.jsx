@@ -25,6 +25,12 @@ import {
 } from "@chakra-ui/react";
 import axiosInstance from "../../services/axiosInstance";
 import {
+  fetchContentPlans,
+  createContentPlan,
+  updateContentPlan,
+  deleteContentPlan,
+} from "../../services/contentPlanService";
+import {
   FiActivity,
   FiBarChart2,
   FiCalendar,
@@ -265,10 +271,8 @@ const SocialMediaManager = ({ activeSection = "dashboard", setActiveSection }) =
   const [kpiLoading, setKpiLoading] = useState(true);
   const [savingPlatform, setSavingPlatform] = useState("");
   const [savingKpiPlatform, setSavingKpiPlatform] = useState("");
-  const [posts, setPosts] = useState(() => {
-    const saved = localStorage.getItem("posts");
-    return saved ? JSON.parse(saved) : calendarSlots;
-  });
+  const [posts, setPosts] = useState([]);
+  const [plansLoading, setPlansLoading] = useState(true);
   const [weeklyReports] = useState(() => {
     const saved = localStorage.getItem("weeklyReports");
     return saved ? JSON.parse(saved) : [];
@@ -288,10 +292,28 @@ const SocialMediaManager = ({ activeSection = "dashboard", setActiveSection }) =
   /* ── Persistence ── */
   useEffect(() => {
     try {
-      localStorage.setItem("posts", JSON.stringify(posts));
       localStorage.setItem("weeklyReports", JSON.stringify(weeklyReports));
     } catch (error) { console.warn("Failed to persist social media data", error); }
-  }, [posts, weeklyReports]);
+  }, [weeklyReports]);
+
+  useEffect(() => {
+    const loadPlans = async () => {
+      try {
+        setPlansLoading(true);
+        const res = await fetchContentPlans();
+        setPosts(res.data || res || []);
+      } catch (error) {
+        console.error("Failed to load content plans", error);
+      } finally {
+        setPlansLoading(false);
+      }
+    };
+    loadPlans();
+  }, []);
+
+  useEffect(() => {
+    window.dispatchEvent(new Event("contentPlansUpdated"));
+  }, [posts]);
 
   /* ── Recalc targets when date/actuals change ── */
   useEffect(() => {
@@ -483,12 +505,47 @@ const SocialMediaManager = ({ activeSection = "dashboard", setActiveSection }) =
     } catch { toast({ title: "Reopen failed", status: "error", duration: 3500, isClosable: true }); }
   };
 
-  const togglePostCompletion = (index) => {
-    setPosts((prev) => prev.map((post, i) => (i === index ? { ...post, completed: !post.completed } : post)));
+  const handleAddPost = async (newPost) => {
+    try {
+      const res = await createContentPlan(newPost);
+      setPosts((prev) => [...prev, res.data || res]);
+      toast({ title: "Plan created successfully", status: "success", duration: 3000, isClosable: true });
+    } catch (err) {
+      console.error("Failed to create content plan", err);
+      toast({ title: "Failed to create content plan", status: "error", duration: 3500, isClosable: true });
+    }
   };
 
-  const handleAddPost = (newPost) => {
-    setPosts((prev) => [...prev, newPost]);
+  const handleUpdatePost = async (id, updatedFields) => {
+    try {
+      const res = await updateContentPlan(id, updatedFields);
+      setPosts((prev) => prev.map((post) => (post._id === id || post.id === id ? (res.data || res) : post)));
+      if (updatedFields.scheduledDate) {
+        toast({ title: "Plan rescheduled", status: "success", duration: 2000, isClosable: true });
+      } else if (updatedFields.completed !== undefined) {
+        toast({
+          title: updatedFields.completed ? "Plan marked complete" : "Plan reopened",
+          description: updatedFields.completed ? "Synced to Post Tracker" : "Removed from Post Tracker",
+          status: "success",
+          duration: 3000,
+          isClosable: true
+        });
+      }
+    } catch (err) {
+      console.error("Failed to update content plan", err);
+      toast({ title: "Failed to update content plan", status: "error", duration: 3500, isClosable: true });
+    }
+  };
+
+  const handleDeletePost = async (id) => {
+    try {
+      await deleteContentPlan(id);
+      setPosts((prev) => prev.filter((post) => post._id !== id && post.id !== id));
+      toast({ title: "Plan deleted successfully", status: "success", duration: 3000, isClosable: true });
+    } catch (err) {
+      console.error("Failed to delete content plan", err);
+      toast({ title: "Failed to delete content plan", status: "error", duration: 3500, isClosable: true });
+    }
   };
 
   /* ── Section renderer ── */
@@ -504,8 +561,8 @@ const SocialMediaManager = ({ activeSection = "dashboard", setActiveSection }) =
             posts={posts}
             weekRange={weekRange}
             selectedDate={selectedDate}
-            onNewPost={onNewPostOpen}
-            loading={targetsLoading}
+            onNewPost={() => setActiveSection("planner")}
+            loading={targetsLoading || plansLoading}
           />
         );
       case "targets":
@@ -545,7 +602,8 @@ const SocialMediaManager = ({ activeSection = "dashboard", setActiveSection }) =
             selectedDate={selectedDate}
             onDateChange={handleDateChange}
             onAddPost={handleAddPost}
-            onToggleCompletion={togglePostCompletion}
+            onUpdatePost={handleUpdatePost}
+            onDeletePost={handleDeletePost}
           />
         );
       case "analytics":

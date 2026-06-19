@@ -124,6 +124,7 @@ const ContentTrackerPage = ({ title = 'Content Tracker', addButtonLabel = 'Add',
   const [modalImageUrl, setModalImageUrl] = useState('');
   const [filterDate, setFilterDate] = useState('');
   const [filterPlatform, setFilterPlatform] = useState('All');
+  const [filterPeriod, setFilterPeriod] = useState('week');
   const [searchTerm, setSearchTerm] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
@@ -594,11 +595,44 @@ const ContentTrackerPage = ({ title = 'Content Tracker', addButtonLabel = 'Add',
     onOpen();
   };
 
+  const getWeekRange = () => {
+    const today = new Date();
+    const day = today.getDay();
+    const diff = today.getDate() - day + (day === 0 ? -6 : 1);
+    const start = new Date(today.setDate(diff));
+    start.setHours(0, 0, 0, 0);
+
+    const end = new Date(start);
+    end.setDate(start.getDate() + 6);
+    end.setHours(23, 59, 59, 999);
+    return { start, end };
+  };
+
+  const isDateInCurrentWeek = (dateVal) => {
+    if (!dateVal) return false;
+    const postDate = new Date(dateVal);
+    const { start, end } = getWeekRange();
+    return postDate >= start && postDate <= end;
+  };
+
+  const isDateInSelectedMonth = (dateVal) => {
+    if (!dateVal || !selectedMonth) return false;
+    const postDate = new Date(dateVal);
+    const [year, month] = selectedMonth.split('-').map(Number);
+    return postDate.getFullYear() === year && (postDate.getMonth() + 1) === month;
+  };
+
   const visibleRows = platformRows.filter((row) => {
     if (filterDate) {
       if (!row?.date) return false;
       const rowDateString = new Date(row.date).toISOString().split('T')[0];
       if (rowDateString !== filterDate) return false;
+    } else {
+      if (filterPeriod === 'week') {
+        if (!isDateInCurrentWeek(row.date)) return false;
+      } else if (filterPeriod === 'month') {
+        if (!isDateInSelectedMonth(row.date)) return false;
+      }
     }
 
     if (hasPlatformTracking && filterPlatform !== 'All') {
@@ -615,6 +649,14 @@ const ContentTrackerPage = ({ title = 'Content Tracker', addButtonLabel = 'Add',
 
     return true;
   });
+
+  const sortedVisibleRows = useMemo(() => {
+    return [...visibleRows].sort((a, b) => {
+      const dateA = a.date ? new Date(a.date) : new Date(0);
+      const dateB = b.date ? new Date(b.date) : new Date(0);
+      return dateA - dateB;
+    });
+  }, [visibleRows]);
 
   const actionLabelMap = {
     Create: hasPlatformTracking ? 'Add Post' : 'Add Content Entry',
@@ -718,11 +760,11 @@ const ContentTrackerPage = ({ title = 'Content Tracker', addButtonLabel = 'Add',
       );
     }
 
-    if (!visibleRows.length) {
+    if (!sortedVisibleRows.length) {
       return (
         <Box bg="white" rounded="lg" shadow="sm" borderWidth="1px" borderColor="gray.200" p={6}>
           <Text color="gray.500" textAlign="center">
-            No tracker entries yet. Click “Add” to create one.
+            No tracker entries match the filters. Click “Add” to create one.
           </Text>
         </Box>
       );
@@ -745,7 +787,7 @@ const ContentTrackerPage = ({ title = 'Content Tracker', addButtonLabel = 'Add',
             </Tr>
           </Thead>
           <Tbody>
-            {visibleRows.map((row) => {
+            {sortedVisibleRows.map((row) => {
               const rowId = getEntryId(row);
               return (
                 <Tr key={rowId}>
@@ -1109,6 +1151,27 @@ const ContentTrackerPage = ({ title = 'Content Tracker', addButtonLabel = 'Add',
               </InputGroup>
             </Box>
 
+            {/* Filter by Time Period */}
+            <Box flex={{ base: "none", md: "1" }} w="100%">
+              <Text fontSize="xs" fontWeight="bold" color="gray.500" mb={1.5} textTransform="uppercase" letterSpacing="0.05em">
+                Time Period
+              </Text>
+              <Select
+                size="sm"
+                h="32px"
+                value={filterPeriod}
+                onChange={(event) => setFilterPeriod(event.target.value)}
+                borderRadius="8px"
+                borderColor="gray.200"
+                _hover={{ borderColor: "gray.300" }}
+                _focus={{ borderColor: "teal.400", boxShadow: "0 0 0 1px #319795" }}
+              >
+                <option value="week">Current Week</option>
+                <option value="month">Selected Month</option>
+                <option value="all">All Time</option>
+              </Select>
+            </Box>
+
             {/* Filter by Date */}
             <Box flex={{ base: "none", md: "1" }} w="100%">
               <Text fontSize="xs" fontWeight="bold" color="gray.500" mb={1.5} textTransform="uppercase" letterSpacing="0.05em">
@@ -1237,9 +1300,7 @@ const ContentTrackerPage = ({ title = 'Content Tracker', addButtonLabel = 'Add',
             </HStack>
           </Flex>
 
-          <Text fontSize="xs" color="gray.500" mb={4}>
-            Approved posts contribute toward the 3,000 birr bonus once the full mix is delivered alongside {SHARE_TARGET} shares.
-          </Text>
+
 
           {/* Metric cards list */}
           <SimpleGrid columns={{ base: 2, md: 3, lg: 5 }} spacing={3}>
