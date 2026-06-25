@@ -90,7 +90,7 @@ const FinancePayrollPage = lazy(() => import("./pages/sales/FinancePayrollPage.j
 const CommissionApprovalPage = lazy(() => import("./pages/sales/CommissionApprovalPage.jsx"));
 const B2BDashboard = lazy(() => import("./pages/B2BDashboard"));
 const COODashboard = lazy(() => import("./pages/COODashboard"));
-const TradexTVDashboard = lazy(() => import("./pages/TradexTVDashboard"));
+const TradexTVDashboard = lazy(() => import("./pages/tradextv/TradexTVDashboard"));
 const ITDashboard = lazy(() => import("./pages/ITDashboard"));
 const SocialMediaDashboardPage = lazy(() => import("./pages/socialmedia/SocialMediaDashboardPage"));
 const ChatPage = lazy(() => import("./pages/ChatPage.jsx"));

@@ -12,4 +12,3 @@ router.post('/', serviceTypeController.createServiceType);
 router.delete('/:id', serviceTypeController.deleteServiceType);
 
 module.exports = router;
-

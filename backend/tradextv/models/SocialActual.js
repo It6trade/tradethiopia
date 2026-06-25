@@ -15,4 +15,3 @@ const SocialActualSchema = new mongoose.Schema(
 SocialActualSchema.index({ platform: 1, month: 1, year: 1 }, { unique: true });
 
 module.exports = mongoose.model('SocialActual', SocialActualSchema);
-

@@ -9,4 +9,3 @@ router.patch('/:id/services', ctrl.updateServices);
 router.delete('/:id', ctrl.remove);
 
 module.exports = router;
-

@@ -1,5 +1,5 @@
-const RevenueActual = require('../models/RevenueActual');
-const SocialActual = require('../models/SocialActual');
+const RevenueActual = require('../tradextv/models/RevenueActual');
+const SocialActual = require('../tradextv/models/SocialActual');
 const SocialWeeklyKpi = require('../models/SocialWeeklyKpi');
 const ContentTrackerEntry = require('../models/ContentTrackerEntry');
 

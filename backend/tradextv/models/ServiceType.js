@@ -17,4 +17,3 @@ const ServiceTypeSchema = new mongoose.Schema(
 );
 
 module.exports = mongoose.model('ServiceType', ServiceTypeSchema);
-

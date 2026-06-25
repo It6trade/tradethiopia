@@ -18,4 +18,3 @@ const tradexFollowupSchema = new Schema(
 );
 
 module.exports = model('TradexFollowup', tradexFollowupSchema);
-

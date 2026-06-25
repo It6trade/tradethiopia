@@ -8,7 +8,7 @@ import TrainingFollowupGrouped from "./tabs/TrainingFollowupGrouped";
 import TesbinnTabPage from "./tabs/TesbinnTabPage";
 import EnsraTabPage from "./tabs/EnsraTabPage";
 import ConsultancyTabPage from "./tabs/ConsultancyTabPage";
-import TradexTvTabPage from "./tabs/TradexTvTabPage";
+import TradexTvTabPage from "../tradextv/TradexTvTabPage";
 import {
   Box,
   Table,

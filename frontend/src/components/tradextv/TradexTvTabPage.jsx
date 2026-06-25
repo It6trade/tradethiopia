@@ -1,4 +1,4 @@
-// frontend/src/components/customer/tabs/TradexTvTabPage.jsx
+// frontend/src/components/tradextv/TradexTvTabPage.jsx
 import React, { useState } from 'react';
 import {
   Box,
@@ -53,9 +53,6 @@ const TradexTvTabPage = ({ cardBg, headerBg, borderColor }) => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    // TODO: Replace with actual API call
-    // const response = await axios.post('/api/tradextv', formData);
-    // setVideos([...videos, response.data]);
     toast({
       title: 'Success',
       description: 'Video added successfully',

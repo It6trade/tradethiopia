@@ -42,4 +42,3 @@ exports.deleteServiceType = async (req, res) => {
     res.status(500).json({ message: 'Failed to remove service type', error: err.message });
   }
 };
-
