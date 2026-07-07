@@ -1,6 +1,69 @@
 const ITTask = require('../models/ITTask');
 const ITReport = require('../models/ITReport');
 
+const getUserDisplayName = (user) => (
+  user?.fullName
+  || user?.username
+  || user?.email
+  || 'IT User'
+);
+
+const WORKFLOW_STATUS = ['pending', 'assigned', 'in_progress', 'submitted', 'approved', 'rejected', 'completed'];
+
+const normalizeRole = (role = '') => role.toString().trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+
+const appendAudit = (task, req, action, details = {}) => {
+  task.auditLog.push({
+    actor: req.user?._id,
+    actorName: getUserDisplayName(req.user),
+    actorRole: req.user?.role || '',
+    action,
+    from: details.from,
+    to: details.to,
+    note: details.note || '',
+    metadata: details.metadata,
+  });
+};
+
+const deriveWorkflowStatus = (data = {}) => {
+  if (data.workflowStatus && WORKFLOW_STATUS.includes(data.workflowStatus)) {
+    return data.workflowStatus;
+  }
+  if (data.status === 'done') return 'completed';
+  if (data.assignedTo?.length || data.taskLeader) return 'assigned';
+  return 'pending';
+};
+
+const createCompletionReportForTask = async (task) => {
+  const existing = await ITReport.findOne({ taskRef: task._id });
+  if (existing) return existing;
+
+  const isInternal = task.projectType === 'internal';
+  const logicalTaskName = isInternal ? (task.taskName || '') : (task.client || '');
+  const logicalTaskDetails = isInternal ? (task.platform || '') : (task.category || '');
+  const projectName = logicalTaskName || task.projectName || task.client || task.platform || task.category || '';
+
+  const report = new ITReport({
+    projectName,
+    projectType: task.projectType,
+    actionType: task.actionType,
+    taskName: logicalTaskName,
+    taskDetails: logicalTaskDetails,
+    description: task.description,
+    attachments: task.attachments,
+    startDate: task.startDate,
+    endDate: task.endDate,
+    status: task.status,
+    completionDate: new Date(),
+    taskLeader: task.taskLeader || '',
+    personnelName: task.assignedTo,
+    taskRef: task._id,
+    points: task.featureCount || 1
+  });
+  await report.save();
+  return report;
+};
+
 // Create new IT task
 const createTask = async (req, res) => {
   try {
@@ -9,11 +72,17 @@ const createTask = async (req, res) => {
     if (data.assignedTo && typeof data.assignedTo === 'string') {
       data.assignedTo = [data.assignedTo];
     }
+
+    if (data.taskLeader !== undefined) {
+      data.taskLeader = String(data.taskLeader || '').trim();
+    }
     
     // Ensure status defaults to 'pending' if not provided
     if (!data.status) {
       data.status = 'pending';
     }
+
+    data.workflowStatus = deriveWorkflowStatus(data);
     
     // Handle category for external tasks (ensure it's a string)
     if (data.projectType === 'external' && data.category) {
@@ -63,6 +132,14 @@ const createTask = async (req, res) => {
     }
     
     const task = new ITTask({ ...data, createdBy: req.user && req.user.id });
+    appendAudit(task, req, 'task_created', {
+      to: {
+        workflowStatus: task.workflowStatus,
+        taskLeader: task.taskLeader,
+        assignedTo: task.assignedTo,
+      },
+      note: 'Task created',
+    });
     await task.save();
     res.status(201).json({ success: true, data: task });
   } catch (error) {
@@ -104,6 +181,14 @@ const updateTask = async (req, res) => {
     }
 
     if (updateData.progressPercent !== undefined) {
+      const role = normalizeRole(req.user?.role);
+      if (role !== 'it' && role !== 'itstaff') {
+        return res.status(403).json({
+          success: false,
+          message: 'Only IT Staff can update task progress.'
+        });
+      }
+
       updateData.progressPercent = Math.max(0, Math.min(100, Number(updateData.progressPercent) || 0));
       if (updateData.progressPercent === 0) {
         updateData.status = updateData.status || 'pending';
@@ -113,6 +198,10 @@ const updateTask = async (req, res) => {
       } else {
         updateData.status = updateData.status === 'done' ? 'done' : 'ongoing';
       }
+    }
+
+    if (updateData.taskLeader !== undefined) {
+      updateData.taskLeader = String(updateData.taskLeader || '').trim();
     }
 
     if (updateData.actionType !== undefined) {
@@ -137,8 +226,38 @@ const updateTask = async (req, res) => {
       }
     }
     
-    const updated = await ITTask.findByIdAndUpdate(req.params.id, updateData, { new: true });
-    if (!updated) return res.status(404).json({ success: false, message: 'Task not found' });
+    const task = await ITTask.findById(req.params.id);
+    if (!task) return res.status(404).json({ success: false, message: 'Task not found' });
+
+    const previousSnapshot = {
+      status: task.status,
+      workflowStatus: task.workflowStatus,
+      taskLeader: task.taskLeader,
+      assignedTo: task.assignedTo,
+      featureCount: task.featureCount,
+    };
+
+    if (updateData.status === 'done' && !updateData.workflowStatus) {
+      updateData.workflowStatus = 'completed';
+    } else if (updateData.status === 'ongoing' && !updateData.workflowStatus) {
+      updateData.workflowStatus = 'in_progress';
+    } else if (updateData.assignedTo && !updateData.workflowStatus && task.workflowStatus === 'pending') {
+      updateData.workflowStatus = 'assigned';
+    }
+
+    Object.assign(task, updateData);
+    appendAudit(task, req, 'task_updated', {
+      from: previousSnapshot,
+      to: {
+        status: task.status,
+        workflowStatus: task.workflowStatus,
+        taskLeader: task.taskLeader,
+        assignedTo: task.assignedTo,
+        featureCount: task.featureCount,
+      },
+      note: updateData.auditNote || updateData.note || '',
+    });
+    const updated = await task.save();
 
     // If task is already completed and featureCount is being updated, also update the corresponding report
     if (updated.status === 'done' && updateData.featureCount !== undefined) {
@@ -179,6 +298,7 @@ const updateTask = async (req, res) => {
           endDate: updated.endDate,
           status: updated.status,
           completionDate: new Date(),
+          taskLeader: updated.taskLeader || '',
           personnelName: updated.assignedTo, // Use assignedTo for personnel names
           taskRef: updated._id,
           points: updated.featureCount || 1 // Use featureCount as points, default to 1 if not set
@@ -192,6 +312,249 @@ const updateTask = async (req, res) => {
     res.json({ success: true, data: updated });
   } catch (error) {
     console.error('updateTask error', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+const addTaskComment = async (req, res) => {
+  try {
+    const body = String(req.body.body || req.body.comment || '').trim();
+    if (!body) {
+      return res.status(400).json({ success: false, message: 'Comment text is required' });
+    }
+
+    const task = await ITTask.findById(req.params.id);
+    if (!task) return res.status(404).json({ success: false, message: 'Task not found' });
+
+    task.comments.push({
+      author: req.user?._id,
+      authorName: getUserDisplayName(req.user),
+      authorRole: req.user?.role || '',
+      body
+    });
+    appendAudit(task, req, 'comment_added', { note: body });
+    await task.save();
+    res.status(201).json({ success: true, data: task });
+  } catch (error) {
+    console.error('addTaskComment error', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+const approveTask = async (req, res) => {
+  try {
+    const decision = req.body.approvalStatus || 'approved';
+    if (!['approved', 'rejected', 'pending_approval'].includes(decision)) {
+      return res.status(400).json({ success: false, message: 'Invalid approval status' });
+    }
+
+    const task = await ITTask.findById(req.params.id);
+    if (!task) return res.status(404).json({ success: false, message: 'Task not found' });
+
+    task.approvalStatus = decision;
+    task.approvalNote = req.body.approvalNote || req.body.note || '';
+    if (decision === 'approved') {
+      task.approvedBy = req.user?._id;
+      task.approvedAt = new Date();
+      task.workflowStatus = 'approved';
+    } else {
+      task.approvedBy = undefined;
+      task.approvedAt = undefined;
+      task.workflowStatus = decision === 'rejected' ? 'rejected' : 'submitted';
+      if (decision === 'rejected') {
+        task.rejectedBy = req.user?._id;
+        task.rejectedAt = new Date();
+      }
+    }
+
+    task.comments.push({
+      author: req.user?._id,
+      authorName: getUserDisplayName(req.user),
+      authorRole: req.user?.role || '',
+      body: decision === 'approved'
+        ? `Approved task${task.approvalNote ? `: ${task.approvalNote}` : ''}`
+        : `${decision.replace('_', ' ')}${task.approvalNote ? `: ${task.approvalNote}` : ''}`
+    });
+    appendAudit(task, req, 'approval_decision', {
+      to: decision,
+      note: task.approvalNote,
+    });
+
+    await task.save();
+    if (task.workflowStatus === 'completed') {
+      await createCompletionReportForTask(task);
+    }
+    res.json({ success: true, data: task });
+  } catch (error) {
+    console.error('approveTask error', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+const updateWorkflow = async (req, res) => {
+  try {
+    const workflowStatus = String(req.body.workflowStatus || '').trim();
+    if (!WORKFLOW_STATUS.includes(workflowStatus)) {
+      return res.status(400).json({ success: false, message: 'Invalid workflow status' });
+    }
+
+    const task = await ITTask.findById(req.params.id);
+    if (!task) return res.status(404).json({ success: false, message: 'Task not found' });
+
+    const previousWorkflow = task.workflowStatus || deriveWorkflowStatus(task);
+    const previousStatus = task.status;
+
+    task.workflowStatus = workflowStatus;
+    task.progressNote = req.body.progressNote || req.body.note || task.progressNote || '';
+
+    if (workflowStatus === 'in_progress') {
+      task.status = 'ongoing';
+    }
+    if (workflowStatus === 'submitted') {
+      task.status = 'ongoing';
+      task.approvalStatus = 'pending_approval';
+      task.submittedBy = req.user?._id;
+      task.submittedAt = new Date();
+    }
+    if (workflowStatus === 'approved') {
+      task.approvalStatus = 'approved';
+      task.approvedBy = req.user?._id;
+      task.approvedAt = new Date();
+    }
+    if (workflowStatus === 'rejected') {
+      task.approvalStatus = 'rejected';
+      task.rejectedBy = req.user?._id;
+      task.rejectedAt = new Date();
+    }
+    if (workflowStatus === 'completed') {
+      task.status = 'done';
+      task.approvalStatus = task.approvalStatus === 'rejected' ? 'pending_approval' : task.approvalStatus;
+      if (req.body.featureCount !== undefined) {
+        task.featureCount = Number(req.body.featureCount) || task.featureCount || 1;
+      }
+    }
+
+    appendAudit(task, req, 'workflow_changed', {
+      from: { workflowStatus: previousWorkflow, status: previousStatus },
+      to: { workflowStatus: task.workflowStatus, status: task.status },
+      note: req.body.note || req.body.progressNote || '',
+    });
+
+    await task.save();
+    res.json({ success: true, data: task });
+  } catch (error) {
+    console.error('updateWorkflow error', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+const reassignTask = async (req, res) => {
+  try {
+    const task = await ITTask.findById(req.params.id);
+    if (!task) return res.status(404).json({ success: false, message: 'Task not found' });
+
+    const previous = {
+      taskLeader: task.taskLeader,
+      assignedTo: task.assignedTo,
+      workflowStatus: task.workflowStatus,
+    };
+
+    if (req.body.taskLeader !== undefined) {
+      task.taskLeader = String(req.body.taskLeader || '').trim();
+    }
+    if (req.body.assignedTo !== undefined) {
+      task.assignedTo = Array.isArray(req.body.assignedTo)
+        ? req.body.assignedTo
+        : [req.body.assignedTo].filter(Boolean);
+    }
+    if (task.workflowStatus === 'pending' && (task.taskLeader || task.assignedTo.length)) {
+      task.workflowStatus = 'assigned';
+    }
+
+    appendAudit(task, req, 'task_reassigned', {
+      from: previous,
+      to: {
+        taskLeader: task.taskLeader,
+        assignedTo: task.assignedTo,
+        workflowStatus: task.workflowStatus,
+      },
+      note: req.body.note || '',
+    });
+
+    await task.save();
+    res.json({ success: true, data: task });
+  } catch (error) {
+    console.error('reassignTask error', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+const addReminder = async (req, res) => {
+  try {
+    const title = String(req.body.title || '').trim();
+    if (!title) return res.status(400).json({ success: false, message: 'Reminder title is required' });
+
+    const task = await ITTask.findById(req.params.id);
+    if (!task) return res.status(404).json({ success: false, message: 'Task not found' });
+
+    task.reminders.push({
+      title,
+      note: req.body.note || '',
+      type: req.body.type || 'task',
+      dueAt: req.body.dueAt || undefined,
+      createdBy: req.user?._id,
+    });
+    appendAudit(task, req, 'reminder_added', { note: title });
+
+    await task.save();
+    res.status(201).json({ success: true, data: task });
+  } catch (error) {
+    console.error('addReminder error', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+const updateReminder = async (req, res) => {
+  try {
+    const task = await ITTask.findById(req.params.id);
+    if (!task) return res.status(404).json({ success: false, message: 'Task not found' });
+
+    const reminder = task.reminders.id(req.params.reminderId);
+    if (!reminder) return res.status(404).json({ success: false, message: 'Reminder not found' });
+
+    if (req.body.isDone !== undefined) reminder.isDone = Boolean(req.body.isDone);
+    if (req.body.title !== undefined) reminder.title = String(req.body.title || reminder.title).trim();
+    if (req.body.note !== undefined) reminder.note = req.body.note || '';
+    if (req.body.dueAt !== undefined) reminder.dueAt = req.body.dueAt || undefined;
+
+    appendAudit(task, req, 'reminder_updated', {
+      to: { reminderId: reminder._id, isDone: reminder.isDone },
+      note: reminder.title,
+    });
+
+    await task.save();
+    res.json({ success: true, data: task });
+  } catch (error) {
+    console.error('updateReminder error', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+const getAuditLog = async (req, res) => {
+  try {
+    const tasks = await ITTask.find({}, 'taskName client projectType auditLog').sort({ updatedAt: -1 });
+    const data = tasks.flatMap((task) => (
+      (task.auditLog || []).map((entry) => ({
+        ...entry.toObject(),
+        taskId: task._id,
+        taskName: task.taskName || task.client || 'IT Task',
+        projectType: task.projectType,
+      }))
+    )).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+    res.json({ success: true, data });
+  } catch (error) {
+    console.error('getAuditLog error', error);
     res.status(500).json({ success: false, message: error.message });
   }
 };
@@ -304,7 +667,14 @@ module.exports = {
   getTasks,
   getTaskById,
   updateTask,
+  addTaskComment,
+  approveTask,
+  updateWorkflow,
+  reassignTask,
+  addReminder,
+  updateReminder,
   deleteTask,
+  getAuditLog,
   getReports,
   getReportById,
   updateReport,

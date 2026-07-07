@@ -105,6 +105,17 @@ const SettingsPage = lazy(() => import("./pages/sales/manager/components/Setting
 const ContentTrackerReport = lazy(() => import("./pages/sales/manager/components/ContentTrackerReport"));
 const CourseManagerPage = lazy(() => import("./pages/sales/manager/components/CourseManagerPage"));
 
+const IT_ALLOWED_ROLES = [
+  "admin",
+  "it",
+  "itadmin",
+  "itmanager",
+  "itteamleader",
+  "itleader",
+  "itstaff",
+  "itofficer",
+];
+
 function App() {
   const location = useLocation();
 
@@ -368,7 +379,14 @@ return (
       <Route path="/salesmanager/chat" element={<Navigate to="/chat" replace />} />
       <Route path="/supervisor/chat" element={<Navigate to="/chat" replace />} />
       <Route path="/finance/requests" element={<FinanceLayout><RequestPage /></FinanceLayout>} />
-      <Route path="/it" element={<ITDashboard />} />
+      <Route
+        path="/it"
+        element={
+          <RoleProtectedRoute allowedRoles={IT_ALLOWED_ROLES}>
+            <ITDashboard />
+          </RoleProtectedRoute>
+        }
+      />
       <Route
         path="/instructor"
         element={

@@ -34,7 +34,10 @@ import { FiSearch, FiFilter, FiPlus, FiCalendar, FiUser } from 'react-icons/fi';
 import axios from 'axios';
 import AddTaskForm from './AddTaskForm';
 import ITTaskProgressControl from './ITTaskProgressControl';
+import ITTaskEditModal from './ITTaskEditModal';
+import ITTaskDetailModal from './ITTaskDetailModal';
 import { useUserStore } from '../../../store/user'; // Adjusted relative path
+import { getWorkflowMeta } from '../utils/itWorkflow';
 
 const statusColor = (s) => {
   switch (s) {
@@ -45,18 +48,20 @@ const statusColor = (s) => {
   }
 };
 
-const InternalTasksTab = ({ search, tasks, loading, fetchTasks }) => {
+const InternalTasksTab = ({ search, tasks, loading, fetchTasks, permissions = {} }) => {
   const [filter, setFilter] = useState('all');
   const [sort, setSort] = useState('newest');
   const [showAdd, setShowAdd] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [editingTaskId, setEditingTaskId] = useState(null);
+  const [editingTask, setEditingTask] = useState(null);
+  const [viewingTask, setViewingTask] = useState(null);
   const [editingPoints, setEditingPoints] = useState(1);
   const [showCompleted, setShowCompleted] = useState(true);
   const toast = useToast();
   const { currentUser } = useUserStore();
   const token = currentUser?.token;
-  
+
   const bg = useColorModeValue('white', 'gray.800');
   const borderColor = useColorModeValue('gray.200', 'gray.600');
   const headingColor = useColorModeValue('gray.800', 'white');
@@ -67,13 +72,13 @@ const InternalTasksTab = ({ search, tasks, loading, fetchTasks }) => {
   const markComplete = async (id) => {
     const featureCount = prompt('Enter the number of features/points for this task:', '1');
     if (featureCount === null) return;
-    
+
     const points = parseInt(featureCount);
     if (isNaN(points) || points < 1) {
       toast({ title: 'Invalid input', description: 'Please enter a valid number of points (minimum 1)', status: 'error' });
       return;
     }
-    
+
     try {
       const response = await axios.put(`${import.meta.env.VITE_API_URL}/api/it/${id}`, {
         status: 'done',
@@ -83,7 +88,7 @@ const InternalTasksTab = ({ search, tasks, loading, fetchTasks }) => {
           Authorization: `Bearer ${token}`
         }
       });
-      
+
       if (response.data.success) {
         fetchTasks();
         toast({ title: 'Task marked completed', status: 'success' });
@@ -103,7 +108,7 @@ const InternalTasksTab = ({ search, tasks, loading, fetchTasks }) => {
             Authorization: `Bearer ${token}`
           }
         });
-        
+
         if (response.data.success) {
           fetchTasks();
           toast({ title: 'Task deleted', status: 'success' });
@@ -159,9 +164,9 @@ const InternalTasksTab = ({ search, tasks, loading, fetchTasks }) => {
     .filter(t => t.projectType === 'internal')
     .filter(t => showCompleted || t.status !== 'done')
     .filter(t => filter === 'all' ? true : t.status === filter)
-    .filter(t => !searchTerm || 
+    .filter(t => !searchTerm ||
       [
-        t.taskName, 
+        t.taskName,
         ...(t.platform ? t.platform.split(', ') : []),
         ...(Array.isArray(t.actionType) ? t.actionType : [t.actionType || ''])
       ]
@@ -188,11 +193,12 @@ const InternalTasksTab = ({ search, tasks, loading, fetchTasks }) => {
             Manage internal IT projects and tasks
           </Text>
         </Box>
-        
-        <Button 
-          leftIcon={<FiPlus />} 
+
+        <Button
+          leftIcon={<FiPlus />}
           colorScheme="blue"
           onClick={() => setShowAdd(true)}
+          isDisabled={!permissions.canCreateTasks}
         >
           Add Internal Task
         </Button>
@@ -211,7 +217,7 @@ const InternalTasksTab = ({ search, tasks, loading, fetchTasks }) => {
             </Stat>
           </CardBody>
         </Card>
-        
+
         <Card bg={bg} borderRadius="2xl" boxShadow="sm" borderWidth="1px" borderColor={borderColor}>
           <CardBody>
             <Stat>
@@ -224,7 +230,7 @@ const InternalTasksTab = ({ search, tasks, loading, fetchTasks }) => {
             </Stat>
           </CardBody>
         </Card>
-        
+
         <Card bg={bg} borderRadius="2xl" boxShadow="sm" borderWidth="1px" borderColor={borderColor}>
           <CardBody>
             <Stat>
@@ -237,7 +243,7 @@ const InternalTasksTab = ({ search, tasks, loading, fetchTasks }) => {
             </Stat>
           </CardBody>
         </Card>
-        
+
         <Card bg={bg} borderRadius="2xl" boxShadow="sm" borderWidth="1px" borderColor={borderColor}>
           <CardBody>
             <Stat>
@@ -266,10 +272,10 @@ const InternalTasksTab = ({ search, tasks, loading, fetchTasks }) => {
                 borderRadius="lg"
               />
             </InputGroup>
-            
-            <Select 
-              maxW="200px" 
-              value={filter} 
+
+            <Select
+              maxW="200px"
+              value={filter}
               onChange={(e) => setFilter(e.target.value)}
               borderRadius="lg"
             >
@@ -278,8 +284,8 @@ const InternalTasksTab = ({ search, tasks, loading, fetchTasks }) => {
               <option value="ongoing">In Progress</option>
               <option value="done">Completed</option>
             </Select>
-            
-            <Button 
+
+            <Button
               size="sm"
               colorScheme={showCompleted ? 'blue' : 'gray'}
               variant={showCompleted ? 'solid' : 'outline'}
@@ -287,19 +293,19 @@ const InternalTasksTab = ({ search, tasks, loading, fetchTasks }) => {
             >
               {showCompleted ? 'Hide Completed' : 'Show Completed'}
             </Button>
-            
-            <Select 
-              maxW="200px" 
-              value={sort} 
+
+            <Select
+              maxW="200px"
+              value={sort}
               onChange={(e) => setSort(e.target.value)}
               borderRadius="lg"
             >
               <option value="newest">Newest First</option>
               <option value="oldest">Oldest First</option>
             </Select>
-            
-            <Button 
-              leftIcon={<FiFilter />} 
+
+            <Button
+              leftIcon={<FiFilter />}
               variant="outline"
               onClick={fetchTasks}
             >
@@ -330,7 +336,11 @@ const InternalTasksTab = ({ search, tasks, loading, fetchTasks }) => {
               <Tbody>
                 {filtered.map((task) => (
                   <Tr key={task._id || task.id}>
-                    <Td fontWeight="medium">{task.taskName || 'N/A'}</Td>
+                    <Td>
+                      <Button variant="link" colorScheme="blue" fontWeight="medium" onClick={() => setViewingTask(task)}>
+                        {task.taskName || 'N/A'}
+                      </Button>
+                    </Td>
                     <Td>
                       <Wrap spacing={2}>
                         {task.platform ? (
@@ -364,9 +374,14 @@ const InternalTasksTab = ({ search, tasks, loading, fetchTasks }) => {
                       </HStack>
                     </Td>
                     <Td>
-                      <Badge colorScheme={statusColor(task.status)}>
-                        {task.status}
-                      </Badge>
+                      <VStack align="flex-start" spacing={1}>
+                        <Badge colorScheme={statusColor(task.status)}>
+                          {task.status}
+                        </Badge>
+                        <Badge colorScheme={getWorkflowMeta(task.workflowStatus, task.status).color} variant="subtle">
+                          {getWorkflowMeta(task.workflowStatus, task.status).label}
+                        </Badge>
+                      </VStack>
                     </Td>
                     <Td>
                       <ITTaskProgressControl task={task} fetchTasks={fetchTasks} />
@@ -379,8 +394,8 @@ const InternalTasksTab = ({ search, tasks, loading, fetchTasks }) => {
                     <Td>
                       {editingTaskId === (task._id || task.id) ? (
                         <HStack spacing={2}>
-                          <Input 
-                            type="number" 
+                          <Input
+                            type="number"
                             min="1"
                             value={editingPoints}
                             onChange={(e) => setEditingPoints(e.target.value)}
@@ -400,8 +415,8 @@ const InternalTasksTab = ({ search, tasks, loading, fetchTasks }) => {
                             {task.featureCount || (task.status === 'done' ? 1 : 0)} pts
                           </Badge>
                           {task.status === 'done' && (
-                            <Button 
-                              size="sm" 
+                            <Button
+                              size="sm"
                               colorScheme="blue"
                               variant="outline"
                               onClick={() => startEditingPoints(task._id || task.id, task.featureCount || 1)}
@@ -413,35 +428,61 @@ const InternalTasksTab = ({ search, tasks, loading, fetchTasks }) => {
                       )}
                     </Td>
                     <Td>
-                      <Wrap spacing={2}>
-                        {task.assignedTo && task.assignedTo.map((person, idx) => (
-                          <WrapItem key={idx}>
-                            <HStack spacing={1}>
-                              <Icon as={FiUser} color={iconColor} boxSize={4} />
-                              <Text fontSize="sm">{person}</Text>
-                            </HStack>
-                          </WrapItem>
-                        ))}
-                      </Wrap>
+                      <VStack align="flex-start" spacing={2}>
+                        {task.taskLeader && (
+                          <Badge colorScheme="cyan" borderRadius="full" px={2}>
+                            Leader: {task.taskLeader}
+                          </Badge>
+                        )}
+                        <Wrap spacing={2}>
+                          {task.assignedTo && task.assignedTo.map((person, idx) => (
+                            <WrapItem key={idx}>
+                              <HStack spacing={1}>
+                                <Icon as={FiUser} color={iconColor} boxSize={4} />
+                                <Text fontSize="sm">{person}</Text>
+                              </HStack>
+                            </WrapItem>
+                          ))}
+                        </Wrap>
+                      </VStack>
                     </Td>
                     <Td>
                       <HStack spacing={2}>
-                        {task.status !== 'done' && (
-                          <Button 
-                            size="sm" 
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setViewingTask(task)}
+                        >
+                          Details
+                        </Button>
+                        {task.status !== 'done' && permissions.canApproveTasks && (
+                          <Button
+                            size="sm"
                             colorScheme="green"
                             onClick={() => markComplete(task._id || task.id)}
                           >
                             Mark Complete
                           </Button>
                         )}
-                        <Button 
-                          size="sm" 
-                          colorScheme="red"
-                          onClick={() => deleteTask(task._id || task.id)}
-                        >
-                          Delete
-                        </Button>
+                        {permissions.canManageUsers && (
+                          <Button
+                            size="sm"
+                            colorScheme="blue"
+                            variant="outline"
+                            onClick={() => setEditingTask(task)}
+                          >
+                            Edit
+                          </Button>
+                        )}
+                        {permissions.canDeleteTasks && (
+                          <Button
+                            size="sm"
+                            colorScheme="red"
+                            onClick={() => deleteTask(task._id || task.id)}
+                          >
+                            Delete
+                          </Button>
+                        )}
                       </HStack>
                     </Td>
                   </Tr>
@@ -466,11 +507,23 @@ const InternalTasksTab = ({ search, tasks, loading, fetchTasks }) => {
         </Card>
       )}
 
-      <AddTaskForm 
-        isOpen={showAdd} 
-        onClose={() => setShowAdd(false)} 
+      <AddTaskForm
+        isOpen={showAdd}
+        onClose={() => setShowAdd(false)}
         onDone={fetchTasks}
         defaultProjectType="internal"
+      />
+      <ITTaskEditModal
+        isOpen={Boolean(editingTask)}
+        task={editingTask}
+        onClose={() => setEditingTask(null)}
+        onDone={fetchTasks}
+      />
+      <ITTaskDetailModal
+        isOpen={Boolean(viewingTask)}
+        task={viewingTask}
+        onClose={() => setViewingTask(null)}
+        onDone={fetchTasks}
       />
     </VStack>
   );

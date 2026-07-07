@@ -2,12 +2,21 @@ import React, { useState, useEffect } from 'react';
 import { Box, Button, Container, Heading, Text, Stack, Icon, useBreakpointValue, useToast } from '@chakra-ui/react';
 import { FaInstagram, FaTwitter, FaFacebookF } from 'react-icons/fa';
 import { useNavigate } from "react-router-dom";
+import { normalizeRole, useUserStore } from '../store/user';
 
 const ComingSoonPage = () => {
   const [timeLeft, setTimeLeft] = useState({});
   const targetDate = new Date('2025-02-28T00:00:00'); // Set your target launch date here
   const toast = useToast();
   const navigate = useNavigate();
+  const currentUser = useUserStore((state) => state.currentUser);
+
+  useEffect(() => {
+    const role = normalizeRole(currentUser?.displayRole || currentUser?.role || localStorage.getItem('userRoleRaw') || localStorage.getItem('userRole'));
+    if (['it', 'itmanager', 'itteamleader', 'itstaff'].includes(role)) {
+      navigate('/it', { replace: true });
+    }
+  }, [currentUser, navigate]);
 
   // Countdown Timer Logic
   useEffect(() => {

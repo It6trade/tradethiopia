@@ -17,6 +17,8 @@ const loadCurrentUser = () => {
     const status = localStorage.getItem("userStatus");
     const infoStatus = localStorage.getItem("infoStatus");
     const username = localStorage.getItem("userName");
+    const fullName = localStorage.getItem("userFullName");
+    const jobTitle = localStorage.getItem("userJobTitle");
     const userId = localStorage.getItem("userId"); // Retrieve user ID
     const email = localStorage.getItem("userEmail");
     const departmentFromCache = localStorage.getItem("userDepartment") || getDepartmentFromRole(storedRole);
@@ -24,6 +26,8 @@ const loadCurrentUser = () => {
     return token
         ? {
               username,
+              fullName,
+              jobTitle,
               role: normalizedRole,
               normalizedRole,
               displayRole,
@@ -81,6 +85,8 @@ export const useUserStore = create((set) => ({
             localStorage.setItem("userRole", normalizedRole);
             localStorage.setItem("userRoleRaw", displayRole);
             localStorage.setItem("userName", user.username);
+            if (user.fullName) localStorage.setItem("userFullName", user.fullName);
+            if (user.jobTitle) localStorage.setItem("userJobTitle", user.jobTitle);
             localStorage.setItem("userStatus", user.status);
             localStorage.setItem("infoStatus", user.infoStatus);
             localStorage.setItem("userId", user._id); // Store user ID
@@ -96,6 +102,8 @@ export const useUserStore = create((set) => ({
             localStorage.removeItem("userRole");
             localStorage.removeItem("userRoleRaw");
             localStorage.removeItem("userName");
+            localStorage.removeItem("userFullName");
+            localStorage.removeItem("userJobTitle");
             localStorage.removeItem("userStatus");
             localStorage.removeItem("infoStatus");
             localStorage.removeItem("userDepartment");
@@ -110,6 +118,8 @@ export const useUserStore = create((set) => ({
         localStorage.removeItem("userRole");
         localStorage.removeItem("userRoleRaw");
         localStorage.removeItem("userName");
+        localStorage.removeItem("userFullName");
+        localStorage.removeItem("userJobTitle");
         localStorage.removeItem("userStatus");
         localStorage.removeItem("infoStatus");
         localStorage.removeItem("userDepartment");

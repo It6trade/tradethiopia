@@ -81,6 +81,14 @@ const KpiScorecardSection = ({
 
   const periodKey = (type, value) => `${type}:${value}`;
 
+  const getDefaultPeriodValue = (type) => {
+    const now = new Date();
+    if (type === "day") return now.toISOString().slice(0, 10);
+    if (type === "week") return `${now.getFullYear()}-W${String(getISOWeek(now)).padStart(2, "0")}`;
+    if (type === "year") return String(now.getFullYear());
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  };
+
   const loadSavedRows = (type, value) => {
     try {
       const raw = localStorage.getItem(storageKey);
@@ -222,18 +230,14 @@ const KpiScorecardSection = ({
                 onChange={(e) => {
                   const next = e.target.value;
                   setPeriodType(next);
-                  const now = new Date();
-                  if (next === "month") {
-                    setPeriodValue(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`);
-                  } else {
-                    const week = getISOWeek(now);
-                    setPeriodValue(`${now.getFullYear()}-W${String(week).padStart(2, "0")}`);
-                  }
+                  setPeriodValue(getDefaultPeriodValue(next));
                 }}
                 size="sm"
               >
-                <option value="month">Monthly</option>
+                <option value="day">Daily</option>
                 <option value="week">Weekly</option>
+                <option value="month">Monthly</option>
+                <option value="year">Yearly</option>
               </ChakraSelect>
             </Box>
 
@@ -241,16 +245,32 @@ const KpiScorecardSection = ({
               <Text fontSize="sm" fontWeight="semibold" mb={1}>
                 Period
               </Text>
-              {periodType === "month" ? (
+              {periodType === "day" ? (
+                <input
+                  type="date"
+                  value={periodValue}
+                  onChange={(e) => setPeriodValue(e.target.value)}
+                  style={{ width: "100%", padding: "8px", borderRadius: "6px", border: "1px solid #E2E8F0" }}
+                />
+              ) : periodType === "month" ? (
                 <input
                   type="month"
                   value={periodValue}
                   onChange={(e) => setPeriodValue(e.target.value)}
                   style={{ width: "100%", padding: "8px", borderRadius: "6px", border: "1px solid #E2E8F0" }}
                 />
-              ) : (
+              ) : periodType === "week" ? (
                 <input
                   type="week"
+                  value={periodValue}
+                  onChange={(e) => setPeriodValue(e.target.value)}
+                  style={{ width: "100%", padding: "8px", borderRadius: "6px", border: "1px solid #E2E8F0" }}
+                />
+              ) : (
+                <input
+                  type="number"
+                  min="2020"
+                  max="2100"
                   value={periodValue}
                   onChange={(e) => setPeriodValue(e.target.value)}
                   style={{ width: "100%", padding: "8px", borderRadius: "6px", border: "1px solid #E2E8F0" }}
@@ -408,8 +428,10 @@ const KpiScorecardSection = ({
                   onChange={(e) => setFilterType(e.target.value)}
                 >
                   <option value="all">All types</option>
-                  <option value="month">Monthly</option>
+                  <option value="day">Daily</option>
                   <option value="week">Weekly</option>
+                  <option value="month">Monthly</option>
+                  <option value="year">Yearly</option>
                 </ChakraSelect>
                 <input
                   placeholder="Filter by period (e.g. 2026-01)"

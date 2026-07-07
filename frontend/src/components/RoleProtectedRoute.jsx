@@ -4,7 +4,7 @@ import { Box, Text, Button } from '@chakra-ui/react';
 import { useUserStore } from '../store/user.js';
 
 const normalizeRoleValue = (value = '') =>
-  value?.toString().trim().toLowerCase().replace(/\s+/g, '');
+  value?.toString().trim().toLowerCase().replace(/[^a-z0-9]/g, '');
 
 const RoleProtectedRoute = ({ allowedRoles = [], children }) => {
   const currentUser = useUserStore((s) => s.currentUser);

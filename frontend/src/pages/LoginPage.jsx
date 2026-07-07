@@ -65,11 +65,11 @@ const handleLogin = async (event) => {
         if (response.data.success) {
             // Extract user data and token correctly
             const { user, token } = response.data;
-            const { _id, role, status, infoStatus, username, email } = user;
+            const { _id, role, status, infoStatus, username, email, fullName, jobTitle } = user;
             console.log('LoginPage - Login Success:', { _id, role, status, infoStatus, username, email });
 
             // Save token and user information in local storage
-            setCurrentUser({ username, role, status, infoStatus, token, _id, email });
+            setCurrentUser({ username, role, status, infoStatus, token, _id, email, fullName, jobTitle });
 
             // Check user and info statuses
             if (status === 'inactive' && infoStatus === 'active') {
@@ -116,6 +116,12 @@ const handleLogin = async (event) => {
                         redirectAfterLogin('/tradextv-dashboard');
                         break;
                     case 'it':
+                    case 'itadmin':
+                    case 'itmanager':
+                    case 'itteamleader':
+                    case 'itleader':
+                    case 'itstaff':
+                    case 'itofficer':
                         redirectAfterLogin('/it');
                         break;
                     case 'socialmediamanager':

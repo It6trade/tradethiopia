@@ -16,6 +16,7 @@ const ITReportSchema = new mongoose.Schema({
   endDate: { type: Date },
   status: { type: String },
   completionDate: { type: Date, default: Date.now },
+  taskLeader: { type: String, default: '' },
   personnelName: [{ type: String }], // Array of assigned personnel names
   taskRef: { type: mongoose.Schema.Types.ObjectId, ref: 'ITTask', required: false },
   points: { type: Number, default: 0 } // Actual points based on features

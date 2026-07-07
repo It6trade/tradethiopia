@@ -53,12 +53,14 @@ const AddTaskForm = ({ isOpen, onClose, onDone, onLocalCreate, defaultProjectTyp
   const [endDate, setEndDate] = useState('');
   const [status, setStatus] = useState('pending');
   const [urgent, setUrgent] = useState(false);
+  const [taskLeader, setTaskLeader] = useState('');
   const [assignedTo, setAssignedTo] = useState([]);
   
   useEffect(() => {
     setCategory([]);
     setPlatform([]);
     setActionType(projectType === 'external' ? 'new' : []);
+    setTaskLeader('');
     setAssignedTo([]);
   }, [projectType]);
 
@@ -67,19 +69,59 @@ const AddTaskForm = ({ isOpen, onClose, onDone, onLocalCreate, defaultProjectTyp
   const token = currentUser?.token;
   const userRole = currentUser?.role;
   const normalizedRole = (userRole || '').toString().toLowerCase();
+  const normalizedRoleCompact = normalizedRole.replace(/[^a-z0-9]/g, '');
+  const currentUserName = currentUser?.fullName || currentUser?.username || currentUser?.email || '';
+  const isTeamLeaderCreator = normalizedRoleCompact === 'itteamleader' || normalizedRole.includes('team leader');
 
-  const itStaff = useMemo(() => {
+  useEffect(() => {
+    if (isTeamLeaderCreator && currentUserName) {
+      setTaskLeader(currentUserName);
+    }
+  }, [currentUserName, isTeamLeaderCreator]);
+
+  const itUsers = useMemo(() => {
     const defaultPool = ['Selam Desta', 'Amanuel Bekele', 'Martha Tadesse', 'Lemlem Gashaw', 'Kebede Dagnachew'];
     const storeItUsers = (users || [])
       .filter(u => {
-        const r = String(u.role || '').toLowerCase();
+        const r = String(u.role || '').toLowerCase().replace(/[^a-z0-9]/g, '');
         const d = String(u.department || '').toLowerCase();
-        return r === 'it' || d === 'it';
+        return r === 'it' || r.startsWith('it') || d === 'it';
       })
-      .map(u => u.fullName || u.username)
+      .map(u => u.fullName || u.username || u.email)
       .filter(Boolean);
+
     return Array.from(new Set([...defaultPool, ...storeItUsers])).sort();
   }, [users]);
+
+  const taskLeaderOptions = useMemo(() => {
+    if (isTeamLeaderCreator && currentUserName) {
+      return [currentUserName];
+    }
+
+    const leadershipUsers = (users || [])
+      .filter(u => {
+        const r = String(u.role || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+        const d = String(u.department || '').toLowerCase();
+        const title = String(u.jobTitle || '').toLowerCase();
+        const isItUser = r === 'it' || r.startsWith('it') || d === 'it';
+        const isLeaderRole = ['manager', 'admin', 'leader', 'lead'].some(keyword => r.includes(keyword) || title.includes(keyword));
+        return isItUser && isLeaderRole;
+      })
+      .map(u => u.fullName || u.username || u.email)
+      .filter(Boolean);
+
+    return Array.from(new Set([...leadershipUsers, ...itUsers])).sort((a, b) => {
+      const aIsLeader = leadershipUsers.includes(a);
+      const bIsLeader = leadershipUsers.includes(b);
+      if (aIsLeader && !bIsLeader) return -1;
+      if (!aIsLeader && bIsLeader) return 1;
+      return a.localeCompare(b);
+    });
+  }, [currentUserName, isTeamLeaderCreator, itUsers, users]);
+
+  const itStaff = useMemo(() => {
+    return itUsers;
+  }, [itUsers]);
   
   const bg = useColorModeValue('white', 'gray.800');
   const borderColor = useColorModeValue('gray.200', 'gray.600');
@@ -96,7 +138,7 @@ const AddTaskForm = ({ isOpen, onClose, onDone, onLocalCreate, defaultProjectTyp
       return;
     }
     
-    const isItOrAdmin = normalizedRole === 'it' || normalizedRole === 'admin';
+    const isItOrAdmin = normalizedRoleCompact === 'admin' || normalizedRoleCompact === 'it' || normalizedRoleCompact.startsWith('it');
     if (userRole && !isItOrAdmin) {
       toast({
         title: 'Insufficient permissions',
@@ -223,7 +265,9 @@ const AddTaskForm = ({ isOpen, onClose, onDone, onLocalCreate, defaultProjectTyp
       endDate: endDate || undefined,
       status: status,
       urgent: urgent,
+      taskLeader: isTeamLeaderCreator ? currentUserName : taskLeader,
       assignedTo: assignedTo,
+      workflowStatus: (isTeamLeaderCreator ? currentUserName : taskLeader) || assignedTo.length ? 'assigned' : 'pending',
     };
     
     const apiBase = import.meta.env.VITE_API_URL;
@@ -263,6 +307,7 @@ const AddTaskForm = ({ isOpen, onClose, onDone, onLocalCreate, defaultProjectTyp
       setEndDate('');
       setStatus('pending');
       setUrgent(false);
+      setTaskLeader('');
       setAssignedTo([]);
 
       toast({
@@ -290,6 +335,8 @@ const AddTaskForm = ({ isOpen, onClose, onDone, onLocalCreate, defaultProjectTyp
         endDate: payloadToSend.endDate || new Date().toISOString(),
         status: payloadToSend.status || 'pending',
         urgent: payloadToSend.urgent,
+        taskLeader: payloadToSend.taskLeader || '',
+        workflowStatus: payloadToSend.workflowStatus || 'pending',
         priority: 'Medium',
         assignedTo: payloadToSend.assignedTo || [],
         createdAt: new Date().toISOString(),
@@ -537,6 +584,26 @@ const AddTaskForm = ({ isOpen, onClose, onDone, onLocalCreate, defaultProjectTyp
                       <option value="ongoing">Ongoing</option>
                       <option value="done">Done</option>
                     </Select>
+                  </FormControl>
+
+                  <FormControl>
+                    <FormLabel>Task Leader</FormLabel>
+                    <Select
+                      value={taskLeader}
+                      onChange={e => setTaskLeader(e.target.value)}
+                      placeholder="Select task leader"
+                      borderRadius="lg"
+                      isDisabled={isTeamLeaderCreator}
+                    >
+                      {taskLeaderOptions.map((person) => (
+                        <option key={person} value={person}>{person}</option>
+                      ))}
+                    </Select>
+                    <FormHelperText>
+                      {isTeamLeaderCreator
+                        ? 'Team leaders create tasks under their own leadership scope.'
+                        : 'Choose the person responsible for leading this task.'}
+                    </FormHelperText>
                   </FormControl>
                   
                   <FormControl>

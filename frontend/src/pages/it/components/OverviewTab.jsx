@@ -30,6 +30,7 @@ import {
   Th,
   Thead,
   Tr,
+  VStack,
   useColorModeValue,
   IconButton,
   Icon,
@@ -44,6 +45,10 @@ import {
 } from 'react-icons/fi';
 import axios from 'axios';
 import { useUserStore } from '../../../store/user';
+import ITCollapsibleSection from './ITCollapsibleSection';
+import ITTaskEditModal from './ITTaskEditModal';
+import ITTaskDetailModal from './ITTaskDetailModal';
+import { getWorkflowActionForPersona, getWorkflowMeta } from '../utils/itWorkflow';
 
 const INTERNAL_SUBTASKS = [
   'Functionality',
@@ -55,7 +60,21 @@ const INTERNAL_SUBTASKS = [
 ];
 const EXTERNAL_SUBTASKS = ['New', 'Update', 'Comment', 'Renewal'];
 
-const TaskTable = ({ tasks, onToggleStatus, onUpdatePoints, emptyMessage, isCompact }) => {
+const TaskTable = ({
+  tasks,
+  onToggleStatus,
+  onWorkflowAction,
+  onRejectTask,
+  onUpdatePoints,
+  onAddComment,
+  onAddReminder,
+  onReassignTask,
+  onEditTask,
+  onViewTask,
+  permissions = {},
+  emptyMessage,
+  isCompact
+}) => {
   const [editingTaskId, setEditingTaskId] = useState(null);
   const [editingPoints, setEditingPoints] = useState(1);
 
@@ -110,7 +129,9 @@ const TaskTable = ({ tasks, onToggleStatus, onUpdatePoints, emptyMessage, isComp
             tasks.map((task) => (
               <Tr key={task._id || task.id}>
                 <Td>
-                  <Text fontWeight="semibold">{task.taskName || task.client || 'N/A'}</Text>
+                  <Button variant="link" colorScheme="blue" fontWeight="semibold" onClick={() => onViewTask(task)}>
+                    {task.taskName || task.client || 'N/A'}
+                  </Button>
                   <Text fontSize="xs" color="gray.500">
                     {task.platform || task.category || ''}
                   </Text>
@@ -159,25 +180,78 @@ const TaskTable = ({ tasks, onToggleStatus, onUpdatePoints, emptyMessage, isComp
                   )}
                 </Td>
                 <Td>
-                  <Badge colorScheme={statusColor(task.status)}>{task.status}</Badge>
+                  <VStack align="flex-start" spacing={1}>
+                    <Badge colorScheme={statusColor(task.status)}>{task.status}</Badge>
+                    <Badge colorScheme={getWorkflowMeta(task.workflowStatus, task.status).color} variant="subtle">
+                      {getWorkflowMeta(task.workflowStatus, task.status).label}
+                    </Badge>
+                  </VStack>
                 </Td>
                 <Td>
-                  <HStack spacing={2}>
-                    <Avatar size="xs" name={(task.assignedTo && task.assignedTo[0]) || 'Staff'} />
-                    <Text fontSize="sm">{(task.assignedTo && task.assignedTo.join(', ')) || 'Unassigned'}</Text>
-                  </HStack>
+                  <VStack align="flex-start" spacing={1}>
+                    {task.taskLeader && (
+                      <Badge colorScheme="cyan" borderRadius="full">
+                        Leader: {task.taskLeader}
+                      </Badge>
+                    )}
+                    <HStack spacing={2}>
+                      <Avatar size="xs" name={(task.assignedTo && task.assignedTo[0]) || task.taskLeader || 'Staff'} />
+                      <Text fontSize="sm">{(task.assignedTo && task.assignedTo.join(', ')) || 'Unassigned'}</Text>
+                    </HStack>
+                  </VStack>
                 </Td>
                 <Td>{task.endDate ? new Date(task.endDate).toLocaleDateString() : 'N/A'}</Td>
                 <Td textAlign="right">
-                  <Button
-                    size="sm"
-                    colorScheme={task.status === 'done' ? 'gray' : 'green'}
-                    variant="outline"
-                    rightIcon={<FiChevronRight />}
-                    onClick={() => onToggleStatus(task._id || task.id, task.status)}
-                  >
-                    {task.status === 'done' ? 'Reopen' : 'Mark Done'}
-                  </Button>
+                  <HStack justify="flex-end" spacing={2}>
+                    <Button size="sm" variant="outline" onClick={() => onViewTask(task)}>
+                      Details
+                    </Button>
+                    {permissions.canComment && (
+                      <Button size="sm" variant="outline" onClick={() => onAddComment(task._id || task.id)}>
+                        Comment
+                      </Button>
+                    )}
+                    {permissions.canComment && (
+                      <Button size="sm" variant="outline" onClick={() => onAddReminder(task._id || task.id)}>
+                        Remind
+                      </Button>
+                    )}
+                    {permissions.canApproveTasks && (
+                      <Button size="sm" variant="outline" onClick={() => onReassignTask(task)}>
+                        Reassign
+                      </Button>
+                    )}
+                    {permissions.canManageUsers && (
+                      <Button size="sm" colorScheme="blue" variant="outline" onClick={() => onEditTask(task)}>
+                        Edit
+                      </Button>
+                    )}
+                    {permissions.canApproveTasks && getWorkflowMeta(task.workflowStatus, task.status).value === 'submitted' && (
+                      <Button size="sm" colorScheme="red" variant="outline" onClick={() => onRejectTask(task._id || task.id)}>
+                        Reject
+                      </Button>
+                    )}
+                    {getWorkflowActionForPersona(task, permissions) && (
+                      <Button
+                        size="sm"
+                        colorScheme={getWorkflowActionForPersona(task, permissions).color}
+                        rightIcon={<FiChevronRight />}
+                        onClick={() => onWorkflowAction(task, getWorkflowActionForPersona(task, permissions))}
+                      >
+                        {getWorkflowActionForPersona(task, permissions).label}
+                      </Button>
+                    )}
+                    {permissions.canApproveTasks && (
+                      <Button
+                        size="sm"
+                        colorScheme={task.status === 'done' ? 'gray' : 'green'}
+                        variant="outline"
+                        onClick={() => onToggleStatus(task._id || task.id, task.status)}
+                      >
+                        {task.status === 'done' ? 'Reopen' : 'Mark Done'}
+                      </Button>
+                    )}
+                  </HStack>
                 </Td>
               </Tr>
             ))
@@ -188,19 +262,35 @@ const TaskTable = ({ tasks, onToggleStatus, onUpdatePoints, emptyMessage, isComp
   );
 };
 
-export default function OverviewTab({ tasks, weeklyTarget, setWeeklyTarget, fetchTasks }) {
+export default function OverviewTab({ tasks, weeklyTarget, setWeeklyTarget, fetchTasks, permissions = {} }) {
   const [filters, setFilters] = useState({
     type: 'all',
     category: 'all',
     progress: 'all',
     query: '',
   });
+  const [editingTask, setEditingTask] = useState(null);
+  const [viewingTask, setViewingTask] = useState(null);
   
-  const { currentUser } = useUserStore();
+  const { currentUser, users } = useUserStore();
   const token = currentUser?.token;
+  const currentUserName = currentUser?.fullName || currentUser?.username || currentUser?.email || '';
+  const itPeople = useMemo(() => (
+    (users || [])
+      .filter((user) => {
+        const role = String(user.role || '').toLowerCase();
+        const department = String(user.department || '').toLowerCase();
+        return role.includes('it') || department === 'it';
+      })
+      .map((user) => user.fullName || user.username || user.email)
+      .filter(Boolean)
+  ), [users]);
 
   const cardBg = useColorModeValue('white', 'gray.800');
-  const borderColor = useColorModeValue('gray.100', 'gray.700');
+  const borderColor = useColorModeValue('gray.200', 'gray.700');
+  const filterInputBg = useColorModeValue('gray.50', 'gray.700');
+  const subtleBg = useColorModeValue('gray.50', 'whiteAlpha.50');
+  const tableHeadBg = useColorModeValue('gray.50', 'gray.900');
 
   const handleToggleStatus = async (taskId, currentStatus) => {
     const isDone = currentStatus === 'done';
@@ -219,7 +309,9 @@ export default function OverviewTab({ tasks, weeklyTarget, setWeeklyTarget, fetc
     try {
       await axios.put(`${import.meta.env.VITE_API_URL}/api/it/${taskId}`, {
         status: nextStatus,
-        featureCount
+        featureCount,
+        workflowStatus: nextStatus === 'done' ? 'completed' : 'in_progress',
+        auditNote: nextStatus === 'done' ? 'Marked complete from overview' : 'Reopened from overview',
       }, {
         headers: {
           Authorization: `Bearer ${token}`
@@ -246,6 +338,127 @@ export default function OverviewTab({ tasks, weeklyTarget, setWeeklyTarget, fetc
     }
   };
 
+  const handleAddComment = async (taskId) => {
+    const body = prompt('Add a task comment:');
+    if (!body || !body.trim()) return;
+    try {
+      await axios.post(`${import.meta.env.VITE_API_URL}/api/it/${taskId}/comments`, { body }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      fetchTasks();
+    } catch (err) {
+      console.error('Add comment error', err);
+    }
+  };
+
+  const handleApproveTask = async (taskId) => {
+    const note = prompt('Approval note (optional):', 'Approved by IT leadership');
+    if (note === null) return;
+    try {
+      await axios.post(`${import.meta.env.VITE_API_URL}/api/it/${taskId}/approve`, {
+        approvalStatus: 'approved',
+        approvalNote: note
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      fetchTasks();
+    } catch (err) {
+      console.error('Approve task error', err);
+    }
+  };
+
+  const handleWorkflowAction = async (task, action) => {
+    const taskId = task._id || task.id;
+    let note = '';
+    let featureCount;
+
+    if (action.next === 'submitted') {
+      note = prompt('Submission note (optional):', task.progressNote || 'Ready for review') || '';
+    } else if (action.next === 'completed') {
+      const points = prompt('Final feature/point count:', String(task.featureCount || 1));
+      if (points === null) return;
+      featureCount = parseInt(points);
+      if (Number.isNaN(featureCount) || featureCount < 1) featureCount = 1;
+      note = 'Completed after approval';
+    } else {
+      note = prompt('Progress note (optional):', '') || '';
+    }
+
+    try {
+      await axios.post(`${import.meta.env.VITE_API_URL}/api/it/${taskId}/workflow`, {
+        workflowStatus: action.next,
+        note,
+        progressNote: note,
+        featureCount,
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      fetchTasks();
+    } catch (err) {
+      console.error('Workflow action error', err);
+    }
+  };
+
+  const handleRejectTask = async (taskId) => {
+    const note = prompt('Rejection note / required changes:', 'Please revise and resubmit.');
+    if (note === null) return;
+    try {
+      await axios.post(`${import.meta.env.VITE_API_URL}/api/it/${taskId}/approve`, {
+        approvalStatus: 'rejected',
+        approvalNote: note,
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      fetchTasks();
+    } catch (err) {
+      console.error('Reject task error', err);
+    }
+  };
+
+  const handleAddReminder = async (taskId) => {
+    const title = prompt('Reminder title:', 'Follow up on this task');
+    if (!title || !title.trim()) return;
+    const dueAt = prompt('Reminder date (YYYY-MM-DD, optional):', '');
+    const note = prompt('Reminder note (optional):', '') || '';
+    try {
+      await axios.post(`${import.meta.env.VITE_API_URL}/api/it/${taskId}/reminders`, {
+        title,
+        dueAt: dueAt || undefined,
+        note,
+        type: 'action',
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      fetchTasks();
+    } catch (err) {
+      console.error('Add reminder error', err);
+    }
+  };
+
+  const handleReassignTask = async (task) => {
+    const available = itPeople.length ? itPeople.join(', ') : 'Type names separated by comma';
+    let taskLeader = currentUserName || task.taskLeader || '';
+    if (permissions.canManageUsers) {
+      taskLeader = prompt(`Task leader:\nAvailable: ${available}`, task.taskLeader || '');
+      if (taskLeader === null) return;
+    }
+    const assigned = prompt('Assigned staff, comma separated:', (task.assignedTo || []).join(', '));
+    if (assigned === null) return;
+
+    try {
+      await axios.post(`${import.meta.env.VITE_API_URL}/api/it/${task._id || task.id}/reassign`, {
+        taskLeader,
+        assignedTo: assigned.split(',').map((item) => item.trim()).filter(Boolean),
+        note: 'Reassigned from IT overview',
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      fetchTasks();
+    } catch (err) {
+      console.error('Reassign task error', err);
+    }
+  };
+
   const filteredTasks = useMemo(() => {
     return (tasks || []).filter((task) => {
       const matchesType = filters.type === 'all' || task.projectType === filters.type;
@@ -269,6 +482,7 @@ export default function OverviewTab({ tasks, weeklyTarget, setWeeklyTarget, fetc
         (task.client && task.client.toLowerCase().includes(query)) ||
         (task.platform && task.platform.toLowerCase().includes(query)) ||
         (task.category && task.category.toLowerCase().includes(query)) ||
+        (task.taskLeader && task.taskLeader.toLowerCase().includes(query)) ||
         (task.assignedTo && task.assignedTo.some(a => a.toLowerCase().includes(query)));
         
       return matchesType && matchesCategory && matchesProgress && matchesQuery;
@@ -294,62 +508,77 @@ export default function OverviewTab({ tasks, weeklyTarget, setWeeklyTarget, fetc
       value: (tasks || []).length,
       helper: `${doneTasks.length} completed`,
       icon: FiList,
+      color: 'blue',
     },
     {
       label: 'Weekly Points',
       value: `${totalPoints}/${weeklyTarget}`,
       helper: targetAchieved ? 'Target achieved' : `${remainingGap} points to go`,
       icon: FiTarget,
+      color: 'green',
     },
     {
       label: 'Internal Focus',
       value: internalPoints,
       helper: 'Internal contributions',
       icon: FiLayers,
+      color: 'purple',
     },
     {
       label: 'External Focus',
       value: externalPoints,
       helper: 'External deliveries',
       icon: FiPieChart,
+      color: 'orange',
     },
   ];
 
   return (
     <VStack spacing={8} align="stretch">
-      <SimpleGrid columns={{ base: 1, md: 2, lg: 4 }} gap={4}>
-        {summaryCards.map((card) => {
-          const IconComponent = card.icon;
-          return (
-            <Card key={card.label} borderRadius="2xl" boxShadow="md" bg={cardBg}>
-              <CardBody>
-                <HStack justify="space-between">
-                  <VStack align="start">
-                    <Text fontSize="sm" color="gray.500">
-                      {card.label}
-                    </Text>
-                    <Heading size="md">{card.value}</Heading>
-                    <Text fontSize="xs" color="gray.500">
-                      {card.helper}
-                    </Text>
-                  </VStack>
-                  <IconButton
-                    aria-label={card.label}
-                    icon={<IconComponent />}
-                    variant="ghost"
-                    size="md"
-                    isRound
-                    color="blue.500"
-                  />
-                </HStack>
-              </CardBody>
-            </Card>
-          );
-        })}
-      </SimpleGrid>
+      <ITCollapsibleSection
+        title="Summary Cards"
+        subtitle="High-level IT workload and scoring indicators."
+        defaultOpen
+      >
+        <SimpleGrid columns={{ base: 1, md: 2, lg: 4 }} gap={4}>
+          {summaryCards.map((card) => {
+            const IconComponent = card.icon;
+            return (
+              <Card key={card.label} borderRadius="14px" boxShadow="sm" bg={cardBg} border="1px solid" borderColor={borderColor}>
+                <CardBody>
+                  <HStack justify="space-between">
+                    <VStack align="start">
+                      <Text fontSize="sm" color="gray.500">
+                        {card.label}
+                      </Text>
+                      <Heading size="md">{card.value}</Heading>
+                      <Text fontSize="xs" color="gray.500">
+                        {card.helper}
+                      </Text>
+                    </VStack>
+                    <IconButton
+                      aria-label={card.label}
+                      icon={<IconComponent />}
+                      variant="solid"
+                      size="md"
+                      isRound
+                      bg={`${card.color}.50`}
+                      color={`${card.color}.500`}
+                      _hover={{ bg: `${card.color}.100` }}
+                    />
+                  </HStack>
+                </CardBody>
+              </Card>
+            );
+          })}
+        </SimpleGrid>
+      </ITCollapsibleSection>
 
-      <Card borderRadius="2xl" boxShadow="md" bg={cardBg}>
-        <CardBody>
+      <ITCollapsibleSection
+        title="Weekly Target"
+        subtitle="Expand to adjust targets and review progress."
+        defaultOpen
+      >
           <Flex direction={{ base: 'column', md: 'row' }} align="center" justify="space-between" gap={4}>
             <Box>
               <Text fontSize="sm" color="gray.500">
@@ -389,20 +618,22 @@ export default function OverviewTab({ tasks, weeklyTarget, setWeeklyTarget, fetc
             <Progress
               value={progressPercent}
               colorScheme={targetAchieved ? 'green' : 'orange'}
-              borderRadius="xl"
+              borderRadius="full"
               size="lg"
               w={{ base: '100%', md: '40%' }}
               hasStripe={!targetAchieved}
+              bg={subtleBg}
             />
           </Flex>
-        </CardBody>
-      </Card>
+      </ITCollapsibleSection>
 
-      <Card borderRadius="2xl" boxShadow="md" bg={cardBg}>
-        <CardHeader pb={2} px={6}>
+      <ITCollapsibleSection
+        title="Task System"
+        subtitle="Filter, comment, approve, and manage current work."
+        defaultOpen
+      >
           <Flex direction={{ base: 'column', md: 'row' }} align="center" justify="space-between" gap={4}>
             <Box>
-              <Heading size="md">Task System</Heading>
               <Text fontSize="sm" color="gray.500">
                 Filter and manage open requests with auto-calculated scores.
               </Text>
@@ -414,7 +645,7 @@ export default function OverviewTab({ tasks, weeklyTarget, setWeeklyTarget, fetc
                   placeholder="Search tasks"
                   value={filters.query}
                   onChange={(e) => setFilters((prev) => ({ ...prev, query: e.target.value }))}
-                  bg={useColorModeValue('gray.50', 'gray.700')}
+                  bg={filterInputBg}
                   borderRadius="lg"
                 />
               </InputGroup>
@@ -457,16 +688,46 @@ export default function OverviewTab({ tasks, weeklyTarget, setWeeklyTarget, fetc
               </Select>
             </HStack>
           </Flex>
-        </CardHeader>
-        <CardBody px={6} pt={0}>
+          <Box mt={5}>
+          <Box
+            border="1px solid"
+            borderColor={borderColor}
+            borderRadius="12px"
+            overflow="hidden"
+            sx={{
+              'thead tr': { background: tableHeadBg },
+              'tbody tr:hover': { background: subtleBg },
+            }}
+          >
           <TaskTable
             tasks={filteredTasks}
             onToggleStatus={handleToggleStatus}
+            onWorkflowAction={handleWorkflowAction}
+            onRejectTask={handleRejectTask}
             onUpdatePoints={handleUpdatePoints}
+            onAddComment={handleAddComment}
+            onAddReminder={handleAddReminder}
+            onReassignTask={handleReassignTask}
+            onEditTask={setEditingTask}
+            onViewTask={setViewingTask}
+            permissions={permissions}
             emptyMessage="No tasks match the filters"
           />
-        </CardBody>
-      </Card>
+          </Box>
+          </Box>
+      </ITCollapsibleSection>
+      <ITTaskEditModal
+        isOpen={Boolean(editingTask)}
+        task={editingTask}
+        onClose={() => setEditingTask(null)}
+        onDone={fetchTasks}
+      />
+      <ITTaskDetailModal
+        isOpen={Boolean(viewingTask)}
+        task={viewingTask}
+        onClose={() => setViewingTask(null)}
+        onDone={fetchTasks}
+      />
     </VStack>
   );
 }
