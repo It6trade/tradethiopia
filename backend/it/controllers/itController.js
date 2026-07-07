@@ -57,6 +57,10 @@ const createTask = async (req, res) => {
     if (data.featureCount !== undefined) {
       data.featureCount = Number(data.featureCount);
     }
+
+    if (data.progressPercent !== undefined) {
+      data.progressPercent = Math.max(0, Math.min(100, Number(data.progressPercent) || 0));
+    }
     
     const task = new ITTask({ ...data, createdBy: req.user && req.user.id });
     await task.save();
@@ -99,6 +103,18 @@ const updateTask = async (req, res) => {
       updateData.featureCount = Number(updateData.featureCount);
     }
 
+    if (updateData.progressPercent !== undefined) {
+      updateData.progressPercent = Math.max(0, Math.min(100, Number(updateData.progressPercent) || 0));
+      if (updateData.progressPercent === 0) {
+        updateData.status = updateData.status || 'pending';
+      } else if (updateData.progressPercent === 100) {
+        updateData.status = 'done';
+        updateData.featureCount = updateData.featureCount || 1;
+      } else {
+        updateData.status = updateData.status === 'done' ? 'done' : 'ongoing';
+      }
+    }
+
     if (updateData.actionType !== undefined) {
       if (Array.isArray(updateData.actionType)) {
         if (updateData.projectType === 'external') {
@@ -138,7 +154,7 @@ const updateTask = async (req, res) => {
     }
 
     // If status changed to Completed, generate report
-    if (req.body.status && req.body.status === 'done') {
+    if ((req.body.status && req.body.status === 'done') || updateData.progressPercent === 100) {
       try {
         const isInternal = updated.projectType === 'internal';
 

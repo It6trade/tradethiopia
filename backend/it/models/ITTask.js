@@ -20,6 +20,7 @@ const ITTaskSchema = new mongoose.Schema({
   date: { type: Date, default: Date.now },
   assignedTo: [{ type: String }], // Array of assigned user IDs
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: false },
+  progressPercent: { type: Number, min: 0, max: 100, default: 0 },
   featureCount: { type: Number, default: 0 } // Number of features added to the task
 }, { timestamps: true });
 

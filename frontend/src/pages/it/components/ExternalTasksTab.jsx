@@ -33,6 +33,7 @@ import {
 import { FiSearch, FiFilter, FiPlus, FiCalendar, FiUser } from 'react-icons/fi';
 import axios from 'axios';
 import AddTaskForm from './AddTaskForm';
+import ITTaskProgressControl from './ITTaskProgressControl';
 import { useUserStore } from '../../../store/user'; // Adjusted relative path
 
 const statusColor = (s) => {
@@ -314,6 +315,7 @@ const ExternalTasksTab = ({ search, tasks, loading, fetchTasks }) => {
                   <Th>Category</Th>
                   <Th>Timeline</Th>
                   <Th>Status</Th>
+                  <Th>Progress</Th>
                   <Th>Priority</Th>
                   <Th>Points</Th>
                   <Th>Assignee</Th>
@@ -353,6 +355,9 @@ const ExternalTasksTab = ({ search, tasks, loading, fetchTasks }) => {
                       <Badge colorScheme={statusColor(task.status)}>
                         {task.status}
                       </Badge>
+                    </Td>
+                    <Td>
+                      <ITTaskProgressControl task={task} fetchTasks={fetchTasks} />
                     </Td>
                     <Td>
                       <Badge colorScheme={task.priority === 'High' ? 'red' : task.priority === 'Medium' ? 'orange' : 'green'}>
