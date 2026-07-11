@@ -47,6 +47,7 @@ const collectTaskParticipantAliases = (task) => (
 
 const isItManagerRole = (role) => ['admin', 'itmanager', 'itadmin'].includes(normalizeRole(role));
 const escapeRegex = (value = '') => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const getTaskLocation = (task) => `${task.projectType || 'IT'} / ${task.platform || task.category || task.client || 'Project Workspace'}`;
 
 const buildTaskAccessFilter = (req, baseFilter = {}) => {
   const role = normalizeRole(req.user?.role);
@@ -71,6 +72,67 @@ const canAccessTask = (task, req) => {
   const aliases = getUserAliases(req.user);
   const participants = collectTaskParticipantAliases(task);
   return aliases.some((alias) => participants.includes(alias));
+};
+
+const emitNotification = (notification) => {
+  emitToUsers([notification.user], 'newNotification', {
+    id: notification._id,
+    _id: notification._id,
+    text: notification.text,
+    read: notification.read,
+    type: notification.type,
+    itTaskId: notification.itTaskId,
+    commentId: notification.commentId,
+    link: notification.link,
+    metadata: notification.metadata,
+    createdAt: notification.createdAt,
+  });
+};
+
+const notifyTaskParticipants = async (task, req, options = {}) => {
+  try {
+    const aliases = collectTaskParticipantAliases(task);
+    if (!aliases.length) return [];
+
+    const allUsers = await User.find({ status: 'active' }).select('username fullName email role department status');
+    const recipients = new Map();
+
+    allUsers.forEach((user) => {
+      const matchesTaskAlias = getUserAliases(user).some((alias) => aliases.includes(alias));
+      if (matchesTaskAlias) {
+        recipients.set(String(user._id), user);
+      }
+    });
+
+    const taskTitle = getTaskTitle(task);
+    const title = options.title || 'IT task update';
+    const actionLabel = options.actionLabel || 'View task';
+    const link = options.link || `/it?tab=projects&task=${task._id}`;
+    const notificationDocs = [...recipients.values()].map((user) => ({
+      user: user._id,
+      text: options.text || `${title}: ${taskTitle}.`,
+      type: options.type || 'task',
+      itTaskId: task._id,
+      link,
+      metadata: {
+        title,
+        taskTitle,
+        taskLocation: getTaskLocation(task),
+        actionLabel,
+        actorName: getUserDisplayName(req.user),
+        ...(options.metadata || {}),
+      },
+    }));
+
+    if (!notificationDocs.length) return [];
+
+    const createdNotifications = await Notification.insertMany(notificationDocs);
+    createdNotifications.forEach(emitNotification);
+    return createdNotifications;
+  } catch (error) {
+    console.error('notifyTaskParticipants error', error);
+    return [];
+  }
 };
 
 const notifyTaskCommentParticipants = async (task, comment, req) => {
@@ -101,7 +163,7 @@ const notifyTaskCommentParticipants = async (task, comment, req) => {
     const taskTitle = getTaskTitle(task);
     const actorName = getUserDisplayName(req.user);
     const link = `/it?tab=projects&task=${taskId}&comment=${commentId}`;
-    const taskLocation = `${task.projectType || 'IT'} / ${task.platform || task.category || 'Project Workspace'}`;
+    const taskLocation = getTaskLocation(task);
     const commentPreview = String(comment.body || '').slice(0, 160);
     const notificationDocs = [...recipients.values()].map((user) => ({
       user: user._id,
@@ -123,20 +185,7 @@ const notifyTaskCommentParticipants = async (task, comment, req) => {
     if (!notificationDocs.length) return [];
 
     const createdNotifications = await Notification.insertMany(notificationDocs);
-    createdNotifications.forEach((notification) => {
-      emitToUsers([notification.user], 'newNotification', {
-        id: notification._id,
-        _id: notification._id,
-        text: notification.text,
-        read: notification.read,
-        type: notification.type,
-        itTaskId: notification.itTaskId,
-        commentId: notification.commentId,
-        link: notification.link,
-        metadata: notification.metadata,
-        createdAt: notification.createdAt,
-      });
-    });
+    createdNotifications.forEach(emitNotification);
 
     return createdNotifications;
   } catch (error) {
@@ -274,6 +323,11 @@ const createTask = async (req, res) => {
       note: 'Task created',
     });
     await task.save();
+    await notifyTaskParticipants(task, req, {
+      title: 'New IT task assigned',
+      text: `New IT task assigned: ${getTaskTitle(task)}.`,
+      actionLabel: 'View task',
+    });
     res.status(201).json({ success: true, data: task });
   } catch (error) {
     console.error('createTask error', error);
@@ -394,6 +448,21 @@ const updateTask = async (req, res) => {
       note: updateData.auditNote || updateData.note || '',
     });
     const updated = await task.save();
+    await notifyTaskParticipants(updated, req, {
+      title: 'IT task updated',
+      text: `IT task updated: ${getTaskTitle(updated)}.`,
+      actionLabel: 'Review update',
+      metadata: {
+        from: previousSnapshot,
+        to: {
+          status: updated.status,
+          workflowStatus: updated.workflowStatus,
+          taskLeader: updated.taskLeader,
+          assignedTo: updated.assignedTo,
+          featureCount: updated.featureCount,
+        },
+      },
+    });
 
     // If task is already completed and featureCount is being updated, also update the corresponding report
     if (updated.status === 'done' && updateData.featureCount !== undefined) {
@@ -519,6 +588,15 @@ const approveTask = async (req, res) => {
     });
 
     await task.save();
+    await notifyTaskParticipants(task, req, {
+      title: decision === 'approved' ? 'Task approved' : 'Task approval update',
+      text: `${decision === 'approved' ? 'Task approved' : 'Task approval updated'}: ${getTaskTitle(task)}.`,
+      actionLabel: 'View approval',
+      metadata: {
+        approvalStatus: decision,
+        approvalNote: task.approvalNote,
+      },
+    });
     if (task.workflowStatus === 'completed') {
       await createCompletionReportForTask(task);
     }
@@ -579,6 +657,16 @@ const updateWorkflow = async (req, res) => {
     });
 
     await task.save();
+    await notifyTaskParticipants(task, req, {
+      title: 'Task workflow changed',
+      text: `Task workflow changed to ${workflowStatus.replace('_', ' ')}: ${getTaskTitle(task)}.`,
+      actionLabel: 'View workflow',
+      metadata: {
+        workflowStatus,
+        previousWorkflow,
+        previousStatus,
+      },
+    });
     res.json({ success: true, data: task });
   } catch (error) {
     console.error('updateWorkflow error', error);
@@ -620,6 +708,19 @@ const reassignTask = async (req, res) => {
     });
 
     await task.save();
+    await notifyTaskParticipants(task, req, {
+      title: 'Task assignment updated',
+      text: `Task assignment updated: ${getTaskTitle(task)}.`,
+      actionLabel: 'View assignment',
+      metadata: {
+        from: previous,
+        to: {
+          taskLeader: task.taskLeader,
+          assignedTo: task.assignedTo,
+          workflowStatus: task.workflowStatus,
+        },
+      },
+    });
     res.json({ success: true, data: task });
   } catch (error) {
     console.error('reassignTask error', error);
@@ -635,16 +736,31 @@ const addReminder = async (req, res) => {
     const task = await ITTask.findById(req.params.id);
     if (!task) return res.status(404).json({ success: false, message: 'Task not found' });
 
-    task.reminders.push({
+    const reminder = task.reminders.create({
       title,
       note: req.body.note || '',
       type: req.body.type || 'task',
       dueAt: req.body.dueAt || undefined,
       createdBy: req.user?._id,
     });
+    task.reminders.push(reminder);
     appendAudit(task, req, 'reminder_added', { note: title });
 
     await task.save();
+    await notifyTaskParticipants(task, req, {
+      title: 'Task reminder',
+      text: `Task reminder: ${title}.`,
+      type: 'reminder',
+      actionLabel: 'Open reminder',
+      metadata: {
+        reminderId: String(reminder._id),
+        reminderTitle: title,
+        reminderNote: req.body.note || '',
+        reminderType: req.body.type || 'task',
+        reminderDueAt: req.body.dueAt || '',
+        keepVisible: true,
+      },
+    });
     res.status(201).json({ success: true, data: task });
   } catch (error) {
     console.error('addReminder error', error);
@@ -671,6 +787,21 @@ const updateReminder = async (req, res) => {
     });
 
     await task.save();
+    if (reminder.isDone) {
+      await Notification.updateMany(
+        {
+          itTaskId: task._id,
+          type: 'reminder',
+          'metadata.reminderId': String(reminder._id),
+        },
+        {
+          $set: {
+            read: true,
+            'metadata.keepVisible': false,
+          },
+        }
+      );
+    }
     res.json({ success: true, data: task });
   } catch (error) {
     console.error('updateReminder error', error);

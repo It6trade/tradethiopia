@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   Badge,
   Box,
@@ -16,7 +16,7 @@ import {
 } from '@chakra-ui/react';
 import axios from 'axios';
 import { useUserStore } from '../../../store/user';
-import { buildTaskReminders } from '../utils/itWorkflow';
+import { buildTaskReminders, filterReadReminders, markReminderRead } from '../utils/itWorkflow';
 
 const urgencyScheme = {
   critical: 'red',
@@ -24,14 +24,18 @@ const urgencyScheme = {
   info: 'blue',
 };
 
-export default function ITRemindersPanel({ tasks = [], fetchTasks }) {
+export default function ITRemindersPanel({ tasks = [], fetchTasks, onReminderRead }) {
   const { currentUser } = useUserStore();
   const token = currentUser?.token;
+  const [readVersion, setReadVersion] = useState(0);
   const toast = useToast();
   const cardBg = useColorModeValue('white', 'gray.800');
   const borderColor = useColorModeValue('gray.200', 'gray.700');
   const muted = useColorModeValue('gray.600', 'gray.400');
-  const reminders = useMemo(() => buildTaskReminders(tasks), [tasks]);
+  const reminders = useMemo(
+    () => filterReadReminders(buildTaskReminders(tasks), currentUser),
+    [currentUser, readVersion, tasks]
+  );
 
   const completeReminder = async (reminder) => {
     if (!reminder.custom || !reminder.reminderId) return;
@@ -50,6 +54,13 @@ export default function ITRemindersPanel({ tasks = [], fetchTasks }) {
         status: 'error',
       });
     }
+  };
+
+  const markGeneratedReminderRead = (reminder) => {
+    markReminderRead(currentUser, reminder.id);
+    setReadVersion((value) => value + 1);
+    onReminderRead?.();
+    toast({ title: 'Reminder marked as read', status: 'success' });
   };
 
   return (
@@ -114,9 +125,13 @@ export default function ITRemindersPanel({ tasks = [], fetchTasks }) {
                       <Text fontWeight="800">{reminder.title}</Text>
                       {reminder.note && <Text color={muted} fontSize="sm">{reminder.note}</Text>}
                     </Box>
-                    {reminder.custom && (
+                    {reminder.custom ? (
                       <Button size="sm" variant="outline" onClick={() => completeReminder(reminder)}>
                         Done
+                      </Button>
+                    ) : (
+                      <Button size="sm" variant="outline" colorScheme="blue" onClick={() => markGeneratedReminderRead(reminder)}>
+                        Mark read
                       </Button>
                     )}
                   </HStack>

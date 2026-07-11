@@ -46,17 +46,18 @@ const buildNotificationLink = (item) => (
 );
 
 const getNotificationTitle = (item) => {
-  if (item.type === 'comment') {
-    return item.metadata?.title || 'New task comment';
+  if (['comment', 'task', 'reminder'].includes(item.type)) {
+    return item.metadata?.title || (item.type === 'reminder' ? 'Task reminder' : item.type === 'task' ? 'IT task update' : 'New task comment');
   }
   return item.text || item.message || item.title || 'Notification';
 };
 
 const getNotificationDetail = (item) => {
-  if (item.type === 'comment') {
+  if (['comment', 'task', 'reminder'].includes(item.type)) {
     const taskTitle = item.metadata?.taskTitle ? `Task: ${item.metadata.taskTitle}` : '';
-    const author = item.metadata?.authorName ? `By ${item.metadata.authorName}` : '';
-    return [taskTitle, author].filter(Boolean).join(' - ');
+    const author = item.metadata?.authorName || item.metadata?.actorName ? `By ${item.metadata.authorName || item.metadata.actorName}` : '';
+    const reminder = item.metadata?.reminderTitle ? `Reminder: ${item.metadata.reminderTitle}` : '';
+    return [taskTitle, reminder, author].filter(Boolean).join(' - ');
   }
   return '';
 };
@@ -65,6 +66,15 @@ const getCommentPreview = (item) =>
   String(item.metadata?.commentPreview || '')
     .replace(/\s+/g, ' ')
     .trim();
+
+const shouldKeepVisible = (item) => item.type === 'reminder' && item.metadata?.keepVisible;
+const getTypeColor = (type) => {
+  if (type === 'task') return 'orange';
+  if (type === 'chat') return 'green';
+  if (type === 'comment') return 'blue';
+  if (type === 'reminder') return 'purple';
+  return 'gray';
+};
 
 export default function NotificationBall({ extraNotifications = [], iconColor = 'white' }) {
   const currentUser = useUserStore((state) => state.currentUser);
@@ -134,7 +144,7 @@ export default function NotificationBall({ extraNotifications = [], iconColor = 
     () => [
       ...extraNotifications.map((item) => ({ ...item, read: item.read ?? false, local: true })),
       ...notifications,
-    ].filter((item) => !item.read),
+    ].filter((item) => !item.read || shouldKeepVisible(item)),
     [extraNotifications, notifications]
   );
 
@@ -145,7 +155,9 @@ export default function NotificationBall({ extraNotifications = [], iconColor = 
     try {
       const updated = await markNotificationAsRead(item._id || item.id);
       setNotifications((current) =>
-        current.filter((notification) => notification._id !== updated._id)
+        shouldKeepVisible(updated)
+          ? current.map((notification) => (notification._id === updated._id ? updated : notification))
+          : current.filter((notification) => notification._id !== updated._id)
       );
       return updated;
     } catch (error) {
@@ -165,7 +177,11 @@ export default function NotificationBall({ extraNotifications = [], iconColor = 
   const markAllRead = async () => {
     try {
       await markAllNotificationsAsRead();
-      setNotifications([]);
+      setNotifications((current) =>
+        current
+          .map((item) => ({ ...item, read: true }))
+          .filter(shouldKeepVisible)
+      );
     } catch (error) {
       toast({ title: 'Unable to mark all read', status: 'error', duration: 1800 });
     }
@@ -293,12 +309,17 @@ export default function NotificationBall({ extraNotifications = [], iconColor = 
                         </Text>
                       )}
                       <HStack mt={2} spacing={2} align="center" flexWrap="wrap">
-                        <Badge size="sm" colorScheme={item.type === 'task' ? 'orange' : item.type === 'chat' ? 'green' : item.type === 'comment' ? 'blue' : 'gray'}>
+                        <Badge size="sm" colorScheme={getTypeColor(item.type)}>
                           {item.type || 'general'}
                         </Badge>
                         <Text fontSize="xs" color={muted}>{formatTimeAgo(item.createdAt)}</Text>
+                        {shouldKeepVisible(item) && item.read && (
+                          <Badge size="sm" colorScheme="purple" variant="outline">
+                            reminder on
+                          </Badge>
+                        )}
                         {canOpen && (
-                          <Badge size="sm" colorScheme={item.type === 'comment' ? 'blue' : 'purple'} variant="subtle">
+                          <Badge size="sm" colorScheme={getTypeColor(item.type)} variant="subtle">
                             {item.metadata?.actionLabel || 'Open'}
                           </Badge>
                         )}

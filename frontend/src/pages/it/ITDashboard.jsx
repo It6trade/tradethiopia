@@ -42,7 +42,7 @@ import ChatLauncher from '../../components/chat/ChatLauncher';
 import NotificationBall from '../../components/notifications/NotificationBall';
 import { useUserStore } from '../../store/user';
 import { filterTasksForPersona, getItPersona } from './utils/itRbac';
-import { buildTaskReminders } from './utils/itWorkflow';
+import { buildTaskReminders, filterReadReminders } from './utils/itWorkflow';
 
 const TARGET_STORAGE_KEY = 'tradethiopia_weekly_target';
 const WEEKLY_TARGET_POINTS = 40;
@@ -64,6 +64,7 @@ export default function ITDashboard() {
   const [loadingTasks, setLoadingTasks] = useState(true);
   const [loadingReports, setLoadingReports] = useState(true);
   const [isModalOpen, setModalOpen] = useState(false);
+  const [reminderReadVersion, setReminderReadVersion] = useState(0);
 
   const [weeklyTarget, setWeeklyTarget] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -113,7 +114,7 @@ export default function ITDashboard() {
     const now = Date.now();
     return due >= now && due - now <= 3 * 24 * 60 * 60 * 1000;
   }).length;
-  const reminderCount = buildTaskReminders(visibleTasks).length;
+  const reminderCount = filterReadReminders(buildTaskReminders(visibleTasks), currentUser || {}).length;
   const dashboardStats = [
     {
       label: 'Visible tasks',
@@ -265,7 +266,13 @@ export default function ITDashboard() {
       case 'notes':
         return <ITNotesPanel user={currentUser} />;
       case 'reminders':
-        return <ITRemindersPanel tasks={visibleTasks} fetchTasks={fetchTasks} />;
+        return (
+          <ITRemindersPanel
+            tasks={visibleTasks}
+            fetchTasks={fetchTasks}
+            onReminderRead={() => setReminderReadVersion((value) => value + 1)}
+          />
+        );
       case 'profile':
         return <ITProfilePanel user={currentUser} persona={persona} tasks={visibleTasks} />;
       case 'admin':

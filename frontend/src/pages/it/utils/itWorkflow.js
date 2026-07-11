@@ -43,6 +43,37 @@ export const getWorkflowActionForPersona = (task = {}, persona = {}) => {
 
 export const getTaskTitle = (task = {}) => task.taskName || task.client || 'IT Task';
 
+const REMINDER_READ_PREFIX = 'tradethiopia-it-reminder-read';
+
+const getReminderReadKey = (user = {}) => (
+  `${REMINDER_READ_PREFIX}:${user._id || user.id || user.email || user.username || 'guest'}`
+);
+
+export const getReadReminderIds = (user = {}) => {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = window.localStorage.getItem(getReminderReadKey(user));
+    const parsed = JSON.parse(raw || '[]');
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+};
+
+export const markReminderRead = (user = {}, reminderId) => {
+  if (typeof window === 'undefined' || !reminderId) return [];
+  const current = new Set(getReadReminderIds(user));
+  current.add(String(reminderId));
+  const next = [...current];
+  window.localStorage.setItem(getReminderReadKey(user), JSON.stringify(next));
+  return next;
+};
+
+export const filterReadReminders = (reminders = [], user = {}) => {
+  const readIds = new Set(getReadReminderIds(user).map(String));
+  return reminders.filter((reminder) => !readIds.has(String(reminder.id)));
+};
+
 export const buildTaskReminders = (tasks = []) => {
   const now = Date.now();
   const day = 24 * 60 * 60 * 1000;

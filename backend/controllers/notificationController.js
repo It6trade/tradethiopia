@@ -3,16 +3,37 @@ const User = require("../models/user.model.js");
 
 const getNotifications = async (req, res) => {
   try {
-    const notifications = await Notification.find({ user: req.user._id, read: false }).sort({ createdAt: -1 });
+    const notifications = await Notification.find({
+      user: req.user._id,
+      $or: [
+        { read: false },
+        { type: 'reminder', 'metadata.keepVisible': true },
+      ],
+    }).sort({ createdAt: -1 });
     res.json(notifications.map((notification) => {
       const item = notification.toObject();
-      if (item.type === 'comment' && !item.link && item.itTaskId) {
+      if (['comment', 'task', 'reminder'].includes(item.type) && !item.link && item.itTaskId) {
         item.link = `/it?tab=projects&task=${item.itTaskId}${item.commentId ? `&comment=${item.commentId}` : ''}`;
       }
       if (item.type === 'comment') {
         item.metadata = {
           title: 'New task comment',
           actionLabel: 'View comment',
+          ...(item.metadata || {}),
+        };
+      }
+      if (item.type === 'task') {
+        item.metadata = {
+          title: 'IT task update',
+          actionLabel: 'View task',
+          ...(item.metadata || {}),
+        };
+      }
+      if (item.type === 'reminder') {
+        item.metadata = {
+          title: 'Task reminder',
+          actionLabel: 'Open reminder',
+          keepVisible: true,
           ...(item.metadata || {}),
         };
       }
