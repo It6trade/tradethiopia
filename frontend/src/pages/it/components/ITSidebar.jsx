@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   Box,
   Button,
@@ -51,14 +51,15 @@ const SidebarButton = ({ label, icon: Icon, isActive, onClick, tooltip, isCollap
         justifyContent={isCollapsed ? 'center' : 'flex-start'}
         variant="ghost"
         color={color}
-        fontWeight={isActive ? '800' : '600'}
+        fontWeight={isActive ? '750' : '600'}
+        fontSize="sm"
         bg={isActive ? activeBg : 'transparent'}
         border="1px solid"
         borderColor={isActive ? activeBorderColor : 'transparent'}
         borderLeft="4px solid"
         borderLeftColor={isActive ? activeBorder : 'transparent'}
-        borderRadius="14px"
-        h="44px"
+        borderRadius="12px"
+        h="40px"
         w="100%"
         px={isCollapsed ? 0 : 4}
         boxShadow={isActive ? activeShadow : 'none'}
@@ -89,7 +90,7 @@ const SidebarSection = ({ title, children, isCollapsed }) => {
         <Text
           display={isCollapsed ? 'none' : { base: 'none', lg: 'block' }}
           fontSize="10px"
-          fontWeight="900"
+          fontWeight="800"
           color={labelColor}
           textTransform="uppercase"
           letterSpacing="0.08em"
@@ -104,8 +105,16 @@ const SidebarSection = ({ title, children, isCollapsed }) => {
   );
 };
 
-export default function ITSidebar({ activeSection, setActiveSection, setModalOpen, handleLogout, permissions, reminderCount = 0 }) {
-  const [isCollapsed, setIsCollapsed] = useState(false);
+export default function ITSidebar({
+  activeSection,
+  setActiveSection,
+  setModalOpen,
+  handleLogout,
+  permissions,
+  reminderCount = 0,
+  isCollapsed = false,
+  setIsCollapsed,
+}) {
   const { colorMode, toggleColorMode } = useColorMode();
   const borderColor = useColorModeValue('gray.200', 'gray.800');
   const sidebarBg = useColorModeValue('rgba(255, 255, 255, 0.78)', 'rgba(10, 18, 32, 0.92)');
@@ -116,15 +125,18 @@ export default function ITSidebar({ activeSection, setActiveSection, setModalOpe
   return (
     <Box
       as="aside"
-      w={{ base: '82px', lg: isCollapsed ? '92px' : '282px' }}
-      minW={{ base: '82px', lg: isCollapsed ? '92px' : '282px' }}
+      w={{ base: '76px', lg: isCollapsed ? '78px' : '244px' }}
+      minW={{ base: '76px', lg: isCollapsed ? '78px' : '244px' }}
       bg={sidebarBg}
       borderRight="1px solid"
       borderColor={borderColor}
-      p={{ base: 3, lg: 5 }}
-      position="sticky"
+      p={{ base: 2.5, lg: isCollapsed ? 3 : 4 }}
+      position="fixed"
       top={0}
-      h="100vh"
+      left={0}
+      bottom={0}
+      h="100dvh"
+      zIndex={20}
       backdropFilter="blur(16px)"
       transition="width 0.22s ease, min-width 0.22s ease"
       boxShadow={panelShadow}
@@ -132,12 +144,12 @@ export default function ITSidebar({ activeSection, setActiveSection, setModalOpe
       alignSelf="flex-start"
       overflow="hidden"
     >
-      <VStack spacing={5} align="stretch" h="full">
+      <VStack spacing={4} align="stretch" h="full">
         <Box
           bg={brandBg}
           color="white"
-          borderRadius="20px"
-          p={{ base: 3, lg: isCollapsed ? 3 : 4 }}
+          borderRadius="16px"
+          p={{ base: 2.5, lg: isCollapsed ? 3 : 3.5 }}
           position="relative"
           overflow="hidden"
           boxShadow="0 18px 34px rgba(15, 23, 42, 0.22)"
@@ -147,15 +159,15 @@ export default function ITSidebar({ activeSection, setActiveSection, setModalOpe
             inset={0}
             opacity={0.24}
             bgImage="linear-gradient(rgba(255,255,255,0.16) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.16) 1px, transparent 1px)"
-            bgSize="28px 28px"
+            bgSize="24px 24px"
           />
           <Box position="relative">
           <HStack spacing={3} justify={isCollapsed ? 'center' : { base: 'center', lg: 'flex-start' }}>
-            <Flex boxSize="42px" borderRadius="15px" bg={brandAccent} color="gray.900" align="center" justify="center" boxShadow="0 12px 28px rgba(103, 232, 249, 0.24)">
+            <Flex boxSize="38px" borderRadius="13px" bg={brandAccent} color="gray.900" align="center" justify="center" boxShadow="0 12px 28px rgba(103, 232, 249, 0.24)">
               <Icon as={FiShield} boxSize={5} />
             </Flex>
             <Box display={isCollapsed ? 'none' : { base: 'none', lg: 'block' }}>
-              <Heading size="sm">IT Ops</Heading>
+              <Heading size="xs" fontWeight="750">IT Ops</Heading>
               <Text fontSize="xs" color="whiteAlpha.700">
                 Command Center
               </Text>
@@ -174,10 +186,10 @@ export default function ITSidebar({ activeSection, setActiveSection, setModalOpe
             colorScheme="cyan"
             display={{ base: 'none', lg: 'inline-flex' }}
             boxShadow="0 10px 24px rgba(15, 23, 42, 0.18)"
-            onClick={() => setIsCollapsed((value) => !value)}
+            onClick={() => setIsCollapsed?.((value) => !value)}
           />
         </Box>
-        <VStack spacing={4} align="stretch" overflowY="auto" pr={1} flex="1" minH={0}>
+        <VStack spacing={3.5} align="stretch" overflowY="auto" pr={1} flex="1" minH={0}>
           <SidebarSection title="Command" isCollapsed={isCollapsed}>
             <SidebarButton
               label="Overview"
@@ -277,6 +289,7 @@ export default function ITSidebar({ activeSection, setActiveSection, setModalOpe
             colorScheme="blue"
             w="full"
             borderRadius="14px"
+            size="sm"
             onClick={() => setModalOpen(true)}
             isDisabled={!permissions?.canCreateTasks}
             justifyContent={isCollapsed ? 'center' : 'flex-start'}
@@ -290,6 +303,7 @@ export default function ITSidebar({ activeSection, setActiveSection, setModalOpe
             icon={colorMode === 'light' ? <FiMoon /> : <FiSun />}
             onClick={toggleColorMode}
             borderRadius="14px"
+            size="sm"
             w="full"
           />
           <Button
@@ -298,6 +312,7 @@ export default function ITSidebar({ activeSection, setActiveSection, setModalOpe
             variant="outline"
             w="full"
             borderRadius="14px"
+            size="sm"
             onClick={handleLogout}
             justifyContent={isCollapsed ? 'center' : 'flex-start'}
             px={isCollapsed ? 0 : 4}

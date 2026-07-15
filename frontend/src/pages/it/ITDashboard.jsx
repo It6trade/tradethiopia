@@ -64,6 +64,7 @@ export default function ITDashboard() {
   const [loadingTasks, setLoadingTasks] = useState(true);
   const [loadingReports, setLoadingReports] = useState(true);
   const [isModalOpen, setModalOpen] = useState(false);
+  const [isSidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [reminderReadVersion, setReminderReadVersion] = useState(0);
 
   const [weeklyTarget, setWeeklyTarget] = useState(() => {
@@ -307,7 +308,14 @@ export default function ITDashboard() {
   };
 
   return (
-    <Flex minH="100vh" bg={pageBg} bgImage={pagePattern} w="100%" overflowX="hidden">
+    <Flex
+      minH="100vh"
+      bg={pageBg}
+      bgImage={pagePattern}
+      w="100%"
+      overflowX="hidden"
+      fontSize={{ base: 'sm', xl: '0.94rem' }}
+    >
       <ITSidebar
         activeSection={activeSection}
         setActiveSection={handleTabChange}
@@ -315,9 +323,18 @@ export default function ITDashboard() {
         handleLogout={handleLogout}
         permissions={persona}
         reminderCount={reminderCount}
+        isCollapsed={isSidebarCollapsed}
+        setIsCollapsed={setSidebarCollapsed}
       />
 
-      <Box flex="1" p={{ base: 3, md: 4, xl: 5 }} minW={0} w="100%">
+      <Box
+        flex="1"
+        ml={{ base: '76px', lg: isSidebarCollapsed ? '78px' : '244px' }}
+        p={{ base: 3, md: 4, xl: 4 }}
+        minW={0}
+        w={{ base: 'calc(100% - 76px)', lg: isSidebarCollapsed ? 'calc(100% - 78px)' : 'calc(100% - 244px)' }}
+        transition="margin-left 0.22s ease, width 0.22s ease"
+      >
         {activeSection === 'notice-board' ? (
           <NoticeBoardPanel title="IT Notice Board" subtitle="Internal announcements and alerts" />
         ) : (
@@ -329,8 +346,8 @@ export default function ITDashboard() {
               borderRadius={{ base: '18px', md: '22px' }}
               boxShadow={heroShadow}
               backdropFilter="blur(18px)"
-              p={{ base: 4, md: 5 }}
-              mb={5}
+              p={{ base: 4, md: 4 }}
+              mb={4}
               position="relative"
               overflow="hidden"
             >
@@ -343,20 +360,20 @@ export default function ITDashboard() {
                 bgSize="38px 38px"
               />
               <Box position="relative">
-              <Flex justify="space-between" align={{ base: 'stretch', lg: 'flex-start' }} direction={{ base: 'column', lg: 'row' }} gap={4}>
-                <Box maxW="720px">
-                  <HStack spacing={3} wrap="wrap" mb={2}>
-                    <Badge colorScheme="cyan" borderRadius="full" px={3} py={1} boxShadow="0 8px 18px rgba(14, 165, 233, 0.18)">
+              <Flex justify="space-between" align={{ base: 'stretch', lg: 'flex-start' }} direction={{ base: 'column', lg: 'row' }} gap={3}>
+                <Box maxW="680px">
+                  <HStack spacing={2} wrap="wrap" mb={2}>
+                    <Badge colorScheme="cyan" borderRadius="full" px={2.5} py={0.5} fontSize="10px" boxShadow="0 8px 18px rgba(14, 165, 233, 0.18)">
                       IT Operations Command
                     </Badge>
-                    <Badge colorScheme="purple" borderRadius="full" px={3} py={1} boxShadow="0 8px 18px rgba(124, 58, 237, 0.14)">
+                    <Badge colorScheme="purple" borderRadius="full" px={2.5} py={0.5} fontSize="10px" boxShadow="0 8px 18px rgba(124, 58, 237, 0.14)">
                       {persona.label}
                     </Badge>
                   </HStack>
-                  <Heading size={{ base: 'md', md: 'lg', xl: 'xl' }} letterSpacing="0" lineHeight="1.08">
+                  <Heading size={{ base: 'md', md: 'lg' }} letterSpacing="0" lineHeight="1.12" fontWeight="750">
                     IT Department Dashboard
                   </Heading>
-                  <Text color={softText} mt={2} fontSize="sm">
+                  <Text color={softText} mt={2} fontSize={{ base: 'sm', xl: '13px' }}>
                     {persona.description}
                   </Text>
                 </Box>
@@ -376,10 +393,11 @@ export default function ITDashboard() {
                     size="sm"
                     value={activeSection}
                     onChange={(event) => handleTabChange(event.target.value)}
-                    maxW="190px"
+                    maxW="180px"
                     borderRadius="12px"
                     bg={controlBg}
                     borderColor={heroBorder}
+                    fontSize="sm"
                   >
                     <option value="dashboard">Overview</option>
                     <option value="projects">Projects</option>
@@ -392,10 +410,10 @@ export default function ITDashboard() {
                     {persona.canManageUsers && <option value="admin">Admin</option>}
                     {persona.canManageUsers && <option value="admin-users">User Management</option>}
                   </Select>
-                  <Button colorScheme="blue" leftIcon={<FiPlus />} onClick={() => setModalOpen(true)} isDisabled={!persona.canCreateTasks} borderRadius="12px" boxShadow="0 12px 24px rgba(37, 99, 235, 0.20)">
+                  <Button size="sm" colorScheme="blue" leftIcon={<FiPlus />} onClick={() => setModalOpen(true)} isDisabled={!persona.canCreateTasks} borderRadius="12px" boxShadow="0 12px 24px rgba(37, 99, 235, 0.20)">
                     New Task
                   </Button>
-                  <Button colorScheme="teal" variant="outline" onClick={() => navigate("/requests")} borderRadius="12px" bg={controlBg}>
+                  <Button size="sm" colorScheme="teal" variant="outline" onClick={() => navigate("/requests")} borderRadius="12px" bg={controlBg}>
                     Requests
                   </Button>
                   <NotificationBall iconColor={toolbarIconColor} />
@@ -422,7 +440,7 @@ export default function ITDashboard() {
                 </HStack>
               </Flex>
 
-              <Box mt={5}>
+              <Box mt={4}>
                 <ITCollapsibleSection
                   title="Operational Snapshot"
                   subtitle="Collapse or expand the live command metrics."
@@ -436,8 +454,8 @@ export default function ITDashboard() {
                         border="1px solid"
                         borderColor={statBorder}
                         bg={statBg}
-                        borderRadius="16px"
-                        p={3.5}
+                        borderRadius="14px"
+                        p={3}
                         boxShadow={statShadow}
                         backdropFilter="blur(14px)"
                         transition="transform 0.18s ease, box-shadow 0.18s ease"
@@ -445,8 +463,8 @@ export default function ITDashboard() {
                       >
                         <HStack justify="space-between" align="flex-start">
                           <Stat>
-                            <StatLabel color={softText} fontWeight="700">{stat.label}</StatLabel>
-                            <StatNumber fontSize={{ base: '2xl', xl: '3xl' }} lineHeight="1.1">{stat.value}</StatNumber>
+                            <StatLabel color={softText} fontWeight="650" fontSize="xs">{stat.label}</StatLabel>
+                            <StatNumber fontSize={{ base: '2xl', xl: '2xl' }} lineHeight="1.1" fontWeight="750">{stat.value}</StatNumber>
                             <Text fontSize="xs" color={softText}>{stat.helper}</Text>
                           </Stat>
                           <Flex
