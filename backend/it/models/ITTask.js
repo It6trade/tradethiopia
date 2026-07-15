@@ -35,7 +35,10 @@ const ITTaskSchema = new mongoose.Schema({
   taskLeader: { type: String, default: '' },
   assignedTo: [{ type: String }], // Array of assigned user IDs
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: false },
+<<<<<<< Updated upstream
   progressPercent: { type: Number, min: 0, max: 100, default: 0 },
+=======
+>>>>>>> Stashed changes
   featureCount: { type: Number, default: 0 }, // Number of features added to the task
   comments: [{
     author: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: false },

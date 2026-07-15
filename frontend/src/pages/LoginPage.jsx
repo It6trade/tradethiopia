@@ -116,12 +116,18 @@ const handleLogin = async (event) => {
                         redirectAfterLogin('/tradextv-dashboard');
                         break;
                     case 'it':
+<<<<<<< Updated upstream
                     case 'itadmin':
                     case 'itmanager':
                     case 'itteamleader':
                     case 'itleader':
                     case 'itstaff':
                     case 'itofficer':
+=======
+                    case 'itmanager':
+                    case 'itteamleader':
+                    case 'itstaff':
+>>>>>>> Stashed changes
                         redirectAfterLogin('/it');
                         break;
                     case 'socialmediamanager':

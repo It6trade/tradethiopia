@@ -34,7 +34,10 @@ import {
 import { FiSearch, FiFilter, FiPlus, FiCalendar, FiUser } from 'react-icons/fi';
 import axios from 'axios';
 import AddTaskForm from './AddTaskForm';
+<<<<<<< Updated upstream
 import ITTaskProgressControl from './ITTaskProgressControl';
+=======
+>>>>>>> Stashed changes
 import ITTaskEditModal from './ITTaskEditModal';
 import ITTaskDetailModal from './ITTaskDetailModal';
 import { useUserStore } from '../../../store/user'; // Adjusted relative path
@@ -49,7 +52,11 @@ const statusColor = (s) => {
   }
 };
 
+<<<<<<< Updated upstream
 const InternalTasksTab = ({ search, tasks, loading, fetchTasks, permissions = {}, focusedTaskId = '', focusedCommentId = '' }) => {
+=======
+const InternalTasksTab = ({ search, tasks, loading, fetchTasks, permissions = {} }) => {
+>>>>>>> Stashed changes
   const [filter, setFilter] = useState('all');
   const [sort, setSort] = useState('newest');
   const [showAdd, setShowAdd] = useState(false);
@@ -324,6 +331,7 @@ const InternalTasksTab = ({ search, tasks, loading, fetchTasks, permissions = {}
               <option value="oldest">Oldest First</option>
             </Select>
 
+<<<<<<< Updated upstream
             <Select
               maxW="150px"
               value={pageSize}
@@ -336,6 +344,8 @@ const InternalTasksTab = ({ search, tasks, loading, fetchTasks, permissions = {}
               <option value={50}>50 per page</option>
             </Select>
 
+=======
+>>>>>>> Stashed changes
             <Button
               leftIcon={<FiFilter />}
               variant="outline"
@@ -414,9 +424,12 @@ const InternalTasksTab = ({ search, tasks, loading, fetchTasks, permissions = {}
                           {getWorkflowMeta(task.workflowStatus, task.status).label}
                         </Badge>
                       </VStack>
+<<<<<<< Updated upstream
                     </Td>
                     <Td>
                       <ITTaskProgressControl task={task} fetchTasks={fetchTasks} />
+=======
+>>>>>>> Stashed changes
                     </Td>
                     <Td>
                       <Badge colorScheme={task.priority === 'High' ? 'red' : task.priority === 'Medium' ? 'orange' : 'green'}>
@@ -572,7 +585,10 @@ const InternalTasksTab = ({ search, tasks, loading, fetchTasks, permissions = {}
         task={viewingTask}
         onClose={() => setViewingTask(null)}
         onDone={fetchTasks}
+<<<<<<< Updated upstream
         focusedCommentId={focusedCommentId}
+=======
+>>>>>>> Stashed changes
       />
     </VStack>
   );

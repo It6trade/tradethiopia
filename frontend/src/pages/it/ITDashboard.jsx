@@ -42,7 +42,11 @@ import ChatLauncher from '../../components/chat/ChatLauncher';
 import NotificationBall from '../../components/notifications/NotificationBall';
 import { useUserStore } from '../../store/user';
 import { filterTasksForPersona, getItPersona } from './utils/itRbac';
+<<<<<<< Updated upstream
 import { buildTaskReminders, filterReadReminders } from './utils/itWorkflow';
+=======
+import { buildTaskReminders } from './utils/itWorkflow';
+>>>>>>> Stashed changes
 
 const TARGET_STORAGE_KEY = 'tradethiopia_weekly_target';
 const WEEKLY_TARGET_POINTS = 40;
@@ -79,6 +83,7 @@ export default function ITDashboard() {
     return WEEKLY_TARGET_POINTS;
   });
 
+<<<<<<< Updated upstream
   const pageBg = useColorModeValue('#eef4fb', '#07111f');
   const pagePattern = useColorModeValue(
     'linear-gradient(135deg, rgba(14,165,233,0.10), transparent 28%), linear-gradient(225deg, rgba(16,185,129,0.10), transparent 30%), linear-gradient(180deg, #f8fafc, #eef4fb)',
@@ -100,6 +105,17 @@ export default function ITDashboard() {
   const contentBg = useColorModeValue('transparent', 'transparent');
   const softText = useColorModeValue('gray.600', 'gray.400');
   const toolbarIconColor = useColorModeValue('#1e293b', '#e2e8f0');
+=======
+  const pageBg = useColorModeValue('#f4f7fb', 'gray.950');
+  const heroBg = useColorModeValue('white', 'gray.900');
+  const heroBorder = useColorModeValue('rgba(15, 23, 42, 0.08)', 'whiteAlpha.200');
+  const heroShadow = useColorModeValue('0 20px 60px rgba(15, 23, 42, 0.08)', '0 20px 60px rgba(0, 0, 0, 0.32)');
+  const statBg = useColorModeValue('gray.50', 'whiteAlpha.50');
+  const statBorder = useColorModeValue('gray.100', 'whiteAlpha.200');
+  const controlBg = useColorModeValue('gray.50', 'gray.800');
+  const contentBg = useColorModeValue('transparent', 'transparent');
+  const softText = useColorModeValue('gray.600', 'gray.400');
+>>>>>>> Stashed changes
   const visibleTasks = filterTasksForPersona(tasks, persona, currentUser || {});
   const visibleTaskIds = new Set(visibleTasks.map((task) => String(task._id || task.id)));
   const visibleReports = persona.canViewAllTasks
@@ -114,7 +130,11 @@ export default function ITDashboard() {
     const now = Date.now();
     return due >= now && due - now <= 3 * 24 * 60 * 60 * 1000;
   }).length;
+<<<<<<< Updated upstream
   const reminderCount = filterReadReminders(buildTaskReminders(visibleTasks), currentUser || {}).length;
+=======
+  const reminderCount = buildTaskReminders(visibleTasks).length;
+>>>>>>> Stashed changes
   const dashboardStats = [
     {
       label: 'Visible tasks',
@@ -247,12 +267,19 @@ export default function ITDashboard() {
             loading={loadingTasks}
             fetchTasks={fetchTasks}
             permissions={persona}
+<<<<<<< Updated upstream
             focusedTaskId={focusedTaskId}
             focusedCommentId={focusedCommentId}
           />
         );
       case 'performance':
         return <PerformanceTab tasks={visibleTasks} users={users} persona={persona} currentUser={currentUser} />;
+=======
+          />
+        );
+      case 'performance':
+        return <PerformanceTab tasks={visibleTasks} users={users} />;
+>>>>>>> Stashed changes
       case 'kpi':
         return <KPITab users={users} usersLoading={usersLoading} tasks={visibleTasks} fetchTasks={fetchTasks} />;
       case 'reports':
@@ -266,6 +293,7 @@ export default function ITDashboard() {
       case 'notes':
         return <ITNotesPanel user={currentUser} />;
       case 'reminders':
+<<<<<<< Updated upstream
         return (
           <ITRemindersPanel
             tasks={visibleTasks}
@@ -273,6 +301,9 @@ export default function ITDashboard() {
             onReminderRead={() => setReminderReadVersion((value) => value + 1)}
           />
         );
+=======
+        return <ITRemindersPanel tasks={visibleTasks} fetchTasks={fetchTasks} />;
+>>>>>>> Stashed changes
       case 'profile':
         return <ITProfilePanel user={currentUser} persona={persona} tasks={visibleTasks} />;
       case 'admin':
@@ -317,7 +348,11 @@ export default function ITDashboard() {
         reminderCount={reminderCount}
       />
 
+<<<<<<< Updated upstream
       <Box flex="1" p={{ base: 3, md: 4, xl: 5 }} minW={0} w="100%">
+=======
+      <Box flex="1" p={{ base: 4, md: 6, xl: 8 }} minW={0}>
+>>>>>>> Stashed changes
         {activeSection === 'notice-board' ? (
           <NoticeBoardPanel title="IT Notice Board" subtitle="Internal announcements and alerts" />
         ) : (
@@ -326,6 +361,7 @@ export default function ITDashboard() {
               bg={heroBg}
               border="1px solid"
               borderColor={heroBorder}
+<<<<<<< Updated upstream
               borderRadius={{ base: '18px', md: '22px' }}
               boxShadow={heroShadow}
               backdropFilter="blur(18px)"
@@ -372,14 +408,44 @@ export default function ITDashboard() {
                   boxShadow={toolbarShadow}
                   backdropFilter="blur(14px)"
                 >
+=======
+              borderRadius="16px"
+              boxShadow={heroShadow}
+              p={{ base: 4, md: 6 }}
+              mb={6}
+            >
+              <Flex justify="space-between" align={{ base: 'stretch', lg: 'flex-start' }} direction={{ base: 'column', lg: 'row' }} gap={5}>
+                <Box maxW="760px">
+                  <HStack spacing={3} wrap="wrap" mb={2}>
+                    <Badge colorScheme="cyan" borderRadius="full" px={3} py={1}>
+                      IT Operations Command
+                    </Badge>
+                    <Badge colorScheme="purple" borderRadius="full" px={3} py={1}>
+                      {persona.label}
+                    </Badge>
+                  </HStack>
+                  <Heading size={{ base: 'lg', md: 'xl' }} letterSpacing="0">
+                    IT Department Dashboard
+                  </Heading>
+                  <Text color={softText} mt={2} fontSize={{ base: 'sm', md: 'md' }}>
+                    {persona.description}
+                  </Text>
+                </Box>
+                <HStack spacing={2} flexWrap="wrap" justify={{ base: 'flex-start', lg: 'flex-end' }}>
+>>>>>>> Stashed changes
                   <Select
                     size="sm"
                     value={activeSection}
                     onChange={(event) => handleTabChange(event.target.value)}
                     maxW="190px"
+<<<<<<< Updated upstream
                     borderRadius="12px"
                     bg={controlBg}
                     borderColor={heroBorder}
+=======
+                    borderRadius="10px"
+                    bg={controlBg}
+>>>>>>> Stashed changes
                   >
                     <option value="dashboard">Overview</option>
                     <option value="projects">Projects</option>
@@ -392,6 +458,7 @@ export default function ITDashboard() {
                     {persona.canManageUsers && <option value="admin">Admin</option>}
                     {persona.canManageUsers && <option value="admin-users">User Management</option>}
                   </Select>
+<<<<<<< Updated upstream
                   <Button colorScheme="blue" leftIcon={<FiPlus />} onClick={() => setModalOpen(true)} isDisabled={!persona.canCreateTasks} borderRadius="12px" boxShadow="0 12px 24px rgba(37, 99, 235, 0.20)">
                     New Task
                   </Button>
@@ -403,6 +470,17 @@ export default function ITDashboard() {
                     icon={<FiMessageSquare />}
                     ariaLabel="Open IT workspace chat"
                     preferredView="it"
+=======
+                  <Button colorScheme="blue" leftIcon={<FiPlus />} onClick={() => setModalOpen(true)} isDisabled={!persona.canCreateTasks} borderRadius="10px">
+                    New Task
+                  </Button>
+                  <Button colorScheme="teal" variant="outline" onClick={() => navigate("/requests")} borderRadius="10px">
+                    Requests
+                  </Button>
+                  <ChatLauncher
+                    icon={<FiMessageSquare />}
+                    ariaLabel="Open IT workspace chat"
+>>>>>>> Stashed changes
                     iconButtonProps={{
                       size: 'sm',
                       variant: 'ghost',
@@ -422,20 +500,29 @@ export default function ITDashboard() {
                 </HStack>
               </Flex>
 
+<<<<<<< Updated upstream
               <Box mt={5}>
+=======
+              <Box mt={6}>
+>>>>>>> Stashed changes
                 <ITCollapsibleSection
                   title="Operational Snapshot"
                   subtitle="Collapse or expand the live command metrics."
                   defaultOpen
                   bodyProps={{ pt: 0 }}
                 >
+<<<<<<< Updated upstream
                   <SimpleGrid columns={{ base: 1, sm: 2, xl: 4 }} spacing={3}>
+=======
+                  <SimpleGrid columns={{ base: 1, sm: 2, xl: 4 }} spacing={4}>
+>>>>>>> Stashed changes
                     {dashboardStats.map((stat) => (
                       <Box
                         key={stat.label}
                         border="1px solid"
                         borderColor={statBorder}
                         bg={statBg}
+<<<<<<< Updated upstream
                         borderRadius="16px"
                         p={3.5}
                         boxShadow={statShadow}
@@ -452,11 +539,28 @@ export default function ITDashboard() {
                           <Flex
                             boxSize="40px"
                             borderRadius="14px"
+=======
+                        borderRadius="12px"
+                        p={4}
+                      >
+                        <HStack justify="space-between" align="flex-start">
+                          <Stat>
+                            <StatLabel color={softText}>{stat.label}</StatLabel>
+                            <StatNumber fontSize="2xl">{stat.value}</StatNumber>
+                            <Text fontSize="xs" color={softText}>{stat.helper}</Text>
+                          </Stat>
+                          <Flex
+                            boxSize="38px"
+                            borderRadius="12px"
+>>>>>>> Stashed changes
                             align="center"
                             justify="center"
                             bg={`${stat.color}.50`}
                             color={`${stat.color}.500`}
+<<<<<<< Updated upstream
                             boxShadow="inset 0 0 0 1px rgba(255,255,255,0.72)"
+=======
+>>>>>>> Stashed changes
                           >
                             <Icon as={stat.icon} boxSize={5} />
                           </Flex>
@@ -466,10 +570,16 @@ export default function ITDashboard() {
                   </SimpleGrid>
                 </ITCollapsibleSection>
               </Box>
+<<<<<<< Updated upstream
               </Box>
             </Box>
             {dueSoonCount > 0 && (
               <Alert status="info" borderRadius="16px" mb={6} boxShadow={statShadow}>
+=======
+            </Box>
+            {dueSoonCount > 0 && (
+              <Alert status="info" borderRadius="12px" mb={6}>
+>>>>>>> Stashed changes
                 <AlertIcon />
                 {dueSoonCount} assigned IT task{dueSoonCount === 1 ? '' : 's'} due within the next 3 days.
               </Alert>

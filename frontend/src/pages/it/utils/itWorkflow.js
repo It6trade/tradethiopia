@@ -43,6 +43,7 @@ export const getWorkflowActionForPersona = (task = {}, persona = {}) => {
 
 export const getTaskTitle = (task = {}) => task.taskName || task.client || 'IT Task';
 
+<<<<<<< Updated upstream
 const REMINDER_READ_PREFIX = 'tradethiopia-it-reminder-read';
 
 const getReminderReadKey = (user = {}) => (
@@ -74,6 +75,8 @@ export const filterReadReminders = (reminders = [], user = {}) => {
   return reminders.filter((reminder) => !readIds.has(String(reminder.id)));
 };
 
+=======
+>>>>>>> Stashed changes
 export const buildTaskReminders = (tasks = []) => {
   const now = Date.now();
   const day = 24 * 60 * 60 * 1000;
