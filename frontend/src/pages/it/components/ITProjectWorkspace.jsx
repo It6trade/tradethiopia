@@ -1,8 +1,4 @@
-<<<<<<< Updated upstream
 import React, { useEffect, useState } from 'react';
-=======
-import React, { useState } from 'react';
->>>>>>> Stashed changes
 import {
   Box,
   Card,
@@ -17,18 +13,13 @@ import {
 import InternalTasksTab from './InternalTasksTab';
 import ExternalTasksTab from './ExternalTasksTab';
 
-<<<<<<< Updated upstream
 export default function ITProjectWorkspace({ tasks, loading, fetchTasks, permissions, focusedTaskId = '', focusedCommentId = '' }) {
-=======
-export default function ITProjectWorkspace({ tasks, loading, fetchTasks, permissions }) {
->>>>>>> Stashed changes
   const [projectType, setProjectType] = useState('internal');
   const cardBg = useColorModeValue('white', 'gray.800');
   const borderColor = useColorModeValue('gray.200', 'gray.700');
   const controlBg = useColorModeValue('gray.50', 'gray.900');
   const accentColor = projectType === 'internal' ? 'blue' : 'purple';
 
-<<<<<<< Updated upstream
   useEffect(() => {
     if (!focusedTaskId) return;
     const focusedTask = (tasks || []).find((task) => String(task._id || task.id) === String(focusedTaskId));
@@ -37,8 +28,6 @@ export default function ITProjectWorkspace({ tasks, loading, fetchTasks, permiss
     }
   }, [focusedTaskId, projectType, tasks]);
 
-=======
->>>>>>> Stashed changes
   return (
     <Box>
       <Card bg={cardBg} borderColor={borderColor} borderWidth="1px" borderRadius="14px" boxShadow="sm" mb={6}>
@@ -64,7 +53,6 @@ export default function ITProjectWorkspace({ tasks, loading, fetchTasks, permiss
       </Card>
 
       {projectType === 'internal' ? (
-<<<<<<< Updated upstream
         <InternalTasksTab
           tasks={tasks}
           loading={loading}
@@ -82,11 +70,6 @@ export default function ITProjectWorkspace({ tasks, loading, fetchTasks, permiss
           focusedTaskId={focusedTaskId}
           focusedCommentId={focusedCommentId}
         />
-=======
-        <InternalTasksTab tasks={tasks} loading={loading} fetchTasks={fetchTasks} permissions={permissions} />
-      ) : (
-        <ExternalTasksTab tasks={tasks} loading={loading} fetchTasks={fetchTasks} permissions={permissions} />
->>>>>>> Stashed changes
       )}
     </Box>
   );

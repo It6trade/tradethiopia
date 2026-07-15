@@ -1,8 +1,4 @@
-<<<<<<< Updated upstream
 import React, { useMemo, useState } from 'react';
-=======
-import React, { useMemo } from 'react';
->>>>>>> Stashed changes
 import {
   Badge,
   Box,
@@ -20,11 +16,7 @@ import {
 } from '@chakra-ui/react';
 import axios from 'axios';
 import { useUserStore } from '../../../store/user';
-<<<<<<< Updated upstream
 import { buildTaskReminders, filterReadReminders, markReminderRead } from '../utils/itWorkflow';
-=======
-import { buildTaskReminders } from '../utils/itWorkflow';
->>>>>>> Stashed changes
 
 const urgencyScheme = {
   critical: 'red',
@@ -32,28 +24,18 @@ const urgencyScheme = {
   info: 'blue',
 };
 
-<<<<<<< Updated upstream
 export default function ITRemindersPanel({ tasks = [], fetchTasks, onReminderRead }) {
   const { currentUser } = useUserStore();
   const token = currentUser?.token;
   const [readVersion, setReadVersion] = useState(0);
-=======
-export default function ITRemindersPanel({ tasks = [], fetchTasks }) {
-  const { currentUser } = useUserStore();
-  const token = currentUser?.token;
->>>>>>> Stashed changes
   const toast = useToast();
   const cardBg = useColorModeValue('white', 'gray.800');
   const borderColor = useColorModeValue('gray.200', 'gray.700');
   const muted = useColorModeValue('gray.600', 'gray.400');
-<<<<<<< Updated upstream
   const reminders = useMemo(
     () => filterReadReminders(buildTaskReminders(tasks), currentUser),
     [currentUser, readVersion, tasks]
   );
-=======
-  const reminders = useMemo(() => buildTaskReminders(tasks), [tasks]);
->>>>>>> Stashed changes
 
   const completeReminder = async (reminder) => {
     if (!reminder.custom || !reminder.reminderId) return;
@@ -74,7 +56,6 @@ export default function ITRemindersPanel({ tasks = [], fetchTasks }) {
     }
   };
 
-<<<<<<< Updated upstream
   const markGeneratedReminderRead = (reminder) => {
     markReminderRead(currentUser, reminder.id);
     setReadVersion((value) => value + 1);
@@ -82,8 +63,6 @@ export default function ITRemindersPanel({ tasks = [], fetchTasks }) {
     toast({ title: 'Reminder marked as read', status: 'success' });
   };
 
-=======
->>>>>>> Stashed changes
   return (
     <VStack spacing={6} align="stretch">
       <Box>
@@ -146,7 +125,6 @@ export default function ITRemindersPanel({ tasks = [], fetchTasks }) {
                       <Text fontWeight="800">{reminder.title}</Text>
                       {reminder.note && <Text color={muted} fontSize="sm">{reminder.note}</Text>}
                     </Box>
-<<<<<<< Updated upstream
                     {reminder.custom ? (
                       <Button size="sm" variant="outline" onClick={() => completeReminder(reminder)}>
                         Done
@@ -155,12 +133,6 @@ export default function ITRemindersPanel({ tasks = [], fetchTasks }) {
                       <Button size="sm" variant="outline" colorScheme="blue" onClick={() => markGeneratedReminderRead(reminder)}>
                         Mark read
                       </Button>
-=======
-                    {reminder.custom && (
-                      <Button size="sm" variant="outline" onClick={() => completeReminder(reminder)}>
-                        Done
-                      </Button>
->>>>>>> Stashed changes
                     )}
                   </HStack>
                 </Box>

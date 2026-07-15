@@ -1,8 +1,4 @@
-<<<<<<< Updated upstream
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-=======
-import React, { useEffect, useMemo, useState } from 'react';
->>>>>>> Stashed changes
 import {
   Badge,
   Box,
@@ -23,10 +19,6 @@ import {
   ModalFooter,
   ModalHeader,
   ModalOverlay,
-<<<<<<< Updated upstream
-=======
-  Progress,
->>>>>>> Stashed changes
   SimpleGrid,
   Text,
   Textarea,
@@ -35,25 +27,9 @@ import {
   useToast,
 } from '@chakra-ui/react';
 import axios from 'axios';
-<<<<<<< Updated upstream
 import { normalizeRole, useUserStore } from '../../../store/user';
 import { getTaskTitle, getWorkflowMeta } from '../utils/itWorkflow';
 import ITTaskProgressControl from './ITTaskProgressControl';
-=======
-import { useUserStore } from '../../../store/user';
-import { getTaskTitle, getWorkflowMeta } from '../utils/itWorkflow';
-
-const progressForTask = (task = {}) => {
-  const workflow = getWorkflowMeta(task.workflowStatus, task.status).value;
-  if (workflow === 'completed' || task.status === 'done') return 100;
-  if (workflow === 'approved') return 85;
-  if (workflow === 'submitted') return 70;
-  if (workflow === 'in_progress' || task.status === 'ongoing') return 45;
-  if (workflow === 'assigned') return 25;
-  if (workflow === 'rejected') return 35;
-  return 10;
-};
->>>>>>> Stashed changes
 
 const formatDate = (value) => {
   if (!value) return 'N/A';
@@ -61,7 +37,6 @@ const formatDate = (value) => {
   return Number.isNaN(date.getTime()) ? 'N/A' : date.toLocaleString();
 };
 
-<<<<<<< Updated upstream
 export default function ITTaskDetailModal({ isOpen, task, onClose, onDone, focusedCommentId = '' }) {
   const [currentTask, setCurrentTask] = useState(task);
   const [comment, setComment] = useState('');
@@ -71,24 +46,13 @@ export default function ITTaskDetailModal({ isOpen, task, onClose, onDone, focus
   const token = currentUser?.token;
   const normalizedRole = normalizeRole(currentUser?.role || currentUser?.displayRole || '');
   const canEditProgress = normalizedRole === 'it' || normalizedRole === 'itstaff';
-=======
-export default function ITTaskDetailModal({ isOpen, task, onClose, onDone }) {
-  const [currentTask, setCurrentTask] = useState(task);
-  const [comment, setComment] = useState('');
-  const [isSaving, setIsSaving] = useState(false);
-  const { currentUser } = useUserStore();
-  const token = currentUser?.token;
->>>>>>> Stashed changes
   const toast = useToast();
   const borderColor = useColorModeValue('gray.200', 'gray.700');
   const muted = useColorModeValue('gray.600', 'gray.400');
   const subtleBg = useColorModeValue('gray.50', 'whiteAlpha.100');
-<<<<<<< Updated upstream
   const focusedCommentBg = useColorModeValue('blue.50', 'whiteAlpha.100');
   const modalBg = useColorModeValue('white', 'gray.900');
   const headerBg = useColorModeValue('linear-gradient(135deg, #eff6ff, #ecfeff)', 'linear-gradient(135deg, rgba(37,99,235,0.18), rgba(20,184,166,0.12))');
-=======
->>>>>>> Stashed changes
 
   useEffect(() => {
     setCurrentTask(task);
@@ -96,7 +60,6 @@ export default function ITTaskDetailModal({ isOpen, task, onClose, onDone }) {
   }, [task]);
 
   const workflow = getWorkflowMeta(currentTask?.workflowStatus, currentTask?.status);
-<<<<<<< Updated upstream
   const comments = useMemo(() => currentTask?.comments || [], [currentTask]);
 
   useEffect(() => {
@@ -107,11 +70,6 @@ export default function ITTaskDetailModal({ isOpen, task, onClose, onDone }) {
     return () => clearTimeout(timer);
   }, [focusedCommentId, isOpen, comments.length]);
 
-=======
-  const progress = progressForTask(currentTask || {});
-  const comments = useMemo(() => currentTask?.comments || [], [currentTask]);
-
->>>>>>> Stashed changes
   const submitComment = async () => {
     if (!currentTask || !comment.trim()) return;
     setIsSaving(true);
@@ -139,17 +97,10 @@ export default function ITTaskDetailModal({ isOpen, task, onClose, onDone }) {
   if (!currentTask) return null;
 
   return (
-<<<<<<< Updated upstream
     <Modal isOpen={isOpen} onClose={onClose} size="5xl" scrollBehavior="inside">
       <ModalOverlay bg="blackAlpha.500" backdropFilter="blur(5px)" />
       <ModalContent borderRadius="22px" bg={modalBg} maxW={{ base: '94vw', lg: '1040px' }} maxH="92vh" overflow="hidden">
         <ModalHeader bg={headerBg} borderBottom="1px solid" borderColor={borderColor}>
-=======
-    <Modal isOpen={isOpen} onClose={onClose} size="4xl" scrollBehavior="inside">
-      <ModalOverlay />
-      <ModalContent borderRadius="16px">
-        <ModalHeader>
->>>>>>> Stashed changes
           <VStack align="stretch" spacing={2}>
             <HStack spacing={2} wrap="wrap">
               <Badge colorScheme={currentTask.projectType === 'external' ? 'purple' : 'blue'}>
@@ -158,19 +109,14 @@ export default function ITTaskDetailModal({ isOpen, task, onClose, onDone }) {
               <Badge colorScheme={workflow.color}>{workflow.label}</Badge>
               {currentTask.urgent && <Badge colorScheme="red">Urgent</Badge>}
             </HStack>
-<<<<<<< Updated upstream
             <Heading size={{ base: 'md', md: 'lg' }}>{getTaskTitle(currentTask)}</Heading>
             <Text color={muted} fontSize="sm">
               Review progress, ownership, comments, and delivery context for this task.
             </Text>
-=======
-            <Heading size="md">{getTaskTitle(currentTask)}</Heading>
->>>>>>> Stashed changes
           </VStack>
         </ModalHeader>
         <ModalCloseButton />
 
-<<<<<<< Updated upstream
         <ModalBody py={5}>
           <VStack align="stretch" spacing={4}>
             <Card borderColor={borderColor} borderWidth="1px" borderRadius="18px" boxShadow="sm">
@@ -195,24 +141,12 @@ export default function ITTaskDetailModal({ isOpen, task, onClose, onDone }) {
                   minW="100%"
                   label="Tap a milestone"
                 />
-=======
-        <ModalBody>
-          <VStack align="stretch" spacing={5}>
-            <Card borderColor={borderColor} borderWidth="1px" borderRadius="14px">
-              <CardBody>
-                <HStack justify="space-between" mb={2}>
-                  <Text fontWeight="800">Task Progress</Text>
-                  <Text fontWeight="800">{progress}%</Text>
-                </HStack>
-                <Progress value={progress} colorScheme={progress >= 80 ? 'green' : progress >= 45 ? 'blue' : 'orange'} borderRadius="full" size="lg" />
->>>>>>> Stashed changes
                 <Text color={muted} fontSize="sm" mt={2}>
                   Current workflow: {workflow.label}
                 </Text>
               </CardBody>
             </Card>
 
-<<<<<<< Updated upstream
             <SimpleGrid columns={{ base: 1, md: 3 }} spacing={3}>
               <Box bg={subtleBg} borderRadius="14px" p={4} border="1px solid" borderColor={borderColor}>
                 <Text color={muted} fontSize="sm">Status</Text>
@@ -223,28 +157,13 @@ export default function ITTaskDetailModal({ isOpen, task, onClose, onDone }) {
                 <Text fontWeight="800">{currentTask.featureCount || (currentTask.status === 'done' ? 1 : 0)}</Text>
               </Box>
               <Box bg={subtleBg} borderRadius="14px" p={4} border="1px solid" borderColor={borderColor}>
-=======
-            <SimpleGrid columns={{ base: 1, md: 3 }} spacing={4}>
-              <Box bg={subtleBg} borderRadius="12px" p={4}>
-                <Text color={muted} fontSize="sm">Status</Text>
-                <Text fontWeight="800">{currentTask.status || 'pending'}</Text>
-              </Box>
-              <Box bg={subtleBg} borderRadius="12px" p={4}>
-                <Text color={muted} fontSize="sm">Points</Text>
-                <Text fontWeight="800">{currentTask.featureCount || (currentTask.status === 'done' ? 1 : 0)}</Text>
-              </Box>
-              <Box bg={subtleBg} borderRadius="12px" p={4}>
->>>>>>> Stashed changes
                 <Text color={muted} fontSize="sm">Approval</Text>
                 <Text fontWeight="800">{currentTask.approvalStatus || 'not_submitted'}</Text>
               </Box>
             </SimpleGrid>
 
-<<<<<<< Updated upstream
             <Card borderColor={borderColor} borderWidth="1px" borderRadius="18px">
               <CardBody>
-=======
->>>>>>> Stashed changes
             <Grid templateColumns={{ base: '1fr', md: 'repeat(2, 1fr)' }} gap={4}>
               <GridItem>
                 <Text color={muted} fontSize="sm">Task Leader</Text>
@@ -271,11 +190,8 @@ export default function ITTaskDetailModal({ isOpen, task, onClose, onDone }) {
                 <Text fontWeight="700">{currentTask.actionType || 'N/A'}</Text>
               </GridItem>
             </Grid>
-<<<<<<< Updated upstream
               </CardBody>
             </Card>
-=======
->>>>>>> Stashed changes
 
             {currentTask.progressNote && (
               <Box>
@@ -286,19 +202,14 @@ export default function ITTaskDetailModal({ isOpen, task, onClose, onDone }) {
 
             <Divider />
 
-<<<<<<< Updated upstream
             <Card borderColor={borderColor} borderWidth="1px" borderRadius="18px">
               <CardBody>
-=======
-            <Box>
->>>>>>> Stashed changes
               <Heading size="sm" mb={3}>Comments & Updates</Heading>
               <VStack align="stretch" spacing={3} mb={4}>
                 {comments.length === 0 ? (
                   <Box bg={subtleBg} borderRadius="12px" p={4}>
                     <Text color={muted}>No comments yet.</Text>
                   </Box>
-<<<<<<< Updated upstream
                 ) : comments.map((item) => {
                   const isFocusedComment = focusedCommentId && String(item._id) === String(focusedCommentId);
                   return (
@@ -312,10 +223,6 @@ export default function ITTaskDetailModal({ isOpen, task, onClose, onDone }) {
                     bg={isFocusedComment ? focusedCommentBg : 'transparent'}
                     boxShadow={isFocusedComment ? '0 0 0 3px rgba(59,130,246,0.18)' : 'none'}
                   >
-=======
-                ) : comments.map((item) => (
-                  <Box key={item._id || item.createdAt || item.body} border="1px solid" borderColor={borderColor} borderRadius="12px" p={3}>
->>>>>>> Stashed changes
                     <HStack justify="space-between" align="flex-start">
                       <Box>
                         <Text fontWeight="800">{item.authorName || 'IT User'}</Text>
@@ -325,12 +232,8 @@ export default function ITTaskDetailModal({ isOpen, task, onClose, onDone }) {
                     </HStack>
                     <Text mt={2}>{item.body}</Text>
                   </Box>
-<<<<<<< Updated upstream
                   );
                 })}
-=======
-                ))}
->>>>>>> Stashed changes
               </VStack>
 
               <FormControl>
@@ -342,20 +245,12 @@ export default function ITTaskDetailModal({ isOpen, task, onClose, onDone }) {
                   minH="100px"
                 />
               </FormControl>
-<<<<<<< Updated upstream
               </CardBody>
             </Card>
           </VStack>
         </ModalBody>
 
         <ModalFooter borderTop="1px solid" borderColor={borderColor}>
-=======
-            </Box>
-          </VStack>
-        </ModalBody>
-
-        <ModalFooter>
->>>>>>> Stashed changes
           <Button variant="ghost" mr={3} onClick={onClose}>Close</Button>
           <Button colorScheme="blue" onClick={submitComment} isLoading={isSaving} isDisabled={!comment.trim()}>
             Add Comment

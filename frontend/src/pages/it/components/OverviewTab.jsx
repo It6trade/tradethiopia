@@ -269,11 +269,8 @@ export default function OverviewTab({ tasks, weeklyTarget, setWeeklyTarget, fetc
     progress: 'all',
     query: '',
   });
-<<<<<<< Updated upstream
   const [taskPageSize, setTaskPageSize] = useState(10);
   const [taskPage, setTaskPage] = useState(1);
-=======
->>>>>>> Stashed changes
   const [editingTask, setEditingTask] = useState(null);
   const [viewingTask, setViewingTask] = useState(null);
   
@@ -294,16 +291,11 @@ export default function OverviewTab({ tasks, weeklyTarget, setWeeklyTarget, fetc
   const cardBg = useColorModeValue('white', 'gray.800');
   const borderColor = useColorModeValue('gray.200', 'gray.700');
   const filterInputBg = useColorModeValue('gray.50', 'gray.700');
-<<<<<<< Updated upstream
   const subtleBg = useColorModeValue('blue.50', 'whiteAlpha.50');
   const tableHeadBg = useColorModeValue('linear-gradient(135deg, #eff6ff, #f8fafc)', 'linear-gradient(135deg, rgba(14,165,233,0.12), rgba(15,23,42,0.92))');
   const cardShadow = useColorModeValue('0 18px 38px rgba(15, 23, 42, 0.09)', '0 18px 38px rgba(0, 0, 0, 0.28)');
   const cardGradient = useColorModeValue('linear-gradient(135deg, rgba(255,255,255,0.96), rgba(248,250,252,0.92))', 'linear-gradient(135deg, rgba(15,23,42,0.92), rgba(30,41,59,0.72))');
   const targetBg = useColorModeValue('linear-gradient(135deg, #f8fafc, #ecfeff)', 'linear-gradient(135deg, rgba(15,23,42,0.92), rgba(12,74,110,0.18))');
-=======
-  const subtleBg = useColorModeValue('gray.50', 'whiteAlpha.50');
-  const tableHeadBg = useColorModeValue('gray.50', 'gray.900');
->>>>>>> Stashed changes
 
   const handleToggleStatus = async (taskId, currentStatus) => {
     const isDone = currentStatus === 'done';
@@ -568,7 +560,6 @@ export default function OverviewTab({ tasks, weeklyTarget, setWeeklyTarget, fetc
           {summaryCards.map((card) => {
             const IconComponent = card.icon;
             return (
-<<<<<<< Updated upstream
               <Card
                 key={card.label}
                 borderRadius="20px"
@@ -587,16 +578,6 @@ export default function OverviewTab({ tasks, weeklyTarget, setWeeklyTarget, fetc
                         {card.label}
                       </Text>
                       <Heading size="lg" lineHeight="1">{card.value}</Heading>
-=======
-              <Card key={card.label} borderRadius="14px" boxShadow="sm" bg={cardBg} border="1px solid" borderColor={borderColor}>
-                <CardBody>
-                  <HStack justify="space-between">
-                    <VStack align="start">
-                      <Text fontSize="sm" color="gray.500">
-                        {card.label}
-                      </Text>
-                      <Heading size="md">{card.value}</Heading>
->>>>>>> Stashed changes
                       <Text fontSize="xs" color="gray.500">
                         {card.helper}
                       </Text>
@@ -609,10 +590,7 @@ export default function OverviewTab({ tasks, weeklyTarget, setWeeklyTarget, fetc
                       isRound
                       bg={`${card.color}.50`}
                       color={`${card.color}.500`}
-<<<<<<< Updated upstream
                       boxShadow="inset 0 0 0 1px rgba(255,255,255,0.72)"
-=======
->>>>>>> Stashed changes
                       _hover={{ bg: `${card.color}.100` }}
                     />
                   </HStack>
@@ -628,11 +606,7 @@ export default function OverviewTab({ tasks, weeklyTarget, setWeeklyTarget, fetc
         subtitle="Expand to adjust targets and review progress."
         defaultOpen
       >
-<<<<<<< Updated upstream
           <Flex direction={{ base: 'column', md: 'row' }} align="center" justify="space-between" gap={5} bg={targetBg} border="1px solid" borderColor={borderColor} borderRadius="18px" p={5}>
-=======
-          <Flex direction={{ base: 'column', md: 'row' }} align="center" justify="space-between" gap={4}>
->>>>>>> Stashed changes
             <Box>
               <Text fontSize="sm" color="gray.500">
                 Weekly target ({weeklyTarget} points)
@@ -676,10 +650,7 @@ export default function OverviewTab({ tasks, weeklyTarget, setWeeklyTarget, fetc
               w={{ base: '100%', md: '40%' }}
               hasStripe={!targetAchieved}
               bg={subtleBg}
-<<<<<<< Updated upstream
               boxShadow="inset 0 1px 3px rgba(15, 23, 42, 0.12)"
-=======
->>>>>>> Stashed changes
             />
           </Flex>
       </ITCollapsibleSection>
@@ -689,13 +660,8 @@ export default function OverviewTab({ tasks, weeklyTarget, setWeeklyTarget, fetc
         subtitle="Filter, comment, approve, and manage current work."
         defaultOpen
       >
-<<<<<<< Updated upstream
           <Flex direction={{ base: 'column', xl: 'row' }} align={{ base: 'stretch', xl: 'center' }} justify="space-between" gap={4}>
             <Box minW={0}>
-=======
-          <Flex direction={{ base: 'column', md: 'row' }} align="center" justify="space-between" gap={4}>
-            <Box>
->>>>>>> Stashed changes
               <Text fontSize="sm" color="gray.500">
                 Filter and manage open requests with auto-calculated scores.
               </Text>
@@ -708,11 +674,7 @@ export default function OverviewTab({ tasks, weeklyTarget, setWeeklyTarget, fetc
                   value={filters.query}
                   onChange={(e) => setFilters((prev) => ({ ...prev, query: e.target.value }))}
                   bg={filterInputBg}
-<<<<<<< Updated upstream
                   borderRadius="14px"
-=======
-                  borderRadius="lg"
->>>>>>> Stashed changes
                 />
               </InputGroup>
               <Select
@@ -770,7 +732,6 @@ export default function OverviewTab({ tasks, weeklyTarget, setWeeklyTarget, fetc
           <Box
             border="1px solid"
             borderColor={borderColor}
-<<<<<<< Updated upstream
             borderRadius="18px"
             overflow="hidden"
             boxShadow={cardShadow}
@@ -780,13 +741,6 @@ export default function OverviewTab({ tasks, weeklyTarget, setWeeklyTarget, fetc
               'tbody tr:hover': { background: subtleBg },
               'th': { borderColor, fontSize: '0.72rem', letterSpacing: '0.02em' },
               'td': { borderColor },
-=======
-            borderRadius="12px"
-            overflow="hidden"
-            sx={{
-              'thead tr': { background: tableHeadBg },
-              'tbody tr:hover': { background: subtleBg },
->>>>>>> Stashed changes
             }}
           >
           <TaskTable
@@ -803,7 +757,6 @@ export default function OverviewTab({ tasks, weeklyTarget, setWeeklyTarget, fetc
             permissions={permissions}
             emptyMessage="No tasks match the filters"
           />
-<<<<<<< Updated upstream
           {filteredTasks.length > 0 && (
             <Flex
               justify="space-between"
@@ -842,8 +795,6 @@ export default function OverviewTab({ tasks, weeklyTarget, setWeeklyTarget, fetc
               </HStack>
             </Flex>
           )}
-=======
->>>>>>> Stashed changes
           </Box>
           </Box>
       </ITCollapsibleSection>

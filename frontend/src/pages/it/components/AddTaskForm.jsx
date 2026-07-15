@@ -70,11 +70,7 @@ const AddTaskForm = ({ isOpen, onClose, onDone, onLocalCreate, defaultProjectTyp
   const token = currentUser?.token;
   const userRole = currentUser?.role;
   const normalizedRole = (userRole || '').toString().toLowerCase();
-<<<<<<< Updated upstream
   const normalizedRoleCompact = normalizedRole.replace(/[^a-z0-9]/g, '');
-=======
-  const normalizedRoleCompact = normalizedRole.replace(/\s+/g, '');
->>>>>>> Stashed changes
   const currentUserName = currentUser?.fullName || currentUser?.username || currentUser?.email || '';
   const isTeamLeaderCreator = normalizedRoleCompact === 'itteamleader' || normalizedRole.includes('team leader');
 
@@ -90,11 +86,7 @@ const AddTaskForm = ({ isOpen, onClose, onDone, onLocalCreate, defaultProjectTyp
       .filter(u => {
         const r = String(u.role || '').toLowerCase().replace(/[^a-z0-9]/g, '');
         const d = String(u.department || '').toLowerCase();
-<<<<<<< Updated upstream
         return r === 'it' || r.startsWith('it') || d === 'it';
-=======
-        return r === 'it' || r.includes('it') || d === 'it';
->>>>>>> Stashed changes
       })
       .map(u => u.fullName || u.username || u.email)
       .filter(Boolean);
@@ -109,17 +101,10 @@ const AddTaskForm = ({ isOpen, onClose, onDone, onLocalCreate, defaultProjectTyp
 
     const leadershipUsers = (users || [])
       .filter(u => {
-<<<<<<< Updated upstream
         const r = String(u.role || '').toLowerCase().replace(/[^a-z0-9]/g, '');
         const d = String(u.department || '').toLowerCase();
         const title = String(u.jobTitle || '').toLowerCase();
         const isItUser = r === 'it' || r.startsWith('it') || d === 'it';
-=======
-        const r = String(u.role || '').toLowerCase();
-        const d = String(u.department || '').toLowerCase();
-        const title = String(u.jobTitle || '').toLowerCase();
-        const isItUser = r === 'it' || r.includes('it') || d === 'it';
->>>>>>> Stashed changes
         const isLeaderRole = ['manager', 'admin', 'leader', 'lead'].some(keyword => r.includes(keyword) || title.includes(keyword));
         return isItUser && isLeaderRole;
       })
@@ -158,11 +143,7 @@ const AddTaskForm = ({ isOpen, onClose, onDone, onLocalCreate, defaultProjectTyp
       return;
     }
     
-<<<<<<< Updated upstream
     const isItOrAdmin = normalizedRoleCompact === 'admin' || normalizedRoleCompact === 'it' || normalizedRoleCompact.startsWith('it');
-=======
-    const isItOrAdmin = ['it', 'admin', 'itmanager', 'itteamleader'].includes(normalizedRoleCompact);
->>>>>>> Stashed changes
     if (userRole && !isItOrAdmin) {
       toast({
         title: 'Insufficient permissions',
@@ -595,7 +576,6 @@ const AddTaskForm = ({ isOpen, onClose, onDone, onLocalCreate, defaultProjectTyp
                         borderRadius="lg"
                       />
                     </FormControl>
-<<<<<<< Updated upstream
                   </SimpleGrid>
 
                   <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}>
@@ -632,42 +612,6 @@ const AddTaskForm = ({ isOpen, onClose, onDone, onLocalCreate, defaultProjectTyp
                       </FormHelperText>
                     </FormControl>
                   </SimpleGrid>
-=======
-                  </HStack>
-                  
-                  <FormControl>
-                    <FormLabel>Status</FormLabel>
-                    <Select 
-                      value={status} 
-                      onChange={e => setStatus(e.target.value)}
-                      borderRadius="lg"
-                    >
-                      <option value="pending">Pending</option>
-                      <option value="ongoing">Ongoing</option>
-                      <option value="done">Done</option>
-                    </Select>
-                  </FormControl>
-
-                  <FormControl>
-                    <FormLabel>Task Leader</FormLabel>
-                    <Select
-                      value={taskLeader}
-                      onChange={e => setTaskLeader(e.target.value)}
-                      placeholder="Select task leader"
-                      borderRadius="lg"
-                      isDisabled={isTeamLeaderCreator}
-                    >
-                      {taskLeaderOptions.map((person) => (
-                        <option key={person} value={person}>{person}</option>
-                      ))}
-                    </Select>
-                    <FormHelperText>
-                      {isTeamLeaderCreator
-                        ? 'Team leaders create tasks under their own leadership scope.'
-                        : 'Choose the person responsible for leading this task.'}
-                    </FormHelperText>
-                  </FormControl>
->>>>>>> Stashed changes
                   
                   <FormControl>
                     <FormLabel>Assigned To</FormLabel>

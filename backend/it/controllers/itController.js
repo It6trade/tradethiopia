@@ -246,67 +246,6 @@ const createCompletionReportForTask = async (task) => {
   return report;
 };
 
-const getUserDisplayName = (user) => (
-  user?.fullName
-  || user?.username
-  || user?.email
-  || 'IT User'
-);
-
-const WORKFLOW_STATUS = ['pending', 'assigned', 'in_progress', 'submitted', 'approved', 'rejected', 'completed'];
-
-const appendAudit = (task, req, action, details = {}) => {
-  task.auditLog.push({
-    actor: req.user?._id,
-    actorName: getUserDisplayName(req.user),
-    actorRole: req.user?.role || '',
-    action,
-    from: details.from,
-    to: details.to,
-    note: details.note || '',
-    metadata: details.metadata,
-  });
-};
-
-const deriveWorkflowStatus = (data = {}) => {
-  if (data.workflowStatus && WORKFLOW_STATUS.includes(data.workflowStatus)) {
-    return data.workflowStatus;
-  }
-  if (data.status === 'done') return 'completed';
-  if (data.assignedTo?.length || data.taskLeader) return 'assigned';
-  return 'pending';
-};
-
-const createCompletionReportForTask = async (task) => {
-  const existing = await ITReport.findOne({ taskRef: task._id });
-  if (existing) return existing;
-
-  const isInternal = task.projectType === 'internal';
-  const logicalTaskName = isInternal ? (task.taskName || '') : (task.client || '');
-  const logicalTaskDetails = isInternal ? (task.platform || '') : (task.category || '');
-  const projectName = logicalTaskName || task.projectName || task.client || task.platform || task.category || '';
-
-  const report = new ITReport({
-    projectName,
-    projectType: task.projectType,
-    actionType: task.actionType,
-    taskName: logicalTaskName,
-    taskDetails: logicalTaskDetails,
-    description: task.description,
-    attachments: task.attachments,
-    startDate: task.startDate,
-    endDate: task.endDate,
-    status: task.status,
-    completionDate: new Date(),
-    taskLeader: task.taskLeader || '',
-    personnelName: task.assignedTo,
-    taskRef: task._id,
-    points: task.featureCount || 1
-  });
-  await report.save();
-  return report;
-};
-
 // Create new IT task
 const createTask = async (req, res) => {
   try {
@@ -431,7 +370,6 @@ const updateTask = async (req, res) => {
       updateData.featureCount = Number(updateData.featureCount);
     }
 
-<<<<<<< Updated upstream
     if (updateData.progressPercent !== undefined) {
       const role = normalizeRole(req.user?.role);
       if (role !== 'it' && role !== 'itstaff') {
@@ -452,8 +390,6 @@ const updateTask = async (req, res) => {
       }
     }
 
-=======
->>>>>>> Stashed changes
     if (updateData.taskLeader !== undefined) {
       updateData.taskLeader = String(updateData.taskLeader || '').trim();
     }
@@ -512,7 +448,6 @@ const updateTask = async (req, res) => {
       note: updateData.auditNote || updateData.note || '',
     });
     const updated = await task.save();
-<<<<<<< Updated upstream
     await notifyTaskParticipants(updated, req, {
       title: 'IT task updated',
       text: `IT task updated: ${getTaskTitle(updated)}.`,
@@ -528,8 +463,6 @@ const updateTask = async (req, res) => {
         },
       },
     });
-=======
->>>>>>> Stashed changes
 
     // If task is already completed and featureCount is being updated, also update the corresponding report
     if (updated.status === 'done' && updateData.featureCount !== undefined) {
@@ -598,25 +531,16 @@ const addTaskComment = async (req, res) => {
     const task = await ITTask.findById(req.params.id);
     if (!task) return res.status(404).json({ success: false, message: 'Task not found' });
 
-<<<<<<< Updated upstream
     const comment = task.comments.create({
-=======
-    task.comments.push({
->>>>>>> Stashed changes
       author: req.user?._id,
       authorName: getUserDisplayName(req.user),
       authorRole: req.user?.role || '',
       body
     });
-<<<<<<< Updated upstream
     task.comments.push(comment);
     appendAudit(task, req, 'comment_added', { note: body });
     await task.save();
     await notifyTaskCommentParticipants(task, comment, req);
-=======
-    appendAudit(task, req, 'comment_added', { note: body });
-    await task.save();
->>>>>>> Stashed changes
     res.status(201).json({ success: true, data: task });
   } catch (error) {
     console.error('addTaskComment error', error);
@@ -664,7 +588,6 @@ const approveTask = async (req, res) => {
     });
 
     await task.save();
-<<<<<<< Updated upstream
     await notifyTaskParticipants(task, req, {
       title: decision === 'approved' ? 'Task approved' : 'Task approval update',
       text: `${decision === 'approved' ? 'Task approved' : 'Task approval updated'}: ${getTaskTitle(task)}.`,
@@ -675,9 +598,6 @@ const approveTask = async (req, res) => {
       },
     });
     if (task.workflowStatus === 'completed') {
-=======
-    if (workflowStatus === 'completed') {
->>>>>>> Stashed changes
       await createCompletionReportForTask(task);
     }
     res.json({ success: true, data: task });
@@ -737,7 +657,6 @@ const updateWorkflow = async (req, res) => {
     });
 
     await task.save();
-<<<<<<< Updated upstream
     await notifyTaskParticipants(task, req, {
       title: 'Task workflow changed',
       text: `Task workflow changed to ${workflowStatus.replace('_', ' ')}: ${getTaskTitle(task)}.`,
@@ -748,8 +667,6 @@ const updateWorkflow = async (req, res) => {
         previousStatus,
       },
     });
-=======
->>>>>>> Stashed changes
     res.json({ success: true, data: task });
   } catch (error) {
     console.error('updateWorkflow error', error);
@@ -791,7 +708,6 @@ const reassignTask = async (req, res) => {
     });
 
     await task.save();
-<<<<<<< Updated upstream
     await notifyTaskParticipants(task, req, {
       title: 'Task assignment updated',
       text: `Task assignment updated: ${getTaskTitle(task)}.`,
@@ -805,8 +721,6 @@ const reassignTask = async (req, res) => {
         },
       },
     });
-=======
->>>>>>> Stashed changes
     res.json({ success: true, data: task });
   } catch (error) {
     console.error('reassignTask error', error);
@@ -822,18 +736,13 @@ const addReminder = async (req, res) => {
     const task = await ITTask.findById(req.params.id);
     if (!task) return res.status(404).json({ success: false, message: 'Task not found' });
 
-<<<<<<< Updated upstream
     const reminder = task.reminders.create({
-=======
-    task.reminders.push({
->>>>>>> Stashed changes
       title,
       note: req.body.note || '',
       type: req.body.type || 'task',
       dueAt: req.body.dueAt || undefined,
       createdBy: req.user?._id,
     });
-<<<<<<< Updated upstream
     task.reminders.push(reminder);
     appendAudit(task, req, 'reminder_added', { note: title });
 
@@ -852,11 +761,6 @@ const addReminder = async (req, res) => {
         keepVisible: true,
       },
     });
-=======
-    appendAudit(task, req, 'reminder_added', { note: title });
-
-    await task.save();
->>>>>>> Stashed changes
     res.status(201).json({ success: true, data: task });
   } catch (error) {
     console.error('addReminder error', error);
@@ -883,7 +787,6 @@ const updateReminder = async (req, res) => {
     });
 
     await task.save();
-<<<<<<< Updated upstream
     if (reminder.isDone) {
       await Notification.updateMany(
         {
@@ -899,8 +802,6 @@ const updateReminder = async (req, res) => {
         }
       );
     }
-=======
->>>>>>> Stashed changes
     res.json({ success: true, data: task });
   } catch (error) {
     console.error('updateReminder error', error);

@@ -21,19 +21,12 @@ export default function ITCollapsibleSection({
 }) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
   const borderColor = useColorModeValue('gray.200', 'gray.700');
-<<<<<<< Updated upstream
   const headerBg = useColorModeValue('rgba(255,255,255,0.86)', 'rgba(15,23,42,0.88)');
   const headerStripBg = useColorModeValue('linear-gradient(135deg, rgba(239,246,255,0.92), rgba(240,253,250,0.88))', 'linear-gradient(135deg, rgba(14,165,233,0.12), rgba(20,184,166,0.08))');
   const shadow = useColorModeValue('0 18px 44px rgba(15, 23, 42, 0.08)', '0 18px 44px rgba(0, 0, 0, 0.28)');
 
   return (
     <Box border="1px solid" borderColor={borderColor} borderRadius="20px" bg={headerBg} overflow="hidden" boxShadow={shadow} backdropFilter="blur(16px)">
-=======
-  const headerBg = useColorModeValue('white', 'gray.800');
-
-  return (
-    <Box border="1px solid" borderColor={borderColor} borderRadius="14px" bg={headerBg} overflow="hidden">
->>>>>>> Stashed changes
       <Flex
         align="center"
         justify="space-between"
@@ -42,10 +35,7 @@ export default function ITCollapsibleSection({
         py={4}
         cursor="pointer"
         onClick={() => setIsOpen((value) => !value)}
-<<<<<<< Updated upstream
         bg={headerStripBg}
-=======
->>>>>>> Stashed changes
       >
         <HStack spacing={3} minW={0}>
           <Button
