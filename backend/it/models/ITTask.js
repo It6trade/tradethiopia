@@ -11,6 +11,31 @@ const ITTaskSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  ticketCategory: {
+    type: String,
+    enum: ['network', 'hardware', 'software', 'account', 'security', 'maintenance', 'support', 'other'],
+    default: 'support'
+  },
+  requestSource: {
+    type: String,
+    enum: ['manager', 'leader', 'staff_request', 'employee_call', 'system', 'other'],
+    default: 'manager'
+  },
+  supportStatus: {
+    type: String,
+    enum: ['requested', 'manager_accepted', 'assigned', 'staff_accepted', 'in_progress', 'reported', 'approved', 'rejected', 'closed'],
+    default: 'assigned'
+  },
+  supportRequestNote: { type: String, default: '' },
+  requestedBy: { type: String, default: '' },
+  requestedDepartment: { type: String, default: '' },
+  requestedAt: { type: Date },
+  managerAcceptedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: false },
+  managerAcceptedByName: { type: String, default: '' },
+  managerAcceptedAt: { type: Date },
+  staffAcceptedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: false },
+  staffAcceptedByName: { type: String, default: '' },
+  staffAcceptedAt: { type: Date },
   description: { type: String, default: '' },
   attachments: [{ type: String }], // Array of file URLs
   status: { type: String, enum: ['pending', 'ongoing', 'done'], default: 'pending' },
@@ -37,6 +62,31 @@ const ITTaskSchema = new mongoose.Schema({
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: false },
   progressPercent: { type: Number, min: 0, max: 100, default: 0 },
   featureCount: { type: Number, default: 0 }, // Number of features added to the task
+  ticketRecords: [{
+    staff: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: false },
+    staffName: { type: String, default: '' },
+    staffRole: { type: String, default: '' },
+    workType: {
+      type: String,
+      enum: ['network', 'hardware', 'software', 'account', 'security', 'maintenance', 'support', 'other'],
+      default: 'support'
+    },
+    summary: { type: String, required: true },
+    outstandingTasks: { type: String, default: '' },
+    completedAt: { type: Date, default: Date.now },
+    durationMinutes: { type: Number, min: 0, default: 0 },
+    points: { type: Number, min: 0, default: 1 },
+    approvalStatus: {
+      type: String,
+      enum: ['pending_approval', 'approved', 'rejected'],
+      default: 'pending_approval'
+    },
+    approvedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: false },
+    approvedByName: { type: String, default: '' },
+    approvedAt: { type: Date },
+    managerNote: { type: String, default: '' },
+    createdAt: { type: Date, default: Date.now }
+  }],
   comments: [{
     author: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: false },
     authorName: { type: String, default: '' },

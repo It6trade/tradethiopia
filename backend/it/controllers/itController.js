@@ -39,6 +39,7 @@ const getUserAliases = (user) => (
 const collectTaskParticipantAliases = (task) => (
   [
     task.taskLeader,
+    task.requestedBy,
     ...(task.assignedTo || []),
   ]
     .filter(Boolean)
@@ -46,10 +47,13 @@ const collectTaskParticipantAliases = (task) => (
 );
 
 const isItManagerRole = (role) => ['admin', 'itmanager', 'itadmin'].includes(normalizeRole(role));
+const isItLeaderRole = (role) => ['itteamleader', 'itleader'].includes(normalizeRole(role));
+const isItStaffRole = (role) => ['it', 'itstaff', 'itofficer'].includes(normalizeRole(role));
 const escapeRegex = (value = '') => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const getTaskLocation = (task) => `${task.projectType || 'IT'} / ${task.platform || task.category || task.client || 'Project Workspace'}`;
 
 const buildTaskAccessFilter = (req, baseFilter = {}) => {
+  if (!req.user) return baseFilter;
   const role = normalizeRole(req.user?.role);
   if (isItManagerRole(role)) return baseFilter;
 
@@ -67,6 +71,7 @@ const buildTaskAccessFilter = (req, baseFilter = {}) => {
 };
 
 const canAccessTask = (task, req) => {
+  if (!req.user) return true;
   const role = normalizeRole(req.user?.role);
   if (isItManagerRole(role)) return true;
   const aliases = getUserAliases(req.user);
@@ -205,6 +210,36 @@ const appendAudit = (task, req, action, details = {}) => {
     note: details.note || '',
     metadata: details.metadata,
   });
+};
+
+const getRecordOwnerAliases = (record = {}) => (
+  [
+    record.staff,
+    record.staffName,
+  ]
+    .filter(Boolean)
+    .map((item) => String(item).trim().toLowerCase())
+);
+
+const getTaskAssigneeAliases = (task) => (
+  (task.assignedTo || [])
+    .filter(Boolean)
+    .map((item) => String(item).trim().toLowerCase())
+);
+
+const canManageTicketRecord = (task, req) => {
+  const role = normalizeRole(req.user?.role);
+  if (isItManagerRole(role)) return true;
+  if (!isItLeaderRole(role)) return false;
+  return getUserAliases(req.user).includes(String(task.taskLeader || '').trim().toLowerCase());
+};
+
+const scoreTicketRecord = (record = {}) => {
+  if (String(record.outstandingTasks || '').trim()) return 0;
+  const base = Number(record.points) || 1;
+  const durationBonus = Number(record.durationMinutes) >= 60 ? 1 : 0;
+  const typeBonus = ['security', 'network', 'hardware'].includes(record.workType) ? 1 : 0;
+  return Math.max(1, base + durationBonus + typeBonus);
 };
 
 const deriveWorkflowStatus = (data = {}) => {
@@ -544,6 +579,470 @@ const addTaskComment = async (req, res) => {
     res.status(201).json({ success: true, data: task });
   } catch (error) {
     console.error('addTaskComment error', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+const notifyUsersForTask = async (users = [], task, req, options = {}) => {
+  try {
+    const recipients = [...new Map(users.filter((user) => user?._id).map((user) => [String(user._id), user])).values()];
+    if (!recipients.length) return [];
+
+    const taskTitle = getTaskTitle(task);
+    const title = options.title || 'IT support update';
+    const actionLabel = options.actionLabel || 'View ticket';
+    const link = options.link || `/it?tab=tickets&task=${task._id}`;
+    const notificationDocs = recipients.map((user) => ({
+      user: user._id,
+      text: options.text || `${title}: ${taskTitle}.`,
+      type: options.type || 'task',
+      itTaskId: task._id,
+      link,
+      metadata: {
+        title,
+        taskTitle,
+        taskLocation: getTaskLocation(task),
+        actionLabel,
+        actorName: getUserDisplayName(req.user),
+        supportStatus: task.supportStatus,
+        ...(options.metadata || {}),
+      },
+    }));
+
+    const createdNotifications = await Notification.insertMany(notificationDocs);
+    createdNotifications.forEach(emitNotification);
+    return createdNotifications;
+  } catch (error) {
+    console.error('notifyUsersForTask error', error);
+    return [];
+  }
+};
+
+const getActiveItManagers = async () => {
+  const users = await User.find({ status: 'active' }).select('username fullName email role department status');
+  return users.filter((user) => isItManagerRole(user.role));
+};
+
+const getUsersMatchingTaskAliases = async (task) => {
+  const aliases = collectTaskParticipantAliases(task);
+  if (!aliases.length) return [];
+  const users = await User.find({ status: 'active' }).select('username fullName email role department status');
+  return users.filter((user) => getUserAliases(user).some((alias) => aliases.includes(alias)));
+};
+
+const addTicketRecord = async (req, res) => {
+  try {
+    const summary = String(req.body.summary || '').trim();
+    if (!summary) {
+      return res.status(400).json({ success: false, message: 'Completed work summary is required' });
+    }
+
+    const task = await ITTask.findById(req.params.id);
+    if (!task) return res.status(404).json({ success: false, message: 'Task not found' });
+    if (!canAccessTask(task, req)) {
+      return res.status(403).json({ success: false, message: 'You do not have access to this IT ticket.' });
+    }
+
+    const role = normalizeRole(req.user?.role);
+    const userAliases = getUserAliases(req.user);
+    const requestedStaff = String(req.body.staff || req.user?._id || '').trim().toLowerCase();
+    const isOwnRecord = !requestedStaff || userAliases.includes(requestedStaff);
+
+    if (!isItStaffRole(role) && !canManageTicketRecord(task, req)) {
+      return res.status(403).json({ success: false, message: 'Only IT staff can record completed ticket work.' });
+    }
+
+    if (isItStaffRole(role) && !isOwnRecord) {
+      return res.status(403).json({ success: false, message: 'IT staff can only record their own completed work.' });
+    }
+
+    const record = task.ticketRecords.create({
+      staff: req.user?._id,
+      staffName: getUserDisplayName(req.user),
+      staffRole: req.user?.role || '',
+      workType: req.body.workType || task.ticketCategory || 'support',
+      summary,
+      completedAt: req.body.completedAt ? new Date(req.body.completedAt) : new Date(),
+      durationMinutes: Math.max(0, Number(req.body.durationMinutes) || 0),
+      points: Math.max(1, Number(req.body.points) || 1),
+      approvalStatus: 'pending_approval',
+    });
+
+    task.ticketRecords.push(record);
+    task.requestSource = task.requestSource || 'employee_call';
+    task.ticketCategory = task.ticketCategory || record.workType;
+    task.status = task.status === 'pending' ? 'ongoing' : task.status;
+    task.workflowStatus = ['pending', 'assigned'].includes(task.workflowStatus) ? 'in_progress' : task.workflowStatus;
+    appendAudit(task, req, 'ticket_work_recorded', {
+      note: summary,
+      metadata: {
+        recordId: record._id,
+        workType: record.workType,
+        durationMinutes: record.durationMinutes,
+      },
+    });
+
+    await task.save();
+    await notifyTaskParticipants(task, req, {
+      title: 'Ticket work recorded',
+      text: `Ticket work recorded for ${getTaskTitle(task)} by ${getUserDisplayName(req.user)}.`,
+      actionLabel: 'Review ticket work',
+      metadata: {
+        recordId: record._id,
+        workType: record.workType,
+        approvalStatus: record.approvalStatus,
+      },
+    });
+
+    res.status(201).json({ success: true, data: task });
+  } catch (error) {
+    console.error('addTicketRecord error', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+const createSupportRequest = async (req, res) => {
+  try {
+    const summary = String(req.body.summary || req.body.description || '').trim();
+    if (!summary) {
+      return res.status(400).json({ success: false, message: 'Support request details are required' });
+    }
+
+    const category = req.body.ticketCategory || req.body.workType || 'support';
+    const requestedBy = req.body.requestedBy || getUserDisplayName(req.user);
+    const task = new ITTask({
+      taskName: req.body.taskName || `${requestedBy} support request`,
+      projectType: 'internal',
+      actionType: req.body.actionType || 'Support Request',
+      ticketCategory: category,
+      requestSource: 'employee_call',
+      supportStatus: 'requested',
+      supportRequestNote: summary,
+      requestedBy,
+      requestedDepartment: req.body.requestedDepartment || req.user?.department || '',
+      requestedAt: new Date(),
+      description: summary,
+      status: 'pending',
+      workflowStatus: 'pending',
+      createdBy: req.user?._id || req.user?.id,
+    });
+
+    appendAudit(task, req, 'support_requested', {
+      note: summary,
+      metadata: {
+        requestedBy: task.requestedBy,
+        requestedDepartment: task.requestedDepartment,
+        ticketCategory: category,
+      },
+    });
+
+    await task.save();
+    const managers = await getActiveItManagers();
+    await notifyUsersForTask(managers, task, req, {
+      title: 'New support request',
+      text: `New support request from ${task.requestedBy}: ${getTaskTitle(task)}.`,
+      actionLabel: 'Accept and assign',
+      metadata: {
+        requestedBy: task.requestedBy,
+        requestedDepartment: task.requestedDepartment,
+      },
+    });
+
+    res.status(201).json({ success: true, data: task });
+  } catch (error) {
+    console.error('createSupportRequest error', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+const acceptSupportRequest = async (req, res) => {
+  try {
+    const role = normalizeRole(req.user?.role);
+    if (!isItManagerRole(role) && !isItLeaderRole(role)) {
+      return res.status(403).json({ success: false, message: 'Only IT managers or team leaders can accept and assign support requests.' });
+    }
+
+    const task = await ITTask.findById(req.params.id);
+    if (!task) return res.status(404).json({ success: false, message: 'Support request not found' });
+
+    const assignedTo = req.body.assignedTo !== undefined
+      ? (Array.isArray(req.body.assignedTo) ? req.body.assignedTo : [req.body.assignedTo].filter(Boolean))
+      : task.assignedTo;
+    const taskLeader = req.body.taskLeader !== undefined ? String(req.body.taskLeader || '').trim() : (task.taskLeader || getUserDisplayName(req.user));
+
+    task.managerAcceptedBy = req.user?._id;
+    task.managerAcceptedByName = getUserDisplayName(req.user);
+    task.managerAcceptedAt = new Date();
+    task.taskLeader = taskLeader;
+    task.assignedTo = assignedTo;
+    task.supportStatus = assignedTo.length ? 'assigned' : 'manager_accepted';
+    task.workflowStatus = assignedTo.length || taskLeader ? 'assigned' : 'pending';
+    task.status = 'pending';
+
+    appendAudit(task, req, 'support_accepted_assigned', {
+      note: req.body.note || '',
+      metadata: {
+        taskLeader,
+        assignedTo,
+        supportStatus: task.supportStatus,
+      },
+    });
+
+    await task.save();
+    const assignedUsers = await getUsersMatchingTaskAliases(task);
+    await notifyUsersForTask(assignedUsers, task, req, {
+      title: 'Support ticket assigned',
+      text: `Support ticket assigned: ${getTaskTitle(task)}.`,
+      actionLabel: 'Accept ticket',
+    });
+
+    res.json({ success: true, data: task });
+  } catch (error) {
+    console.error('acceptSupportRequest error', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+const acceptAssignedSupport = async (req, res) => {
+  try {
+    const task = await ITTask.findById(req.params.id);
+    if (!task) return res.status(404).json({ success: false, message: 'Support ticket not found' });
+    const assigneeAliases = getTaskAssigneeAliases(task);
+    const userAliases = getUserAliases(req.user);
+    const isAssignedIndividual = assigneeAliases.some((alias) => userAliases.includes(alias));
+    if (!isAssignedIndividual) {
+      return res.status(403).json({ success: false, message: 'Only the assigned staff member can accept this support ticket.' });
+    }
+
+    task.staffAcceptedBy = req.user?._id;
+    task.staffAcceptedByName = getUserDisplayName(req.user);
+    task.staffAcceptedAt = new Date();
+    task.supportStatus = 'in_progress';
+    task.workflowStatus = 'in_progress';
+    task.status = 'ongoing';
+
+    appendAudit(task, req, 'support_staff_accepted', {
+      note: req.body.note || '',
+      metadata: {
+        staffName: task.staffAcceptedByName,
+      },
+    });
+
+    await task.save();
+
+    res.json({ success: true, data: task });
+  } catch (error) {
+    console.error('acceptAssignedSupport error', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+const submitSupportReport = async (req, res) => {
+  try {
+    const summary = String(req.body.summary || '').trim();
+    if (!summary) {
+      return res.status(400).json({ success: false, message: 'Support report summary is required' });
+    }
+
+    const task = await ITTask.findById(req.params.id);
+    if (!task) return res.status(404).json({ success: false, message: 'Support ticket not found' });
+    const assigneeAliases = getTaskAssigneeAliases(task);
+    const userAliases = getUserAliases(req.user);
+    const isAssignedIndividual = assigneeAliases.some((alias) => userAliases.includes(alias));
+    if (!isAssignedIndividual) {
+      return res.status(403).json({ success: false, message: 'Only the assigned staff member can submit this support report.' });
+    }
+
+    const record = task.ticketRecords.create({
+      staff: req.user?._id,
+      staffName: getUserDisplayName(req.user),
+      staffRole: req.user?.role || '',
+      workType: req.body.workType || task.ticketCategory || 'support',
+      summary,
+      outstandingTasks: req.body.outstandingTasks || '',
+      completedAt: req.body.completedAt ? new Date(req.body.completedAt) : new Date(),
+      durationMinutes: Math.max(0, Number(req.body.durationMinutes) || 0),
+      points: Math.max(1, Number(req.body.points) || 1),
+      approvalStatus: 'pending_approval',
+    });
+
+    task.ticketRecords.push(record);
+    task.supportStatus = 'reported';
+    task.workflowStatus = 'submitted';
+    task.approvalStatus = 'pending_approval';
+    task.progressNote = summary;
+
+    appendAudit(task, req, 'support_report_submitted', {
+      note: summary,
+      metadata: {
+        recordId: record._id,
+        outstandingTasks: record.outstandingTasks,
+      },
+    });
+
+    await task.save();
+
+    res.status(201).json({ success: true, data: task });
+  } catch (error) {
+    console.error('submitSupportReport error', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+const updateTicketRecordApproval = async (req, res) => {
+  try {
+    const approvalStatus = String(req.body.approvalStatus || '').trim();
+    if (!['approved', 'rejected', 'pending_approval'].includes(approvalStatus)) {
+      return res.status(400).json({ success: false, message: 'Invalid ticket approval status' });
+    }
+
+    const task = await ITTask.findById(req.params.id);
+    if (!task) return res.status(404).json({ success: false, message: 'Task not found' });
+    if (!canManageTicketRecord(task, req)) {
+      return res.status(403).json({ success: false, message: 'Only IT managers or the assigned team leader can approve ticket work.' });
+    }
+
+    const record = task.ticketRecords.id(req.params.recordId);
+    if (!record) return res.status(404).json({ success: false, message: 'Ticket work record not found' });
+
+    const previousStatus = record.approvalStatus;
+    record.approvalStatus = approvalStatus;
+    record.managerNote = req.body.managerNote || req.body.note || '';
+    if (approvalStatus === 'approved') {
+      record.approvedBy = req.user?._id;
+      record.approvedByName = getUserDisplayName(req.user);
+      record.approvedAt = new Date();
+      record.points = scoreTicketRecord(record);
+      if (String(record.outstandingTasks || '').trim()) {
+        task.supportStatus = 'reported';
+        task.approvalStatus = 'pending_approval';
+        task.workflowStatus = 'submitted';
+        task.status = 'ongoing';
+      } else {
+        task.supportStatus = 'approved';
+        task.approvalStatus = 'approved';
+        task.workflowStatus = 'approved';
+        task.status = 'done';
+      }
+    } else {
+      record.approvedBy = undefined;
+      record.approvedByName = '';
+      record.approvedAt = undefined;
+      if (approvalStatus === 'rejected') {
+        task.supportStatus = 'rejected';
+        task.approvalStatus = 'rejected';
+        task.workflowStatus = 'rejected';
+      }
+    }
+
+    appendAudit(task, req, 'ticket_work_approval', {
+      from: previousStatus,
+      to: approvalStatus,
+      note: record.managerNote,
+      metadata: {
+        recordId: record._id,
+        staffName: record.staffName,
+        points: record.points,
+      },
+    });
+
+    await task.save();
+
+    res.json({ success: true, data: task });
+  } catch (error) {
+    console.error('updateTicketRecordApproval error', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+const deleteTicketRecord = async (req, res) => {
+  try {
+    const task = await ITTask.findById(req.params.id);
+    if (!task) return res.status(404).json({ success: false, message: 'Task not found' });
+
+    const record = task.ticketRecords.id(req.params.recordId);
+    if (!record) return res.status(404).json({ success: false, message: 'Ticket work record not found' });
+
+    const role = normalizeRole(req.user?.role);
+    const isManager = isItManagerRole(role) || canManageTicketRecord(task, req);
+    const isOwner = getUserAliases(req.user).some((alias) => getRecordOwnerAliases(record).includes(alias));
+    const canDeleteOwnDraft = isOwner && record.approvalStatus !== 'approved';
+
+    if (!isManager && !canDeleteOwnDraft) {
+      return res.status(403).json({ success: false, message: 'Only managers can delete approved records. Staff can delete only their own pending or rejected records.' });
+    }
+
+    const removedSnapshot = {
+      recordId: record._id,
+      staffName: record.staffName,
+      workType: record.workType,
+      approvalStatus: record.approvalStatus,
+      summary: record.summary,
+    };
+
+    record.deleteOne();
+    appendAudit(task, req, 'ticket_work_record_deleted', {
+      note: req.body?.note || '',
+      metadata: removedSnapshot,
+    });
+
+    await task.save();
+    await notifyTaskParticipants(task, req, {
+      title: 'Ticket work record deleted',
+      text: `Ticket work record deleted for ${getTaskTitle(task)}.`,
+      actionLabel: 'View ticket records',
+      metadata: removedSnapshot,
+    });
+
+    res.json({ success: true, data: task });
+  } catch (error) {
+    console.error('deleteTicketRecord error', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+const getTicketRankings = async (req, res) => {
+  try {
+    const tasks = await ITTask.find(buildTaskAccessFilter(req, {})).select('taskName projectType ticketCategory actionType assignedTo taskLeader ticketRecords');
+    const rankingMap = new Map();
+
+    tasks.forEach((task) => {
+      (task.ticketRecords || []).forEach((record) => {
+        const userKey = String(record.staff || record.staffName || 'unknown');
+        const existing = rankingMap.get(userKey) || {
+          staffId: record.staff,
+          staffName: record.staffName || 'Unknown staff',
+          staffRole: record.staffRole || '',
+          approvedPoints: 0,
+          totalRecords: 0,
+          approvedRecords: 0,
+          pendingRecords: 0,
+          rejectedRecords: 0,
+          workTypes: {},
+        };
+
+        existing.totalRecords += 1;
+        existing.workTypes[record.workType || 'support'] = (existing.workTypes[record.workType || 'support'] || 0) + 1;
+        const isAccomplished = !String(record.outstandingTasks || '').trim();
+        if (record.approvalStatus === 'approved' && isAccomplished) {
+          existing.approvedRecords += 1;
+          existing.approvedPoints += Number(record.points) || 0;
+        } else if (record.approvalStatus === 'rejected') {
+          existing.rejectedRecords += 1;
+        } else {
+          existing.pendingRecords += 1;
+        }
+        rankingMap.set(userKey, existing);
+      });
+    });
+
+    const rankings = [...rankingMap.values()]
+      .sort((a, b) => b.approvedPoints - a.approvedPoints || b.approvedRecords - a.approvedRecords)
+      .map((item, index) => ({ ...item, rank: index + 1 }));
+
+    res.json({ success: true, data: rankings });
+  } catch (error) {
+    console.error('getTicketRankings error', error);
     res.status(500).json({ success: false, message: error.message });
   }
 };
@@ -937,6 +1436,14 @@ module.exports = {
   getTaskById,
   updateTask,
   addTaskComment,
+  createSupportRequest,
+  acceptSupportRequest,
+  acceptAssignedSupport,
+  submitSupportReport,
+  addTicketRecord,
+  updateTicketRecordApproval,
+  deleteTicketRecord,
+  getTicketRankings,
   approveTask,
   updateWorkflow,
   reassignTask,

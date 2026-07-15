@@ -32,10 +32,20 @@ router.post('/reports', itController.createReport);
 // Audit
 router.get('/audit/all', itController.getAuditLog);
 
+// Ticket management
+router.get('/tickets/rankings', itController.getTicketRankings);
+router.post('/support-requests', itController.createSupportRequest);
+
 // Task routes
 router.get('/:id', itController.getTaskById);
 router.post('/', itController.createTask);
 router.post('/:id/comments', itController.addTaskComment);
+router.post('/:id/support/accept', itController.acceptSupportRequest);
+router.post('/:id/support/staff-accept', itController.acceptAssignedSupport);
+router.post('/:id/support/report', itController.submitSupportReport);
+router.post('/:id/ticket-records', itController.addTicketRecord);
+router.patch('/:id/ticket-records/:recordId/approval', itController.updateTicketRecordApproval);
+router.delete('/:id/ticket-records/:recordId', itController.deleteTicketRecord);
 router.post('/:id/approve', itController.approveTask);
 router.post('/:id/workflow', itController.updateWorkflow);
 router.post('/:id/reassign', itController.reassignTask);

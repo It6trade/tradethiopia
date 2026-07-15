@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   Box,
+  Badge,
   Button,
   Card,
   CardBody,
@@ -29,6 +30,33 @@ import {
 import { FiActivity, FiGrid, FiLock, FiPower, FiShield, FiTrash2, FiUserPlus, FiUsers } from 'react-icons/fi';
 import axiosInstance from '../../../services/axiosInstance';
 import { normalizeRole } from '../../../store/user';
+
+const buildTicketRankings = (tasks = []) => {
+  const rankings = new Map();
+  tasks.forEach((task) => {
+    (task.ticketRecords || []).forEach((record) => {
+      const key = String(record.staff || record.staffName || 'unknown');
+      const item = rankings.get(key) || {
+        staffName: record.staffName || 'Unknown staff',
+        approvedPoints: 0,
+        approvedRecords: 0,
+        pendingRecords: 0,
+      };
+      const isAccomplished = !String(record.outstandingTasks || '').trim();
+      if (record.approvalStatus === 'approved' && isAccomplished) {
+        item.approvedPoints += Number(record.points) || 0;
+        item.approvedRecords += 1;
+      } else if (record.approvalStatus !== 'rejected') {
+        item.pendingRecords += 1;
+      }
+      rankings.set(key, item);
+    });
+  });
+
+  return [...rankings.values()]
+    .sort((a, b) => b.approvedPoints - a.approvedPoints || b.approvedRecords - a.approvedRecords)
+    .map((item, index) => ({ ...item, rank: index + 1 }));
+};
 
 export default function ITAdminPanel({ tasks = [], users = [], refreshUsers, initialPanel = 'overview' }) {
   const [activePanel, setActivePanel] = useState(initialPanel);
@@ -73,6 +101,10 @@ export default function ITAdminPanel({ tasks = [], users = [], refreshUsers, ini
     itUsers: users.filter((user) => normalizeRole(user.role) === 'it' || normalizeRole(user.role).startsWith('it')).length,
     pendingApprovals: tasks.filter((task) => task.approvalStatus === 'pending_approval').length,
   }), [tasks, users]);
+  const ticketRankings = useMemo(() => buildTicketRankings(tasks), [tasks]);
+  const pendingTicketApprovals = useMemo(() => tasks.reduce((sum, task) => (
+    sum + (task.ticketRecords || []).filter((record) => record.approvalStatus === 'pending_approval').length
+  ), 0), [tasks]);
 
   const updateUser = async (user, updates) => {
     try {
@@ -164,6 +196,40 @@ export default function ITAdminPanel({ tasks = [], users = [], refreshUsers, ini
                     <Card bg={cardBg} borderColor={borderColor} borderWidth="1px" borderRadius="2xl"><CardBody><Stat><StatLabel>Active Users</StatLabel><StatNumber>{stats.activeUsers}</StatNumber></Stat></CardBody></Card>
                     <Card bg={cardBg} borderColor={borderColor} borderWidth="1px" borderRadius="2xl"><CardBody><Stat><StatLabel>IT Users</StatLabel><StatNumber>{stats.itUsers}</StatNumber></Stat></CardBody></Card>
                     <Card bg={cardBg} borderColor={borderColor} borderWidth="1px" borderRadius="2xl"><CardBody><Stat><StatLabel>Pending Approvals</StatLabel><StatNumber>{stats.pendingApprovals}</StatNumber></Stat></CardBody></Card>
+                  </SimpleGrid>
+                  <SimpleGrid columns={{ base: 1, xl: 2 }} spacing={4}>
+                    <Card bg={sidebarBg} borderColor={borderColor} borderWidth="1px" borderRadius="xl">
+                      <CardBody>
+                        <HStack justify="space-between" mb={3}>
+                          <Heading size="md">Ticket Ranking</Heading>
+                          <Badge colorScheme="green">{pendingTicketApprovals} pending review</Badge>
+                        </HStack>
+                        <VStack align="stretch" spacing={2}>
+                          {ticketRankings.length === 0 ? (
+                            <Text color={mutedColor}>No ticket work has been approved yet.</Text>
+                          ) : ticketRankings.slice(0, 5).map((item) => (
+                            <Flex key={item.staffName} justify="space-between" align="center" bg={cardBg} borderRadius="lg" p={3}>
+                              <HStack>
+                                <Badge colorScheme={item.rank === 1 ? 'yellow' : 'blue'} borderRadius="full">#{item.rank}</Badge>
+                                <Box>
+                                  <Text fontWeight="semibold">{item.staffName}</Text>
+                                  <Text fontSize="xs" color={mutedColor}>{item.approvedRecords} approved, {item.pendingRecords} pending</Text>
+                                </Box>
+                              </HStack>
+                              <Badge colorScheme="green">{item.approvedPoints} pts</Badge>
+                            </Flex>
+                          ))}
+                        </VStack>
+                      </CardBody>
+                    </Card>
+                    <Card bg={sidebarBg} borderColor={borderColor} borderWidth="1px" borderRadius="xl">
+                      <CardBody>
+                        <Heading size="md" mb={2}>Ticket Oversight</Heading>
+                        <Text color={mutedColor}>
+                          Staff can record completed internal work such as network fixes, hardware maintenance, and software updates. Manager approval turns those records into ranking points.
+                        </Text>
+                      </CardBody>
+                    </Card>
                   </SimpleGrid>
                   <Card bg={sidebarBg} borderColor={borderColor} borderWidth="1px" borderRadius="xl">
                     <CardBody>

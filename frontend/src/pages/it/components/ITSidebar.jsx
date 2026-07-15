@@ -33,6 +33,7 @@ import {
   FiChevronRight,
   FiUserCheck,
   FiBell,
+  FiTool,
 } from 'react-icons/fi';
 
 const SidebarButton = ({ label, icon: Icon, isActive, onClick, tooltip, isCollapsed, badge }) => {
@@ -203,6 +204,13 @@ export default function ITSidebar({
               icon={FiFolder}
               isActive={activeSection === 'projects'}
               onClick={() => setActiveSection('projects')}
+              isCollapsed={isCollapsed}
+            />
+            <SidebarButton
+              label="Tickets"
+              icon={FiTool}
+              isActive={activeSection === 'tickets'}
+              onClick={() => setActiveSection('tickets')}
               isCollapsed={isCollapsed}
             />
             <SidebarButton

@@ -34,6 +34,7 @@ import ITNotesPanel from './components/ITNotesPanel';
 import ITAdminPanel from './components/ITAdminPanel';
 import ITCollapsibleSection from './components/ITCollapsibleSection';
 import ITRemindersPanel from './components/ITRemindersPanel';
+import TicketManagementTab from './components/TicketManagementTab';
 
 // Global shared imports
 import NoticeBoardPanel from '../../components/NoticeBoardPanel';
@@ -46,6 +47,13 @@ import { buildTaskReminders, filterReadReminders } from './utils/itWorkflow';
 
 const TARGET_STORAGE_KEY = 'tradethiopia_weekly_target';
 const WEEKLY_TARGET_POINTS = 40;
+
+const isSupportTicketTask = (task = {}) => (
+  task.requestSource === 'employee_call'
+  || Boolean(task.supportRequestNote)
+  || Boolean(task.requestedAt)
+  || (task.ticketRecords || []).length > 0
+);
 
 export default function ITDashboard() {
   const navigate = useNavigate();
@@ -102,6 +110,7 @@ export default function ITDashboard() {
   const softText = useColorModeValue('gray.600', 'gray.400');
   const toolbarIconColor = useColorModeValue('#1e293b', '#e2e8f0');
   const visibleTasks = filterTasksForPersona(tasks, persona, currentUser || {});
+  const nonTicketVisibleTasks = visibleTasks.filter((task) => !isSupportTicketTask(task));
   const visibleTaskIds = new Set(visibleTasks.map((task) => String(task._id || task.id)));
   const visibleReports = persona.canViewAllTasks
     ? reports
@@ -109,24 +118,24 @@ export default function ITDashboard() {
       const taskRef = report.taskRef?._id || report.taskRef || report.taskId;
       return taskRef && visibleTaskIds.has(String(taskRef));
     });
-  const dueSoonCount = visibleTasks.filter((task) => {
+  const dueSoonCount = nonTicketVisibleTasks.filter((task) => {
     if (!task.endDate || task.status === 'done') return false;
     const due = new Date(task.endDate).getTime();
     const now = Date.now();
     return due >= now && due - now <= 3 * 24 * 60 * 60 * 1000;
   }).length;
-  const reminderCount = filterReadReminders(buildTaskReminders(visibleTasks), currentUser || {}).length;
+  const reminderCount = filterReadReminders(buildTaskReminders(nonTicketVisibleTasks), currentUser || {}).length;
   const dashboardStats = [
     {
       label: 'Visible tasks',
-      value: visibleTasks.length,
-      helper: `${visibleTasks.filter((task) => task.status === 'ongoing').length} in progress`,
+      value: nonTicketVisibleTasks.length,
+      helper: `${nonTicketVisibleTasks.filter((task) => task.status === 'ongoing').length} in progress`,
       icon: FiActivity,
       color: 'blue',
     },
     {
       label: 'Completed',
-      value: visibleTasks.filter((task) => task.status === 'done').length,
+      value: nonTicketVisibleTasks.filter((task) => task.status === 'done').length,
       helper: 'approved work stream',
       icon: FiCheckCircle,
       color: 'green',
@@ -234,7 +243,7 @@ export default function ITDashboard() {
       case 'dashboard':
         return (
           <OverviewTab
-            tasks={visibleTasks}
+            tasks={nonTicketVisibleTasks}
             weeklyTarget={weeklyTarget}
             setWeeklyTarget={setWeeklyTarget}
             fetchTasks={fetchTasks}
@@ -244,12 +253,22 @@ export default function ITDashboard() {
       case 'projects':
         return (
           <ITProjectWorkspace
-            tasks={visibleTasks}
+            tasks={nonTicketVisibleTasks}
             loading={loadingTasks}
             fetchTasks={fetchTasks}
             permissions={persona}
             focusedTaskId={focusedTaskId}
             focusedCommentId={focusedCommentId}
+          />
+        );
+      case 'tickets':
+        return (
+          <TicketManagementTab
+            tasks={visibleTasks}
+            users={users}
+            currentUser={currentUser}
+            persona={persona}
+            fetchTasks={fetchTasks}
           />
         );
       case 'performance':
@@ -401,6 +420,7 @@ export default function ITDashboard() {
                   >
                     <option value="dashboard">Overview</option>
                     <option value="projects">Projects</option>
+                    <option value="tickets">Tickets</option>
                     <option value="performance">Performance</option>
                     <option value="kpi">KPI</option>
                     <option value="reports">Reports</option>
