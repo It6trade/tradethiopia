@@ -6,8 +6,10 @@ import {
   Card,
   CardBody,
   CardHeader,
+  Flex,
   Heading,
   HStack,
+  Icon,
   SimpleGrid,
   Text,
   VStack,
@@ -15,6 +17,7 @@ import {
   useToast,
 } from '@chakra-ui/react';
 import axios from 'axios';
+import { FiBell } from 'react-icons/fi';
 import { useUserStore } from '../../../store/user';
 import { buildTaskReminders, filterReadReminders, markReminderRead } from '../utils/itWorkflow';
 
@@ -23,6 +26,20 @@ const urgencyScheme = {
   warning: 'orange',
   info: 'blue',
 };
+
+const FlexReminderIcon = ({ colorScheme = 'blue' }) => (
+  <Flex
+    boxSize="34px"
+    borderRadius="full"
+    align="center"
+    justify="center"
+    bg={`${colorScheme}.50`}
+    color={`${colorScheme}.600`}
+    flexShrink={0}
+  >
+    <Icon as={FiBell} boxSize={4} />
+  </Flex>
+);
 
 export default function ITRemindersPanel({ tasks = [], fetchTasks, onReminderRead }) {
   const { currentUser } = useUserStore();
@@ -104,17 +121,29 @@ export default function ITRemindersPanel({ tasks = [], fetchTasks, onReminderRea
             </Box>
           ) : (
             <VStack spacing={3} align="stretch">
-              {reminders.map((reminder) => (
+              {reminders.map((reminder, index) => (
                 <Box
                   key={reminder.id}
                   border="1px solid"
                   borderColor={borderColor}
+                  borderLeft="5px solid"
+                  borderLeftColor={`${urgencyScheme[reminder.urgency] || 'blue'}.400`}
                   borderRadius="12px"
                   p={4}
                 >
                   <HStack justify="space-between" align="flex-start" spacing={4}>
-                    <Box>
+                    <HStack align="flex-start" spacing={3}>
+                      <VStack spacing={1} flexShrink={0}>
+                        <Badge colorScheme={urgencyScheme[reminder.urgency] || 'blue'} borderRadius="full" px={2}>
+                          #{index + 1}
+                        </Badge>
+                        <FlexReminderIcon colorScheme={urgencyScheme[reminder.urgency] || 'blue'} />
+                      </VStack>
+                      <Box>
                       <HStack spacing={2} mb={1} wrap="wrap">
+                        <Badge colorScheme={urgencyScheme[reminder.urgency] || 'blue'} variant="solid">
+                          Reminder
+                        </Badge>
                         <Badge colorScheme={urgencyScheme[reminder.urgency] || 'blue'}>{reminder.type}</Badge>
                         {reminder.dueAt && (
                           <Badge variant="subtle">
@@ -124,7 +153,8 @@ export default function ITRemindersPanel({ tasks = [], fetchTasks, onReminderRea
                       </HStack>
                       <Text fontWeight="800">{reminder.title}</Text>
                       {reminder.note && <Text color={muted} fontSize="sm">{reminder.note}</Text>}
-                    </Box>
+                      </Box>
+                    </HStack>
                     {reminder.custom ? (
                       <Button size="sm" variant="outline" onClick={() => completeReminder(reminder)}>
                         Done

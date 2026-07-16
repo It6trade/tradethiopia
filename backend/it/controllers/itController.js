@@ -853,6 +853,16 @@ const submitSupportReport = async (req, res) => {
       return res.status(403).json({ success: false, message: 'Only the assigned staff member can submit this support report.' });
     }
 
+    const existingSubmittedReport = (task.ticketRecords || []).find((record) => (
+      ['pending_approval', 'approved'].includes(record.approvalStatus)
+    ));
+    if (existingSubmittedReport) {
+      return res.status(409).json({
+        success: false,
+        message: 'This support ticket already has a submitted or approved report and cannot be duplicated.'
+      });
+    }
+
     const record = task.ticketRecords.create({
       staff: req.user?._id,
       staffName: getUserDisplayName(req.user),
@@ -881,6 +891,21 @@ const submitSupportReport = async (req, res) => {
     });
 
     await task.save();
+
+    if (String(record.outstandingTasks || '').trim() && record.approvalStatus !== 'approved') {
+      const managers = await getActiveItManagers();
+      await notifyUsersForTask(managers, task, req, {
+        title: 'Outstanding support work needs review',
+        text: `Outstanding support work is waiting for manager review: ${getTaskTitle(task)}.`,
+        type: 'reminder',
+        actionLabel: 'Review outstanding work',
+        metadata: {
+          recordId: record._id,
+          outstandingTasks: record.outstandingTasks,
+          approvalStatus: record.approvalStatus,
+        },
+      });
+    }
 
     res.status(201).json({ success: true, data: task });
   } catch (error) {

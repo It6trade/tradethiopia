@@ -73,22 +73,29 @@ const isAssignedStaff = (task = {}, user = {}) => {
   return (task.assignedTo || []).some((assignee) => aliases.includes(String(assignee).trim().toLowerCase()));
 };
 
+const hasSubmittedReport = (task = {}) => (
+  (task.ticketRecords || []).some((record) => ['pending_approval', 'approved'].includes(record.approvalStatus))
+);
+
 const buildRankings = (records = []) => {
   const map = new Map();
   records.forEach((record) => {
     const key = String(record.staff || record.staffName || 'unknown');
     const item = map.get(key) || {
+      key,
       staffName: record.staffName || 'Unknown staff',
       approvedPoints: 0,
       approvedRecords: 0,
       pendingRecords: 0,
       totalRecords: 0,
+      accomplishedRecords: [],
     };
     item.totalRecords += 1;
     const isAccomplished = !String(record.outstandingTasks || '').trim();
     if (record.approvalStatus === 'approved' && isAccomplished) {
       item.approvedRecords += 1;
       item.approvedPoints += Number(record.points) || 0;
+      item.accomplishedRecords.push(record);
     } else if (record.approvalStatus !== 'rejected') {
       item.pendingRecords += 1;
     }
@@ -120,6 +127,7 @@ export default function TicketManagementTab({ tasks = [], users = [], currentUse
   const [assignmentDrafts, setAssignmentDrafts] = useState({});
   const [managerNotes, setManagerNotes] = useState({});
   const [managerTicketFilter, setManagerTicketFilter] = useState('undone');
+  const [expandedRankingKey, setExpandedRankingKey] = useState('');
   const [saving, setSaving] = useState(false);
   const cardBg = useColorModeValue('white', 'gray.800');
   const panelBg = useColorModeValue('gray.50', 'whiteAlpha.100');
@@ -132,7 +140,12 @@ export default function TicketManagementTab({ tasks = [], users = [], currentUse
     || (task.ticketRecords || []).some((record) => String(record.outstandingTasks || '').trim())
   )), [visibleTicketTasks]);
 
-  const selectedTask = activeTicketTasks.find((task) => String(task._id || task.id) === String(selectedTaskId)) || activeTicketTasks[0];
+  const reportableSupport = visibleTicketTasks.filter((task) => (
+    ['in_progress', 'rejected'].includes(task.supportStatus)
+    && isAssignedStaff(task, currentUser)
+    && !hasSubmittedReport(task)
+  ));
+  const selectedTask = reportableSupport.find((task) => String(task._id || task.id) === String(selectedTaskId)) || reportableSupport[0];
   const records = useMemo(() => getRecords(visibleTicketTasks), [visibleTicketTasks]);
   const aliases = useMemo(() => getUserTaskAliases(currentUser || {}), [currentUser]);
   const ownRecords = records.filter((record) => (
@@ -161,7 +174,6 @@ export default function TicketManagementTab({ tasks = [], users = [], currentUse
     || aliases.includes(String(task.createdBy || '').trim().toLowerCase())
   ));
   const assignedSupport = visibleTicketTasks.filter((task) => ['assigned', 'staff_accepted'].includes(task.supportStatus) && isAssignedStaff(task, currentUser));
-  const inProgressSupport = visibleTicketTasks.filter((task) => ['in_progress', 'reported', 'rejected'].includes(task.supportStatus) && isAssignedStaff(task, currentUser));
   const itStaffOptions = users.filter((user) => {
     const role = String(user.role || '').toLowerCase();
     return role.includes('it') && !role.includes('manager');
@@ -250,6 +262,7 @@ export default function TicketManagementTab({ tasks = [], users = [], currentUse
         completedAt: new Date().toISOString().slice(0, 10),
         durationMinutes: 30,
       });
+      setSelectedTaskId('');
       await fetchTasks?.();
       toast({ title: 'Support report submitted for manager approval', status: 'success' });
     } catch (error) {
@@ -410,63 +423,6 @@ export default function TicketManagementTab({ tasks = [], users = [], currentUse
         )}
       </SimpleGrid>
 
-      {canApprove && (
-        <Card bg={cardBg} borderColor={borderColor} borderWidth="1px" borderRadius="2xl">
-          <CardBody>
-            <Flex justify="space-between" align={{ base: 'stretch', md: 'center' }} gap={3} direction={{ base: 'column', md: 'row' }} mb={4}>
-              <Box>
-                <Heading size="md">Accepted Ticket Register</Heading>
-                <Text color={muted}>Manager record of accepted and assigned support tickets.</Text>
-              </Box>
-              <RadioGroup value={managerTicketFilter} onChange={setManagerTicketFilter}>
-                <HStack spacing={4}>
-                  <Radio value="undone">Undone</Radio>
-                  <Radio value="done">Done</Radio>
-                  <Radio value="all">All</Radio>
-                </HStack>
-              </RadioGroup>
-            </Flex>
-            <TableContainer>
-              <Table size="sm">
-                <Thead>
-                  <Tr>
-                    <Th>Ticket</Th>
-                    <Th>Department</Th>
-                    <Th>Date</Th>
-                    <Th>Assigned Person</Th>
-                    <Th>Status</Th>
-                  </Tr>
-                </Thead>
-                <Tbody>
-                  {managerAcceptedTickets.length === 0 ? (
-                    <Tr>
-                      <Td colSpan={5} textAlign="center" py={7} color={muted}>
-                        No accepted tickets in this view.
-                      </Td>
-                    </Tr>
-                  ) : managerAcceptedTickets.map((task) => (
-                    <Tr key={task._id || task.id}>
-                      <Td>
-                        <Text fontWeight="700">{getTaskTitle(task)}</Text>
-                        <Text fontSize="xs" color={muted}>{task.supportRequestNote || task.description || '-'}</Text>
-                      </Td>
-                      <Td>{task.requestedDepartment || '-'}</Td>
-                      <Td>{task.requestedAt ? new Date(task.requestedAt).toLocaleDateString() : task.createdAt ? new Date(task.createdAt).toLocaleDateString() : '-'}</Td>
-                      <Td>{(task.assignedTo || []).join(', ') || 'Unassigned'}</Td>
-                      <Td>
-                        <Badge colorScheme={task.isDone ? 'green' : task.hasOutstanding ? 'orange' : 'blue'}>
-                          {task.isDone ? 'Done' : task.hasOutstanding ? 'Undone - outstanding' : String(task.supportStatus || 'assigned').replace('_', ' ')}
-                        </Badge>
-                      </Td>
-                    </Tr>
-                  ))}
-                </Tbody>
-              </Table>
-            </TableContainer>
-          </CardBody>
-        </Card>
-      )}
-
       {!canApprove && assignedSupport.length > 0 && (
         <Card bg={cardBg} borderColor={borderColor} borderWidth="1px" borderRadius="2xl">
           <CardBody>
@@ -486,8 +442,8 @@ export default function TicketManagementTab({ tasks = [], users = [], currentUse
         </Card>
       )}
 
-      <SimpleGrid columns={{ base: 1, xl: canRecord && selectedTask ? 2 : 1 }} spacing={5}>
-        {!canApprove && canRecord && selectedTask && (
+      <SimpleGrid columns={{ base: 1, xl: 2 }} spacing={5} alignItems="stretch">
+        {!canApprove && (
         <Card bg={cardBg} borderColor={borderColor} borderWidth="1px" borderRadius="2xl">
           <CardBody>
             <HStack mb={4}>
@@ -498,7 +454,10 @@ export default function TicketManagementTab({ tasks = [], users = [], currentUse
               <FormControl>
                 <FormLabel>Ticket task</FormLabel>
                 <Select value={selectedTaskId || selectedTask?._id || ''} onChange={(event) => setSelectedTaskId(event.target.value)}>
-                  {(inProgressSupport.length ? inProgressSupport : activeTicketTasks).map((task) => (
+                  {reportableSupport.length === 0 && (
+                    <option value="">No reportable ticket tasks</option>
+                  )}
+                  {reportableSupport.map((task) => (
                     <option key={task._id || task.id} value={task._id || task.id}>
                       {getTaskTitle(task)} - {task.supportStatus || task.ticketCategory || 'ticket'}
                     </option>
@@ -544,7 +503,11 @@ export default function TicketManagementTab({ tasks = [], users = [], currentUse
               <Button colorScheme="blue" leftIcon={<FiCheckCircle />} onClick={saveRecord} isLoading={saving} isDisabled={!canRecord || !selectedTask}>
                 Submit Report for Manager Approval
               </Button>
-              {!canRecord && <Text fontSize="sm" color="orange.500">Only assigned IT staff or team leaders can record ticket work for this task.</Text>}
+              {reportableSupport.length === 0 ? (
+                <Text fontSize="sm" color={muted}>No ticket task is ready for a new report.</Text>
+              ) : !canRecord && (
+                <Text fontSize="sm" color="orange.500">Only the assigned staff member can report this ticket.</Text>
+              )}
             </VStack>
           </CardBody>
         </Card>
@@ -560,22 +523,113 @@ export default function TicketManagementTab({ tasks = [], users = [], currentUse
               {rankings.length === 0 ? (
                 <Box bg={panelBg} borderRadius="xl" p={5} color={muted}>No approved and fully accomplished support work is available for ranking yet.</Box>
               ) : rankings.slice(0, 8).map((item) => (
-                <Flex key={item.staffName} align="center" justify="space-between" bg={panelBg} borderRadius="xl" p={3}>
-                  <HStack>
-                    <Flex boxSize="34px" borderRadius="full" bg={item.rank === 1 ? 'yellow.100' : 'blue.50'} color={item.rank === 1 ? 'yellow.700' : 'blue.600'} align="center" justify="center" fontWeight="800">
-                      {item.rank}
-                    </Flex>
-                    <Box>
-                      <Text fontWeight="700">{item.staffName}</Text>
-                      <Text fontSize="xs" color={muted}>{item.approvedRecords} approved accomplished / {item.pendingRecords} pending</Text>
-                    </Box>
-                  </HStack>
-                  <Badge colorScheme="green" borderRadius="full" px={3}>{item.approvedPoints} pts</Badge>
-                </Flex>
+                <Box key={item.key || item.staffName} bg={panelBg} borderRadius="xl" p={3}>
+                  <Flex align={{ base: 'stretch', md: 'center' }} justify="space-between" gap={3} direction={{ base: 'column', md: 'row' }}>
+                    <HStack>
+                      <Flex boxSize="34px" borderRadius="full" bg={item.rank === 1 ? 'yellow.100' : 'blue.50'} color={item.rank === 1 ? 'yellow.700' : 'blue.600'} align="center" justify="center" fontWeight="800">
+                        {item.rank}
+                      </Flex>
+                      <Box>
+                        <Text fontWeight="700">{item.staffName}</Text>
+                        <Text fontSize="xs" color={muted}>{item.approvedRecords} approved accomplished / {item.pendingRecords} pending</Text>
+                      </Box>
+                    </HStack>
+                    <HStack>
+                      <Badge colorScheme="green" borderRadius="full" px={3}>{item.approvedPoints} pts</Badge>
+                      {canApprove && (
+                        <Button
+                          size="xs"
+                          variant="outline"
+                          colorScheme="purple"
+                          onClick={() => setExpandedRankingKey(expandedRankingKey === item.key ? '' : item.key)}
+                        >
+                          {expandedRankingKey === item.key ? 'Hide tasks' : 'View tasks'}
+                        </Button>
+                      )}
+                    </HStack>
+                  </Flex>
+                  {canApprove && expandedRankingKey === item.key && (
+                    <VStack align="stretch" spacing={2} mt={3}>
+                      {item.accomplishedRecords.length === 0 ? (
+                        <Text fontSize="sm" color={muted}>No approved accomplished tasks for this staff member.</Text>
+                      ) : item.accomplishedRecords.map((record) => (
+                        <Box key={record._id || `${record.taskId}-${record.completedAt}`} bg={cardBg} border="1px solid" borderColor={borderColor} borderRadius="lg" p={3}>
+                          <HStack justify="space-between" align="start">
+                            <Box>
+                              <Text fontWeight="700">{record.taskTitle}</Text>
+                              <Text fontSize="sm" color={muted}>{record.summary}</Text>
+                            </Box>
+                            <Badge colorScheme="green">{record.points || 0} pts</Badge>
+                          </HStack>
+                          <Text fontSize="xs" color={muted} mt={1}>
+                            {record.completedAt ? new Date(record.completedAt).toLocaleDateString() : 'No date'} • {record.workType || 'support'}
+                          </Text>
+                        </Box>
+                      ))}
+                    </VStack>
+                  )}
+                </Box>
               ))}
             </VStack>
           </CardBody>
         </Card>
+
+        {canApprove && (
+          <Card bg={cardBg} borderColor={borderColor} borderWidth="1px" borderRadius="2xl">
+            <CardBody>
+              <Flex justify="space-between" align={{ base: 'stretch', md: 'center' }} gap={3} direction={{ base: 'column', md: 'row' }} mb={4}>
+                <Box>
+                  <Heading size="md">Accepted Ticket Register</Heading>
+                  <Text color={muted}>Manager record of accepted and assigned support tickets.</Text>
+                </Box>
+                <RadioGroup value={managerTicketFilter} onChange={setManagerTicketFilter}>
+                  <HStack spacing={4}>
+                    <Radio value="undone">Undone</Radio>
+                    <Radio value="done">Done</Radio>
+                    <Radio value="all">All</Radio>
+                  </HStack>
+                </RadioGroup>
+              </Flex>
+              <TableContainer>
+                <Table size="sm">
+                  <Thead>
+                    <Tr>
+                      <Th>Ticket</Th>
+                      <Th>Department</Th>
+                      <Th>Date</Th>
+                      <Th>Assigned Person</Th>
+                      <Th>Status</Th>
+                    </Tr>
+                  </Thead>
+                  <Tbody>
+                    {managerAcceptedTickets.length === 0 ? (
+                      <Tr>
+                        <Td colSpan={5} textAlign="center" py={7} color={muted}>
+                          No accepted tickets in this view.
+                        </Td>
+                      </Tr>
+                    ) : managerAcceptedTickets.map((task) => (
+                      <Tr key={task._id || task.id}>
+                        <Td>
+                          <Text fontWeight="700">{getTaskTitle(task)}</Text>
+                          <Text fontSize="xs" color={muted}>{task.supportRequestNote || task.description || '-'}</Text>
+                        </Td>
+                        <Td>{task.requestedDepartment || '-'}</Td>
+                        <Td>{task.requestedAt ? new Date(task.requestedAt).toLocaleDateString() : task.createdAt ? new Date(task.createdAt).toLocaleDateString() : '-'}</Td>
+                        <Td>{(task.assignedTo || []).join(', ') || 'Unassigned'}</Td>
+                        <Td>
+                          <Badge colorScheme={task.isDone ? 'green' : task.hasOutstanding ? 'orange' : 'blue'}>
+                            {task.isDone ? 'Done' : task.hasOutstanding ? 'Undone - outstanding' : String(task.supportStatus || 'assigned').replace('_', ' ')}
+                          </Badge>
+                        </Td>
+                      </Tr>
+                    ))}
+                  </Tbody>
+                </Table>
+              </TableContainer>
+            </CardBody>
+          </Card>
+        )}
       </SimpleGrid>
 
       <Card bg={cardBg} borderColor={borderColor} borderWidth="1px" borderRadius="2xl">

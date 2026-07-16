@@ -48,7 +48,30 @@ const SidebarButton = ({ label, icon: Icon, isActive, onClick, tooltip, isCollap
     <Tooltip label={tooltip || label} placement="right" hasArrow>
       <Button
         onClick={onClick}
-        leftIcon={<Icon />}
+        leftIcon={
+          <Box position="relative" display="inline-flex">
+            <Icon />
+            {Boolean(badge) && (
+              <Badge
+                colorScheme="red"
+                borderRadius="full"
+                position="absolute"
+                top="-10px"
+                right="-12px"
+                minW="18px"
+                h="18px"
+                px={1}
+                display="flex"
+                alignItems="center"
+                justifyContent="center"
+                fontSize="10px"
+                lineHeight="1"
+              >
+                {badge}
+              </Badge>
+            )}
+          </Box>
+        }
         justifyContent={isCollapsed ? 'center' : 'flex-start'}
         variant="ghost"
         color={color}
@@ -69,11 +92,6 @@ const SidebarButton = ({ label, icon: Icon, isActive, onClick, tooltip, isCollap
       >
         <HStack display={isCollapsed ? 'none' : { base: 'none', lg: 'flex' }} spacing={2}>
           <Text>{label}</Text>
-          {Boolean(badge) && (
-            <Badge colorScheme="red" borderRadius="full">
-              {badge}
-            </Badge>
-          )}
         </HStack>
       </Button>
     </Tooltip>

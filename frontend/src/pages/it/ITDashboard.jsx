@@ -124,7 +124,7 @@ export default function ITDashboard() {
     const now = Date.now();
     return due >= now && due - now <= 3 * 24 * 60 * 60 * 1000;
   }).length;
-  const reminderCount = filterReadReminders(buildTaskReminders(nonTicketVisibleTasks), currentUser || {}).length;
+  const reminderCount = filterReadReminders(buildTaskReminders(visibleTasks), currentUser || {}).length;
   const dashboardStats = [
     {
       label: 'Visible tasks',
