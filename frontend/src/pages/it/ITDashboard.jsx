@@ -458,6 +458,7 @@ export default function ITDashboard() {
                     tooltipLabel="Notes"
                   />
                 </HStack>
+                
               </Flex>
 
               <Box mt={4}>
@@ -470,6 +471,7 @@ export default function ITDashboard() {
                   <SimpleGrid columns={{ base: 1, sm: 2, xl: 4 }} spacing={3}>
                     {dashboardStats.map((stat) => (
                       <Box
+
                         key={stat.label}
                         border="1px solid"
                         borderColor={statBorder}
@@ -506,6 +508,7 @@ export default function ITDashboard() {
               </Box>
               </Box>
             </Box>
+
             {dueSoonCount > 0 && (
               <Alert status="info" borderRadius="16px" mb={6} boxShadow={statShadow}>
                 <AlertIcon />
@@ -522,11 +525,13 @@ export default function ITDashboard() {
         )}
       </Box>
 
+
       <AddTaskForm
         isOpen={isModalOpen}
         onClose={() => setModalOpen(false)}
         onDone={fetchTasks}
       />
+
     </Flex>
   );
 }
