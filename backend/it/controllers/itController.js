@@ -12,6 +12,13 @@ const getUserDisplayName = (user) => (
 );
 
 const WORKFLOW_STATUS = ['pending', 'assigned', 'in_progress', 'submitted', 'approved', 'rejected', 'completed'];
+const TICKET_PRIORITIES = ['low', 'normal', 'high', 'critical'];
+const PRIORITY_SLA_MINUTES = {
+  low: { responseMinutes: 240, resolutionMinutes: 4320 },
+  normal: { responseMinutes: 120, resolutionMinutes: 1440 },
+  high: { responseMinutes: 60, resolutionMinutes: 480 },
+  critical: { responseMinutes: 30, resolutionMinutes: 240 },
+};
 
 const normalizeRole = (role = '') => role.toString().trim().toLowerCase().replace(/[^a-z0-9]/g, '');
 
@@ -52,6 +59,55 @@ const isItStaffRole = (role) => ['it', 'itstaff', 'itofficer'].includes(normaliz
 const escapeRegex = (value = '') => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const getTaskLocation = (task) => `${task.projectType || 'IT'} / ${task.platform || task.category || task.client || 'Project Workspace'}`;
 
+const normalizeTicketPriority = (priority = 'normal') => {
+  const normalized = String(priority || 'normal').trim().toLowerCase();
+  return TICKET_PRIORITIES.includes(normalized) ? normalized : 'normal';
+};
+
+const buildSlaForPriority = (priority, requestedAt = new Date()) => {
+  const normalizedPriority = normalizeTicketPriority(priority);
+  const base = new Date(requestedAt || Date.now());
+  const config = PRIORITY_SLA_MINUTES[normalizedPriority] || PRIORITY_SLA_MINUTES.normal;
+  return {
+    ...config,
+    responseDueAt: new Date(base.getTime() + config.responseMinutes * 60000),
+    resolutionDueAt: new Date(base.getTime() + config.resolutionMinutes * 60000),
+  };
+};
+
+const normalizeAttachments = (attachments) => {
+  if (Array.isArray(attachments)) {
+    return attachments.map((item) => String(item || '').trim()).filter(Boolean);
+  }
+  return String(attachments || '')
+    .split(/[\n,]+/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+};
+
+const isOpenSupportTicket = (task = {}) => !['approved', 'closed'].includes(task.supportStatus);
+
+const updateEscalationState = (task) => {
+  if (!task?.sla || !isOpenSupportTicket(task)) return false;
+  const now = new Date();
+  const resolutionDueAt = task.sla.resolutionDueAt ? new Date(task.sla.resolutionDueAt) : null;
+  const responseDueAt = task.sla.responseDueAt ? new Date(task.sla.responseDueAt) : null;
+  let reason = '';
+
+  if (resolutionDueAt && now > resolutionDueAt) {
+    reason = 'Resolution SLA breached';
+  } else if (responseDueAt && now > responseDueAt && ['requested', 'manager_accepted', 'assigned'].includes(task.supportStatus)) {
+    reason = 'Response SLA breached';
+  }
+
+  if (reason && !task.sla.escalatedAt) {
+    task.sla.escalatedAt = now;
+    task.sla.escalationReason = reason;
+    return true;
+  }
+  return false;
+};
+
 const buildTaskAccessFilter = (req, baseFilter = {}) => {
   if (!req.user) return baseFilter;
   const role = normalizeRole(req.user?.role);
@@ -66,6 +122,7 @@ const buildTaskAccessFilter = (req, baseFilter = {}) => {
     $or: [
       { taskLeader: { $in: aliasPatterns } },
       { assignedTo: { $in: aliasPatterns } },
+      { requestedBy: { $in: aliasPatterns } },
     ],
   };
 };
@@ -376,6 +433,10 @@ const getTasks = async (req, res) => {
     const filter = {};
     if (req.query.projectType) filter.projectType = req.query.projectType;
     const tasks = await ITTask.find(buildTaskAccessFilter(req, filter)).sort({ createdAt: -1 });
+    const escalatedTasks = tasks.filter(updateEscalationState);
+    if (escalatedTasks.length) {
+      await Promise.all(escalatedTasks.map((task) => task.save()));
+    }
     res.json({ success: true, data: tasks });
   } catch (error) {
     console.error('getTasks error', error);
@@ -390,9 +451,155 @@ const getTaskById = async (req, res) => {
     if (!canAccessTask(task, req)) {
       return res.status(403).json({ success: false, message: 'You do not have access to this IT task.' });
     }
+    if (updateEscalationState(task)) {
+      await task.save();
+    }
     res.json({ success: true, data: task });
   } catch (error) {
     console.error('getTaskById error', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+const getTicketTimeline = async (req, res) => {
+  try {
+    const task = await ITTask.findById(req.params.id);
+    if (!task) return res.status(404).json({ success: false, message: 'Ticket not found' });
+    if (!canAccessTask(task, req)) {
+      return res.status(403).json({ success: false, message: 'You do not have access to this ticket timeline.' });
+    }
+
+    if (updateEscalationState(task)) {
+      appendAudit(task, req, 'ticket_escalated', {
+        note: task.sla?.escalationReason || 'SLA breached',
+        metadata: {
+          responseDueAt: task.sla?.responseDueAt,
+          resolutionDueAt: task.sla?.resolutionDueAt,
+          priority: task.priority,
+        },
+      });
+      await task.save();
+    }
+
+    const timeline = [
+      {
+        type: 'request',
+        title: 'Support request created',
+        note: task.supportRequestNote || task.description || '',
+        actorName: task.requestedBy || 'Requester',
+        createdAt: task.requestedAt || task.createdAt,
+      },
+      task.managerAcceptedAt && {
+        type: 'assignment',
+        title: 'Accepted and assigned',
+        note: (task.assignedTo || []).join(', ') || 'No assigned staff',
+        actorName: task.managerAcceptedByName || 'Manager',
+        createdAt: task.managerAcceptedAt,
+      },
+      task.staffAcceptedAt && {
+        type: 'work',
+        title: 'Staff accepted ticket',
+        note: `${task.staffAcceptedByName || 'Assigned staff'} started work.`,
+        actorName: task.staffAcceptedByName || 'Assigned staff',
+        createdAt: task.staffAcceptedAt,
+      },
+      task.sla?.escalatedAt && {
+        type: 'escalation',
+        title: 'Ticket escalated',
+        note: task.sla.escalationReason || 'SLA breached',
+        actorName: 'System',
+        createdAt: task.sla.escalatedAt,
+      },
+      ...((task.ticketRecords || []).map((record) => ({
+        type: 'record',
+        title: `Work record ${String(record.approvalStatus || '').replace('_', ' ')}`,
+        note: record.summary,
+        actorName: record.staffName || 'IT staff',
+        createdAt: record.createdAt || record.completedAt,
+        metadata: {
+          workType: record.workType,
+          outstandingTasks: record.outstandingTasks,
+          points: record.points,
+          approvalStatus: record.approvalStatus,
+        },
+      }))),
+      ...((task.comments || []).map((comment) => ({
+        type: 'comment',
+        title: 'Comment added',
+        note: comment.body,
+        actorName: comment.authorName || 'IT user',
+        createdAt: comment.createdAt,
+        metadata: { commentId: comment._id },
+      }))),
+      ...((task.auditLog || []).map((entry) => ({
+        type: 'audit',
+        title: String(entry.action || 'Ticket updated').replace(/_/g, ' '),
+        note: entry.note || '',
+        actorName: entry.actorName || 'System',
+        createdAt: entry.createdAt,
+        metadata: entry.metadata,
+      }))),
+      task.requesterFeedback?.submittedAt && {
+        type: 'feedback',
+        title: 'Requester feedback submitted',
+        note: task.requesterFeedback.comment || `${task.requesterFeedback.rating || '-'} star rating`,
+        actorName: task.requesterFeedback.submittedBy || task.requestedBy || 'Requester',
+        createdAt: task.requesterFeedback.submittedAt,
+        metadata: { rating: task.requesterFeedback.rating },
+      },
+    ]
+      .filter(Boolean)
+      .filter((entry) => entry.createdAt)
+      .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+
+    res.json({ success: true, data: timeline });
+  } catch (error) {
+    console.error('getTicketTimeline error', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+const submitRequesterFeedback = async (req, res) => {
+  try {
+    const task = await ITTask.findById(req.params.id);
+    if (!task) return res.status(404).json({ success: false, message: 'Ticket not found' });
+    if (!canManageTicketRecord(task, req)) {
+      return res.status(403).json({ success: false, message: 'Only IT admins/managers or the assigned team leader can update requester feedback.' });
+    }
+
+    const rating = Math.max(1, Math.min(5, Number(req.body.rating) || 0));
+    if (!rating) {
+      return res.status(400).json({ success: false, message: 'Feedback rating is required.' });
+    }
+
+    task.requesterFeedback = {
+      rating,
+      comment: String(req.body.comment || '').trim(),
+      submittedBy: req.body.submittedBy || getUserDisplayName(req.user) || task.requestedBy,
+      submittedAt: new Date(),
+    };
+    appendAudit(task, req, 'requester_feedback_submitted', {
+      note: task.requesterFeedback.comment,
+      metadata: {
+        rating,
+        submittedBy: task.requesterFeedback.submittedBy,
+      },
+    });
+
+    await task.save();
+    await notifyTaskParticipants(task, req, {
+      title: 'Requester feedback received',
+      text: `Requester feedback received for ${getTaskTitle(task)}.`,
+      actionLabel: 'View feedback',
+      metadata: {
+        rating,
+        feedbackComment: task.requesterFeedback.comment,
+      },
+    });
+
+    res.json({ success: true, data: task });
+  } catch (error) {
+    console.error('submitRequesterFeedback error', error);
     res.status(500).json({ success: false, message: error.message });
   }
 };
@@ -710,18 +917,24 @@ const createSupportRequest = async (req, res) => {
 
     const category = req.body.ticketCategory || req.body.workType || 'support';
     const requestedBy = req.body.requestedBy || getUserDisplayName(req.user);
+    const priority = normalizeTicketPriority(req.body.priority);
+    const requestedAt = new Date();
+    const attachments = normalizeAttachments(req.body.attachments);
     const task = new ITTask({
       taskName: req.body.taskName || `${requestedBy} support request`,
       projectType: 'internal',
       actionType: req.body.actionType || 'Support Request',
       ticketCategory: category,
+      priority,
+      sla: buildSlaForPriority(priority, requestedAt),
       requestSource: 'employee_call',
       supportStatus: 'requested',
       supportRequestNote: summary,
       requestedBy,
       requestedDepartment: req.body.requestedDepartment || req.user?.department || '',
-      requestedAt: new Date(),
+      requestedAt,
       description: summary,
+      attachments,
       status: 'pending',
       workflowStatus: 'pending',
       createdBy: req.user?._id || req.user?.id,
@@ -733,6 +946,10 @@ const createSupportRequest = async (req, res) => {
         requestedBy: task.requestedBy,
         requestedDepartment: task.requestedDepartment,
         ticketCategory: category,
+        priority,
+        responseDueAt: task.sla?.responseDueAt,
+        resolutionDueAt: task.sla?.resolutionDueAt,
+        attachmentCount: attachments.length,
       },
     });
 
@@ -745,6 +962,9 @@ const createSupportRequest = async (req, res) => {
       metadata: {
         requestedBy: task.requestedBy,
         requestedDepartment: task.requestedDepartment,
+        priority,
+        responseDueAt: task.sla?.responseDueAt,
+        resolutionDueAt: task.sla?.resolutionDueAt,
       },
     });
 
@@ -870,6 +1090,7 @@ const submitSupportReport = async (req, res) => {
       workType: req.body.workType || task.ticketCategory || 'support',
       summary,
       outstandingTasks: req.body.outstandingTasks || '',
+      attachments: normalizeAttachments(req.body.attachments),
       completedAt: req.body.completedAt ? new Date(req.body.completedAt) : new Date(),
       durationMinutes: Math.max(0, Number(req.body.durationMinutes) || 0),
       points: Math.max(1, Number(req.body.points) || 1),
@@ -887,6 +1108,7 @@ const submitSupportReport = async (req, res) => {
       metadata: {
         recordId: record._id,
         outstandingTasks: record.outstandingTasks,
+        attachmentCount: record.attachments?.length || 0,
       },
     });
 
@@ -1461,6 +1683,8 @@ module.exports = {
   getTaskById,
   updateTask,
   addTaskComment,
+  getTicketTimeline,
+  submitRequesterFeedback,
   createSupportRequest,
   acceptSupportRequest,
   acceptAssignedSupport,

@@ -26,6 +26,19 @@ const ITTaskSchema = new mongoose.Schema({
     enum: ['requested', 'manager_accepted', 'assigned', 'staff_accepted', 'in_progress', 'reported', 'approved', 'rejected', 'closed'],
     default: 'assigned'
   },
+  priority: {
+    type: String,
+    enum: ['low', 'normal', 'high', 'critical'],
+    default: 'normal'
+  },
+  sla: {
+    responseMinutes: { type: Number, min: 0, default: 120 },
+    resolutionMinutes: { type: Number, min: 0, default: 1440 },
+    responseDueAt: { type: Date },
+    resolutionDueAt: { type: Date },
+    escalatedAt: { type: Date },
+    escalationReason: { type: String, default: '' }
+  },
   supportRequestNote: { type: String, default: '' },
   requestedBy: { type: String, default: '' },
   requestedDepartment: { type: String, default: '' },
@@ -38,6 +51,12 @@ const ITTaskSchema = new mongoose.Schema({
   staffAcceptedAt: { type: Date },
   description: { type: String, default: '' },
   attachments: [{ type: String }], // Array of file URLs
+  requesterFeedback: {
+    rating: { type: Number, min: 1, max: 5 },
+    comment: { type: String, default: '' },
+    submittedBy: { type: String, default: '' },
+    submittedAt: { type: Date }
+  },
   status: { type: String, enum: ['pending', 'ongoing', 'done'], default: 'pending' },
   workflowStatus: {
     type: String,
@@ -73,6 +92,7 @@ const ITTaskSchema = new mongoose.Schema({
     },
     summary: { type: String, required: true },
     outstandingTasks: { type: String, default: '' },
+    attachments: [{ type: String }],
     completedAt: { type: Date, default: Date.now },
     durationMinutes: { type: Number, min: 0, default: 0 },
     points: { type: Number, min: 0, default: 1 },

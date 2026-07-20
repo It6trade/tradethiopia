@@ -37,6 +37,8 @@ router.get('/tickets/rankings', itController.getTicketRankings);
 router.post('/support-requests', itController.createSupportRequest);
 
 // Task routes
+router.get('/:id/timeline', itController.getTicketTimeline);
+router.post('/:id/feedback', itController.submitRequesterFeedback);
 router.get('/:id', itController.getTaskById);
 router.post('/', itController.createTask);
 router.post('/:id/comments', itController.addTaskComment);
