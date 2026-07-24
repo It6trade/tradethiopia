@@ -10,6 +10,7 @@ import {
   Tooltip,
   useColorModeValue,
   Badge,
+  Collapse,
   HStack,
 } from "@chakra-ui/react";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -27,6 +28,8 @@ import {
   FiBarChart2,
   FiUser,
   FiLogOut,
+  FiChevronDown,
+  FiChevronRight,
 } from "react-icons/fi";
 import { Link as RouterLink } from "react-router-dom";
 import { MdLibraryBooks } from "react-icons/md";
@@ -40,6 +43,10 @@ const SSidebar = ({ isCollapsed: collapsedProp, toggleCollapse: toggleProp, acti
   // Allow the sidebar to be controlled by a parent while preserving a local fallback.
   const [internalCollapsed, setInternalCollapsed] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [openGroups, setOpenGroups] = useState({
+    workspace: true,
+    management: true,
+  });
   const scrollBoxRef = useRef(null);
   const location = useLocation();
   const navigate = useNavigate();
@@ -54,6 +61,13 @@ const SSidebar = ({ isCollapsed: collapsedProp, toggleCollapse: toggleProp, acti
     } else {
       setInternalCollapsed((prevState) => !prevState);
     }
+  };
+
+  const toggleGroup = (group) => {
+    setOpenGroups((previous) => ({
+      ...previous,
+      [group]: !previous[group],
+    }));
   };
 
   const handleLogout = () => {
@@ -153,7 +167,6 @@ const SSidebar = ({ isCollapsed: collapsedProp, toggleCollapse: toggleProp, acti
       flexDirection="column"
       overflow="hidden"
       boxShadow="lg"
-      pos="relative"
     >
       <Flex
         justify={isCollapsed ? "center" : "space-between"}
@@ -193,147 +206,162 @@ const SSidebar = ({ isCollapsed: collapsedProp, toggleCollapse: toggleProp, acti
       
 
       {/* Sidebar Links with scroll */}
-  <Box flex="0 1 auto" overflowY="auto" minHeight={0} maxHeight="calc(100vh - 260px)" ref={scrollBoxRef}>
-        <VStack align="start" spacing={3} p={2}>
-          <SidebarLink
+      <Box flex="0 1 auto" overflowY="auto" minHeight={0} maxHeight="calc(100vh - 260px)" ref={scrollBoxRef}>
+        <VStack align="stretch" spacing={2} p={2}>
+          <SidebarGroup
+            title="Workspace"
             isCollapsed={isCollapsed}
-            to="/Cdashboard"
-            icon={<FiHome />}
-            label="Dashboard"
-            active={isDashboardActive}
-            iconColor={iconColor}
-            activeIconColor={activeIconColor}
-            textColor={textColor}
-            activeTextColor={activeTextColor}
-            onClick={() => {
-              if (typeof onSelectSection === 'function') {
-                onSelectSection('dashboard');
-              }
-            }}
-          />
-                    <SidebarLink
-            isCollapsed={isCollapsed}
-            to="/b2b-dashboard"
-            icon={<FiGlobe />}
-            label="B2B Marketplace"
-            active={isActive("/b2b-dashboard")}
-            iconColor={iconColor}
-            activeIconColor={activeIconColor}
-            textColor={textColor}
-            activeTextColor={activeTextColor}
-          />
-          <SidebarLink
-            isCollapsed={isCollapsed}
-            to="/customerfollowup"
-            icon={<FiUsers />}
-            label="Customer Followup"
-            active={isActive("/customerfollowup")}
-            iconColor={iconColor}
-            activeIconColor={activeIconColor}
-            textColor={textColor}
-            activeTextColor={activeTextColor}
-          />
-          <SidebarLink
-            isCollapsed={isCollapsed}
-            to="/customer/messages"
-            icon={<FiMessageSquare />}
-            label="Notice Board"
-            active={isNoticeBoardActive}
-            iconColor={iconColor}
-            activeIconColor={activeIconColor}
-            textColor={textColor}
-            activeTextColor={activeTextColor}
-            unreadCount={unreadCount}
-            onClick={(e) => {
-              e.preventDefault();
-              if (typeof onSelectSection === 'function') {
-                onSelectSection('notice-board');
-              } else {
-                navigate('/customer/messages');
-              }
-              fetchUnreadCount();
-            }}
-          />
-          <SidebarLink
-            isCollapsed={isCollapsed}
-            to="/requests"
-            icon={<FiClipboard />}
-            label="Requests"
-            active={isRequestsActive}
-            iconColor={iconColor}
-            activeIconColor={activeIconColor}
-            textColor={textColor}
-            activeTextColor={activeTextColor}
-            onClick={(e) => {
-              if (typeof onSelectSection === 'function') {
+            isOpen={openGroups.workspace}
+            onToggle={() => toggleGroup("workspace")}
+          >
+            <SidebarLink
+              isCollapsed={isCollapsed}
+              to="/Cdashboard"
+              icon={<FiHome />}
+              label="Dashboard"
+              active={isDashboardActive}
+              iconColor={iconColor}
+              activeIconColor={activeIconColor}
+              textColor={textColor}
+              activeTextColor={activeTextColor}
+              onClick={() => {
+                if (typeof onSelectSection === 'function') {
+                  onSelectSection('dashboard');
+                }
+              }}
+            />
+            <SidebarLink
+              isCollapsed={isCollapsed}
+              to="/b2b-dashboard"
+              icon={<FiGlobe />}
+              label="B2B Marketplace"
+              active={isActive("/b2b-dashboard")}
+              iconColor={iconColor}
+              activeIconColor={activeIconColor}
+              textColor={textColor}
+              activeTextColor={activeTextColor}
+            />
+            <SidebarLink
+              isCollapsed={isCollapsed}
+              to="/customerfollowup"
+              icon={<FiUsers />}
+              label="Customer Followup"
+              active={isActive("/customerfollowup")}
+              iconColor={iconColor}
+              activeIconColor={activeIconColor}
+              textColor={textColor}
+              activeTextColor={activeTextColor}
+            />
+            <SidebarLink
+              isCollapsed={isCollapsed}
+              to="/customer/messages"
+              icon={<FiMessageSquare />}
+              label="Notice Board"
+              active={isNoticeBoardActive}
+              iconColor={iconColor}
+              activeIconColor={activeIconColor}
+              textColor={textColor}
+              activeTextColor={activeTextColor}
+              unreadCount={unreadCount}
+              onClick={(e) => {
                 e.preventDefault();
-                onSelectSection('requests');
-              }
-            }}
-          />
-          {isCSM && (
+                if (typeof onSelectSection === 'function') {
+                  onSelectSection('notice-board');
+                } else {
+                  navigate('/customer/messages');
+                }
+                fetchUnreadCount();
+              }}
+            />
             <SidebarLink
               isCollapsed={isCollapsed}
-              to="/customerreport"
-              icon={<FiBarChart2 />}
-              label="Reports"
-              active={isActive("/customerreport")}
+              to="/requests"
+              icon={<FiClipboard />}
+              label="Requests"
+              active={isRequestsActive}
+              iconColor={iconColor}
+              activeIconColor={activeIconColor}
+              textColor={textColor}
+              activeTextColor={activeTextColor}
+              onClick={(e) => {
+                if (typeof onSelectSection === 'function') {
+                  e.preventDefault();
+                  onSelectSection('requests');
+                }
+              }}
+            />
+            <SidebarLink
+              isCollapsed={isCollapsed}
+              to="/training"
+              icon={<FiBookOpen />}
+              label="Training"
+              active={isActive("/training")}
               iconColor={iconColor}
               activeIconColor={activeIconColor}
               textColor={textColor}
               activeTextColor={activeTextColor}
             />
-          )}
-          {isCSM && (
-            <SidebarLink
-              isCollapsed={isCollapsed}
-              to="/customer/kpi"
-              icon={<FiBarChart2 />}
-              label="KPI"
-              active={isActive("/customer/kpi")}
-              iconColor={iconColor}
-              activeIconColor={activeIconColor}
-              textColor={textColor}
-              activeTextColor={activeTextColor}
-            />
-          )}
-          {isCSM && (
-            <SidebarLink
-              isCollapsed={isCollapsed}
-              to="/followup-report"
-              icon={<FiBarChart2 />}
-              label="Follow Up Report"
-              active={isActive("/followup-report")}
-              iconColor={iconColor}
-              activeIconColor={activeIconColor}
-              textColor={textColor}
-              activeTextColor={activeTextColor}
-            />
-          )}
-          <SidebarLink
+          </SidebarGroup>
+
+          <SidebarGroup
+            title="Management"
             isCollapsed={isCollapsed}
-            to="/training"
-            icon={<FiBookOpen />}
-            label="Training"
-            active={isActive("/training")}
-            iconColor={iconColor}
-            activeIconColor={activeIconColor}
-            textColor={textColor}
-            activeTextColor={activeTextColor}
-          />
-          {isCSM && (
-            <SidebarLink
-              isCollapsed={isCollapsed}
-              to="/customer-settings"
-              icon={<FiSettings />}
-              label="Settings"
-              active={isActive("/customer-settings")}
-              iconColor={iconColor}
-              activeIconColor={activeIconColor}
-              textColor={textColor}
-              activeTextColor={activeTextColor}
-            />
-          )}
+            isOpen={openGroups.management}
+            onToggle={() => toggleGroup("management")}
+          >
+            {isCSM && (
+              <SidebarLink
+                isCollapsed={isCollapsed}
+                to="/customerreport"
+                icon={<FiBarChart2 />}
+                label="Reports"
+                active={isActive("/customerreport")}
+                iconColor={iconColor}
+                activeIconColor={activeIconColor}
+                textColor={textColor}
+                activeTextColor={activeTextColor}
+              />
+            )}
+            {isCSM && (
+              <SidebarLink
+                isCollapsed={isCollapsed}
+                to="/customer/kpi"
+                icon={<FiBarChart2 />}
+                label="KPI"
+                active={isActive("/customer/kpi")}
+                iconColor={iconColor}
+                activeIconColor={activeIconColor}
+                textColor={textColor}
+                activeTextColor={activeTextColor}
+              />
+            )}
+            {isCSM && (
+              <SidebarLink
+                isCollapsed={isCollapsed}
+                to="/followup-report"
+                icon={<FiBarChart2 />}
+                label="Follow Up Report"
+                active={isActive("/followup-report")}
+                iconColor={iconColor}
+                activeIconColor={activeIconColor}
+                textColor={textColor}
+                activeTextColor={activeTextColor}
+              />
+            )}
+            {isCSM && (
+              <SidebarLink
+                isCollapsed={isCollapsed}
+                to="/customer-settings"
+                icon={<FiSettings />}
+                label="Settings"
+                active={isActive("/customer-settings")}
+                iconColor={iconColor}
+                activeIconColor={activeIconColor}
+                textColor={textColor}
+                activeTextColor={activeTextColor}
+              />
+            )}
+          </SidebarGroup>
         </VStack>
       </Box>
 
@@ -388,6 +416,35 @@ const SSidebar = ({ isCollapsed: collapsedProp, toggleCollapse: toggleProp, acti
   );
 };
 
+const SidebarGroup = ({ title, isCollapsed, isOpen, onToggle, children }) => (
+  <Box w="100%">
+    {!isCollapsed && (
+      <Button
+        onClick={onToggle}
+        variant="ghost"
+        size="sm"
+        w="100%"
+        justifyContent="space-between"
+        px={3}
+        color="gray.500"
+        fontSize="xs"
+        fontWeight="900"
+        textTransform="uppercase"
+        letterSpacing="0"
+        _hover={{ bg: "rgba(56, 189, 248, 0.08)" }}
+        rightIcon={isOpen ? <FiChevronDown /> : <FiChevronRight />}
+      >
+        {title}
+      </Button>
+    )}
+    <Collapse in={isCollapsed || isOpen} animateOpacity>
+      <VStack align="stretch" spacing={2} pt={isCollapsed ? 0 : 1}>
+        {children}
+      </VStack>
+    </Collapse>
+  </Box>
+);
+
 /* Sidebar Link Component */
 const SidebarLink = ({ isCollapsed, to, icon, label, active, iconColor, activeIconColor, textColor, activeTextColor, unreadCount = 0, onClick }) => (
   <Tooltip label={label} isDisabled={!isCollapsed} placement="right" hasArrow>
@@ -397,10 +454,14 @@ const SidebarLink = ({ isCollapsed, to, icon, label, active, iconColor, activeIc
       _hover={{ textDecoration: "none" }}
       aria-label={label}
       onClick={onClick}
+      w="100%"
+      display="block"
     >
       <HStack
         align="center"
         p={2}
+        w={isCollapsed ? "44px" : "100%"}
+        justify={isCollapsed ? "center" : "flex-start"}
         borderRadius="md"
         bg={active ? "rgba(56, 189, 248, 0.15)" : "transparent"}
         border={active ? "1px solid rgba(56, 189, 248, 0.4)" : "1px solid transparent"}

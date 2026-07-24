@@ -619,7 +619,14 @@ const CDashboard = ({ initialTab = 'dashboard' }) => {
           </Grid>
 
           <Box mt={6}>
-            <CompletedSalesTable title="Completed Sales Follow-ups" />
+            <CompletedSalesTable
+              title="Completed Sales Follow-ups"
+              compact
+              collapsible
+              defaultExpanded={false}
+              pageSizeOptions={[5, 10]}
+              initialPageSize={5}
+            />
           </Box>
         </Box>
       )}

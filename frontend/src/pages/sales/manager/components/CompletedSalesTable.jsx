@@ -7,8 +7,10 @@ import {
   Button,
   Card,
   CardBody,
+  Collapse,
   Flex,
   HStack,
+  Icon,
   Input,
   InputGroup,
   InputLeftElement,
@@ -24,7 +26,7 @@ import {
   useColorModeValue,
   VStack,
 } from '@chakra-ui/react';
-import { FiSearch } from 'react-icons/fi';
+import { FiChevronDown, FiChevronRight, FiSearch } from 'react-icons/fi';
 import { getAllSales } from '../../../../services/salesManagerService';
 
 const getAgentName = (sale) => {
@@ -53,13 +55,25 @@ const formatDate = (value) => {
   });
 };
 
-export default function CompletedSalesTable({ title = 'Completed Sales Follow-ups', compact = false }) {
+export default function CompletedSalesTable({
+  title = 'Completed Sales Follow-ups',
+  compact = false,
+  collapsible = false,
+  defaultExpanded = true,
+  pageSizeOptions = [10, 25, 50, 100, 200],
+  initialPageSize,
+}) {
   const [sales, setSales] = useState([]);
   const [agents, setAgents] = useState([]);
   const [search, setSearch] = useState('');
   const [agentFilter, setAgentFilter] = useState('');
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(compact ? 10 : 25);
+  const safePageSizeOptions = pageSizeOptions.length ? pageSizeOptions : [10, 25, 50, 100, 200];
+  const preferredPageSize = initialPageSize || (compact ? 10 : 25);
+  const [pageSize, setPageSize] = useState(
+    safePageSizeOptions.includes(preferredPageSize) ? preferredPageSize : safePageSizeOptions[0]
+  );
+  const [isExpanded, setIsExpanded] = useState(defaultExpanded);
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
@@ -134,19 +148,35 @@ export default function CompletedSalesTable({ title = 'Completed Sales Follow-up
     <Card bg={cardBg} borderWidth="1px" borderColor={borderColor} boxShadow="sm">
       <CardBody p={{ base: 3, md: 4 }}>
         <Flex justify="space-between" align={{ base: 'stretch', md: 'center' }} direction={{ base: 'column', md: 'row' }} gap={3} mb={4}>
-          <Box>
-            <Text fontSize={compact ? 'lg' : 'xl'} fontWeight="800">
-              {title}
-            </Text>
+          <HStack align="start" spacing={3}>
+            {collapsible && (
+              <Button
+                aria-label={isExpanded ? `Collapse ${title}` : `Expand ${title}`}
+                size="xs"
+                variant="ghost"
+                minW="28px"
+                px={0}
+                mt={1}
+                onClick={() => setIsExpanded((value) => !value)}
+              >
+                <Icon as={isExpanded ? FiChevronDown : FiChevronRight} />
+              </Button>
+            )}
+            <Box>
+              <Text fontSize={compact ? 'lg' : 'xl'} fontWeight="800">
+                {title}
+              </Text>
             <Text fontSize="sm" color={muted}>
               Full table of sales follow-ups marked Completed.
             </Text>
-          </Box>
+            </Box>
+          </HStack>
           <Badge colorScheme="green" borderRadius="full" px={3} py={1} alignSelf={{ base: 'flex-start', md: 'center' }}>
             {total} completed
           </Badge>
         </Flex>
 
+        <Collapse in={!collapsible || isExpanded} animateOpacity>
         <Flex gap={3} direction={{ base: 'column', md: 'row' }} mb={4}>
           <InputGroup maxW={{ md: '360px' }}>
             <InputLeftElement pointerEvents="none">
@@ -245,7 +275,7 @@ export default function CompletedSalesTable({ title = 'Completed Sales Follow-up
                     setPage(1);
                   }}
                 >
-                  {[10, 25, 50, 100, 200].map((size) => (
+                  {safePageSizeOptions.map((size) => (
                     <option key={size} value={size}>{size} / page</option>
                   ))}
                 </Select>
@@ -261,6 +291,7 @@ export default function CompletedSalesTable({ title = 'Completed Sales Follow-up
             </Flex>
           </VStack>
         )}
+        </Collapse>
       </CardBody>
     </Card>
   );
