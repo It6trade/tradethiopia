@@ -78,6 +78,7 @@ export default function RequestPage({
   backRouteOverride,
   backLabelOverride,
   hideBackButton = false,
+  embedded = false,
 }) {
   const toast = useToast();
   const navigateUser = useUserStore((state) => state.currentUser);
@@ -101,6 +102,12 @@ export default function RequestPage({
   const detailTextColor = useColorModeValue("gray.600", "gray.300");
   const cardDividerColor = useColorModeValue("gray.200", "gray.600");
   const recentItemBg = useColorModeValue("gray.50", "gray.600");
+  const pageBg = useColorModeValue("gray.100", "gray.900");
+  const sectionPadding = embedded ? 4 : 6;
+  const sectionSpacing = embedded ? 3 : 4;
+  const sectionHeadingSize = embedded ? "md" : "lg";
+  const requestDetailsMinH = embedded ? "88px" : "140px";
+  const recentListMaxH = embedded ? "420px" : "none";
 
   const [form, setForm] = useState(() => ({
     department: initialDepartment || "",
@@ -256,15 +263,15 @@ export default function RequestPage({
 
   return (
     <Box
-      minH="100vh"
+      minH={embedded ? "auto" : "100vh"}
       w="100%"
       maxW={maxWidth || "100%"}
       mx={maxWidth ? "auto" : undefined}
-      bg={useColorModeValue("gray.100", "gray.900")}
-      px={{ base: 4, md: 6 }}
-      py={{ base: 6, md: 10 }}
+      bg={embedded ? "transparent" : pageBg}
+      px={embedded ? 0 : { base: 4, md: 6 }}
+      py={embedded ? 0 : { base: 6, md: 10 }}
     >
-      <Flex justify="space-between" align="flex-start" mb={6} wrap="wrap" gap={3}>
+      <Flex justify="space-between" align="flex-start" mb={embedded ? 4 : 6} wrap="wrap" gap={3}>
         <Flex align="flex-start" gap={4} flex="1" minW={0}>
           {!hideBackButton && (
             <Button
@@ -279,11 +286,11 @@ export default function RequestPage({
             </Button>
           )}
           <Box maxW={{ base: "100%", md: "70%" }}>
-            <Heading size="2xl">Request Center</Heading>
-            <Text fontSize="md" color={cardHelperColor}>
+            <Heading size={embedded ? "xl" : "2xl"}>Request Center</Heading>
+            <Text fontSize={embedded ? "sm" : "md"} color={cardHelperColor}>
               All departments can submit their requests here. Finance reviews and approves everything centrally.
             </Text>
-            <Text fontSize="sm" mt={2}>
+            <Text fontSize="sm" mt={embedded ? 1 : 2}>
               Finance is the single source of truth for approvals. Pick a department, add the details, and let the team handle the follow up.
             </Text>
           </Box>
@@ -298,12 +305,12 @@ export default function RequestPage({
 
       <SimpleGrid
         columns={{ base: 1, md: 2 }}
-        spacing={6}
+        spacing={embedded ? 4 : 6}
         divider={<StackDivider borderColor={cardDividerColor} />}
       >
-        <Box bg={cardBg} color={cardTextColor} borderRadius="xl" boxShadow="lg" p={6}>
-          <VStack align="stretch" spacing={4}>
-            <Heading size="lg">Submit a request</Heading>
+        <Box bg={cardBg} color={cardTextColor} borderRadius="xl" boxShadow="lg" p={sectionPadding}>
+          <VStack align="stretch" spacing={sectionSpacing}>
+            <Heading size={sectionHeadingSize}>Submit a request</Heading>
             <Text fontSize="sm" color={cardHelperColor}>
               Finance needs department, details, date, and priority. Attachments are optional.
             </Text>
@@ -331,7 +338,7 @@ export default function RequestPage({
                 value={form.details}
                 onChange={(event) => normalizeForm("details", event.target.value)}
                 placeholder="Describe the request in detail"
-                minH="140px"
+                minH={requestDetailsMinH}
               />
             </FormControl>
             <FormControl isRequired>
@@ -367,9 +374,9 @@ export default function RequestPage({
           </VStack>
         </Box>
 
-        <Box bg={cardBg} color={cardTextColor} borderRadius="xl" boxShadow="lg" p={6}>
-          <VStack align="stretch" spacing={4}>
-            <Heading size="lg">Recent submissions</Heading>
+        <Box bg={cardBg} color={cardTextColor} borderRadius="xl" boxShadow="lg" p={sectionPadding}>
+          <VStack align="stretch" spacing={sectionSpacing}>
+            <Heading size={sectionHeadingSize}>Recent submissions</Heading>
             <Text fontSize="sm" color={cardHelperColor}>
               Showing the latest five requests for {departmentDisplayLabel}.
             </Text>
@@ -378,8 +385,9 @@ export default function RequestPage({
             ) : recentRequests.length === 0 ? (
               <Text color={cardHelperColor}>No requests yet</Text>
             ) : (
-              recentRequests.map((entry) => (
-                <Box key={entry._id || entry.createdAt} p={3} borderRadius="lg" bg={recentItemBg}>
+              <VStack align="stretch" spacing={2} maxH={recentListMaxH} overflowY={embedded ? "auto" : "visible"} pr={embedded ? 1 : 0}>
+                {recentRequests.map((entry) => (
+                <Box key={entry._id || entry.createdAt} p={embedded ? 2 : 3} borderRadius="lg" bg={recentItemBg}>
                   <Flex justify="space-between" align="center" wrap="wrap" gap={2}>
                     <Text fontWeight="semibold">{entry.department} request</Text>
                     <HStack spacing={2}>
@@ -424,7 +432,8 @@ export default function RequestPage({
                     {entry.details}
                   </Text>
                 </Box>
-              ))
+              ))}
+              </VStack>
             )}
           </VStack>
         </Box>

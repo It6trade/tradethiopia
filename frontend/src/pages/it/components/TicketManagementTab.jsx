@@ -292,6 +292,7 @@ export default function TicketManagementTab({ tasks = [], users = [], currentUse
   const [selectedDetailTaskId, setSelectedDetailTaskId] = useState('');
   const [isTicketManagementExpanded, setIsTicketManagementExpanded] = useState(true);
   const [isDetailExpanded, setIsDetailExpanded] = useState(true);
+  const [expandedSentSupportIds, setExpandedSentSupportIds] = useState({});
   const [saving, setSaving] = useState(false);
   const cardBg = useColorModeValue('white', 'gray.800');
   const panelBg = useColorModeValue('gray.50', 'whiteAlpha.100');
@@ -539,6 +540,13 @@ export default function TicketManagementTab({ tasks = [], users = [], currentUse
     URL.revokeObjectURL(url);
   };
 
+  const toggleSentSupport = (taskId) => {
+    setExpandedSentSupportIds((prev) => ({
+      ...prev,
+      [taskId]: !prev[taskId],
+    }));
+  };
+
   return (
     <VStack spacing={5} align="stretch">
       <Card bg={cardBg} borderColor={borderColor} borderWidth="1px" borderRadius="2xl">
@@ -719,23 +727,43 @@ export default function TicketManagementTab({ tasks = [], users = [], currentUse
                   <Box bg={panelBg} p={4} borderRadius="xl" color={muted}>No support requests sent yet.</Box>
                 ) : sentSupportRequests.slice(0, 8).map((task) => {
                   const slaState = getSlaState(task);
+                  const taskId = task._id || task.id;
+                  const isExpanded = Boolean(expandedSentSupportIds[taskId]);
                   return (
-                    <Flex key={task._id || task.id} justify="space-between" align={{ base: 'stretch', md: 'center' }} gap={3} direction={{ base: 'column', md: 'row' }} bg={panelBg} borderRadius="xl" p={3}>
-                      <Box>
-                        <Text fontWeight="800">{getTaskTitle(task)}</Text>
-                        <Text fontSize="sm" color={muted}>{task.supportRequestNote || task.description}</Text>
-                        <HStack spacing={2} mt={2} flexWrap="wrap">
-                          <Badge colorScheme={getPriorityColor(task.priority)}>{task.priority || 'normal'} priority</Badge>
-                          <Badge colorScheme={slaState.color}>{slaState.label}</Badge>
+                    <Box key={taskId} bg={panelBg} borderRadius="xl" p={3}>
+                      <Flex justify="space-between" align={{ base: 'stretch', md: 'center' }} gap={3} direction={{ base: 'column', md: 'row' }}>
+                        <HStack minW={0} spacing={3}>
+                          <Button
+                            aria-label={isExpanded ? 'Collapse support request details' : 'Expand support request details'}
+                            size="xs"
+                            variant="ghost"
+                            minW="28px"
+                            px={0}
+                            onClick={() => toggleSentSupport(taskId)}
+                          >
+                            <Icon as={isExpanded ? FiChevronDown : FiChevronRight} />
+                          </Button>
+                          <Text fontWeight="800" noOfLines={1}>{getTaskTitle(task)}</Text>
                         </HStack>
-                      </Box>
-                      <VStack align={{ base: 'stretch', md: 'end' }}>
-                        <Badge colorScheme={task.supportStatus === 'requested' ? 'orange' : task.supportStatus === 'approved' ? 'green' : 'blue'}>
-                          {String(task.supportStatus || 'requested').replace('_', ' ')}
-                        </Badge>
-                        <Button size="xs" variant="outline" onClick={() => setSelectedDetailTaskId(task._id || task.id)}>Details</Button>
-                      </VStack>
-                    </Flex>
+                        <HStack justify={{ base: 'space-between', md: 'flex-end' }}>
+                          <Badge colorScheme={task.supportStatus === 'requested' ? 'orange' : task.supportStatus === 'approved' ? 'green' : 'blue'}>
+                            {String(task.supportStatus || 'requested').replace('_', ' ')}
+                          </Badge>
+                          <Button size="xs" variant="outline" onClick={() => setSelectedDetailTaskId(taskId)}>View Details</Button>
+                        </HStack>
+                      </Flex>
+                      {isExpanded && (
+                        <Box mt={3} pl={{ base: 0, md: 10 }}>
+                          <Text fontSize="sm" color={muted}>{task.supportRequestNote || task.description}</Text>
+                          <HStack spacing={2} mt={2} flexWrap="wrap">
+                            <Badge colorScheme={getPriorityColor(task.priority)}>{task.priority || 'normal'} priority</Badge>
+                            <Badge colorScheme={slaState.color}>{slaState.label}</Badge>
+                            <Badge>{task.requestedAt ? new Date(task.requestedAt).toLocaleString() : 'recently sent'}</Badge>
+                            {(task.assignedTo || []).length > 0 && <Badge colorScheme="purple">Assigned: {(task.assignedTo || []).join(', ')}</Badge>}
+                          </HStack>
+                        </Box>
+                      )}
+                    </Box>
                   );
                 })}
               </VStack>

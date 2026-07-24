@@ -291,6 +291,18 @@ const canManageTicketRecord = (task, req) => {
   return getUserAliases(req.user).includes(String(task.taskLeader || '').trim().toLowerCase());
 };
 
+const canSubmitRequesterFeedback = (task, req) => {
+  if (canManageTicketRecord(task, req)) return true;
+  const aliases = getUserAliases(req.user);
+  const requesterAliases = [
+    task.requestedBy,
+    task.createdBy,
+  ]
+    .filter(Boolean)
+    .map((item) => String(item).trim().toLowerCase());
+  return aliases.some((alias) => requesterAliases.includes(alias));
+};
+
 const scoreTicketRecord = (record = {}) => {
   if (String(record.outstandingTasks || '').trim()) return 0;
   const base = Number(record.points) || 1;
@@ -563,8 +575,8 @@ const submitRequesterFeedback = async (req, res) => {
   try {
     const task = await ITTask.findById(req.params.id);
     if (!task) return res.status(404).json({ success: false, message: 'Ticket not found' });
-    if (!canManageTicketRecord(task, req)) {
-      return res.status(403).json({ success: false, message: 'Only IT admins/managers or the assigned team leader can update requester feedback.' });
+    if (!canSubmitRequesterFeedback(task, req)) {
+      return res.status(403).json({ success: false, message: 'Only IT admins/managers, the assigned team leader, or the original requester can update requester feedback.' });
     }
 
     const rating = Math.max(1, Math.min(5, Number(req.body.rating) || 0));

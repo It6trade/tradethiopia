@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import {
   Box,
+  Button,
   Flex,
   IconButton,
   VStack,
@@ -24,6 +25,8 @@ import {
   FiClipboard,
   FiFileText,
   FiBarChart2,
+  FiUser,
+  FiLogOut,
 } from "react-icons/fi";
 import { Link as RouterLink } from "react-router-dom";
 import { MdLibraryBooks } from "react-icons/md";
@@ -31,6 +34,7 @@ import { FiChevronsLeft, FiChevronsRight } from "react-icons/fi";
 import { FiSettings } from "react-icons/fi";
 import { FiMessageSquare } from "react-icons/fi";
 import { getNotifications } from "../../services/notificationService";
+import { useUserStore } from "../../store/user";
 
 const SSidebar = ({ isCollapsed: collapsedProp, toggleCollapse: toggleProp, activeSection, onSelectSection }) => {
   // Allow the sidebar to be controlled by a parent while preserving a local fallback.
@@ -39,6 +43,8 @@ const SSidebar = ({ isCollapsed: collapsedProp, toggleCollapse: toggleProp, acti
   const scrollBoxRef = useRef(null);
   const location = useLocation();
   const navigate = useNavigate();
+  const currentUser = useUserStore((state) => state.currentUser);
+  const clearUser = useUserStore((state) => state.clearUser);
 
   const isControlled = typeof collapsedProp === "boolean" && typeof toggleProp === "function";
   const isCollapsed = isControlled ? collapsedProp : internalCollapsed;
@@ -48,6 +54,15 @@ const SSidebar = ({ isCollapsed: collapsedProp, toggleCollapse: toggleProp, acti
     } else {
       setInternalCollapsed((prevState) => !prevState);
     }
+  };
+
+  const handleLogout = () => {
+    clearUser();
+    localStorage.removeItem("userToken");
+    localStorage.removeItem("userRole");
+    localStorage.removeItem("userStatus");
+    localStorage.removeItem("userName");
+    navigate("/login");
   };
 
   // Fetch notifications to count unread messages
@@ -85,8 +100,9 @@ const SSidebar = ({ isCollapsed: collapsedProp, toggleCollapse: toggleProp, acti
   };
 
   const isActive = (path) => location.pathname === path;
-  const isDashboardActive = activeSection === 'dashboard' || (location.pathname === '/Cdashboard' && activeSection !== 'notice-board');
+  const isDashboardActive = activeSection === 'dashboard' || (location.pathname === '/Cdashboard' && !['notice-board', 'requests'].includes(activeSection));
   const isNoticeBoardActive = activeSection === 'notice-board' || isActive("/customer/messages");
+  const isRequestsActive = activeSection === 'requests' || isActive("/requests");
 
   const sidebarBg = useColorModeValue("linear-gradient(180deg, #f9fbff, #f1f5ff)", "linear-gradient(180deg, #0b1224, #0f1e3a)");
   const textColor = useColorModeValue("gray.800", "white");
@@ -94,6 +110,9 @@ const SSidebar = ({ isCollapsed: collapsedProp, toggleCollapse: toggleProp, acti
   const iconColor = useColorModeValue("gray.600", "white");
   const activeIconColor = useColorModeValue("blue.600", "teal.200");
   const activeTextColor = useColorModeValue("blue.800", "white");
+  const sidebarBorderColor = useColorModeValue("blue.100", "whiteAlpha.200");
+  const userCardBg = useColorModeValue("whiteAlpha.800", "whiteAlpha.100");
+  const userMetaColor = useColorModeValue("gray.500", "gray.400");
     const isCSM = (() => {
     try {
       const rawUser =
@@ -120,7 +139,7 @@ const SSidebar = ({ isCollapsed: collapsedProp, toggleCollapse: toggleProp, acti
   return (
     <Box
       as="nav"
-      width={isCollapsed ? "72px" : "240px"}
+      width={isCollapsed ? "78px" : "260px"}
       minHeight="100vh"
       maxHeight="100vh"
       position="fixed"
@@ -136,22 +155,26 @@ const SSidebar = ({ isCollapsed: collapsedProp, toggleCollapse: toggleProp, acti
       boxShadow="lg"
       pos="relative"
     >
-      {/* Sidebar Header */}
       <Flex
         justify={isCollapsed ? "center" : "space-between"}
         align="center"
         px={isCollapsed ? 0 : 4}
-        py={4}
+        py={5}
         flexShrink={0}
       >
-        {/* {!isCollapsed && (
-          <Flex align="center" gap={2}>
-            <Box w="10px" h="32px" bgGradient={useColorModeValue("linear(to-b, blue.400, purple.400)", "linear(to-b, teal.300, cyan.400)")} borderRadius="full" />
-            <Text fontWeight="bold" fontSize="lg" letterSpacing="0.5px" color={textColor}>
-              Customer Success
-            </Text>
+        {!isCollapsed && (
+          <Flex align="center" gap={3} pr={8}>
+            <Flex boxSize="38px" borderRadius="xl" bg="teal.400" color="white" align="center" justify="center" fontWeight="900">
+              CS
+            </Flex>
+            <Box>
+              <Text fontWeight="900" fontSize="md" color={textColor}>
+                Customer Service
+              </Text>
+              <Text fontSize="xs" color={userMetaColor}>Support Console</Text>
+            </Box>
           </Flex>
-        )} */}
+        )}
       </Flex>
       <IconButton
         icon={isCollapsed ? <FiChevronsRight /> : <FiChevronsLeft />}
@@ -170,8 +193,8 @@ const SSidebar = ({ isCollapsed: collapsedProp, toggleCollapse: toggleProp, acti
       
 
       {/* Sidebar Links with scroll */}
-  <Box flex="1" overflowY="auto" minHeight={0} maxHeight="100vh" ref={scrollBoxRef}>
-        <VStack align="start" spacing={4} p={2}>
+  <Box flex="0 1 auto" overflowY="auto" minHeight={0} maxHeight="calc(100vh - 260px)" ref={scrollBoxRef}>
+        <VStack align="start" spacing={3} p={2}>
           <SidebarLink
             isCollapsed={isCollapsed}
             to="/Cdashboard"
@@ -236,11 +259,17 @@ const SSidebar = ({ isCollapsed: collapsedProp, toggleCollapse: toggleProp, acti
             to="/requests"
             icon={<FiClipboard />}
             label="Requests"
-            active={isActive("/requests")}
+            active={isRequestsActive}
             iconColor={iconColor}
             activeIconColor={activeIconColor}
             textColor={textColor}
             activeTextColor={activeTextColor}
+            onClick={(e) => {
+              if (typeof onSelectSection === 'function') {
+                e.preventDefault();
+                onSelectSection('requests');
+              }
+            }}
           />
           {isCSM && (
             <SidebarLink
@@ -308,17 +337,53 @@ const SSidebar = ({ isCollapsed: collapsedProp, toggleCollapse: toggleProp, acti
         </VStack>
       </Box>
 
-      {/* Scroll Down Button */}
-      {/* <Flex justify="center" align="center" p={1}>
-        <IconButton
-          icon={<span style={{fontSize:18}}>&darr;</span>}
-          variant="ghost"
-          color="white"
-          aria-label="Scroll Down"
-          onClick={scrollDown}
-          size="sm"
-        />
-      </Flex> */}
+      <Box
+        p={3}
+        mt={3}
+        mx={2}
+        mb={6}
+        border="1px solid"
+        borderColor={sidebarBorderColor}
+        borderRadius="2xl"
+        bg={userCardBg}
+        boxShadow="md"
+        flexShrink={0}
+      >
+        {!isCollapsed && (
+          <Box px={2} py={2} mb={2} borderRadius="xl">
+            <Text fontSize="xs" color={userMetaColor}>Signed in as</Text>
+            <Text fontSize="sm" fontWeight="800" noOfLines={1}>{currentUser?.fullName || currentUser?.username || "Customer Service"}</Text>
+            <Text fontSize="xs" color={userMetaColor} noOfLines={1}>{currentUser?.email || currentUser?.displayRole || "Customer Service"}</Text>
+          </Box>
+        )}
+        <VStack align="stretch" spacing={2}>
+          <Tooltip label="Profile" isDisabled={!isCollapsed} placement="right" hasArrow>
+            <Button
+              as={RouterLink}
+              to="/employee-info"
+              size="sm"
+              justifyContent={isCollapsed ? "center" : "flex-start"}
+              leftIcon={isCollapsed ? undefined : <FiUser />}
+              variant="ghost"
+              colorScheme="blue"
+            >
+              {isCollapsed ? <FiUser /> : "Profile"}
+            </Button>
+          </Tooltip>
+          <Tooltip label="Logout" isDisabled={!isCollapsed} placement="right" hasArrow>
+            <Button
+              size="sm"
+              justifyContent={isCollapsed ? "center" : "flex-start"}
+              leftIcon={isCollapsed ? undefined : <FiLogOut />}
+              variant="outline"
+              colorScheme="red"
+              onClick={handleLogout}
+            >
+              {isCollapsed ? <FiLogOut /> : "Logout"}
+            </Button>
+          </Tooltip>
+        </VStack>
+      </Box>
     </Box>
   );
 };
