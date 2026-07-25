@@ -127,6 +127,7 @@ const SSidebar = ({ isCollapsed: collapsedProp, toggleCollapse: toggleProp, acti
   const sidebarBorderColor = useColorModeValue("blue.100", "whiteAlpha.200");
   const userCardBg = useColorModeValue("whiteAlpha.800", "whiteAlpha.100");
   const userMetaColor = useColorModeValue("gray.500", "gray.400");
+  const toggleBorderColor = useColorModeValue("white", "gray.900");
     const isCSM = (() => {
     try {
       const rawUser =
@@ -153,12 +154,11 @@ const SSidebar = ({ isCollapsed: collapsedProp, toggleCollapse: toggleProp, acti
   return (
     <Box
       as="nav"
-      width={isCollapsed ? "78px" : "260px"}
-      minHeight="100vh"
-      maxHeight="100vh"
-      position="fixed"
-      left={0}
-      top={0}
+      width="100%"
+      height="100%"
+      minHeight="100%"
+      maxHeight="100%"
+      position="relative"
       bgGradient={sidebarBg}
       color={textColor}
       transition="width 0.25s ease"
@@ -175,32 +175,49 @@ const SSidebar = ({ isCollapsed: collapsedProp, toggleCollapse: toggleProp, acti
         py={5}
         flexShrink={0}
       >
-        {!isCollapsed && (
-          <Flex align="center" gap={3} pr={8}>
-            <Flex boxSize="38px" borderRadius="xl" bg="teal.400" color="white" align="center" justify="center" fontWeight="900">
-              CS
-            </Flex>
+        <Flex align="center" gap={3} pr={isCollapsed ? 0 : 8}>
+          <Flex
+            boxSize={isCollapsed ? "42px" : "38px"}
+            borderRadius="xl"
+            bg="teal.400"
+            color="white"
+            align="center"
+            justify="center"
+            fontWeight="900"
+            boxShadow="0 12px 24px rgba(20, 184, 166, 0.28)"
+          >
+            CS
+          </Flex>
+          {!isCollapsed && (
             <Box>
               <Text fontWeight="900" fontSize="md" color={textColor}>
                 Customer Service
               </Text>
               <Text fontSize="xs" color={userMetaColor}>Support Console</Text>
             </Box>
-          </Flex>
-        )}
+          )}
+        </Flex>
       </Flex>
       <IconButton
         icon={isCollapsed ? <FiChevronsRight /> : <FiChevronsLeft />}
         variant="solid"
         colorScheme={isCollapsed ? "teal" : "blue"}
-        size="sm"
+        size="md"
         aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
         onClick={toggleCollapse}
         position="absolute"
-        top="12px"
-        right={isCollapsed ? "6px" : "10px"}
+        top="18px"
+        right={isCollapsed ? "12px" : "14px"}
         borderRadius="full"
-        boxShadow="md"
+        boxShadow="0 12px 28px rgba(37, 99, 235, 0.36)"
+        border="3px solid"
+        borderColor={toggleBorderColor}
+        zIndex={2}
+        minW="42px"
+        h="42px"
+        fontSize="20px"
+        _hover={{ transform: "scale(1.06)" }}
+        transition="all 0.2s ease"
       />
 
       
