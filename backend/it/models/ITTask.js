@@ -111,6 +111,7 @@ const ITTaskSchema = new mongoose.Schema({
     author: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: false },
     authorName: { type: String, default: '' },
     authorRole: { type: String, default: '' },
+    audience: { type: String, enum: ['general', 'cs_manager', 'staff_manager'], default: 'general' },
     body: { type: String, required: true },
     createdAt: { type: Date, default: Date.now }
   }],

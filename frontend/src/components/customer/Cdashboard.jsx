@@ -52,6 +52,7 @@ import CustomerMessagesPage from '../../pages/CustomerMessagesPage';
 import RequestPage from '../../pages/RequestPage';
 import CompletedSalesTable from '../../pages/sales/manager/components/CompletedSalesTable';
 import CustomerSupportRequestPanel from './CustomerSupportRequestPanel';
+import CSExternalITRequestsPanel from './CSExternalITRequestsPanel';
 
 // Register Chart.js components
 ChartJS.register(
@@ -369,7 +370,9 @@ const CDashboard = ({ initialTab = 'dashboard' }) => {
     onSelectSection: setActiveTab,
   };
 
-  if (loading && activeTab !== 'notice-board') {
+  const canRenderWithoutDashboardData = ['notice-board', 'requests', 'it-requests'].includes(activeTab);
+
+  if (loading && !canRenderWithoutDashboardData) {
     return (
       <Layout {...layoutProps}>
         <Box p={{ base: 4, md: 6 }} bg={bgColor} minHeight="100vh">
@@ -405,7 +408,7 @@ const CDashboard = ({ initialTab = 'dashboard' }) => {
     );
   }
 
-  if (error && activeTab !== 'notice-board') {
+  if (error && !canRenderWithoutDashboardData) {
     return (
       <Layout {...layoutProps}>
         <Box p={6} bg={bgColor} minHeight="100vh">
@@ -436,6 +439,10 @@ const CDashboard = ({ initialTab = 'dashboard' }) => {
     <Layout {...layoutProps}>
       {activeTab === 'notice-board' ? (
         <CustomerMessagesPage embedded />
+      ) : activeTab === 'it-requests' ? (
+        <Box p={{ base: 4, md: 6 }} bg={bgColor} minHeight="100vh">
+          <CSExternalITRequestsPanel />
+        </Box>
       ) : activeTab === 'requests' ? (
         <Box p={{ base: 4, md: 6 }} bg={bgColor} minHeight="100vh">
           <VStack spacing={6} align="stretch">

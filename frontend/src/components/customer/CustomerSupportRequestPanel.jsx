@@ -137,9 +137,12 @@ export default function CustomerSupportRequestPanel() {
       const tickets = data
         .filter(isSupportTicket)
         .filter((task) => (
-          userAliases.includes(String(task.requestedBy || "").trim().toLowerCase())
-          || userAliases.includes(String(task.createdBy || "").trim().toLowerCase())
-          || String(task.requestedDepartment || "").toLowerCase().includes("customer")
+          task.projectType !== "external"
+          && (
+            userAliases.includes(String(task.requestedBy || "").trim().toLowerCase())
+            || userAliases.includes(String(task.createdBy || "").trim().toLowerCase())
+            || String(task.requestedDepartment || "").toLowerCase().includes("customer")
+          )
         ))
         .slice(0, 12);
       setManagerTickets(tickets);
@@ -256,239 +259,240 @@ export default function CustomerSupportRequestPanel() {
             </HStack>
             <Text color={muted}>Use this section only when Customer Service needs IT manager approval and IT staff assignment.</Text>
           </Box>
-          <Badge colorScheme="teal" alignSelf={{ base: "flex-start", md: "center" }}>IT Manager Queue</Badge>
+          <Badge colorScheme="blue" alignSelf={{ base: "flex-start", md: "center" }}>IT Manager Queue</Badge>
         </Flex>
 
         <SimpleGrid columns={{ base: 1, xl: 2 }} spacing={5} alignItems="start">
           <Card bg={panelBg} border="1px solid" borderColor={borderColor} borderRadius="2xl" boxShadow="sm">
             <CardBody>
-            <HStack mb={3}>
-              <Icon as={FiTool} color="teal.500" />
-              <Box>
-                <Heading size="md">Contact the IT Support Department</Heading>
-                <Text fontSize="sm" color={muted}>Create a new IT ticket for manager approval and staff assignment.</Text>
-              </Box>
-            </HStack>
+              <HStack mb={3}>
+                <Icon as={FiTool} color="teal.500" />
+                <Box>
+                  <Heading size="md">Contact the IT Support Department</Heading>
+                  <Text fontSize="sm" color={muted}>Create a new IT ticket for manager approval and staff assignment.</Text>
+                </Box>
+              </HStack>
 
-            <VStack spacing={4} align="stretch">
-              <SimpleGrid columns={{ base: 1, md: 2 }} spacing={3}>
+              <VStack spacing={4} align="stretch">
+                <SimpleGrid columns={{ base: 1, md: 2 }} spacing={3}>
+                  <FormControl>
+                    <FormLabel>Requester</FormLabel>
+                    <Input value={form.requestedBy} onChange={(event) => setForm({ ...form, requestedBy: event.target.value })} />
+                  </FormControl>
+                  <FormControl>
+                    <FormLabel>Department</FormLabel>
+                    <Input value={form.requestedDepartment} onChange={(event) => setForm({ ...form, requestedDepartment: event.target.value })} />
+                  </FormControl>
+                </SimpleGrid>
+
                 <FormControl>
-                  <FormLabel>Requester</FormLabel>
-                  <Input value={form.requestedBy} onChange={(event) => setForm({ ...form, requestedBy: event.target.value })} />
-                </FormControl>
-                <FormControl>
-                  <FormLabel>Department</FormLabel>
-                  <Input value={form.requestedDepartment} onChange={(event) => setForm({ ...form, requestedDepartment: event.target.value })} />
-                </FormControl>
-              </SimpleGrid>
-
-              <FormControl>
-                <FormLabel>Support title</FormLabel>
-                <Input
-                  value={form.taskName}
-                  onChange={(event) => setForm({ ...form, taskName: event.target.value })}
-                  placeholder="Example: CRM follow-up page not loading"
-                />
-              </FormControl>
-
-              <SimpleGrid columns={{ base: 1, md: 2 }} spacing={3}>
-                <FormControl>
-                  <FormLabel>Support type</FormLabel>
-                  <Select value={form.ticketCategory} onChange={(event) => setForm({ ...form, ticketCategory: event.target.value })}>
-                    {SUPPORT_TYPES.map((type) => <option key={type.value} value={type.value}>{type.label}</option>)}
-                  </Select>
-                </FormControl>
-                <FormControl>
-                  <FormLabel>Priority</FormLabel>
-                  <Select value={form.priority} onChange={(event) => setForm({ ...form, priority: event.target.value })}>
-                    {PRIORITIES.map((priority) => <option key={priority.value} value={priority.value}>{priority.label}</option>)}
-                  </Select>
-                </FormControl>
-              </SimpleGrid>
-
-              <FormControl>
-                <FormLabel>Request details</FormLabel>
-                <Textarea
-                  minH="120px"
-                  value={form.summary}
-                  onChange={(event) => setForm({ ...form, summary: event.target.value })}
-                  placeholder="Describe the issue, affected customer/workflow, urgency, and what you already tried."
-                />
-              </FormControl>
-
-              <FormControl>
-                <FormLabel>Attachments or reference links</FormLabel>
-                <VStack align="stretch" spacing={2}>
-                  <Textarea
-                    minH="80px"
-                    value={form.attachments}
-                    onChange={(event) => setForm({ ...form, attachments: event.target.value })}
-                    placeholder="Paste links or select files from your folder. Separate each item by comma or new line."
+                  <FormLabel>Support title</FormLabel>
+                  <Input
+                    value={form.taskName}
+                    onChange={(event) => setForm({ ...form, taskName: event.target.value })}
+                    placeholder="Example: CRM follow-up page not loading"
                   />
-                  <Button as="label" size="sm" variant="outline" leftIcon={<FiPaperclip />} alignSelf="flex-start" cursor="pointer">
-                    Select from Folder
-                    <Input
-                      ref={fileInputRef}
-                      type="file"
-                      multiple
-                      display="none"
-                      onChange={(event) => setForm({
-                        ...form,
-                        attachments: appendSelectedFileNames(form.attachments, event.target.files),
-                      })}
-                    />
-                  </Button>
-                </VStack>
-              </FormControl>
+                </FormControl>
 
-              <Button colorScheme="teal" leftIcon={<FiSend />} onClick={submitSupportTicket} isLoading={submitting}>
-                Create IT Ticket
-              </Button>
-            </VStack>
+                <SimpleGrid columns={{ base: 1, md: 2 }} spacing={3}>
+                  <FormControl>
+                    <FormLabel>Support type</FormLabel>
+                    <Select value={form.ticketCategory} onChange={(event) => setForm({ ...form, ticketCategory: event.target.value })}>
+                      {SUPPORT_TYPES.map((type) => <option key={type.value} value={type.value}>{type.label}</option>)}
+                    </Select>
+                  </FormControl>
+                  <FormControl>
+                    <FormLabel>Priority</FormLabel>
+                    <Select value={form.priority} onChange={(event) => setForm({ ...form, priority: event.target.value })}>
+                      {PRIORITIES.map((priority) => <option key={priority.value} value={priority.value}>{priority.label}</option>)}
+                    </Select>
+                  </FormControl>
+                </SimpleGrid>
+
+                <FormControl>
+                  <FormLabel>Request details</FormLabel>
+                  <Textarea
+                    minH="120px"
+                    value={form.summary}
+                    onChange={(event) => setForm({ ...form, summary: event.target.value })}
+                    placeholder="Describe the issue, affected customer/workflow, urgency, and what you already tried."
+                  />
+                </FormControl>
+
+                <FormControl>
+                  <FormLabel>Attachments or reference links</FormLabel>
+                  <VStack align="stretch" spacing={2}>
+                    <Textarea
+                      minH="80px"
+                      value={form.attachments}
+                      onChange={(event) => setForm({ ...form, attachments: event.target.value })}
+                      placeholder="Paste links or select files from your folder. Separate each item by comma or new line."
+                    />
+                    <Button as="label" size="sm" variant="outline" leftIcon={<FiPaperclip />} alignSelf="flex-start" cursor="pointer">
+                      Select from Folder
+                      <Input
+                        ref={fileInputRef}
+                        type="file"
+                        multiple
+                        display="none"
+                        onChange={(event) => setForm({
+                          ...form,
+                          attachments: appendSelectedFileNames(form.attachments, event.target.files),
+                        })}
+                      />
+                    </Button>
+                  </VStack>
+                </FormControl>
+
+                <Button colorScheme="teal" leftIcon={<FiSend />} onClick={submitSupportTicket} isLoading={submitting}>
+                  Create IT Ticket
+                </Button>
+              </VStack>
             </CardBody>
           </Card>
 
           <Card bg={panelBg} border="1px solid" borderColor={borderColor} borderRadius="2xl" boxShadow="sm">
             <CardBody>
-            <Flex justify="space-between" align="start" gap={3} mb={3}>
-              <HStack align="start">
-                <Icon as={FiShield} color="blue.500" mt={1} />
-                <Box>
-                  <Heading size="md">Support Request to the Manager</Heading>
-                  <Text fontSize="sm" color={muted}>Track submitted tickets, manager approval, assigned staff work, dates, and feedback.</Text>
-                </Box>
-              </HStack>
-              <Button size="sm" leftIcon={<FiRefreshCw />} variant="outline" onClick={fetchManagerRequests} isLoading={loadingTickets}>
-                Refresh
-              </Button>
-            </Flex>
+              <Flex justify="space-between" align="start" gap={3} mb={3}>
+                <HStack align="start">
+                  <Icon as={FiShield} color="blue.500" mt={1} />
+                  <Box>
+                    <Heading size="md">Support Request to the Manager</Heading>
+                    <Text fontSize="sm" color={muted}>Track submitted tickets, manager approval, assigned staff work, dates, and feedback.</Text>
+                  </Box>
+                </HStack>
+                <Button size="sm" leftIcon={<FiRefreshCw />} variant="outline" onClick={fetchManagerRequests} isLoading={loadingTickets}>
+                  Refresh
+                </Button>
+              </Flex>
 
-            <VStack align="stretch" spacing={3} maxH="760px" overflowY="auto" pr={1}>
-              {loadingTickets ? (
-                <Box bg={cardBg} borderRadius="xl" p={4} color={muted}>Loading manager support requests...</Box>
-              ) : managerTickets.length === 0 ? (
-                <Box bg={cardBg} borderRadius="xl" p={4} color={muted}>No IT support tickets have been sent yet.</Box>
-              ) : managerTickets.map((ticket) => {
-                const latestRecord = getLatestWorkRecord(ticket);
-                const ticketId = ticket._id || ticket.id;
-                const canGiveFeedback = canCurrentUserGiveFeedback(ticket, userAliases);
-                const feedbackOpen = isFeedbackOpen(ticket);
-                const isExpanded = Boolean(expandedManagerTicketIds[ticketId]);
-                return (
-                  <Box key={ticketId} bg={cardBg} border="1px solid" borderColor={borderColor} borderRadius="xl" p={4}>
-                    <Flex justify="space-between" align="center" gap={3}>
-                      <HStack minW={0} spacing={3}>
-                        <Button
-                          aria-label={isExpanded ? "Collapse support request details" : "Expand support request details"}
-                          size="xs"
-                          variant="ghost"
-                          minW="28px"
-                          px={0}
-                          onClick={() => toggleManagerTicket(ticketId)}
-                        >
-                          <Icon as={isExpanded ? FiChevronDown : FiChevronRight} />
-                        </Button>
-                        <Box minW={0}>
-                          <Badge mb={2} colorScheme="blue" variant="subtle">Support Request to Manager Record</Badge>
-                        <Text fontWeight="800">{getTaskTitle(ticket)}</Text>
-                      </Box>
-                      </HStack>
-                      <Badge colorScheme={getStatusColor(ticket.supportStatus)}>
-                        {String(ticket.supportStatus || "requested").replace("_", " ")}
-                      </Badge>
-                    </Flex>
-
-                    {isExpanded && (
-                      <Box mt={3}>
-                        <Text fontSize="sm" color={muted}>{ticket.supportRequestNote || ticket.description}</Text>
-                    <SimpleGrid columns={{ base: 1, md: 2 }} spacing={2} mt={3} fontSize="sm">
-                      <HStack><Icon as={FiClock} color="blue.500" /><Text>Sent: {ticket.requestedAt ? new Date(ticket.requestedAt).toLocaleString() : "Recently"}</Text></HStack>
-                      <HStack><Icon as={FiUserCheck} color="teal.500" /><Text>Assigned: {(ticket.assignedTo || []).join(", ") || "Waiting manager assignment"}</Text></HStack>
-                      <Text color={muted}>Manager accepted: {ticket.managerAcceptedAt ? new Date(ticket.managerAcceptedAt).toLocaleString() : "Pending"}</Text>
-                      <Text color={muted}>Priority: {ticket.priority || "normal"}</Text>
-                    </SimpleGrid>
-
-                    {latestRecord ? (
-                      <Box mt={3} p={3} borderRadius="lg" bg={panelBg}>
-                        <HStack justify="space-between" align="start">
-                          <Box>
-                            <Text fontWeight="700">Latest work done by {latestRecord.staffName || "IT staff"}</Text>
-                            <Text fontSize="sm" color={muted}>{latestRecord.summary}</Text>
+              <VStack align="stretch" spacing={3} maxH="760px" overflowY="auto" pr={1}>
+                {loadingTickets ? (
+                  <Box bg={cardBg} borderRadius="xl" p={4} color={muted}>Loading manager support requests...</Box>
+                ) : managerTickets.length === 0 ? (
+                  <Box bg={cardBg} borderRadius="xl" p={4} color={muted}>No IT support tickets have been sent yet.</Box>
+                ) : managerTickets.map((ticket) => {
+                  const latestRecord = getLatestWorkRecord(ticket);
+                  const ticketId = ticket._id || ticket.id;
+                  const canGiveFeedback = canCurrentUserGiveFeedback(ticket, userAliases);
+                  const feedbackOpen = isFeedbackOpen(ticket);
+                  const isExpanded = Boolean(expandedManagerTicketIds[ticketId]);
+                  return (
+                    <Box key={ticketId} bg={cardBg} border="1px solid" borderColor={borderColor} borderRadius="xl" p={4}>
+                      <Flex justify="space-between" align="center" gap={3}>
+                        <HStack minW={0} spacing={3}>
+                          <Button
+                            aria-label={isExpanded ? "Collapse support request details" : "Expand support request details"}
+                            size="xs"
+                            variant="ghost"
+                            minW="28px"
+                            px={0}
+                            onClick={() => toggleManagerTicket(ticketId)}
+                          >
+                            <Icon as={isExpanded ? FiChevronDown : FiChevronRight} />
+                          </Button>
+                          <Box minW={0}>
+                            <Badge mb={2} colorScheme="blue" variant="subtle">Support Request to Manager Record</Badge>
+                            <Text fontWeight="800">{getTaskTitle(ticket)}</Text>
+                            <Text fontSize="xs" color={muted}>{ticket.requestedDepartment || "Customer Service"}</Text>
                           </Box>
-                          <Badge colorScheme={latestRecord.approvalStatus === "approved" ? "green" : latestRecord.approvalStatus === "rejected" ? "red" : "orange"}>
-                            {String(latestRecord.approvalStatus || "pending approval").replace("_", " ")}
-                          </Badge>
                         </HStack>
-                        <Text fontSize="xs" color={muted} mt={2}>
-                          Completed: {latestRecord.completedAt ? new Date(latestRecord.completedAt).toLocaleString() : "No date"} | Manager feedback: {latestRecord.managerNote || latestRecord.approvedByName || "No feedback yet"}
-                        </Text>
-                        {latestRecord.outstandingTasks && (
-                          <Text fontSize="xs" color="orange.500" mt={1}>Outstanding: {latestRecord.outstandingTasks}</Text>
-                        )}
-                      </Box>
-                    ) : (
-                      <Text mt={3} fontSize="sm" color={muted}>No staff work report has been submitted yet.</Text>
-                    )}
+                        <Badge colorScheme={getStatusColor(ticket.supportStatus)}>
+                          {String(ticket.supportStatus || "requested").replace("_", " ")}
+                        </Badge>
+                      </Flex>
 
-                    <Box mt={3} p={3} borderRadius="lg" bg={panelBg}>
-                      <HStack mb={2}>
-                        <Icon as={FiStar} color="yellow.500" />
-                        <Text fontWeight="700">Customer Service Sender Feedback</Text>
-                      </HStack>
-                      {ticket.requesterFeedback?.submittedAt && (
-                        <Box mb={3}>
-                          <Badge colorScheme="yellow">{ticket.requesterFeedback.rating} / 5 rating</Badge>
-                          <Text mt={2} fontSize="sm">{ticket.requesterFeedback.comment || "No feedback comment."}</Text>
-                          <Text fontSize="xs" color={muted}>Submitted {new Date(ticket.requesterFeedback.submittedAt).toLocaleString()} by {ticket.requesterFeedback.submittedBy || "requester"}</Text>
+                      {isExpanded && (
+                        <Box mt={3}>
+                          <Text fontSize="sm" color={muted}>{ticket.supportRequestNote || ticket.description}</Text>
+                          <SimpleGrid columns={{ base: 1, md: 2 }} spacing={2} mt={3} fontSize="sm">
+                            <HStack><Icon as={FiClock} color="blue.500" /><Text>Sent: {ticket.requestedAt ? new Date(ticket.requestedAt).toLocaleString() : "Recently"}</Text></HStack>
+                            <HStack><Icon as={FiUserCheck} color="teal.500" /><Text>Assigned: {(ticket.assignedTo || []).join(", ") || "Waiting manager assignment"}</Text></HStack>
+                            <Text color={muted}>Manager accepted: {ticket.managerAcceptedAt ? new Date(ticket.managerAcceptedAt).toLocaleString() : "Pending"}</Text>
+                            <Text color={muted}>Priority: {ticket.priority || "normal"}</Text>
+                          </SimpleGrid>
+
+                          {latestRecord ? (
+                            <Box mt={3} p={3} borderRadius="lg" bg={panelBg}>
+                              <HStack justify="space-between" align="start">
+                                <Box>
+                                  <Text fontWeight="700">Latest work done by {latestRecord.staffName || "IT staff"}</Text>
+                                  <Text fontSize="sm" color={muted}>{latestRecord.summary}</Text>
+                                </Box>
+                                <Badge colorScheme={latestRecord.approvalStatus === "approved" ? "green" : latestRecord.approvalStatus === "rejected" ? "red" : "orange"}>
+                                  {String(latestRecord.approvalStatus || "pending approval").replace("_", " ")}
+                                </Badge>
+                              </HStack>
+                              <Text fontSize="xs" color={muted} mt={2}>
+                                Completed: {latestRecord.completedAt ? new Date(latestRecord.completedAt).toLocaleString() : "No date"} | Manager feedback: {latestRecord.managerNote || latestRecord.approvedByName || "No feedback yet"}
+                              </Text>
+                              {latestRecord.outstandingTasks && (
+                                <Text fontSize="xs" color="orange.500" mt={1}>Outstanding: {latestRecord.outstandingTasks}</Text>
+                              )}
+                            </Box>
+                          ) : (
+                            <Text mt={3} fontSize="sm" color={muted}>No staff work report has been submitted yet.</Text>
+                          )}
+
+                          <Box mt={3} p={3} borderRadius="lg" bg={panelBg}>
+                            <HStack mb={2}>
+                              <Icon as={FiStar} color="yellow.500" />
+                              <Text fontWeight="700">Customer Service Sender Feedback</Text>
+                            </HStack>
+                            {ticket.requesterFeedback?.submittedAt && (
+                              <Box mb={3}>
+                                <Badge colorScheme="yellow">{ticket.requesterFeedback.rating} / 5 rating</Badge>
+                                <Text mt={2} fontSize="sm">{ticket.requesterFeedback.comment || "No feedback comment."}</Text>
+                                <Text fontSize="xs" color={muted}>Submitted {new Date(ticket.requesterFeedback.submittedAt).toLocaleString()} by {ticket.requesterFeedback.submittedBy || "requester"}</Text>
+                              </Box>
+                            )}
+
+                            {canGiveFeedback && feedbackOpen ? (
+                              <VStack align="stretch" spacing={2}>
+                                <SimpleGrid columns={{ base: 1, md: 2 }} spacing={2}>
+                                  <Select
+                                    size="sm"
+                                    placeholder="Rating"
+                                    value={feedbackDrafts[ticketId]?.rating ?? ticket.requesterFeedback?.rating ?? ""}
+                                    onChange={(event) => setFeedbackDrafts({
+                                      ...feedbackDrafts,
+                                      [ticketId]: {
+                                        ...(feedbackDrafts[ticketId] || {}),
+                                        rating: event.target.value,
+                                      },
+                                    })}
+                                  >
+                                    {[5, 4, 3, 2, 1].map((rating) => <option key={rating} value={rating}>{rating} / 5</option>)}
+                                  </Select>
+                                  <Button size="sm" colorScheme="yellow" onClick={() => submitTicketFeedback(ticket)} isLoading={feedbackSavingId === ticketId}>
+                                    {ticket.requesterFeedback?.submittedAt ? "Update Feedback" : "Send Feedback"}
+                                  </Button>
+                                </SimpleGrid>
+                                <Textarea
+                                  size="sm"
+                                  placeholder="Feedback for the completed support work"
+                                  value={feedbackDrafts[ticketId]?.comment ?? ticket.requesterFeedback?.comment ?? ""}
+                                  onChange={(event) => setFeedbackDrafts({
+                                    ...feedbackDrafts,
+                                    [ticketId]: {
+                                      ...(feedbackDrafts[ticketId] || {}),
+                                      comment: event.target.value,
+                                    },
+                                  })}
+                                />
+                              </VStack>
+                            ) : (
+                              <Text fontSize="sm" color={muted}>
+                                {feedbackOpen ? "Only the original sender/request owner can provide feedback." : "Feedback opens after manager approval or approved IT work."}
+                              </Text>
+                            )}
+                          </Box>
                         </Box>
                       )}
-
-                      {canGiveFeedback && feedbackOpen ? (
-                        <VStack align="stretch" spacing={2}>
-                          <SimpleGrid columns={{ base: 1, md: 2 }} spacing={2}>
-                            <Select
-                              size="sm"
-                              placeholder="Rating"
-                              value={feedbackDrafts[ticketId]?.rating ?? ticket.requesterFeedback?.rating ?? ""}
-                              onChange={(event) => setFeedbackDrafts({
-                                ...feedbackDrafts,
-                                [ticketId]: {
-                                  ...(feedbackDrafts[ticketId] || {}),
-                                  rating: event.target.value,
-                                },
-                              })}
-                            >
-                              {[5, 4, 3, 2, 1].map((rating) => <option key={rating} value={rating}>{rating} / 5</option>)}
-                            </Select>
-                            <Button size="sm" colorScheme="yellow" onClick={() => submitTicketFeedback(ticket)} isLoading={feedbackSavingId === ticketId}>
-                              {ticket.requesterFeedback?.submittedAt ? "Update Feedback" : "Send Feedback"}
-                            </Button>
-                          </SimpleGrid>
-                          <Textarea
-                            size="sm"
-                            placeholder="Feedback for the completed support work"
-                            value={feedbackDrafts[ticketId]?.comment ?? ticket.requesterFeedback?.comment ?? ""}
-                            onChange={(event) => setFeedbackDrafts({
-                              ...feedbackDrafts,
-                              [ticketId]: {
-                                ...(feedbackDrafts[ticketId] || {}),
-                                comment: event.target.value,
-                              },
-                            })}
-                          />
-                        </VStack>
-                      ) : (
-                        <Text fontSize="sm" color={muted}>
-                          {feedbackOpen ? "Only the original sender/request owner can provide feedback." : "Feedback opens after manager approval or approved IT work."}
-                        </Text>
-                      )}
                     </Box>
-                      </Box>
-                    )}
-                  </Box>
-                );
-              })}
-            </VStack>
+                  );
+                })}
+              </VStack>
             </CardBody>
           </Card>
         </SimpleGrid>

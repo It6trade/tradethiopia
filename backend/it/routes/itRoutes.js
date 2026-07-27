@@ -42,6 +42,8 @@ router.post('/:id/feedback', itController.submitRequesterFeedback);
 router.get('/:id', itController.getTaskById);
 router.post('/', itController.createTask);
 router.post('/:id/comments', itController.addTaskComment);
+router.post('/:id/external/review', itController.reviewExternalProjectRequest);
+router.post('/:id/external/staff-response', itController.respondToAssignedExternalProject);
 router.post('/:id/support/accept', itController.acceptSupportRequest);
 router.post('/:id/support/staff-accept', itController.acceptAssignedSupport);
 router.post('/:id/support/report', itController.submitSupportReport);

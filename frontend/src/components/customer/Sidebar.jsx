@@ -28,6 +28,7 @@ import {
   FiBarChart2,
   FiUser,
   FiLogOut,
+  FiTool,
   FiChevronDown,
   FiChevronRight,
 } from "react-icons/fi";
@@ -114,9 +115,10 @@ const SSidebar = ({ isCollapsed: collapsedProp, toggleCollapse: toggleProp, acti
   };
 
   const isActive = (path) => location.pathname === path;
-  const isDashboardActive = activeSection === 'dashboard' || (location.pathname === '/Cdashboard' && !['notice-board', 'requests'].includes(activeSection));
+  const isDashboardActive = activeSection === 'dashboard' || (location.pathname === '/Cdashboard' && !['notice-board', 'requests', 'it-requests'].includes(activeSection));
   const isNoticeBoardActive = activeSection === 'notice-board' || isActive("/customer/messages");
   const isRequestsActive = activeSection === 'requests' || isActive("/requests");
+  const isItRequestsActive = activeSection === 'it-requests';
 
   const sidebarBg = useColorModeValue("linear-gradient(180deg, #f9fbff, #f1f5ff)", "linear-gradient(180deg, #0b1224, #0f1e3a)");
   const textColor = useColorModeValue("gray.800", "white");
@@ -304,6 +306,23 @@ const SSidebar = ({ isCollapsed: collapsedProp, toggleCollapse: toggleProp, acti
                 if (typeof onSelectSection === 'function') {
                   e.preventDefault();
                   onSelectSection('requests');
+                }
+              }}
+            />
+            <SidebarLink
+              isCollapsed={isCollapsed}
+              to="/Cdashboard"
+              icon={<FiTool />}
+              label="IT Requests"
+              active={isItRequestsActive}
+              iconColor={iconColor}
+              activeIconColor={activeIconColor}
+              textColor={textColor}
+              activeTextColor={activeTextColor}
+              onClick={(e) => {
+                e.preventDefault();
+                if (typeof onSelectSection === 'function') {
+                  onSelectSection('it-requests');
                 }
               }}
             />

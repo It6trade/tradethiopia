@@ -31,7 +31,7 @@ import {
   Wrap,
   WrapItem
 } from '@chakra-ui/react';
-import { FiSearch, FiFilter, FiPlus, FiCalendar, FiUser } from 'react-icons/fi';
+import { FiSearch, FiFilter, FiPlus, FiCalendar, FiUser, FiCheckCircle, FiXCircle } from 'react-icons/fi';
 import axios from 'axios';
 import AddTaskForm from './AddTaskForm';
 import ITTaskProgressControl from './ITTaskProgressControl';
@@ -62,7 +62,7 @@ const ExternalTasksTab = ({ search, tasks, loading, fetchTasks, permissions = {}
   const [pageSize, setPageSize] = useState(10);
   const [page, setPage] = useState(1);
   const toast = useToast();
-  const { currentUser } = useUserStore();
+  const { currentUser, users } = useUserStore();
   const token = currentUser?.token;
 
   const bg = useColorModeValue('white', 'gray.800');
@@ -71,6 +71,40 @@ const ExternalTasksTab = ({ search, tasks, loading, fetchTasks, permissions = {}
   const subheadingColor = useColorModeValue('gray.600', 'gray.400');
   const iconColor = useColorModeValue('gray.500', 'gray.400');
   const mutedColor = useColorModeValue('gray.500', 'gray.400');
+
+  const currentUserAliases = [
+    currentUser?._id,
+    currentUser?.id,
+    currentUser?.email,
+    currentUser?.username,
+    currentUser?.fullName,
+    currentUser?.name,
+  ].filter(Boolean).map((item) => String(item).trim().toLowerCase());
+
+  const availableItPeople = (users || [])
+    .filter((user) => {
+      const role = String(user.role || '').toLowerCase();
+      const department = String(user.department || '').toLowerCase();
+      return role.includes('it') || department === 'it';
+    })
+    .map((user) => user.fullName || user.username || user.email)
+    .filter(Boolean);
+
+  const uniqueItPeople = Array.from(new Set(availableItPeople)).sort();
+
+  const isCSExternalRequest = (task = {}) => (
+    task.projectType === 'external'
+    && (
+      task.requestSource === 'staff_request'
+      || task.actionType === 'CS External IT Request'
+      || task.actionType === 'External CS Task Request'
+      || String(task.description || task.supportRequestNote || '').includes('CS External')
+    )
+  );
+
+  const isAssignedToCurrentUser = (task = {}) => (
+    (task.assignedTo || []).some((assignee) => currentUserAliases.includes(String(assignee).trim().toLowerCase()))
+  );
 
   useEffect(() => {
     if (!focusedTaskId || loading) return;
@@ -134,6 +168,71 @@ const ExternalTasksTab = ({ search, tasks, loading, fetchTasks, permissions = {}
     }
   };
 
+  const reviewExternalProject = async (task, decision) => {
+    const taskId = task._id || task.id;
+    let payload = { decision };
+
+    if (decision === 'accepted') {
+      const peopleHint = uniqueItPeople.length ? `\nAvailable IT people: ${uniqueItPeople.join(', ')}` : '';
+      const taskLeader = prompt(`Task leader:${peopleHint}`, task.taskLeader || '');
+      if (taskLeader === null) return;
+      const assigned = prompt(`Assigned staff, comma separated:${peopleHint}`, (task.assignedTo || []).join(', '));
+      if (assigned === null) return;
+      const note = prompt('Manager review note (optional):', 'Accepted for external project assignment.');
+      if (note === null) return;
+      payload = {
+        ...payload,
+        taskLeader: taskLeader.trim(),
+        assignedTo: assigned.split(',').map((item) => item.trim()).filter(Boolean),
+        note,
+      };
+    } else {
+      const note = prompt('Why is this external project request rejected?', '');
+      if (note === null) return;
+      payload = { ...payload, note };
+    }
+
+    try {
+      await axios.post(`${import.meta.env.VITE_API_URL}/api/it/${taskId}/external/review`, payload, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      fetchTasks();
+      toast({ title: decision === 'accepted' ? 'External project accepted and assigned' : 'External project rejected', status: 'success' });
+    } catch (err) {
+      toast({
+        title: 'External project review failed',
+        description: err.response?.data?.message || err.message,
+        status: 'error',
+      });
+    }
+  };
+
+  const respondToExternalProject = async (task, decision) => {
+    const taskId = task._id || task.id;
+    const note = prompt(
+      decision === 'accepted' ? 'Acceptance note (optional):' : 'Why are you rejecting this assignment?',
+      decision === 'accepted' ? 'I accepted this external project.' : ''
+    );
+    if (note === null) return;
+
+    try {
+      await axios.post(`${import.meta.env.VITE_API_URL}/api/it/${taskId}/external/staff-response`, {
+        decision,
+        note,
+      }, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      fetchTasks();
+      toast({ title: decision === 'accepted' ? 'External project accepted' : 'External project rejected', status: 'success' });
+    } catch (err) {
+      toast({
+        title: 'External project response failed',
+        description: err.response?.data?.message || err.message,
+        status: 'error',
+      });
+    }
+  };
+
   const startEditingPoints = (taskId, currentPoints) => {
     setEditingTaskId(taskId);
     setEditingPoints(currentPoints || 1);
@@ -187,6 +286,13 @@ const ExternalTasksTab = ({ search, tasks, loading, fetchTasks, permissions = {}
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const safePage = Math.min(page, totalPages);
   const pagedTasks = filtered.slice((safePage - 1) * pageSize, safePage * pageSize);
+  const managerReviewRequests = filtered.filter((task) => (
+    isCSExternalRequest(task)
+    && permissions.canManageUsers
+    && task.workflowStatus === 'pending'
+    && !(task.assignedTo || []).length
+    && !task.taskLeader
+  ));
 
   useEffect(() => {
     setPage(1);
@@ -343,6 +449,54 @@ const ExternalTasksTab = ({ search, tasks, loading, fetchTasks, permissions = {}
         </CardBody>
       </Card>
 
+      {managerReviewRequests.length > 0 && (
+        <Card bg={bg} borderRadius="2xl" boxShadow="sm" borderWidth="1px" borderColor={borderColor}>
+          <CardBody>
+            <HStack justify="space-between" align="start" mb={4} flexWrap="wrap" gap={3}>
+              <Box>
+                <Heading size="md" color={headingColor}>CS External Requests Awaiting Review</Heading>
+                <Text color={subheadingColor} fontSize="sm">
+                  Accept and assign external CS requests, or reject them with a note for discussion.
+                </Text>
+              </Box>
+              <Badge colorScheme="orange" borderRadius="full" px={3} py={1}>
+                {managerReviewRequests.length} pending
+              </Badge>
+            </HStack>
+            <VStack align="stretch" spacing={3}>
+              {managerReviewRequests.map((task) => (
+                <Flex
+                  key={task._id || task.id}
+                  justify="space-between"
+                  align={{ base: 'stretch', md: 'center' }}
+                  direction={{ base: 'column', md: 'row' }}
+                  gap={3}
+                  border="1px solid"
+                  borderColor={borderColor}
+                  borderRadius="xl"
+                  p={4}
+                >
+                  <Box>
+                    <Badge colorScheme="purple" mb={2}>CS External Project</Badge>
+                    <Text fontWeight="800">{task.taskName || task.client || 'External project request'}</Text>
+                    <Text fontSize="sm" color={mutedColor}>{task.requestedBy || 'Customer Service'} | {task.requestedDepartment || 'Customer Service'}</Text>
+                  </Box>
+                  <HStack>
+                    <Button size="sm" variant="outline" onClick={() => setViewingTask(task)}>Review</Button>
+                    <Button size="sm" colorScheme="green" leftIcon={<FiCheckCircle />} onClick={() => setEditingTask(task)}>
+                      Accept & Assign
+                    </Button>
+                    <Button size="sm" colorScheme="red" variant="outline" leftIcon={<FiXCircle />} onClick={() => reviewExternalProject(task, 'rejected')}>
+                      Reject
+                    </Button>
+                  </HStack>
+                </Flex>
+              ))}
+            </VStack>
+          </CardBody>
+        </Card>
+      )}
+
       {filtered.length > 0 ? (
         <Card bg={bg} borderRadius="2xl" boxShadow="sm" borderWidth="1px" borderColor={borderColor}>
           <CardBody>
@@ -483,6 +637,28 @@ const ExternalTasksTab = ({ search, tasks, loading, fetchTasks, permissions = {}
                           >
                             Mark Complete
                           </Button>
+                        )}
+                        {isCSExternalRequest(task) && isAssignedToCurrentUser(task) && ['assigned', 'pending'].includes(task.workflowStatus || 'pending') && (
+                          <>
+                            <Button
+                              size="sm"
+                              colorScheme="green"
+                              variant="outline"
+                              leftIcon={<FiCheckCircle />}
+                              onClick={() => respondToExternalProject(task, 'accepted')}
+                            >
+                              Accept Work
+                            </Button>
+                            <Button
+                              size="sm"
+                              colorScheme="red"
+                              variant="outline"
+                              leftIcon={<FiXCircle />}
+                              onClick={() => respondToExternalProject(task, 'rejected')}
+                            >
+                              Reject Work
+                            </Button>
+                          </>
                         )}
                         {permissions.canManageUsers && (
                           <Button

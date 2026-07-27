@@ -48,11 +48,24 @@ import { buildTaskReminders, filterReadReminders } from './utils/itWorkflow';
 const TARGET_STORAGE_KEY = 'tradethiopia_weekly_target';
 const WEEKLY_TARGET_POINTS = 40;
 
+const isCSExternalProjectRequest = (task = {}) => (
+  task.projectType === 'external'
+  && (
+    task.requestSource === 'staff_request'
+    || task.actionType === 'CS External IT Request'
+    || task.actionType === 'External CS Task Request'
+    || String(task.description || task.supportRequestNote || '').includes('CS External')
+  )
+);
+
 const isSupportTicketTask = (task = {}) => (
-  task.requestSource === 'employee_call'
-  || Boolean(task.supportRequestNote)
-  || Boolean(task.requestedAt)
-  || (task.ticketRecords || []).length > 0
+  !isCSExternalProjectRequest(task)
+  && (
+    task.requestSource === 'employee_call'
+    || Boolean(task.supportRequestNote)
+    || Boolean(task.requestedAt)
+    || (task.ticketRecords || []).length > 0
+  )
 );
 
 export default function ITDashboard() {

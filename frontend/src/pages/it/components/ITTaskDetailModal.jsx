@@ -20,6 +20,7 @@ import {
   ModalHeader,
   ModalOverlay,
   SimpleGrid,
+  Select,
   Text,
   Textarea,
   VStack,
@@ -40,6 +41,7 @@ const formatDate = (value) => {
 export default function ITTaskDetailModal({ isOpen, task, onClose, onDone, focusedCommentId = '' }) {
   const [currentTask, setCurrentTask] = useState(task);
   const [comment, setComment] = useState('');
+  const [commentAudience, setCommentAudience] = useState('staff_manager');
   const [isSaving, setIsSaving] = useState(false);
   const focusedCommentRef = useRef(null);
   const { currentUser } = useUserStore();
@@ -57,10 +59,20 @@ export default function ITTaskDetailModal({ isOpen, task, onClose, onDone, focus
   useEffect(() => {
     setCurrentTask(task);
     setComment('');
+    setCommentAudience('staff_manager');
   }, [task]);
 
   const workflow = getWorkflowMeta(currentTask?.workflowStatus, currentTask?.status);
   const comments = useMemo(() => currentTask?.comments || [], [currentTask]);
+  const isManager = ['admin', 'itmanager', 'itadmin'].includes(normalizedRole);
+  const isCSExternalRequest = currentTask?.projectType === 'external' && (
+    currentTask?.requestSource === 'staff_request'
+    || currentTask?.actionType === 'CS External IT Request'
+    || currentTask?.actionType === 'External CS Task Request'
+    || String(currentTask?.description || currentTask?.supportRequestNote || '').includes('CS External')
+  );
+  const csComments = comments.filter((item) => (item.audience || 'general') === 'cs_manager');
+  const staffComments = comments.filter((item) => (item.audience || 'general') !== 'cs_manager');
 
   useEffect(() => {
     if (!isOpen || !focusedCommentId) return;
@@ -70,13 +82,46 @@ export default function ITTaskDetailModal({ isOpen, task, onClose, onDone, focus
     return () => clearTimeout(timer);
   }, [focusedCommentId, isOpen, comments.length]);
 
+  const renderCommentList = (items, emptyText) => (
+    <VStack align="stretch" spacing={3} mb={4}>
+      {items.length === 0 ? (
+        <Box bg={subtleBg} borderRadius="12px" p={4}>
+          <Text color={muted}>{emptyText}</Text>
+        </Box>
+      ) : items.map((item) => {
+        const isFocusedComment = focusedCommentId && String(item._id) === String(focusedCommentId);
+        return (
+          <Box
+            key={item._id || item.createdAt || item.body}
+            ref={isFocusedComment ? focusedCommentRef : null}
+            border="1px solid"
+            borderColor={isFocusedComment ? 'blue.300' : borderColor}
+            borderRadius="12px"
+            p={3}
+            bg={isFocusedComment ? focusedCommentBg : 'transparent'}
+            boxShadow={isFocusedComment ? '0 0 0 3px rgba(59,130,246,0.18)' : 'none'}
+          >
+            <HStack justify="space-between" align="flex-start">
+              <Box>
+                <Text fontWeight="800">{item.authorName || 'IT User'}</Text>
+                <Text color={muted} fontSize="xs">{item.authorRole || 'Contributor'}</Text>
+              </Box>
+              <Text color={muted} fontSize="xs">{formatDate(item.createdAt)}</Text>
+            </HStack>
+            <Text mt={2}>{item.body}</Text>
+          </Box>
+        );
+      })}
+    </VStack>
+  );
+
   const submitComment = async () => {
     if (!currentTask || !comment.trim()) return;
     setIsSaving(true);
     try {
       const response = await axios.post(
         `${import.meta.env.VITE_API_URL}/api/it/${currentTask._id || currentTask.id}/comments`,
-        { body: comment.trim() },
+        { body: comment.trim(), audience: isCSExternalRequest ? commentAudience : 'general' },
         { headers: { Authorization: `Bearer ${token}` } }
       );
       setCurrentTask(response.data.data || currentTask);
@@ -205,39 +250,35 @@ export default function ITTaskDetailModal({ isOpen, task, onClose, onDone, focus
             <Card borderColor={borderColor} borderWidth="1px" borderRadius="18px">
               <CardBody>
               <Heading size="sm" mb={3}>Comments & Updates</Heading>
-              <VStack align="stretch" spacing={3} mb={4}>
-                {comments.length === 0 ? (
-                  <Box bg={subtleBg} borderRadius="12px" p={4}>
-                    <Text color={muted}>No comments yet.</Text>
-                  </Box>
-                ) : comments.map((item) => {
-                  const isFocusedComment = focusedCommentId && String(item._id) === String(focusedCommentId);
-                  return (
-                  <Box
-                    key={item._id || item.createdAt || item.body}
-                    ref={isFocusedComment ? focusedCommentRef : null}
-                    border="1px solid"
-                    borderColor={isFocusedComment ? 'blue.300' : borderColor}
-                    borderRadius="12px"
-                    p={3}
-                    bg={isFocusedComment ? focusedCommentBg : 'transparent'}
-                    boxShadow={isFocusedComment ? '0 0 0 3px rgba(59,130,246,0.18)' : 'none'}
-                  >
-                    <HStack justify="space-between" align="flex-start">
-                      <Box>
-                        <Text fontWeight="800">{item.authorName || 'IT User'}</Text>
-                        <Text color={muted} fontSize="xs">{item.authorRole || 'Contributor'}</Text>
-                      </Box>
-                      <Text color={muted} fontSize="xs">{formatDate(item.createdAt)}</Text>
+              {isCSExternalRequest && isManager ? (
+                <VStack align="stretch" spacing={4} mb={4}>
+                  <Box>
+                    <HStack mb={2}>
+                      <Badge colorScheme="purple">CS and Manager</Badge>
+                      <Text fontWeight="700">Customer Service Discussion</Text>
                     </HStack>
-                    <Text mt={2}>{item.body}</Text>
+                    {renderCommentList(csComments, 'No Customer Service discussion yet.')}
                   </Box>
-                  );
-                })}
-              </VStack>
+                  <Box>
+                    <HStack mb={2}>
+                      <Badge colorScheme="blue">Staff and Manager</Badge>
+                      <Text fontWeight="700">IT Staff Discussion</Text>
+                    </HStack>
+                    {renderCommentList(staffComments, 'No IT staff discussion yet.')}
+                  </Box>
+                </VStack>
+              ) : (
+                renderCommentList(comments, 'No comments yet.')
+              )}
 
               <FormControl>
                 <FormLabel>Add Comment</FormLabel>
+                {isCSExternalRequest && isManager && (
+                  <Select value={commentAudience} onChange={(event) => setCommentAudience(event.target.value)} mb={2}>
+                    <option value="staff_manager">Staff and Manager</option>
+                    <option value="cs_manager">Customer Service and Manager</option>
+                  </Select>
+                )}
                 <Textarea
                   value={comment}
                   onChange={(event) => setComment(event.target.value)}

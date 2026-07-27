@@ -204,6 +204,7 @@ const getRecords = (tasks = []) => tasks.flatMap((task) => (
     taskTitle: getTaskTitle(task),
     taskCategory: task.ticketCategory || task.actionType || 'support',
     taskLeader: task.taskLeader,
+    assignedWorkers: task.assignedTo || [],
     supportStatus: task.supportStatus,
     priority: task.priority || 'normal',
     requestedDepartment: task.requestedDepartment,
@@ -212,11 +213,24 @@ const getRecords = (tasks = []) => tasks.flatMap((task) => (
   }))
 ));
 
+const isCSExternalProjectRequest = (task = {}) => (
+  task.projectType === 'external'
+  && (
+    task.requestSource === 'staff_request'
+    || task.actionType === 'CS External IT Request'
+    || task.actionType === 'External CS Task Request'
+    || String(task.description || task.supportRequestNote || '').includes('CS External')
+  )
+);
+
 const isSupportTicketTask = (task = {}) => (
-  task.requestSource === 'employee_call'
-  || Boolean(task.supportRequestNote)
-  || Boolean(task.requestedAt)
-  || (task.ticketRecords || []).length > 0
+  !isCSExternalProjectRequest(task)
+  && (
+    task.requestSource === 'employee_call'
+    || Boolean(task.supportRequestNote)
+    || Boolean(task.requestedAt)
+    || (task.ticketRecords || []).length > 0
+  )
 );
 
 const isAssignedStaff = (task = {}, user = {}) => {
@@ -243,15 +257,20 @@ const buildRankings = (records = []) => {
       approvedPoints: 0,
       approvedRecords: 0,
       pendingRecords: 0,
+      rejectedRecords: 0,
       totalRecords: 0,
       accomplishedRecords: [],
+      rejectedWorkRecords: [],
     };
     item.totalRecords += 1;
     const isAccomplished = !String(record.outstandingTasks || '').trim();
     if (record.approvalStatus === 'approved' && isAccomplished) {
       item.approvedRecords += 1;
-      item.approvedPoints += Number(record.points) || 0;
+      item.approvedPoints += 1;
       item.accomplishedRecords.push(record);
+    } else if (record.approvalStatus === 'rejected') {
+      item.rejectedRecords += 1;
+      item.rejectedWorkRecords.push(record);
     } else if (record.approvalStatus !== 'rejected') {
       item.pendingRecords += 1;
     }
@@ -259,7 +278,7 @@ const buildRankings = (records = []) => {
   });
 
   return [...map.values()]
-    .sort((a, b) => b.approvedPoints - a.approvedPoints || b.approvedRecords - a.approvedRecords)
+    .sort((a, b) => b.approvedRecords - a.approvedRecords || b.totalRecords - a.totalRecords)
     .map((item, index) => ({ ...item, rank: index + 1 }));
 };
 
@@ -321,6 +340,7 @@ export default function TicketManagementTab({ tasks = [], users = [], currentUse
   ));
   const rankings = useMemo(() => buildRankings(records), [records]);
   const canApprove = persona?.canApproveTasks;
+  const canDeleteAcceptedTickets = Boolean(persona?.canDeleteTasks || persona?.canViewAllTasks);
   const canRecord = !canApprove && isAssignedStaff(selectedTask, currentUser);
   const pendingRecords = records.filter((record) => record.approvalStatus === 'pending_approval');
   const supportRequests = visibleTicketTasks.filter((task) => ['requested', 'manager_accepted'].includes(task.supportStatus));
@@ -472,6 +492,23 @@ export default function TicketManagementTab({ tasks = [], users = [], currentUse
     }
   };
 
+  const deleteAcceptedTicket = async (task) => {
+    const taskId = task?._id || task?.id;
+    if (!taskId) return;
+    const title = getTaskTitle(task);
+    if (!window.confirm(`Delete accepted ticket "${title}" from the register? This will permanently remove the ticket and its records.`)) return;
+    try {
+      await axiosInstance.delete(`/it/${taskId}`);
+      if (String(selectedDetailTaskId) === String(taskId)) {
+        setSelectedDetailTaskId('');
+      }
+      await fetchTasks?.();
+      toast({ title: 'Accepted ticket deleted', status: 'success' });
+    } catch (error) {
+      toast({ title: 'Delete failed', description: error.response?.data?.message || error.message, status: 'error' });
+    }
+  };
+
   const addTicketComment = async (task) => {
     const taskId = task?._id || task?.id;
     const body = String(commentDrafts[taskId] || '').trim();
@@ -522,14 +559,14 @@ export default function TicketManagementTab({ tasks = [], users = [], currentUse
         record.supportStatus || '',
         record.approvalStatus || '',
         record.completedAt ? new Date(record.completedAt).toLocaleDateString() : '',
-        record.points || 0,
+        record.approvalStatus === 'approved' && !String(record.outstandingTasks || '').trim() ? 1 : 0,
         slaState.label,
         record.summary || '',
         record.outstandingTasks || '',
         (record.attachments || []).join(' | '),
       ];
     });
-    const header = ['Ticket', 'Department', 'Priority', 'Staff', 'Work type', 'Support stage', 'Approval', 'Completed', 'Points', 'SLA', 'Summary', 'Outstanding', 'Attachments'];
+    const header = ['Ticket', 'Department', 'Priority', 'Staff', 'Work type', 'Support stage', 'Approval', 'Completed', 'Approved task credit', 'SLA', 'Summary', 'Outstanding', 'Attachments'];
     const csv = [header, ...rows].map((row) => row.map(toCsvValue).join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -926,7 +963,10 @@ export default function TicketManagementTab({ tasks = [], users = [], currentUse
           <CardBody>
             <HStack mb={4}>
               <Icon as={FiAward} color="purple.500" />
-              <Heading size="md">Staff Ranking</Heading>
+              <Box>
+                <Heading size="md">Staff Ranking</Heading>
+                <Text fontSize="sm" color={muted}>Ranked by approved and fully accomplished ticket tasks, not by worker count.</Text>
+              </Box>
             </HStack>
             <VStack align="stretch" spacing={3}>
               {rankings.length === 0 ? (
@@ -940,11 +980,20 @@ export default function TicketManagementTab({ tasks = [], users = [], currentUse
                       </Flex>
                       <Box>
                         <Text fontWeight="700">{item.staffName}</Text>
-                        <Text fontSize="xs" color={muted}>{item.approvedRecords} approved accomplished / {item.pendingRecords} pending</Text>
+                        <Text fontSize="xs" color={muted}>
+                          {item.approvedRecords} approved accomplished / {item.rejectedRecords} rejected / {item.pendingRecords} pending / {item.totalRecords} total records
+                        </Text>
                       </Box>
                     </HStack>
                     <HStack>
-                      <Badge colorScheme="green" borderRadius="full" px={3}>{item.approvedPoints} pts</Badge>
+                      <Badge colorScheme="green" borderRadius="full" px={3}>
+                        {item.approvedRecords} approved task{item.approvedRecords === 1 ? '' : 's'}
+                      </Badge>
+                      {item.rejectedRecords > 0 && (
+                        <Badge colorScheme="red" borderRadius="full" px={3}>
+                          {item.rejectedRecords} rejected
+                        </Badge>
+                      )}
                       {canApprove && (
                         <Button
                           size="xs"
@@ -959,8 +1008,8 @@ export default function TicketManagementTab({ tasks = [], users = [], currentUse
                   </Flex>
                   {canApprove && expandedRankingKey === item.key && (
                     <VStack align="stretch" spacing={2} mt={3}>
-                      {item.accomplishedRecords.length === 0 ? (
-                        <Text fontSize="sm" color={muted}>No approved accomplished tasks for this staff member.</Text>
+                      {item.accomplishedRecords.length === 0 && item.rejectedWorkRecords.length === 0 ? (
+                        <Text fontSize="sm" color={muted}>No approved or rejected tasks for this staff member.</Text>
                       ) : item.accomplishedRecords.map((record) => (
                         <Box key={record._id || `${record.taskId}-${record.completedAt}`} bg={cardBg} border="1px solid" borderColor={borderColor} borderRadius="lg" p={3}>
                           <HStack justify="space-between" align="start">
@@ -968,7 +1017,33 @@ export default function TicketManagementTab({ tasks = [], users = [], currentUse
                               <Text fontWeight="700">{record.taskTitle}</Text>
                               <Text fontSize="sm" color={muted}>{record.summary}</Text>
                             </Box>
-                            <Badge colorScheme="green">{record.points || 0} pts</Badge>
+                            <Badge colorScheme="green">1 approved task</Badge>
+                          </HStack>
+                          <Text fontSize="xs" color={muted} mt={1}>
+                            {record.completedAt ? new Date(record.completedAt).toLocaleDateString() : 'No date'} • {record.workType || 'support'}
+                          </Text>
+                        </Box>
+                      ))}
+                      {item.rejectedWorkRecords.map((record) => (
+                        <Box
+                          key={record._id || `${record.taskId}-${record.completedAt}-rejected`}
+                          bg={cardBg}
+                          border="1px solid"
+                          borderColor="red.200"
+                          borderRadius="lg"
+                          p={3}
+                        >
+                          <HStack justify="space-between" align="start">
+                            <Box>
+                              <Text fontWeight="700">{record.taskTitle}</Text>
+                              <Text fontSize="sm" color={muted}>{record.summary}</Text>
+                              {record.managerNote && (
+                                <Text fontSize="xs" color="red.500" mt={1}>
+                                  Manager note: {record.managerNote}
+                                </Text>
+                              )}
+                            </Box>
+                            <Badge colorScheme="red">rejected</Badge>
                           </HStack>
                           <Text fontSize="xs" color={muted} mt={1}>
                             {record.completedAt ? new Date(record.completedAt).toLocaleDateString() : 'No date'} • {record.workType || 'support'}
@@ -1010,7 +1085,7 @@ export default function TicketManagementTab({ tasks = [], users = [], currentUse
                       <Th>Assigned Person</Th>
                       <Th>SLA</Th>
                       <Th>Status</Th>
-                      <Th>Details</Th>
+                      <Th>Actions</Th>
                     </Tr>
                   </Thead>
                   <Tbody>
@@ -1022,8 +1097,9 @@ export default function TicketManagementTab({ tasks = [], users = [], currentUse
                       </Tr>
                     ) : managerAcceptedTickets.map((task) => {
                       const slaState = getSlaState(task);
+                      const taskId = task._id || task.id;
                       return (
-                        <Tr key={task._id || task.id}>
+                        <Tr key={taskId}>
                           <Td>
                             <Text fontWeight="700">{getTaskTitle(task)}</Text>
                             <Text fontSize="xs" color={muted}>{task.supportRequestNote || task.description || '-'}</Text>
@@ -1038,7 +1114,22 @@ export default function TicketManagementTab({ tasks = [], users = [], currentUse
                               {task.isDone ? 'Done' : task.hasOutstanding ? 'Undone - outstanding' : String(task.supportStatus || 'assigned').replace('_', ' ')}
                             </Badge>
                           </Td>
-                          <Td><Button size="xs" variant="outline" onClick={() => setSelectedDetailTaskId(task._id || task.id)}>Open</Button></Td>
+                          <Td>
+                            <HStack>
+                              <Button size="xs" variant="outline" onClick={() => setSelectedDetailTaskId(taskId)}>Open</Button>
+                              {canDeleteAcceptedTickets && (
+                                <Button
+                                  size="xs"
+                                  colorScheme="red"
+                                  variant="ghost"
+                                  leftIcon={<FiTrash2 />}
+                                  onClick={() => deleteAcceptedTicket(task)}
+                                >
+                                  Delete
+                                </Button>
+                              )}
+                            </HStack>
+                          </Td>
                         </Tr>
                       );
                     })}
@@ -1254,7 +1345,7 @@ export default function TicketManagementTab({ tasks = [], users = [], currentUse
                 <Tr>
                   <Th>Task</Th>
                   <Th>Priority</Th>
-                  <Th>Staff</Th>
+                  <Th>Workers</Th>
                   <Th>Work</Th>
                   <Th>SLA</Th>
                   <Th>Support Stage</Th>
@@ -1276,7 +1367,15 @@ export default function TicketManagementTab({ tasks = [], users = [], currentUse
                         <Text fontSize="xs" color={muted}>{record.taskCategory}</Text>
                       </Td>
                       <Td><Badge colorScheme={getPriorityColor(record.priority)}>{record.priority || 'normal'}</Badge></Td>
-                      <Td>{record.staffName || 'Unknown'}</Td>
+                      <Td>
+                        <Text fontWeight="700">{record.staffName || 'Unknown'}</Text>
+                        <Text fontSize="xs" color={muted}>Recorded by</Text>
+                        {(record.assignedWorkers || []).length > 0 && (
+                          <Text fontSize="xs" color={muted} mt={1}>
+                            Assigned: {(record.assignedWorkers || []).join(', ')}
+                          </Text>
+                        )}
+                      </Td>
                       <Td>
                         <Badge mb={1}>{record.workType}</Badge>
                         <Text noOfLines={2}>{record.summary}</Text>
