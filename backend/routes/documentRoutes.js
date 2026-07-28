@@ -3,23 +3,63 @@ const multer = require('multer');
 const path = require('path');
 const Document = require('../models/Document.js');
 const Category = require('../models/Category.js');
+const User = require('../models/user.model.js');
 const fs = require('fs');
 const { storage } = require('../config/appwriteClient.js'); // Import Appwrite storage
 const { File } = require('node-fetch-native-with-agent'); // Import File class
 
 const router = express.Router();
+const leaveSubcategories = new Set([
+    'Annual Leave',
+    'Sick Leave',
+    'Paternity Leave',
+    'Maternity Leave',
+    'Other Leave',
+]);
+const isEmployeeLeaveCategory = (category) =>
+    String(category?.name || '').trim().toLowerCase() === 'employee leave';
 
 // Configure multer to store files in memory for Appwrite upload
-const upload = multer({ storage: multer.memoryStorage() });
+const allowedMimeTypes = new Set([
+    'application/pdf',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'image/jpeg',
+    'image/png',
+]);
+const upload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 10 * 1024 * 1024 },
+    fileFilter: (req, file, callback) => {
+        if (!allowedMimeTypes.has(file.mimetype)) {
+            return callback(new Error('Unsupported file type. Upload PDF, DOC, DOCX, JPG, or PNG.'));
+        }
+        callback(null, true);
+    },
+});
+const uploadEmployeeDocument = (req, res, next) => {
+    upload.single('file')(req, res, (error) => {
+        if (!error) return next();
+        const message = error.code === 'LIMIT_FILE_SIZE'
+            ? 'File is too large. The maximum permitted size is 10 MB.'
+            : error.message;
+        return res.status(400).json({ error: message });
+    });
+};
 
 // Upload a document to Appwrite Storage
-router.post('/', upload.single('file'), async (req, res) => {
+router.post('/', uploadEmployeeDocument, async (req, res) => {
     try {
-        const { title, employeeName, categoryId, department, section } = req.body;
-
-        // Log to check the received values
-        console.log('Received data:', { title, employeeName, categoryId, department, section });
-        console.log('Received file:', req.file);
+        const {
+            title,
+            userId,
+            categoryId,
+            subcategory,
+            employeeName: suppliedEmployeeName,
+            department: suppliedDepartment,
+            section: suppliedSection,
+        } = req.body;
+        const isEmployeeDocument = suppliedSection === 'employees';
 
         // Validate required fields
         if (!req.file) {
@@ -30,10 +70,38 @@ router.post('/', upload.single('file'), async (req, res) => {
         if (!categoryId) {
             return res.status(400).json({ error: 'Category is required' });
         }
+        if (!title || !String(title).trim()) {
+            return res.status(400).json({ error: 'Document type is required' });
+        }
+        if (isEmployeeDocument && !userId) {
+            return res.status(400).json({ error: 'An employee must be selected from the database' });
+        }
 
         const category = await Category.findById(categoryId);
-        if (!category) {
-            return res.status(400).json({ error: 'Invalid category' });
+        if (!category || (isEmployeeDocument && category.section !== 'employees')) {
+            return res.status(400).json({
+                error: isEmployeeDocument
+                    ? 'Select a valid employee-document category'
+                    : 'Invalid category'
+            });
+        }
+        if (isEmployeeLeaveCategory(category) && !leaveSubcategories.has(subcategory)) {
+            return res.status(400).json({
+                error: 'Select Annual, Sick, Paternity, Maternity, or Other Leave'
+            });
+        }
+
+        let employeeName = suppliedEmployeeName || '';
+        let department = suppliedDepartment || 'none';
+        if (isEmployeeDocument) {
+            const employee = await User.findById(userId).select(
+                '_id fullName username email jobTitle role'
+            ).lean();
+            if (!employee) {
+                return res.status(400).json({ error: 'The selected employee record no longer exists' });
+            }
+            employeeName = employee.fullName || employee.username || employee.email;
+            department = employee.jobTitle || employee.role || 'General';
         }
 
         // Upload file to Appwrite Storage
@@ -52,12 +120,14 @@ router.post('/', upload.single('file'), async (req, res) => {
 
         // Create new document with Appwrite file ID
         const newDocument = new Document({
-            title,
-            employeeName: employeeName || '',
+            userId: isEmployeeDocument ? userId : null,
+            title: String(title).trim(),
+            employeeName,
             file: appwriteFile.$id, // Store Appwrite file ID instead of file path
             category: categoryId,
+            subcategory: isEmployeeLeaveCategory(category) ? subcategory : '',
             department,
-            section,
+            section: suppliedSection || category.section,
         });
 
         const savedDocument = await newDocument.save();
@@ -112,21 +182,31 @@ router.get('/:id', async (req, res) => {
 // Update a document (without changing the file)
 router.put('/:id', async (req, res) => {
     try {
-        const { title, employeeName, categoryId, category, department, section } = req.body;
+        const { title, categoryId, category, subcategory, department, section } = req.body;
 
         // Validate category if provided
         const nextCategoryId = categoryId || category;
 
+        let nextCategory;
         if (nextCategoryId) {
-            const category = await Category.findById(nextCategoryId);
-            if (!category) {
+            nextCategory = await Category.findById(nextCategoryId);
+            if (!nextCategory) {
                 return res.status(400).json({ error: 'Invalid category' });
             }
+        }
+        if (isEmployeeLeaveCategory(nextCategory) && !leaveSubcategories.has(subcategory)) {
+            return res.status(400).json({ error: 'A valid leave type is required' });
         }
 
         const updatedDocument = await Document.findByIdAndUpdate(
             req.params.id,
-            { title, employeeName, category: nextCategoryId, department, section },
+            {
+                title,
+                category: nextCategoryId,
+                subcategory: isEmployeeLeaveCategory(nextCategory) ? subcategory : '',
+                department,
+                section
+            },
             { new: true }
         ).populate('category');
 
@@ -150,14 +230,19 @@ router.put('/:id', async (req, res) => {
 // Partially update a document (without changing the file)
 router.patch('/:id', async (req, res) => {
     try {
-        const { title, employeeName, categoryId, category, department, section } = req.body;
+        const { title, categoryId, category, subcategory, department, section } = req.body;
         const nextCategoryId = categoryId || category;
         const update = {};
 
         if (title !== undefined) update.title = title;
-        if (employeeName !== undefined) update.employeeName = employeeName;
         if (department !== undefined) update.department = department;
         if (section !== undefined) update.section = section;
+        if (subcategory !== undefined) {
+            if (subcategory && !leaveSubcategories.has(subcategory)) {
+                return res.status(400).json({ error: 'Invalid leave type' });
+            }
+            update.subcategory = subcategory;
+        }
 
         if (nextCategoryId !== undefined) {
             const categoryDoc = await Category.findById(nextCategoryId);
@@ -165,6 +250,7 @@ router.patch('/:id', async (req, res) => {
                 return res.status(400).json({ error: 'Invalid category' });
             }
             update.category = nextCategoryId;
+            if (!isEmployeeLeaveCategory(categoryDoc)) update.subcategory = '';
         }
 
         const updatedDocument = await Document.findByIdAndUpdate(

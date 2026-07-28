@@ -189,18 +189,99 @@ const getuser = async (req, res) => {
         }
         
         console.log('Fetching users from database');
-        const users = await User.find({});
+        // Directory consumers receive summary data only. Sensitive HR fields
+        // are available through the protected /:id/details endpoint.
+        const users = await User.find({}).select(
+            '_id username email role status fullName jobTitle photo guarantorFile phone gender education location digitalId employmentType hireDate salary infoStatus trainingStatus createdAt updatedAt'
+        );
+        const Document = mongoose.models.Document || require('../models/Document');
+        const documents = await Document.find({}).select('userId employeeName').lean();
         
         // Add Appwrite file URLs to each user
         const usersWithUrls = users.map(user => {
             const userObj = user.toObject();
+            const profileFields = [
+                userObj.fullName,
+                userObj.username,
+                userObj.email,
+                userObj.phone,
+                userObj.gender,
+                userObj.education,
+                userObj.location,
+                userObj.digitalId,
+                userObj.photo
+            ];
+            const completedProfileFields = profileFields.filter(
+                value => value !== undefined && value !== null && String(value).trim() !== ''
+            ).length;
+            const hasValue = value =>
+                value !== undefined && value !== null && String(value).trim() !== '';
+            const percentage = values =>
+                Math.round((values.filter(hasValue).length / values.length) * 100);
+            const employmentCompleteness = percentage([
+                userObj.jobTitle,
+                userObj.employmentType,
+                userObj.hireDate,
+                userObj.salary,
+                userObj.role,
+                userObj.status
+            ]);
+            const accessCompleteness = percentage([
+                userObj.username,
+                userObj.email,
+                userObj.role,
+                userObj.status
+            ]);
+            const recordCompleteness = percentage([
+                userObj._id,
+                userObj.createdAt,
+                userObj.updatedAt,
+                userObj.digitalId
+            ]);
+            const employeeNames = [userObj.fullName, userObj.username]
+                .filter(Boolean)
+                .map(name => String(name).trim().toLowerCase());
+            const hasRelatedDocument = documents.some(document =>
+                String(document.userId || '') === String(userObj._id) ||
+                employeeNames.includes(String(document.employeeName || '').trim().toLowerCase())
+            );
+            const fileCompleteness = Math.round(
+                ([
+                    userObj.photo,
+                    userObj.guarantorFile,
+                    hasRelatedDocument ? 'available' : null
+                ].filter(hasValue).length / 3) * 100
+            );
+            const coreProfileCompleteness = Math.round(
+                (completedProfileFields / profileFields.length) * 100
+            );
+            const employeeRecordCompleteness = Math.round(
+                (
+                    coreProfileCompleteness +
+                    employmentCompleteness +
+                    accessCompleteness +
+                    fileCompleteness +
+                    recordCompleteness
+                ) / 5
+            );
+
             return {
-                ...userObj,
+                _id: userObj._id,
+                username: userObj.username,
+                email: userObj.email,
+                role: userObj.role,
+                status: userObj.status,
+                fullName: userObj.fullName,
+                jobTitle: userObj.jobTitle,
+                digitalId: userObj.digitalId,
+                infoStatus: userObj.infoStatus,
+                trainingStatus: userObj.trainingStatus,
+                createdAt: userObj.createdAt,
+                updatedAt: userObj.updatedAt,
+                profileCompleteness: coreProfileCompleteness,
+                employeeRecordCompleteness,
                 photoUrl: userObj.photo ? 
                     `https://cloud.appwrite.io/v1/storage/buckets/${process.env.APPWRITE_BUCKET_ID}/files/${userObj.photo}/view?project=${process.env.APPWRITE_PROJECT_ID}` : 
-                    null,
-                guarantorFileUrl: userObj.guarantorFile ? 
-                    `https://cloud.appwrite.io/v1/storage/buckets/${process.env.APPWRITE_BUCKET_ID}/files/${userObj.guarantorFile}/view?project=${process.env.APPWRITE_PROJECT_ID}` : 
                     null
             };
         });
@@ -209,6 +290,68 @@ const getuser = async (req, res) => {
     } catch (error) {
         console.error("Error fetching users:", error.message);
         res.status(500).json({ success: false, message: "Server error", error: error.message });
+    }
+};
+
+// Return the complete employee profile only to authenticated HR users.
+const getEmployeeDetails = async (req, res) => {
+    const { id } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+        return res.status(400).json({ success: false, message: "Invalid user ID" });
+    }
+
+    try {
+        const Document = mongoose.models.Document || require('../models/Document');
+        const user = await User.findById(id).select('-password').lean();
+
+        if (!user) {
+            return res.status(404).json({ success: false, message: "Employee not found" });
+        }
+
+        const employeeNames = [user.fullName, user.username]
+            .map((value) => String(value || '').trim())
+            .filter(Boolean);
+
+        const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const nameFilters = employeeNames.map((name) => ({
+            employeeName: { $regex: `^${escapeRegExp(name)}$`, $options: 'i' }
+        }));
+
+        const documentFilters = [
+            { userId: user._id },
+            ...nameFilters
+        ];
+
+        const documents = await Document.find({ $or: documentFilters })
+                .populate('category', 'name section')
+                .sort({ createdAt: -1 })
+                .lean();
+
+        const fileUrl = (fileId) => fileId
+            ? `https://cloud.appwrite.io/v1/storage/buckets/${process.env.APPWRITE_BUCKET_ID}/files/${fileId}/view?project=${process.env.APPWRITE_PROJECT_ID}`
+            : null;
+
+        res.status(200).json({
+            success: true,
+            data: {
+                user: {
+                    ...user,
+                    photoUrl: fileUrl(user.photo),
+                    guarantorFileUrl: fileUrl(user.guarantorFile)
+                },
+                documents: documents.map((document) => ({
+                    ...document,
+                    fileUrl: fileUrl(document.file),
+                    association: document.userId && String(document.userId) === String(user._id)
+                        ? 'direct'
+                        : 'legacy-name-match'
+                }))
+            }
+        });
+    } catch (error) {
+        console.error("Error fetching employee details:", error.message);
+        res.status(500).json({ success: false, message: "Failed to load employee details" });
     }
 };
 
@@ -533,6 +676,7 @@ module.exports = {
     loginUser,
     createuser,
     getuser,
+    getEmployeeDetails,
     updateuser,
     deleteuser,
     getUserCounts,

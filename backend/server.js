@@ -8,7 +8,14 @@ const http = require('http');
 const socketIo = require('socket.io');
 const { getConversationRoom, getUserRoom, setSocketServer } = require('./services/chatSocketService');
 
-dotenv.config({ path: path.join(__dirname, '.env') });
+// Local overrides are loaded first when present. The file is ignored by Git.
+// Production environments continue to supply variables through the platform.
+dotenv.config({
+  path: [
+    path.join(__dirname, '.env.local'),
+    path.join(__dirname, '.env')
+  ]
+});
 
 const { connectDB, disconnectDB } = require('./config/db.js');
 const userRoutes = require('./routes/user.route.js');

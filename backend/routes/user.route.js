@@ -8,8 +8,11 @@ const {
     loginUser, 
     getUserCounts, 
     updateUserInfo,
-    getHRDashboardStats // Import the new function
+    getHRDashboardStats,
+    getEmployeeDetails
 } = require('../controllers/user.controller.js');
+const { protect } = require('../middleware/auth');
+const { authorize } = require('../middleware/roleAuth');
 
 const router = express.Router();
 
@@ -30,6 +33,9 @@ router.get("/", getuser);
 
 // Get user counts route
 router.get("/count", getUserCounts);
+
+// Complete profile and documents are restricted to HR.
+router.get("/:id/details", protect, authorize('HR', 'hr'), getEmployeeDetails);
 
 // Update user by ID route
 router.put("/:id", updateuser);

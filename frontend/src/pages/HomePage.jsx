@@ -73,23 +73,21 @@ import {
   FiLock
 } from 'react-icons/fi';
 import { useUserStore } from '../store/user.js';
+import { normalizeRole } from '../store/user.js';
 import CreatePage from './CreatePage';
+import UserDetailDrawer from '../components/UserDetailDrawer.jsx';
 
 // Helper function to calculate user profile completeness level
 const calculateCompleteness = (u) => {
-  if (!u) return 0;
-  let score = 0;
-  const maxScore = 8;
-  if (u.fullName || u.username) score += 1;
-  if (u.email) score += 1;
-  if (u.jobTitle) score += 1;
-  if (u.phone) score += 1;
-  if (u.address) score += 1;
-  if (u.photo || u.photoUrl) score += 1;
-  if (u.guarantorFile || u.guarantorFileUrl) score += 1;
-  if (u.salary) score += 1;
-  return Math.round((score / maxScore) * 100);
+  if (!u) return null;
+  const recordCompleteness = Number(u.employeeRecordCompleteness);
+  return Number.isFinite(recordCompleteness) && u.employeeRecordCompleteness !== null
+    ? recordCompleteness
+    : null;
 };
+
+const getEmployeeId = (u) =>
+  u?.digitalId || `TE-${String(u?._id || '').slice(-6).toUpperCase()}`;
 
 // Helper function to find missing documents for alerts
 const getMissingItems = (u) => {
@@ -101,7 +99,8 @@ const getMissingItems = (u) => {
 };
 
 const HomePage = () => {
-  const { fetchUsers, users, loading, error, updateUser, deleteUser } = useUserStore();
+  const { fetchUsers, users, loading, error, updateUser, deleteUser, currentUser } = useUserStore();
+  const isHrUser = normalizeRole(currentUser?.role || currentUser?.displayRole) === 'hr';
   
   // Selection & Selection state
   const [selectedUserIds, setSelectedUserIds] = useState(new Set());
@@ -143,6 +142,21 @@ const HomePage = () => {
   const [isSavingDetails, setIsSavingDetails] = useState(false);
   
   const toast = useToast();
+
+  const openEmployeeDetails = useCallback((employee, tab = 0) => {
+    if (!isHrUser) {
+      toast({
+        title: 'HR access required',
+        description: 'Complete employee details are restricted to HR personnel.',
+        status: 'error',
+        duration: 3500,
+        isClosable: true,
+      });
+      return;
+    }
+    setActiveTabIdx(tab);
+    setSelectedUser(employee);
+  }, [isHrUser, toast]);
 
   useEffect(() => {
     fetchUsers();
@@ -225,6 +239,7 @@ const HomePage = () => {
         (user.fullName || '').toLowerCase().includes(term) ||
         (user.email || '').toLowerCase().includes(term) ||
         (user.username || '').toLowerCase().includes(term) ||
+        (user.digitalId || '').toLowerCase().includes(term) ||
         (user._id || '').toLowerCase().includes(term);
       
       const matchesDept = deptFilter === 'All' || user.jobTitle === deptFilter;
@@ -254,7 +269,10 @@ const HomePage = () => {
   const stats = useMemo(() => {
     const total = filteredUsers.length;
     const active = filteredUsers.filter(u => u.status === 'active').length;
-    const incomplete = filteredUsers.filter(u => calculateCompleteness(u) < 80).length;
+    const incomplete = filteredUsers.filter(u => {
+      const completeness = calculateCompleteness(u);
+      return completeness === null || completeness < 80;
+    }).length;
     const suspended = filteredUsers.filter(u => u.status === 'inactive').length;
     const activePercent = total > 0 ? Math.round((active / total) * 100) : 0;
     const suspendedPercent = total > 0 ? Math.round((suspended / total) * 100) : 0;
@@ -590,7 +608,7 @@ const HomePage = () => {
                     <Th color="gray.400" fontSize="10px">Employee ID</Th>
                     <Th color="gray.400" fontSize="10px">Department</Th>
                     <Th color="gray.400" fontSize="10px">Role</Th>
-                    <Th color="gray.400" fontSize="10px">Profile</Th>
+                    <Th color="gray.400" fontSize="10px">Record completeness</Th>
                     <Th color="gray.400" fontSize="10px">Status</Th>
                     <Th color="gray.400" fontSize="10px">Last Active</Th>
                     <Th color="gray.400" fontSize="10px" textAlign="right">Actions</Th>
@@ -605,7 +623,7 @@ const HomePage = () => {
                     return (
                       <Tr 
                         key={user._id} 
-                        onClick={() => { setSelectedUser(user); setActiveTabIdx(0); }}
+                        onClick={() => openEmployeeDetails(user, 0)}
                         cursor="pointer"
                         bg={isSelected ? "teal.50" : "transparent"}
                         _hover={{ bg: isSelected ? "teal.50" : "gray.50" }}
@@ -627,7 +645,7 @@ const HomePage = () => {
                           </HStack>
                         </Td>
                         <Td>
-                          <Text fontSize="xs" fontWeight="700" color="gray.500">TE-{1000 + idx}</Text>
+                          <Text fontSize="xs" fontWeight="700" color="gray.500">{getEmployeeId(user)}</Text>
                         </Td>
                         <Td>
                           <Text fontSize="xs" fontWeight="700" color="gray.700">{user.jobTitle || 'General'}</Text>
@@ -639,8 +657,15 @@ const HomePage = () => {
                         </Td>
                         <Td w="100px">
                           <HStack spacing={2}>
-                            <Text fontSize="10px" fontWeight="700" color="gray.600">{completeness}%</Text>
-                            <Progress value={completeness} size="xs" colorScheme="teal" borderRadius="full" flex={1} />
+                            <Text
+                              fontSize="10px"
+                              fontWeight="700"
+                              color={completeness === null ? 'orange.600' : 'gray.600'}
+                              title={completeness === null ? 'Refresh required to load record completeness' : undefined}
+                            >
+                              {completeness === null ? '—' : `${completeness}%`}
+                            </Text>
+                            <Progress value={completeness ?? 0} size="xs" colorScheme="teal" borderRadius="full" flex={1} />
                           </HStack>
                         </Td>
                         <Td>
@@ -658,8 +683,8 @@ const HomePage = () => {
                           <Menu size="sm">
                             <MenuButton as={IconButton} icon={<FiMoreVertical />} size="xs" variant="ghost" />
                             <MenuList borderRadius="xl" shadow="md">
-                              <MenuItem icon={<FiEdit />} onClick={() => { setSelectedUser(user); setActiveTabIdx(0); }} fontSize="xs" fontWeight="600">Edit Details</MenuItem>
-                              <MenuItem icon={<FiLock />} onClick={() => { setSelectedUser(user); setActiveTabIdx(1); }} fontSize="xs" fontWeight="600">Access Settings</MenuItem>
+                              <MenuItem icon={<FiEdit />} onClick={() => openEmployeeDetails(user, 0)} fontSize="xs" fontWeight="600">View Details</MenuItem>
+                              <MenuItem icon={<FiLock />} onClick={() => openEmployeeDetails(user, 3)} fontSize="xs" fontWeight="600">Access Details</MenuItem>
                               <MenuItem icon={<FiTrash2 />} color="red.500" onClick={() => handleDeleteEmployee(user._id)} fontSize="xs" fontWeight="600">Delete Account</MenuItem>
                             </MenuList>
                           </Menu>
@@ -686,7 +711,7 @@ const HomePage = () => {
                     borderRadius="2xl"
                     shadow="sm"
                     cursor="pointer"
-                    onClick={() => setSelectedUser(user)}
+                    onClick={() => openEmployeeDetails(user, 0)}
                     _hover={{ borderColor: "teal.400" }}
                     position="relative"
                   >
@@ -708,10 +733,16 @@ const HomePage = () => {
                         {user.role || 'Employee'}
                       </Badge>
                       <HStack w="full" px={2} justify="space-between" fontSize="xs">
-                        <Text color="gray.450" fontWeight="600">Profile</Text>
-                        <Text fontWeight="850" color="gray.700">{completeness}%</Text>
+                        <Text color="gray.450" fontWeight="600">Record completeness</Text>
+                        <Text
+                          fontWeight="850"
+                          color={completeness === null ? 'orange.600' : 'gray.700'}
+                          title={completeness === null ? 'Refresh required to load record completeness' : undefined}
+                        >
+                          {completeness === null ? '—' : `${completeness}%`}
+                        </Text>
                       </HStack>
-                      <Progress value={completeness} size="xs" colorScheme="teal" w="full" borderRadius="full" />
+                      <Progress value={completeness ?? 0} size="xs" colorScheme="teal" w="full" borderRadius="full" />
                     </VStack>
                   </Box>
                 );
@@ -777,7 +808,7 @@ const HomePage = () => {
         </Box>
 
         {/* Right Side: Account Details Panel Card */}
-        {selectedUser ? (
+        {false && (selectedUser ? (
           <Box 
             w={{ base: "full", lg: "380px" }}
             bg="white" 
@@ -1146,9 +1177,16 @@ const HomePage = () => {
               <Text fontSize="xs" color="gray.400">Click any row in the directory list table to view and manage their detailed profile info.</Text>
             </VStack>
           </Box>
-        )}
+        ))}
 
       </Flex>
+
+      <UserDetailDrawer
+        isOpen={Boolean(selectedUser)}
+        onClose={() => setSelectedUser(null)}
+        user={selectedUser}
+        initialTab={activeTabIdx}
+      />
 
       {/* Add Employee Drawer Modal */}
       <Drawer isOpen={isCreateOpen} placement="right" onClose={() => setIsCreateOpen(false)}>
