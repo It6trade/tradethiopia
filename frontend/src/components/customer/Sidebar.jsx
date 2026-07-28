@@ -40,6 +40,12 @@ import { FiMessageSquare } from "react-icons/fi";
 import { getNotifications } from "../../services/notificationService";
 import { useUserStore } from "../../store/user";
 
+const normalizeRoleValue = (value = "") =>
+  value.toString().trim().toLowerCase().replace(/[^a-z0-9]/g, "");
+
+const isCustomerSuccessManagerRole = (role) =>
+  normalizeRoleValue(role) === "customersuccessmanager";
+
 const SSidebar = ({ isCollapsed: collapsedProp, toggleCollapse: toggleProp, activeSection, onSelectSection }) => {
   // Allow the sidebar to be controlled by a parent while preserving a local fallback.
   const [internalCollapsed, setInternalCollapsed] = useState(false);
@@ -130,7 +136,7 @@ const SSidebar = ({ isCollapsed: collapsedProp, toggleCollapse: toggleProp, acti
   const userCardBg = useColorModeValue("whiteAlpha.800", "whiteAlpha.100");
   const userMetaColor = useColorModeValue("gray.500", "gray.400");
   const toggleBorderColor = useColorModeValue("white", "gray.900");
-    const isCSM = (() => {
+  const isCSM = (() => {
     try {
       const rawUser =
         localStorage.getItem("user") ||
@@ -144,10 +150,13 @@ const SSidebar = ({ isCollapsed: collapsedProp, toggleCollapse: toggleProp, acti
         : null;
 
       const roleFromStore = localStorage.getItem("userRole");
-      const roles = Array.isArray(roleFieldFromUser) ? roleFieldFromUser : [roleFieldFromUser, roleFromStore];
-      return roles.some((r) => (r || "").toString().trim().toLowerCase() === "customersuccessmanager");
+      const roleFromCurrentUser = currentUser?.role || currentUser?.displayRole || currentUser?.normalizedRole;
+      const roles = Array.isArray(roleFieldFromUser)
+        ? [...roleFieldFromUser, roleFromStore, roleFromCurrentUser]
+        : [roleFieldFromUser, roleFromStore, roleFromCurrentUser];
+      return roles.some(isCustomerSuccessManagerRole);
     } catch (e) {
-      // fallback: hide restricted links if parsing fails
+      return isCustomerSuccessManagerRole(currentUser?.role || currentUser?.displayRole || currentUser?.normalizedRole);
     }
     return false;
   })();
@@ -391,6 +400,19 @@ const SSidebar = ({ isCollapsed: collapsedProp, toggleCollapse: toggleProp, acti
                 icon={<FiSettings />}
                 label="Settings"
                 active={isActive("/customer-settings")}
+                iconColor={iconColor}
+                activeIconColor={activeIconColor}
+                textColor={textColor}
+                activeTextColor={activeTextColor}
+              />
+            )}
+            {isCSM && (
+              <SidebarLink
+                isCollapsed={isCollapsed}
+                to="/customer-user-management"
+                icon={<FiUsers />}
+                label="User Management"
+                active={isActive("/customer-user-management")}
                 iconColor={iconColor}
                 activeIconColor={activeIconColor}
                 textColor={textColor}

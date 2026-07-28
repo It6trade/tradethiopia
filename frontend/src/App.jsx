@@ -41,6 +41,7 @@ import ComingSoonPage from "./pages/ComingSoonPage";
 import AdminTrainingUpload from "./pages/AdminTrainingUpload";
 import AdminCustomerReport from './components/AdminCSReport.jsx';
 import CustomerSettings from "./components/customer/CustomerSettings";
+import CustomerUserManagement from "./components/customer/CustomerUserManagement";
 import ReceptionDashboard from './pages/ReceptionDashboard';
 import HRTrainingPage from './pages/HRTrainingPage.jsx';
 import ENISRALayout from "./components/ENSRA/ENSRALayout";
@@ -116,6 +117,10 @@ const IT_ALLOWED_ROLES = [
   "itofficer",
 ];
 
+const CUSTOMER_SUCCESS_MANAGER_ROLES = [
+  "customersuccessmanager",
+];
+
 function App() {
   const location = useLocation();
 
@@ -127,7 +132,7 @@ function App() {
     "/finance/messages", "/finance/team-requests", "/finance/demands", "/finance/payments", "/finance/inventory", "/finance/orders",
     "/addcustomer", "/resource", "/videolist", "/uploadpage", "/my-payroll",
     "/cdashboard", "/waitingforapproval", "/training","/comingsoonpage", "/customerreport", "/followup-report", "/customerfollowup", "/b2b-dashboard",
-    "/coo-dashboard", "/ceo-dashboard", "/tradextv-dashboard", "/customer-settings", "/it", "/salesmanager", "/social-media", "/requests", "/finance-dashboard/payroll", "/finance-dashboard/commission-approval", "/supervisor", "/supervisor/account", "/finance/requests", "/reception-dashboard"
+    "/coo-dashboard", "/ceo-dashboard", "/tradextv-dashboard", "/customer-settings", "/customer-user-management", "/it", "/salesmanager", "/social-media", "/requests", "/finance-dashboard/payroll", "/finance-dashboard/commission-approval", "/supervisor", "/supervisor/account", "/finance/requests", "/reception-dashboard"
   ].map((path) => path.toLowerCase());
 
   // Hide the navbar and sidebar for legacy/fullscreen pages; root should only match exactly
@@ -289,21 +294,21 @@ return (
       <Route
         path="/CustomerReport"
         element={
-          <ProtectedRoute>
+          <RoleProtectedRoute allowedRoles={CUSTOMER_SUCCESS_MANAGER_ROLES}>
             <LayoutWrapper>
               <CustomerReport />
             </LayoutWrapper>
-          </ProtectedRoute>
+          </RoleProtectedRoute>
         }
       />
       <Route
         path="/followup-report"
         element={
-          <ProtectedRoute>
+          <RoleProtectedRoute allowedRoles={CUSTOMER_SUCCESS_MANAGER_ROLES}>
             <LayoutWrapper>
               <CustomerFollowupReport />
             </LayoutWrapper>
-          </ProtectedRoute>
+          </RoleProtectedRoute>
         }
       />
       <Route
@@ -345,11 +350,19 @@ return (
       <Route
         path="/customer-settings"
         element={
-          <ProtectedRoute>
+          <RoleProtectedRoute allowedRoles={CUSTOMER_SUCCESS_MANAGER_ROLES}>
             <LayoutWrapper>
               <CustomerSettings />
             </LayoutWrapper>
-          </ProtectedRoute>
+          </RoleProtectedRoute>
+        }
+      />
+      <Route
+        path="/customer-user-management"
+        element={
+          <RoleProtectedRoute allowedRoles={CUSTOMER_SUCCESS_MANAGER_ROLES}>
+            <CustomerUserManagement />
+          </RoleProtectedRoute>
         }
       />
       <Route
@@ -414,7 +427,14 @@ return (
       <Route path="/messages" element={<RedirectMessagesPage />} />
       <Route path="/sales/messages" element={<SalesMessagesPage />} />
       <Route path="/customer/messages" element={<CustomerMessagesPage />} />
-      <Route path="/customer/kpi" element={<CustomerKPIPage />} />
+      <Route
+        path="/customer/kpi"
+        element={
+          <RoleProtectedRoute allowedRoles={CUSTOMER_SUCCESS_MANAGER_ROLES}>
+            <CustomerKPIPage />
+          </RoleProtectedRoute>
+        }
+      />
       <Route path="/supervisor" element={<SupervisorLayout />}>
         <Route index element={<SupervisorDashboardPage />} />
         <Route path="requests" element={<TeamRequestsPage />} />

@@ -34,6 +34,9 @@ import { AddIcon, DeleteIcon, EditIcon, CheckIcon, CloseIcon } from "@chakra-ui/
 import axios from "axios";
 import Layout from "./Layout";
 
+const normalizeRoleValue = (value = "") =>
+  value.toString().trim().toLowerCase().replace(/[^a-z0-9]/g, "");
+
 const CustomerSettings = () => {
   const toast = useToast();
   const [packages, setPackages] = useState([]);
@@ -69,6 +72,43 @@ const CustomerSettings = () => {
     if (countryValue === LOCAL_COUNTRY || countryValue.includes("ethiopia")) return "Local";
     return "International";
   };
+  const getAuthHeaders = () => {
+    const token = localStorage.getItem("userToken");
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  };
+
+  const normalizeUsersResponse = (payload) => {
+    const raw =
+      (Array.isArray(payload) && payload) ||
+      payload?.users ||
+      payload?.data ||
+      [];
+    return Array.isArray(raw) ? raw : [];
+  };
+
+  const fetchCsUsers = async () => {
+    try {
+      const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/users`, {
+        headers: getAuthHeaders(),
+      });
+      const users = normalizeUsersResponse(res.data)
+        .filter((u) => normalizeRoleValue(u.role || u.roleName) === "customerservice")
+        .sort((a, b) =>
+          (a.fullName || a.username || a.email || "").localeCompare(
+            b.fullName || b.username || b.email || ""
+          )
+        );
+
+      setCsUsers(users);
+    } catch (err) {
+      console.error("Failed to load CS users", err);
+      toast({
+        title: "Failed to load customer users",
+        description: err.response?.data?.message || err.message,
+        status: "error",
+      });
+    }
+  };
 
   useEffect(() => {
     const fetchPackages = async () => {
@@ -88,32 +128,7 @@ const CustomerSettings = () => {
   }, [toast]);
 
   useEffect(() => {
-    const token = localStorage.getItem("userToken");
-    const headers = token ? { Authorization: `Bearer ${token}` } : {};
-
-    const fetchCsUsers = async () => {
-      try {
-        const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/users`, { headers });
-
-        // Normalize possible response shapes
-        const raw =
-          (Array.isArray(res.data) && res.data) ||
-          res.data?.users ||
-          res.data?.data ||
-          [];
-
-        const users = Array.isArray(raw) ? raw : [];
-
-        const customerServiceAgents = users.filter((u) => {
-          const role = (u.role || u.roleName || "").toLowerCase().replace(/[\s_-]+/g, "");
-          return role === "customerservice";
-        });
-
-        setCsUsers(customerServiceAgents);
-      } catch (err) {
-        console.error("Failed to load CS users", err);
-      }
-    };
+    const headers = getAuthHeaders();
 
     const fetchPendingB2B = async () => {
       try {
@@ -297,8 +312,6 @@ const CustomerSettings = () => {
     }
   };
 
-  
-
   return (
     <Layout>
       <Box bgGradient="linear(to-b, gray.50, white)" minH="100vh" p={{ base: 4, md: 8 }}>
@@ -370,11 +383,13 @@ const CustomerSettings = () => {
                                 setSelectedAgent((prev) => ({ ...prev, [cust._id]: e.target.value }))
                               }
                             >
-                              {csUsers.map((u) => (
-                                <option key={u._id} value={u._id}>
-                                  {u.username || u.email || u._id}
-                                </option>
-                              ))}
+                              {csUsers
+                                .filter((u) => normalizeRoleValue(u.role || u.roleName) === "customerservice")
+                                .map((u) => (
+                                  <option key={u._id} value={u._id}>
+                                    {u.username || u.email || u._id}
+                                  </option>
+                                ))}
                             </Select>
                           </Td>
                           <Td textAlign="right">

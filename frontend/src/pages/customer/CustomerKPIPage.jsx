@@ -183,7 +183,7 @@ const CustomerKPIPage = () => {
               parsed?.userRole ||
               parsed?.user?.userRole ||
               "";
-            const isCSManager = (role || "").toString().toLowerCase() === "customersuccessmanager";
+            const isCSManager = (role || "").toString().toLowerCase().replace(/[^a-z0-9]/g, "") === "customersuccessmanager";
             if (isCSManager && currentId && !rows.find((r) => r.id === currentId)) {
               rows.push({
                 id: currentId,

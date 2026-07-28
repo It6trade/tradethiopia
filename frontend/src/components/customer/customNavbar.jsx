@@ -44,6 +44,12 @@ import { useUserStore } from "../../store/user";
 import { MoonIcon, SunIcon } from "@chakra-ui/icons";
 import ChatLauncher from "../chat/ChatLauncher";
 
+const normalizeRoleValue = (value = "") =>
+  value.toString().trim().toLowerCase().replace(/[^a-z0-9]/g, "");
+
+const isCustomerSuccessManagerRole = (role) =>
+  normalizeRoleValue(role) === "customersuccessmanager";
+
 const Cnavbar = () => {
   const navigate = useNavigate();
   const { isOpen, onOpen, onClose } = useDisclosure(); // For Drawer
@@ -90,10 +96,12 @@ const Cnavbar = () => {
             );
           })()
         : null;
-      const roles = Array.isArray(roleField) ? roleField : [roleField, localStorage.getItem("userRole")];
-      return roles.some((role) => (role || "").toString().trim().toLowerCase() === "customersuccessmanager");
+      const roles = Array.isArray(roleField)
+        ? [...roleField, localStorage.getItem("userRole"), currentUser?.role, currentUser?.displayRole]
+        : [roleField, localStorage.getItem("userRole"), currentUser?.role, currentUser?.displayRole];
+      return roles.some(isCustomerSuccessManagerRole);
     } catch (err) {
-      return false;
+      return isCustomerSuccessManagerRole(currentUser?.role || currentUser?.displayRole);
     }
   })();
 
@@ -264,6 +272,7 @@ const Cnavbar = () => {
                       { to: "/customerreport", icon: <FiBarChart2 />, label: "Reports" },
                       { to: "/followup-report", icon: <FiFileText />, label: "Follow Up Report" },
                       { to: "/customer-settings", icon: <FiSettings />, label: "Settings" },
+                      { to: "/customer-user-management", icon: <FiUsers />, label: "User Management" },
                     ]
                   : []),
               ].map(({ to, icon, label, badgeCount }) => (
