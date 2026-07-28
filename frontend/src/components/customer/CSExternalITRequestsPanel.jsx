@@ -12,6 +12,8 @@ import {
   HStack,
   Icon,
   Input,
+  Radio,
+  RadioGroup,
   Select,
   SimpleGrid,
   Text,
@@ -135,6 +137,11 @@ export default function CSExternalITRequestsPanel() {
   const [commentDrafts, setCommentDrafts] = useState({});
   const [commentSavingId, setCommentSavingId] = useState("");
   const [expandedProjectIds, setExpandedProjectIds] = useState({});
+  const [projectSearch, setProjectSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [priorityFilter, setPriorityFilter] = useState("all");
+  const [assignmentFilter, setAssignmentFilter] = useState("all");
+  const [quickView, setQuickView] = useState("all");
   const [form, setForm] = useState({
     taskName: "",
     ticketCategory: "software",
@@ -169,7 +176,6 @@ export default function CSExternalITRequestsPanel() {
           || userAliases.includes(String(task.createdBy || "").trim().toLowerCase())
           || String(task.requestedDepartment || "").toLowerCase().includes("customer")
         ))
-        .slice(0, 12);
       setProjects(visibleProjects);
     } catch (error) {
       console.error("Unable to load CS external IT projects", error);
@@ -308,6 +314,55 @@ export default function CSExternalITRequestsPanel() {
       ...prev,
       [taskId]: !prev[taskId],
     }));
+  };
+
+  const displayedProjects = useMemo(() => {
+    const query = projectSearch.trim().toLowerCase();
+    const priorityRank = { critical: 0, high: 1, normal: 2, low: 3 };
+    return projects.filter((task) => {
+      const workflow = String(task.workflowStatus || task.status || "pending").toLowerCase();
+      const priority = String(task.priority || "normal").toLowerCase();
+      const assigned = hasManagerAcceptedProject(task);
+      const searchable = [
+        getTaskTitle(task),
+        task.client,
+        task.category,
+        task.requestedBy,
+        task.requestedDepartment,
+        task.taskLeader,
+        ...(task.assignedTo || []),
+        task.description,
+      ].filter(Boolean).join(" ").toLowerCase();
+
+      const matchesSearch = !query || searchable.includes(query);
+      const matchesStatus = statusFilter === "all" || workflow === statusFilter;
+      const matchesPriority = priorityFilter === "all" || priority === priorityFilter;
+      const matchesAssignment = assignmentFilter === "all"
+        || (assignmentFilter === "assigned" && assigned)
+        || (assignmentFilter === "waiting" && !assigned);
+      const matchesQuickView = quickView === "all"
+        || (quickView === "priority" && ["critical", "high"].includes(priority))
+        || (quickView === "active" && ["assigned", "in_progress", "submitted", "ongoing"].includes(workflow))
+        || (quickView === "waiting" && !assigned)
+        || (quickView === "closed" && ["approved", "completed", "done", "rejected"].includes(workflow));
+
+      return matchesSearch && matchesStatus && matchesPriority && matchesAssignment && matchesQuickView;
+    }).sort((a, b) => {
+      if (quickView === "priority") {
+        const aPriority = priorityRank[String(a.priority || "normal").toLowerCase()] ?? 4;
+        const bPriority = priorityRank[String(b.priority || "normal").toLowerCase()] ?? 4;
+        if (aPriority !== bPriority) return aPriority - bPriority;
+      }
+      return new Date(b.updatedAt || b.createdAt || 0) - new Date(a.updatedAt || a.createdAt || 0);
+    });
+  }, [assignmentFilter, priorityFilter, projectSearch, projects, quickView, statusFilter]);
+
+  const clearProjectFilters = () => {
+    setProjectSearch("");
+    setStatusFilter("all");
+    setPriorityFilter("all");
+    setAssignmentFilter("all");
+    setQuickView("all");
   };
 
   return (
@@ -455,12 +510,82 @@ export default function CSExternalITRequestsPanel() {
                 </Button>
               </Flex>
 
+              <VStack align="stretch" spacing={3} mb={4}>
+                <SimpleGrid columns={{ base: 1, md: 2 }} spacing={3}>
+                  <Input
+                    value={projectSearch}
+                    onChange={(event) => setProjectSearch(event.target.value)}
+                    placeholder="Search project, customer, leader, staff, or detail..."
+                    bg={cardBg}
+                  />
+                  <HStack spacing={2}>
+                    <Select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} bg={cardBg}>
+                      <option value="all">All statuses</option>
+                      <option value="pending">Pending</option>
+                      <option value="assigned">Assigned</option>
+                      <option value="in_progress">In progress</option>
+                      <option value="submitted">Submitted</option>
+                      <option value="approved">Approved</option>
+                      <option value="completed">Completed</option>
+                      <option value="rejected">Rejected</option>
+                    </Select>
+                    <Button size="sm" variant="outline" onClick={clearProjectFilters} minW="80px">
+                      Clear
+                    </Button>
+                  </HStack>
+                </SimpleGrid>
+                <SimpleGrid columns={{ base: 1, md: 2 }} spacing={3}>
+                  <Select value={priorityFilter} onChange={(event) => setPriorityFilter(event.target.value)} bg={cardBg}>
+                    <option value="all">All priorities</option>
+                    <option value="critical">Critical</option>
+                    <option value="high">High</option>
+                    <option value="normal">Normal</option>
+                    <option value="low">Low</option>
+                  </Select>
+                  <Select value={assignmentFilter} onChange={(event) => setAssignmentFilter(event.target.value)} bg={cardBg}>
+                    <option value="all">All assignments</option>
+                    <option value="assigned">Assigned or accepted</option>
+                    <option value="waiting">Waiting assignment</option>
+                  </Select>
+                </SimpleGrid>
+                <Flex
+                  bg={cardBg}
+                  border="1px solid"
+                  borderColor={borderColor}
+                  borderRadius="xl"
+                  p={3}
+                  justify="space-between"
+                  align={{ base: "stretch", md: "center" }}
+                  direction={{ base: "column", md: "row" }}
+                  gap={3}
+                >
+                  <Box>
+                    <Text fontWeight="800">Quick View</Text>
+                    <Text fontSize="sm" color={muted}>Choose the shortest path for the project list.</Text>
+                  </Box>
+                  <RadioGroup value={quickView} onChange={setQuickView}>
+                    <HStack spacing={3} wrap="wrap">
+                      <Radio value="all">All</Radio>
+                      <Radio value="priority">Priority</Radio>
+                      <Radio value="active">Active</Radio>
+                      <Radio value="waiting">Waiting</Radio>
+                      <Radio value="closed">Closed</Radio>
+                    </HStack>
+                  </RadioGroup>
+                  <Badge colorScheme="purple" alignSelf={{ base: "flex-start", md: "center" }}>
+                    {displayedProjects.length} / {projects.length}
+                  </Badge>
+                </Flex>
+              </VStack>
+
               <VStack align="stretch" spacing={3} maxH="760px" overflowY="auto" pr={1}>
                 {loadingProjects ? (
                   <Box bg={cardBg} borderRadius="xl" p={4} color={muted}>Loading external projects...</Box>
                 ) : projects.length === 0 ? (
                   <Box bg={cardBg} borderRadius="xl" p={4} color={muted}>No external IT project requests have been sent yet.</Box>
-                ) : projects.map((task) => {
+                ) : displayedProjects.length === 0 ? (
+                  <Box bg={cardBg} borderRadius="xl" p={4} color={muted}>No projects match the current search, filters, or quick view.</Box>
+                ) : displayedProjects.map((task) => {
                   const latestRecord = getLatestWorkRecord(task);
                   const taskId = task._id || task.id;
                   const canGiveFeedback = canCurrentUserGiveFeedback(task, userAliases);
