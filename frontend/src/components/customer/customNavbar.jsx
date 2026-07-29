@@ -1,4 +1,3 @@
-import React, { useState } from "react";
 import {
   Box,
   Flex,
@@ -29,7 +28,6 @@ import {
   FiHome,
   FiUsers,
   FiBookOpen,
-  FiBell,
   FiUser,
   FiFileText,
   FiGlobe,
@@ -43,6 +41,7 @@ import { Link as RouterLink, useNavigate } from "react-router-dom";
 import { useUserStore } from "../../store/user";
 import { MoonIcon, SunIcon } from "@chakra-ui/icons";
 import ChatLauncher from "../chat/ChatLauncher";
+import NotificationBall from "../notifications/NotificationBall";
 
 const normalizeRoleValue = (value = "") =>
   value.toString().trim().toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -74,9 +73,6 @@ const Cnavbar = () => {
 
   const currentUser = useUserStore((state) => state.currentUser);
   const clearUser = useUserStore((state) => state.clearUser);
-
-  const [notifications, setNotifications] = useState([]);
-  const unreadCount = notifications.filter((notification) => !notification.read).length;
 
   const isCSM = (() => {
     try {
@@ -112,11 +108,6 @@ const Cnavbar = () => {
     localStorage.removeItem("userStatus");
     localStorage.removeItem("userName");
     navigate("/login");
-  };
-
-  
-  const clearNotifications = () => {
-    setNotifications([]);
   };
 
   return (
@@ -180,37 +171,7 @@ const Cnavbar = () => {
                 icon={<FiMessageSquare size={20} />}
                 iconButtonProps={actionButtonProps}
               />
-              {/* Notifications Dropdown */}
-              <Menu>
-                <MenuButton
-                  as={IconButton}
-                  icon={<FiBell size={20} />}
-                  aria-label="Notifications"
-                  {...actionButtonProps}
-                />
-                <MenuList>
-                  {notifications.length > 0 ? (
-                    <>
-                      {notifications.map((notification) => (
-                        <MenuItem key={notification.id}>
-                          <Box>
-                            <Text fontWeight="bold">{notification.message}</Text>
-                            <Text fontSize="sm" color="gray.500">
-                              {notification.timestamp}
-                            </Text>
-                          </Box>
-                        </MenuItem>
-                      ))}
-                      <MenuDivider />
-                      <MenuItem onClick={clearNotifications}>Clear All</MenuItem>
-                    </>
-                  ) : (
-                    <MenuItem>
-                      <Text>No new notifications</Text>
-                    </MenuItem>
-                  )}
-                </MenuList>
-              </Menu>
+              <NotificationBall iconColor={textPrimary} />
 
               {/* Notes Launcher */}
               <NotesLauncher
@@ -263,7 +224,6 @@ const Cnavbar = () => {
                   to: "/customer/messages",
                   icon: <FiMessageSquare />,
                   label: "Notice Board",
-                  badgeCount: unreadCount,
                 },
                 { to: "/requests", icon: <FiClipboard />, label: "Requests" },
                 { to: "/training", icon: <FiBookOpen />, label: "Training" },

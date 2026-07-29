@@ -41,6 +41,32 @@ import { FiInfo } from 'react-icons/fi';
 import axios from 'axios';
 import { useUserStore } from '../../../store/user'; // Adjusted relative path
 
+const normalizeUsersResponse = (payload) => {
+  const raw =
+    (Array.isArray(payload) && payload) ||
+    payload?.users ||
+    payload?.data ||
+    [];
+  return Array.isArray(raw) ? raw : [];
+};
+
+const normalizeRole = (value = '') => String(value || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+
+const getPersonName = (user = {}) => user.fullName || user.username || user.email || '';
+
+const isItPerson = (user = {}) => {
+  const role = normalizeRole(user.role || user.displayRole || user.normalizedRole);
+  const department = String(user.department || '').toLowerCase();
+  const jobTitle = String(user.jobTitle || '').toLowerCase();
+  return role === 'it' || role.startsWith('it') || department.includes('it') || jobTitle.includes('it');
+};
+
+const isItLeader = (user = {}) => {
+  const role = normalizeRole(user.role || user.displayRole || user.normalizedRole);
+  const jobTitle = String(user.jobTitle || '').toLowerCase();
+  return isItPerson(user) && ['manager', 'admin', 'leader', 'lead'].some((keyword) => role.includes(keyword) || jobTitle.includes(keyword));
+};
+
 const AddTaskForm = ({ isOpen, onClose, onDone, onLocalCreate, defaultProjectType }) => {
   const [projectType, setProjectType] = useState(defaultProjectType || 'internal');
   const [taskName, setTaskName] = useState('');
@@ -56,6 +82,8 @@ const AddTaskForm = ({ isOpen, onClose, onDone, onLocalCreate, defaultProjectTyp
   const [urgent, setUrgent] = useState(false);
   const [taskLeader, setTaskLeader] = useState('');
   const [assignedTo, setAssignedTo] = useState([]);
+  const [localUsers, setLocalUsers] = useState([]);
+  const [loadingLocalUsers, setLoadingLocalUsers] = useState(false);
   
   useEffect(() => {
     setCategory([]);
@@ -66,13 +94,45 @@ const AddTaskForm = ({ isOpen, onClose, onDone, onLocalCreate, defaultProjectTyp
   }, [projectType]);
 
   const toast = useToast();
-  const { currentUser, users } = useUserStore();
+  const { currentUser, users, loading: usersLoading, error: usersError, fetchUsers } = useUserStore();
   const token = currentUser?.token;
   const userRole = currentUser?.role;
   const normalizedRole = (userRole || '').toString().toLowerCase();
   const normalizedRoleCompact = normalizedRole.replace(/[^a-z0-9]/g, '');
   const currentUserName = currentUser?.fullName || currentUser?.username || currentUser?.email || '';
   const isTeamLeaderCreator = normalizedRoleCompact === 'itteamleader' || normalizedRole.includes('team leader');
+
+  useEffect(() => {
+    if (isOpen && users.length === 0 && !usersLoading && !usersError) {
+      fetchUsers();
+    }
+  }, [fetchUsers, isOpen, users.length, usersError, usersLoading]);
+
+  useEffect(() => {
+    if (!isOpen || !token) return;
+
+    let cancelled = false;
+    const loadAssignmentUsers = async () => {
+      setLoadingLocalUsers(true);
+      try {
+        const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/users`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!cancelled) {
+          setLocalUsers(normalizeUsersResponse(response.data));
+        }
+      } catch (error) {
+        console.warn('Unable to load assignment users for create task', error);
+      } finally {
+        if (!cancelled) setLoadingLocalUsers(false);
+      }
+    };
+
+    loadAssignmentUsers();
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, token]);
 
   useEffect(() => {
     if (isTeamLeaderCreator && currentUserName) {
@@ -82,33 +142,24 @@ const AddTaskForm = ({ isOpen, onClose, onDone, onLocalCreate, defaultProjectTyp
 
   const itUsers = useMemo(() => {
     const defaultPool = ['Selam Desta', 'Amanuel Bekele', 'Martha Tadesse', 'Lemlem Gashaw', 'Kebede Dagnachew'];
-    const storeItUsers = (users || [])
-      .filter(u => {
-        const r = String(u.role || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-        const d = String(u.department || '').toLowerCase();
-        return r === 'it' || r.startsWith('it') || d === 'it';
-      })
-      .map(u => u.fullName || u.username || u.email)
+    const assignmentUsers = [...(users || []), ...(localUsers || [])];
+    const storeItUsers = assignmentUsers
+      .filter(isItPerson)
+      .map(getPersonName)
       .filter(Boolean);
 
     return Array.from(new Set([...defaultPool, ...storeItUsers])).sort();
-  }, [users]);
+  }, [localUsers, users]);
 
   const taskLeaderOptions = useMemo(() => {
     if (isTeamLeaderCreator && currentUserName) {
       return [currentUserName];
     }
 
-    const leadershipUsers = (users || [])
-      .filter(u => {
-        const r = String(u.role || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-        const d = String(u.department || '').toLowerCase();
-        const title = String(u.jobTitle || '').toLowerCase();
-        const isItUser = r === 'it' || r.startsWith('it') || d === 'it';
-        const isLeaderRole = ['manager', 'admin', 'leader', 'lead'].some(keyword => r.includes(keyword) || title.includes(keyword));
-        return isItUser && isLeaderRole;
-      })
-      .map(u => u.fullName || u.username || u.email)
+    const assignmentUsers = [...(users || []), ...(localUsers || [])];
+    const leadershipUsers = assignmentUsers
+      .filter(isItLeader)
+      .map(getPersonName)
       .filter(Boolean);
 
     return Array.from(new Set([...leadershipUsers, ...itUsers])).sort((a, b) => {
@@ -118,7 +169,7 @@ const AddTaskForm = ({ isOpen, onClose, onDone, onLocalCreate, defaultProjectTyp
       if (!aIsLeader && bIsLeader) return 1;
       return a.localeCompare(b);
     });
-  }, [currentUserName, isTeamLeaderCreator, itUsers, users]);
+  }, [currentUserName, isTeamLeaderCreator, itUsers, localUsers, users]);
 
   const itStaff = useMemo(() => {
     return itUsers;
@@ -608,7 +659,9 @@ const AddTaskForm = ({ isOpen, onClose, onDone, onLocalCreate, defaultProjectTyp
                       <FormHelperText>
                         {isTeamLeaderCreator
                           ? 'Team leaders create tasks under their own leadership scope.'
-                          : 'Choose the person responsible for leading this task.'}
+                          : loadingLocalUsers
+                            ? 'Loading IT leaders...'
+                            : `Choose the person responsible for leading this task. ${taskLeaderOptions.length} leader options available.`}
                       </FormHelperText>
                     </FormControl>
                   </SimpleGrid>
@@ -629,6 +682,9 @@ const AddTaskForm = ({ isOpen, onClose, onDone, onLocalCreate, defaultProjectTyp
                         ))}
                       </Wrap>
                     </CheckboxGroup>
+                    <FormHelperText>
+                      {loadingLocalUsers ? 'Loading IT staff...' : `${itStaff.length} staff options available.`}
+                    </FormHelperText>
                   </FormControl>
                   
                   <HStack justify="space-between">

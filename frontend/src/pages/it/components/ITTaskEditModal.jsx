@@ -75,25 +75,83 @@ const toDateInput = (value) => {
   return date.toISOString().slice(0, 10);
 };
 
+const normalizeUsersResponse = (payload) => {
+  const raw =
+    (Array.isArray(payload) && payload) ||
+    payload?.users ||
+    payload?.data ||
+    [];
+  return Array.isArray(raw) ? raw : [];
+};
+
+const normalizeRole = (value = '') => String(value || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+
+const getPersonName = (user = {}) => user.fullName || user.username || user.email || '';
+
+const isItPerson = (user = {}) => {
+  const role = normalizeRole(user.role || user.displayRole || user.normalizedRole);
+  const department = String(user.department || '').toLowerCase();
+  const jobTitle = String(user.jobTitle || '').toLowerCase();
+  return role === 'it' || role.startsWith('it') || department.includes('it') || jobTitle.includes('it');
+};
+
+const isItLeader = (user = {}) => {
+  const role = normalizeRole(user.role || user.displayRole || user.normalizedRole);
+  const jobTitle = String(user.jobTitle || '').toLowerCase();
+  return isItPerson(user) && ['manager', 'admin', 'leader', 'lead'].some((keyword) => role.includes(keyword) || jobTitle.includes(keyword));
+};
+
 export default function ITTaskEditModal({ isOpen, task, onClose, onDone }) {
-  const { currentUser, users } = useUserStore();
+  const { currentUser, users, loading: usersLoading, error: usersError, fetchUsers } = useUserStore();
   const token = currentUser?.token;
   const toast = useToast();
   const [form, setForm] = useState(null);
+  const [localUsers, setLocalUsers] = useState([]);
+  const [loadingLocalUsers, setLoadingLocalUsers] = useState(false);
   const borderColor = useColorModeValue('gray.200', 'whiteAlpha.200');
   const modalBg = useColorModeValue('white', 'gray.900');
   const headerBg = useColorModeValue('linear-gradient(135deg, #eef6ff, #f0fdfa)', 'linear-gradient(135deg, rgba(37,99,235,0.18), rgba(20,184,166,0.12))');
   const sectionBg = useColorModeValue('gray.50', 'whiteAlpha.50');
   const muted = useColorModeValue('gray.600', 'gray.400');
 
+  useEffect(() => {
+    if (isOpen && users.length === 0 && !usersLoading && !usersError) {
+      fetchUsers();
+    }
+  }, [fetchUsers, isOpen, users.length, usersError, usersLoading]);
+
+  useEffect(() => {
+    if (!isOpen || !token) return;
+
+    let cancelled = false;
+    const loadAssignmentUsers = async () => {
+      setLoadingLocalUsers(true);
+      try {
+        const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/users`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!cancelled) {
+          setLocalUsers(normalizeUsersResponse(response.data));
+        }
+      } catch (error) {
+        console.warn('Unable to load assignment users for edit task', error);
+      } finally {
+        if (!cancelled) setLoadingLocalUsers(false);
+      }
+    };
+
+    loadAssignmentUsers();
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, token]);
+
   const itPeople = useMemo(() => {
-    const storePeople = (users || [])
-      .filter((user) => {
-        const role = String(user.role || '').toLowerCase();
-        const department = String(user.department || '').toLowerCase();
-        return role.includes('it') || department === 'it';
-      })
-      .map((user) => user.fullName || user.username || user.email)
+    const defaultPool = ['Selam Desta', 'Amanuel Bekele', 'Martha Tadesse', 'Lemlem Gashaw', 'Kebede Dagnachew'];
+    const assignmentUsers = [...(users || []), ...(localUsers || [])];
+    const storePeople = assignmentUsers
+      .filter(isItPerson)
+      .map(getPersonName)
       .filter(Boolean);
 
     const taskPeople = [
@@ -101,8 +159,23 @@ export default function ITTaskEditModal({ isOpen, task, onClose, onDone }) {
       ...(task?.assignedTo || []),
     ].filter(Boolean);
 
-    return Array.from(new Set([...storePeople, ...taskPeople])).sort();
-  }, [task, users]);
+    return Array.from(new Set([...defaultPool, ...storePeople, ...taskPeople])).sort();
+  }, [localUsers, task, users]);
+
+  const taskLeaderOptions = useMemo(() => {
+    const assignmentUsers = [...(users || []), ...(localUsers || [])];
+    const leaders = assignmentUsers
+      .filter(isItLeader)
+      .map(getPersonName)
+      .filter(Boolean);
+    return Array.from(new Set([...leaders, ...itPeople])).sort((a, b) => {
+      const aIsLeader = leaders.includes(a);
+      const bIsLeader = leaders.includes(b);
+      if (aIsLeader && !bIsLeader) return -1;
+      if (!aIsLeader && bIsLeader) return 1;
+      return a.localeCompare(b);
+    });
+  }, [itPeople, localUsers, users]);
 
   useEffect(() => {
     if (!task) return;
@@ -290,11 +363,13 @@ export default function ITTaskEditModal({ isOpen, task, onClose, onDone }) {
               <FormControl>
                 <FormLabel>Task Leader</FormLabel>
                 <Select value={form.taskLeader} onChange={(event) => updateField('taskLeader', event.target.value)} placeholder="Select leader">
-                  {itPeople.map((person) => (
+                  {taskLeaderOptions.map((person) => (
                     <option key={person} value={person}>{person}</option>
                   ))}
                 </Select>
-                <FormHelperText>Only managers/admins can edit this field here.</FormHelperText>
+                <FormHelperText>
+                  {loadingLocalUsers ? 'Loading IT leaders...' : `${taskLeaderOptions.length} leader options available.`}
+                </FormHelperText>
               </FormControl>
               <FormControl>
                 <FormLabel>Feature / Point Count</FormLabel>
@@ -313,6 +388,9 @@ export default function ITTaskEditModal({ isOpen, task, onClose, onDone }) {
                   ))}
                 </Wrap>
               </CheckboxGroup>
+              <FormHelperText>
+                {loadingLocalUsers ? 'Loading IT staff...' : `${itPeople.length} staff options available.`}
+              </FormHelperText>
             </FormControl>
 
             <FormControl>

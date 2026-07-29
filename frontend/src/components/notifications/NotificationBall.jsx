@@ -305,7 +305,7 @@ export default function NotificationBall({ extraNotifications = [], iconColor = 
                       )}
                       {item.type === 'comment' && preview && (
                         <Text fontSize="xs" color={muted} mt={1} noOfLines={2}>
-                          "{preview}"
+                          &quot;{preview}&quot;
                         </Text>
                       )}
                       <HStack mt={2} spacing={2} align="center" flexWrap="wrap">

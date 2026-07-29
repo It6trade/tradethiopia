@@ -17,6 +17,7 @@ import {
   useToast,
   Card,
   CardBody,
+  Collapse,
   Heading,
   Input,
   InputGroup,
@@ -31,7 +32,7 @@ import {
   Wrap,
   WrapItem
 } from '@chakra-ui/react';
-import { FiSearch, FiFilter, FiPlus, FiCalendar, FiUser, FiCheckCircle, FiXCircle } from 'react-icons/fi';
+import { FiSearch, FiFilter, FiPlus, FiCalendar, FiUser, FiCheckCircle, FiXCircle, FiChevronDown, FiChevronRight, FiPaperclip } from 'react-icons/fi';
 import axios from 'axios';
 import AddTaskForm from './AddTaskForm';
 import ITTaskProgressControl from './ITTaskProgressControl';
@@ -57,6 +58,7 @@ const ExternalTasksTab = ({ search, tasks, loading, fetchTasks, permissions = {}
   const [editingTaskId, setEditingTaskId] = useState(null);
   const [editingTask, setEditingTask] = useState(null);
   const [viewingTask, setViewingTask] = useState(null);
+  const [expandedReviewIds, setExpandedReviewIds] = useState({});
   const [editingPoints, setEditingPoints] = useState(1);
   const [showCompleted, setShowCompleted] = useState(true);
   const [pageSize, setPageSize] = useState(10);
@@ -104,6 +106,28 @@ const ExternalTasksTab = ({ search, tasks, loading, fetchTasks, permissions = {}
 
   const isAssignedToCurrentUser = (task = {}) => (
     (task.assignedTo || []).some((assignee) => currentUserAliases.includes(String(assignee).trim().toLowerCase()))
+  );
+
+  const getRequestDetails = (task = {}) => (
+    String(task.description || task.supportRequestNote || '')
+      .replace('[CS External IT Request]', '')
+      .trim()
+  );
+
+  const toggleReviewDetails = (taskId) => {
+    setExpandedReviewIds((prev) => ({
+      ...prev,
+      [taskId]: !prev[taskId],
+    }));
+  };
+
+  const getLatestStaffRejection = (task = {}) => (
+    [...(task.comments || [])]
+      .filter((comment) => (
+        comment.audience === 'staff_manager'
+        && String(comment.body || '').toLowerCase().includes('reject')
+      ))
+      .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))[0]
   );
 
   useEffect(() => {
@@ -289,9 +313,17 @@ const ExternalTasksTab = ({ search, tasks, loading, fetchTasks, permissions = {}
   const managerReviewRequests = filtered.filter((task) => (
     isCSExternalRequest(task)
     && permissions.canManageUsers
-    && task.workflowStatus === 'pending'
-    && !(task.assignedTo || []).length
-    && !task.taskLeader
+    && (
+      (
+        task.workflowStatus === 'pending'
+        && !(task.assignedTo || []).length
+        && !task.taskLeader
+      )
+      || (
+        task.workflowStatus === 'rejected'
+        && ((task.assignedTo || []).length || task.taskLeader)
+      )
+    )
   ));
 
   useEffect(() => {
@@ -456,7 +488,7 @@ const ExternalTasksTab = ({ search, tasks, loading, fetchTasks, permissions = {}
               <Box>
                 <Heading size="md" color={headingColor}>CS External Requests Awaiting Review</Heading>
                 <Text color={subheadingColor} fontSize="sm">
-                  Accept and assign external CS requests, or reject them with a note for discussion.
+                  Accept new CS requests, or reassign/resend work when assigned staff rejects it.
                 </Text>
               </Box>
               <Badge colorScheme="orange" borderRadius="full" px={3} py={1}>
@@ -464,34 +496,141 @@ const ExternalTasksTab = ({ search, tasks, loading, fetchTasks, permissions = {}
               </Badge>
             </HStack>
             <VStack align="stretch" spacing={3}>
-              {managerReviewRequests.map((task) => (
-                <Flex
-                  key={task._id || task.id}
-                  justify="space-between"
-                  align={{ base: 'stretch', md: 'center' }}
-                  direction={{ base: 'column', md: 'row' }}
-                  gap={3}
-                  border="1px solid"
-                  borderColor={borderColor}
-                  borderRadius="xl"
-                  p={4}
-                >
-                  <Box>
-                    <Badge colorScheme="purple" mb={2}>CS External Project</Badge>
-                    <Text fontWeight="800">{task.taskName || task.client || 'External project request'}</Text>
-                    <Text fontSize="sm" color={mutedColor}>{task.requestedBy || 'Customer Service'} | {task.requestedDepartment || 'Customer Service'}</Text>
+              {managerReviewRequests.map((task) => {
+                const taskId = task._id || task.id;
+                const requestDetails = getRequestDetails(task);
+                const expanded = Boolean(expandedReviewIds[taskId]);
+                const staffRejected = task.workflowStatus === 'rejected' && ((task.assignedTo || []).length || task.taskLeader);
+                const latestStaffRejection = getLatestStaffRejection(task);
+                return (
+                  <Box
+                    key={taskId}
+                    border="1px solid"
+                    borderColor={borderColor}
+                    borderRadius="xl"
+                    p={4}
+                  >
+                    <Flex
+                      justify="space-between"
+                      align={{ base: 'stretch', lg: 'flex-start' }}
+                      direction={{ base: 'column', lg: 'row' }}
+                      gap={3}
+                    >
+                      <Box flex="1">
+                        <HStack spacing={2} mb={2} flexWrap="wrap">
+                          <Badge colorScheme={staffRejected ? 'red' : 'purple'}>
+                            {staffRejected ? 'Rejected by assigned staff' : 'CS External Project'}
+                          </Badge>
+                          <Badge colorScheme={task.priority === 'critical' ? 'red' : task.priority === 'high' ? 'orange' : 'blue'} textTransform="capitalize">
+                            {task.priority || 'normal'}
+                          </Badge>
+                          <Badge colorScheme="cyan" variant="subtle">
+                            {task.ticketCategory || task.category || 'External request'}
+                          </Badge>
+                        </HStack>
+                        <Text fontWeight="800">{task.taskName || task.client || 'External project request'}</Text>
+                        <Text fontSize="sm" color={mutedColor}>
+                          {task.requestedBy || 'Customer Service'} | {task.requestedDepartment || 'Customer Service'}
+                        </Text>
+                        {staffRejected && (
+                          <Text fontSize="sm" color="red.500" mt={2} fontWeight="700">
+                            Assigned staff rejected this work. You can assign it to someone else or resend it to the same staff member.
+                          </Text>
+                        )}
+                        {requestDetails && (
+                          <Text fontSize="sm" color={subheadingColor} mt={2} noOfLines={expanded ? undefined : 2}>
+                            {requestDetails}
+                          </Text>
+                        )}
+                      </Box>
+                      <HStack flexWrap="wrap" justify={{ base: 'flex-start', lg: 'flex-end' }}>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          leftIcon={expanded ? <FiChevronDown /> : <FiChevronRight />}
+                          onClick={() => toggleReviewDetails(taskId)}
+                        >
+                          {expanded ? 'Hide Details' : 'View Details'}
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => setViewingTask(task)}>Open Detail</Button>
+                        <Button size="sm" colorScheme={staffRejected ? 'orange' : 'green'} leftIcon={<FiCheckCircle />} onClick={() => setEditingTask(task)}>
+                          {staffRejected ? 'Reassign / Resend' : 'Accept & Assign'}
+                        </Button>
+                        {!staffRejected && (
+                          <Button size="sm" colorScheme="red" variant="outline" leftIcon={<FiXCircle />} onClick={() => reviewExternalProject(task, 'rejected')}>
+                            Reject
+                          </Button>
+                        )}
+                      </HStack>
+                    </Flex>
+
+                    <Collapse in={expanded} animateOpacity>
+                      <Box mt={4} pt={4} borderTop="1px solid" borderColor={borderColor}>
+                        <SimpleGrid columns={{ base: 1, md: 2, xl: 4 }} spacing={4}>
+                          <Box>
+                            <Text fontSize="xs" color={mutedColor} textTransform="uppercase" fontWeight="800">Requester</Text>
+                            <Text fontSize="sm" fontWeight="700">{task.requestedBy || task.createdBy || 'Customer Service'}</Text>
+                            <Text fontSize="xs" color={mutedColor}>{task.requestedDepartment || 'Customer Service'}</Text>
+                          </Box>
+                          <Box>
+                            <Text fontSize="xs" color={mutedColor} textTransform="uppercase" fontWeight="800">Client / Project</Text>
+                            <Text fontSize="sm" fontWeight="700">{task.client || task.taskName || 'Not specified'}</Text>
+                            <Text fontSize="xs" color={mutedColor}>{task.category || 'Customer Service External Request'}</Text>
+                          </Box>
+                          <Box>
+                            <Text fontSize="xs" color={mutedColor} textTransform="uppercase" fontWeight="800">Request Type</Text>
+                            <Text fontSize="sm" fontWeight="700">{task.ticketCategory || 'External support'}</Text>
+                            <Text fontSize="xs" color={mutedColor}>Priority: {task.priority || 'normal'}</Text>
+                          </Box>
+                          <Box>
+                            <Text fontSize="xs" color={mutedColor} textTransform="uppercase" fontWeight="800">Submitted</Text>
+                            <Text fontSize="sm" fontWeight="700">
+                              {task.createdAt ? new Date(task.createdAt).toLocaleString() : task.startDate ? new Date(task.startDate).toLocaleString() : 'Not recorded'}
+                            </Text>
+                            <Text fontSize="xs" color={mutedColor}>Workflow: {getWorkflowMeta(task.workflowStatus, task.status).label}</Text>
+                          </Box>
+                        </SimpleGrid>
+
+                        {staffRejected && (
+                          <Box mt={4} p={3} borderRadius="lg" bg="red.50" border="1px solid" borderColor="red.100">
+                            <Text fontSize="xs" color="red.600" textTransform="uppercase" fontWeight="800">Rejected Assignment</Text>
+                            <Text fontSize="sm" color="red.700" mt={1}>
+                              Rejected by: {latestStaffRejection?.authorName || (task.assignedTo || []).join(', ') || 'Assigned staff'}
+                            </Text>
+                            <Text fontSize="sm" color="red.700">
+                              Current assigned staff: {(task.assignedTo || []).join(', ') || 'None'}
+                            </Text>
+                            {(latestStaffRejection?.body || task.progressNote) && (
+                              <Text fontSize="sm" color="red.700" mt={1} whiteSpace="pre-wrap">
+                                Note: {latestStaffRejection?.body || task.progressNote}
+                              </Text>
+                            )}
+                          </Box>
+                        )}
+
+                        <Box mt={4}>
+                          <Text fontSize="xs" color={mutedColor} textTransform="uppercase" fontWeight="800">Request Details</Text>
+                          <Text fontSize="sm" mt={1} whiteSpace="pre-wrap">
+                            {requestDetails || 'No request details were provided.'}
+                          </Text>
+                        </Box>
+
+                        {(task.attachments || task.referenceLinks) && (
+                          <Box mt={4}>
+                            <HStack spacing={2} color={mutedColor}>
+                              <Icon as={FiPaperclip} />
+                              <Text fontSize="xs" textTransform="uppercase" fontWeight="800">Attachments / Reference Links</Text>
+                            </HStack>
+                            <Text fontSize="sm" mt={1} whiteSpace="pre-wrap">
+                              {task.attachments || task.referenceLinks}
+                            </Text>
+                          </Box>
+                        )}
+                      </Box>
+                    </Collapse>
                   </Box>
-                  <HStack>
-                    <Button size="sm" variant="outline" onClick={() => setViewingTask(task)}>Review</Button>
-                    <Button size="sm" colorScheme="green" leftIcon={<FiCheckCircle />} onClick={() => setEditingTask(task)}>
-                      Accept & Assign
-                    </Button>
-                    <Button size="sm" colorScheme="red" variant="outline" leftIcon={<FiXCircle />} onClick={() => reviewExternalProject(task, 'rejected')}>
-                      Reject
-                    </Button>
-                  </HStack>
-                </Flex>
-              ))}
+                );
+              })}
             </VStack>
           </CardBody>
         </Card>

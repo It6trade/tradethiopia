@@ -56,6 +56,8 @@ const collectTaskParticipantAliases = (task) => (
 const isItManagerRole = (role) => ['admin', 'itmanager', 'itadmin'].includes(normalizeRole(role));
 const isItLeaderRole = (role) => ['itteamleader', 'itleader'].includes(normalizeRole(role));
 const isItStaffRole = (role) => ['it', 'itstaff', 'itofficer'].includes(normalizeRole(role));
+const isCustomerSuccessRole = (role) => ['customerservice', 'customersuccessmanager'].includes(normalizeRole(role));
+const isCustomerSuccessManagerRole = (role) => normalizeRole(role) === 'customersuccessmanager';
 const escapeRegex = (value = '') => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const getTaskLocation = (task) => `${task.projectType || 'IT'} / ${task.platform || task.category || task.client || 'Project Workspace'}`;
 
@@ -250,6 +252,35 @@ const notifyTaskParticipants = async (task, req, options = {}) => {
   }
 };
 
+const getCustomerServiceStakeholders = async (task, options = {}) => {
+  if (!isCSExternalProjectRequest(task)) return [];
+
+  const includeManagers = options.includeManagers !== false;
+  const requesterAliases = [
+    task.requestedBy,
+    task.createdBy,
+    task.submittedBy,
+  ]
+    .filter(Boolean)
+    .map((item) => String(item).trim().toLowerCase());
+
+  const allUsers = await User.find({ status: 'active' }).select('username fullName email role department status');
+  const recipients = new Map();
+
+  allUsers.forEach((user) => {
+    const role = normalizeRole(user.role);
+    const aliases = getUserAliases(user);
+    const matchesRequester = requesterAliases.some((alias) => aliases.includes(alias));
+    const managesCustomerSuccess = includeManagers && isCustomerSuccessManagerRole(role);
+
+    if (matchesRequester || managesCustomerSuccess) {
+      recipients.set(String(user._id), user);
+    }
+  });
+
+  return [...recipients.values()];
+};
+
 const notifyTaskCommentParticipants = async (task, comment, req) => {
   try {
     const aliases = collectTaskParticipantAliases(task);
@@ -273,30 +304,42 @@ const notifyTaskCommentParticipants = async (task, comment, req) => {
       if (found && canUserSeeComment(task, comment, found)) addRecipient(found);
     });
 
+    if (isCSExternalProjectRequest(task) && ['general', 'cs_manager'].includes(comment.audience || 'general')) {
+      const csStakeholders = await getCustomerServiceStakeholders(task);
+      csStakeholders.forEach((user) => {
+        if (canUserSeeComment(task, comment, user)) addRecipient(user);
+      });
+    }
+
     const taskId = task._id;
     const commentId = comment._id;
     const taskTitle = getTaskTitle(task);
     const actorName = getUserDisplayName(req.user);
-    const link = `/it?tab=projects&task=${taskId}&comment=${commentId}`;
+    const itLink = `/it?tab=projects&task=${taskId}&comment=${commentId}`;
+    const csLink = `/Cdashboard?section=it-requests&task=${taskId}&comment=${commentId}`;
     const taskLocation = getTaskLocation(task);
     const commentPreview = String(comment.body || '').slice(0, 160);
-    const notificationDocs = [...recipients.values()].map((user) => ({
-      user: user._id,
-      text: `New IT task comment: ${taskTitle}. Click to view the comment.`,
-      type: 'comment',
-      itTaskId: taskId,
-      commentId,
-      link,
-      metadata: {
-        title: 'New task comment',
-        taskTitle,
-        taskLocation,
-        commentPreview,
-        authorName: actorName,
-        audience: comment.audience || 'general',
-        actionLabel: 'View comment',
-      },
-    }));
+    const notificationDocs = [...recipients.values()].map((user) => {
+      const sendToCustomerService = isCSExternalProjectRequest(task) && isCustomerSuccessRole(user.role);
+      return {
+        user: user._id,
+        text: `New IT task comment: ${taskTitle}. Click to view the comment.`,
+        type: 'comment',
+        itTaskId: taskId,
+        commentId,
+        link: sendToCustomerService ? csLink : itLink,
+        metadata: {
+          title: 'New task comment',
+          taskTitle,
+          taskLocation,
+          commentPreview,
+          authorName: actorName,
+          audience: comment.audience || 'general',
+          actionLabel: 'View comment',
+          recipientArea: sendToCustomerService ? 'customer_service' : 'it',
+        },
+      };
+    });
 
     if (!notificationDocs.length) return [];
 
@@ -466,6 +509,14 @@ const createTask = async (req, res) => {
 
     if (data.progressPercent !== undefined) {
       data.progressPercent = Math.max(0, Math.min(100, Number(data.progressPercent) || 0));
+    }
+
+    if (data.attachments !== undefined) {
+      data.attachments = normalizeAttachments(data.attachments);
+    }
+
+    if (!data.requestedAt && data.requestSource === 'staff_request') {
+      data.requestedAt = new Date();
     }
     
     const task = new ITTask({ ...data, createdBy: req.user && req.user.id });
@@ -750,7 +801,7 @@ const updateTask = async (req, res) => {
     const shouldAcceptExternalRequestFromEdit = (
       task.projectType === 'external'
       && task.requestSource === 'staff_request'
-      && task.workflowStatus === 'pending'
+      && ['pending', 'rejected'].includes(task.workflowStatus)
       && (updateData.taskLeader !== undefined || updateData.assignedTo !== undefined)
       && (
         String(updateData.taskLeader || task.taskLeader || '').trim()
@@ -774,6 +825,8 @@ const updateTask = async (req, res) => {
       task.workflowStatus = 'assigned';
       task.status = 'pending';
       task.approvalStatus = task.approvalStatus === 'rejected' ? 'not_submitted' : task.approvalStatus;
+      task.rejectedBy = undefined;
+      task.rejectedAt = undefined;
       task.progressPercent = Math.max(0, Number(task.progressPercent) || 0);
     }
     appendAudit(task, req, 'task_updated', {
@@ -804,7 +857,7 @@ const updateTask = async (req, res) => {
       },
     });
     if (shouldAcceptExternalRequestFromEdit) {
-      const assignedUsers = await getUsersMatchingTaskAliases(updated);
+      const assignedUsers = await getAssignedItParticipants(updated);
       await notifyUsersForTask(assignedUsers, updated, req, {
         title: 'External project assigned',
         text: `External project assigned: ${getTaskTitle(updated)}.`,
@@ -814,6 +867,19 @@ const updateTask = async (req, res) => {
           workflowStatus: updated.workflowStatus,
           taskLeader: updated.taskLeader,
           assignedTo: updated.assignedTo,
+        },
+      });
+      const csStakeholders = await getCustomerServiceStakeholders(updated);
+      await notifyUsersForTask(csStakeholders, updated, req, {
+        title: 'External project accepted by IT',
+        text: `Your CS external request was accepted and assigned: ${getTaskTitle(updated)}.`,
+        actionLabel: 'View external project',
+        link: `/Cdashboard?section=it-requests&task=${updated._id}`,
+        metadata: {
+          workflowStatus: updated.workflowStatus,
+          taskLeader: updated.taskLeader,
+          assignedTo: updated.assignedTo,
+          audience: 'customer_service',
         },
       });
     }
@@ -949,6 +1015,23 @@ const getUsersMatchingTaskAliases = async (task) => {
   if (!aliases.length) return [];
   const users = await User.find({ status: 'active' }).select('username fullName email role department status');
   return users.filter((user) => getUserAliases(user).some((alias) => aliases.includes(alias)));
+};
+
+const getAssignedItParticipants = async (task) => {
+  const aliases = [
+    task.taskLeader,
+    ...(task.assignedTo || []),
+  ]
+    .filter(Boolean)
+    .map((item) => String(item).trim().toLowerCase());
+  if (!aliases.length) return [];
+
+  const users = await User.find({ status: 'active' }).select('username fullName email role department status');
+  return users.filter((user) => {
+    const role = normalizeRole(user.role);
+    return (isItManagerRole(role) || isItLeaderRole(role) || isItStaffRole(role))
+      && getUserAliases(user).some((alias) => aliases.includes(alias));
+  });
 };
 
 const addTicketRecord = async (req, res) => {
@@ -1250,7 +1333,7 @@ const reviewExternalProjectRequest = async (req, res) => {
     await task.save();
 
     if (decision === 'accepted') {
-      const assignedUsers = await getUsersMatchingTaskAliases(task);
+      const assignedUsers = await getAssignedItParticipants(task);
       await notifyUsersForTask(assignedUsers, task, req, {
         title: 'External project assigned',
         text: `External project assigned: ${getTaskTitle(task)}.`,
@@ -1260,6 +1343,19 @@ const reviewExternalProjectRequest = async (req, res) => {
           workflowStatus: task.workflowStatus,
           taskLeader: task.taskLeader,
           assignedTo: task.assignedTo,
+        },
+      });
+      const csStakeholders = await getCustomerServiceStakeholders(task);
+      await notifyUsersForTask(csStakeholders, task, req, {
+        title: 'External project accepted by IT',
+        text: `Your CS external request was accepted and assigned: ${getTaskTitle(task)}.`,
+        actionLabel: 'View external project',
+        link: `/Cdashboard?section=it-requests&task=${task._id}`,
+        metadata: {
+          workflowStatus: task.workflowStatus,
+          taskLeader: task.taskLeader,
+          assignedTo: task.assignedTo,
+          audience: 'customer_service',
         },
       });
     } else {
@@ -1342,6 +1438,22 @@ const respondToAssignedExternalProject = async (req, res) => {
       metadata: {
         workflowStatus: task.workflowStatus,
         decision,
+      },
+    });
+
+    const csStakeholders = await getCustomerServiceStakeholders(task);
+    await notifyUsersForTask(csStakeholders, task, req, {
+      title: decision === 'accepted' ? 'External project work accepted' : 'External project work needs reassignment',
+      text: decision === 'accepted'
+        ? `IT staff accepted work on your external request: ${getTaskTitle(task)}.`
+        : `Assigned IT staff rejected work on your external request: ${getTaskTitle(task)}. The IT manager can reassign or resend it.`,
+      actionLabel: 'View external project',
+      link: `/Cdashboard?section=it-requests&task=${task._id}`,
+      metadata: {
+        workflowStatus: task.workflowStatus,
+        decision,
+        staffName: getUserDisplayName(req.user),
+        audience: 'customer_service',
       },
     });
 
