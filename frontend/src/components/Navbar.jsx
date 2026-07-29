@@ -47,6 +47,7 @@ const routeNameMap = {
     "/chat": "Announcements",
     "/documentlist": "Documents",
     "/EmployeeDocument": "Employee Documents",
+    "/employee-requests": "Employee Requests",
     "/quiz": "Quiz Center",
     "/resources": "Resources",
     "/CustomerFollowUpForm": "Customer Follow-Up",

@@ -70,6 +70,7 @@ import FinanceMessagesPage from "./pages/FinanceMessagesPage";
 import RedirectMessagesPage from "./pages/RedirectMessagesPage";
 import RequestPage from "./pages/RequestPage";
 import TeamRequestsPage from "./pages/sales/TeamRequestsPage.jsx";
+import EmployeeRequestsPage from "./pages/EmployeeRequestsPage.jsx";
 import AppLayout from "./components/AppLayout"; // Import the new AppLayout component
 import SupervisorLayout from "./pages/supervisor/SupervisorLayout.jsx";
 import SupervisorDashboardPage from "./pages/supervisor/SupervisorDashboardPage.jsx";
@@ -365,6 +366,7 @@ return (
         }
       />
       <Route path="/requests" element={<LayoutWrapper><RequestPage /></LayoutWrapper>} />
+      <Route path="/employee-requests" element={<LayoutWrapper><EmployeeRequestsPage /></LayoutWrapper>} />
       <Route
         path="/chat"
         element={
@@ -420,6 +422,7 @@ return (
       <Route path="/supervisor" element={<SupervisorLayout />}>
         <Route index element={<SupervisorDashboardPage />} />
         <Route path="requests" element={<TeamRequestsPage />} />
+        <Route path="employee-requests" element={<EmployeeRequestsPage />} />
         <Route path="notice-board" element={<FinanceMessagesPage embedded />} />
         <Route path="revenue-expense" element={<RevenuePage />} />
       </Route>
@@ -434,6 +437,7 @@ return (
       >
         <Route index element={<SalesManagerDashboard />} />
         <Route path="dashboard" element={<SalesManagerDashboard />} />
+        <Route path="employee-requests" element={<EmployeeRequestsPage />} />
         <Route path="course" element={<CourseManagerPage />} />
         <Route path="all-sales" element={<AllSalesPage />} />
         <Route path="performance" element={<PerformancePage />} />

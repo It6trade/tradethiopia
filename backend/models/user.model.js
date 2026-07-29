@@ -114,6 +114,12 @@ const userSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.Mixed, // Supports various types (e.g., URL, file path)
         required: false, // Optional
     },
+    managerId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        default: null,
+        index: true,
+    },
 }, {
     timestamps: true,
 });

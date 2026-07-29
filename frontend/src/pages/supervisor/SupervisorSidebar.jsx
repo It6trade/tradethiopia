@@ -20,7 +20,7 @@ import {
 
 const navItems = [
   { label: 'Dashboard', icon: FiHome, path: '/supervisor' },
-  { label: 'Requests', icon: FiMail, path: '/supervisor/requests' },
+  { label: 'Employee Requests', icon: FiMail, path: '/supervisor/employee-requests' },
   { label: 'Notice Board', icon: FiMessageSquare, path: '/supervisor/notice-board' },
   { label: 'Revenue & Expense', icon: FiBarChart2, path: '/supervisor/revenue-expense' },
   { label: 'Reports', icon: FiBarChart2, path: '/supervisor/reports' },

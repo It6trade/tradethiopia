@@ -13,12 +13,14 @@ import SalesTargetsPage from './SalesTargetsPage.jsx';
 import TaskDashboard from './TaskDashboard.jsx';
 import MonthlyReport from './MonthlyReport.jsx';
 import SalesMessagesPage from '../../pages/SalesMessagesPage';
-import RequestPage from '../../pages/RequestPage';
+import EmployeeRequestsPage from '../../pages/EmployeeRequestsPage';
 import ContentTrackerPage from './ContentTrackerPage.jsx';
 import { useUserStore } from '../../store/user';
 import { getUserDepartment } from '../../utils/department';
 import useIsMobile from '../../hooks/useIsMobile';
 import MobileSalesShell from '../../mobile/sales/MobileSalesShell';
+
+const DESKTOP_NAV_HEIGHT = '80px';
 
 const Layout = ({ children, initialActiveItem }) => {
   const { isOpen, onOpen, onClose } = useDisclosure(); // For controlling the drawer
@@ -80,7 +82,7 @@ const Layout = ({ children, initialActiveItem }) => {
       case 'Notice Board':
         return <SalesMessagesPage />;
       case 'Requests':
-        return <RequestPage />;
+        return <EmployeeRequestsPage />;
       case 'Content Tracker':
         return <ContentTrackerPage />;
       default:
@@ -100,14 +102,14 @@ const Layout = ({ children, initialActiveItem }) => {
       </Box>
 
       {/* Main Container */}
-      <Box display="flex" flex="1" pt="60px">
+      <Box display="flex" flex="1" pt={DESKTOP_NAV_HEIGHT}>
         {/* Sidebar for Larger Screens */}
         <Box
           position="fixed"
-          top="60px"
+          top={DESKTOP_NAV_HEIGHT}
           left={0}
           width={isSidebarCollapsed ? "70px" : "200px"}
-          height="calc(100vh - 60px)" // Adjust height to account for the navbar
+          height={`calc(100vh - ${DESKTOP_NAV_HEIGHT})`} // Adjust height to account for the navbar
           transition="width 0.3s"
           display={{ base: "none", md: "block" }} // Hide on mobile
           zIndex="900" // Ensure it's below the navbar but above other content

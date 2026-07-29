@@ -114,7 +114,7 @@ const createuser = async (req, res) => {
         jobTitle, hireDate, employmentType, 
         education, location, phone, additionalLanguages, 
         notes,digitalId,photo,infoStatus,trainingStatus,guarantorFile,
-        salary
+        salary, managerId
     } = req.body;
 
     if (!username || !email || !password || !role) {
@@ -162,6 +162,7 @@ const createuser = async (req, res) => {
             infoStatus,
             trainingStatus,
             guarantorFile,
+            managerId: managerId || null,
             salary: salary !== undefined && salary !== null ? Number(salary) : undefined
         });
         await newUser.save();
@@ -192,7 +193,7 @@ const getuser = async (req, res) => {
         // Directory consumers receive summary data only. Sensitive HR fields
         // are available through the protected /:id/details endpoint.
         const users = await User.find({}).select(
-            '_id username email role status fullName jobTitle photo guarantorFile phone gender education location digitalId employmentType hireDate salary infoStatus trainingStatus createdAt updatedAt'
+            '_id username email role status fullName jobTitle photo guarantorFile phone gender education location digitalId managerId employmentType hireDate salary infoStatus trainingStatus createdAt updatedAt'
         );
         const Document = mongoose.models.Document || require('../models/Document');
         const documents = await Document.find({}).select('userId employeeName').lean();
@@ -274,6 +275,7 @@ const getuser = async (req, res) => {
                 fullName: userObj.fullName,
                 jobTitle: userObj.jobTitle,
                 digitalId: userObj.digitalId,
+                managerId: userObj.managerId,
                 infoStatus: userObj.infoStatus,
                 trainingStatus: userObj.trainingStatus,
                 createdAt: userObj.createdAt,

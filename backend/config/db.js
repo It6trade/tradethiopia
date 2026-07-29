@@ -43,8 +43,9 @@ const connect = async (uri, options = connectionOptions) => {
   return connection;
 };
 
+const SRV_DNS_ERROR_CODES = new Set(['ECONNREFUSED', 'ETIMEOUT', 'ENOTFOUND', 'EAI_AGAIN']);
 const isSrvDnsFailure = (error) =>
-  error?.code === 'ECONNREFUSED' &&
+  SRV_DNS_ERROR_CODES.has(error?.code) &&
   String(error?.message || '').includes('querySrv');
 
 const buildAtlasSeedListUri = (srvUri) => {
