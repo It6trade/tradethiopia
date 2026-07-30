@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Box,
   Badge,
@@ -27,9 +27,45 @@ import {
   useColorModeValue,
   useToast,
 } from '@chakra-ui/react';
-import { FiActivity, FiGrid, FiLock, FiPower, FiShield, FiTrash2, FiUserPlus, FiUsers } from 'react-icons/fi';
+import { FiClipboard, FiGrid, FiLock, FiPower, FiShield, FiTrash2, FiUserPlus, FiUsers } from 'react-icons/fi';
 import axiosInstance from '../../../services/axiosInstance';
 import { normalizeRole } from '../../../store/user';
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+const auditIntervals = [
+  { value: 'daily', label: 'Daily' },
+  { value: 'weekly', label: 'Weekly' },
+  { value: 'monthly', label: 'Monthly' },
+  { value: 'yearly', label: 'Yearly' },
+];
+
+const getAuditRange = (interval) => {
+  const start = new Date();
+  const end = new Date();
+
+  if (interval === 'daily') {
+    start.setHours(0, 0, 0, 0);
+    end.setHours(23, 59, 59, 999);
+  } else if (interval === 'weekly') {
+    const day = start.getDay() || 7;
+    start.setDate(start.getDate() - day + 1);
+    start.setHours(0, 0, 0, 0);
+    end.setTime(start.getTime() + 7 * DAY_MS - 1);
+  } else if (interval === 'monthly') {
+    start.setDate(1);
+    start.setHours(0, 0, 0, 0);
+    end.setMonth(start.getMonth() + 1, 0);
+    end.setHours(23, 59, 59, 999);
+  } else {
+    start.setMonth(0, 1);
+    start.setHours(0, 0, 0, 0);
+    end.setMonth(11, 31);
+    end.setHours(23, 59, 59, 999);
+  }
+
+  return { start, end };
+};
 
 const buildTicketRankings = (tasks = []) => {
   const rankings = new Map();
@@ -61,6 +97,8 @@ const buildTicketRankings = (tasks = []) => {
 export default function ITAdminPanel({ tasks = [], users = [], refreshUsers, initialPanel = 'overview' }) {
   const [activePanel, setActivePanel] = useState(initialPanel);
   const [auditLog, setAuditLog] = useState([]);
+  const [auditInterval, setAuditInterval] = useState('daily');
+  const [showAuditDetail, setShowAuditDetail] = useState(false);
   const [passwordDrafts, setPasswordDrafts] = useState({});
   const [newUser, setNewUser] = useState({
     username: '',
@@ -105,6 +143,20 @@ export default function ITAdminPanel({ tasks = [], users = [], refreshUsers, ini
   const pendingTicketApprovals = useMemo(() => tasks.reduce((sum, task) => (
     sum + (task.ticketRecords || []).filter((record) => record.approvalStatus === 'pending_approval').length
   ), 0), [tasks]);
+  const selectedAuditRange = useMemo(() => getAuditRange(auditInterval), [auditInterval]);
+  const filteredAuditLog = useMemo(() => (
+    auditLog.filter((entry) => {
+      const time = new Date(entry.createdAt || 0).getTime();
+      return !Number.isNaN(time)
+        && time >= selectedAuditRange.start.getTime()
+        && time <= selectedAuditRange.end.getTime();
+    })
+  ), [auditLog, selectedAuditRange]);
+
+  const handleAuditIntervalChange = (event) => {
+    setAuditInterval(event.target.value);
+    setShowAuditDetail(false);
+  };
 
   const updateUser = async (user, updates) => {
     try {
@@ -145,7 +197,7 @@ export default function ITAdminPanel({ tasks = [], users = [], refreshUsers, ini
   const adminMenu = [
     { id: 'overview', label: 'Executive Overview', icon: FiGrid },
     { id: 'users', label: 'User Management', icon: FiUsers },
-    { id: 'audit', label: 'Audit Log', icon: FiActivity },
+    { id: 'audit', label: 'Audit Log', icon: FiClipboard },
   ];
 
   return (
@@ -174,7 +226,7 @@ export default function ITAdminPanel({ tasks = [], users = [], refreshUsers, ini
                 {adminMenu.map((item) => (
                   <Button
                     key={item.id}
-                    leftIcon={<Icon as={item.icon} />}
+                    leftIcon={item.icon ? <Icon as={item.icon} /> : undefined}
                     justifyContent="flex-start"
                     variant="ghost"
                     borderRadius="lg"
@@ -243,54 +295,103 @@ export default function ITAdminPanel({ tasks = [], users = [], refreshUsers, ini
               ) : activePanel === 'audit' ? (
                 <VStack align="stretch" spacing={5}>
                   <Box>
-                    <HStack spacing={3} mb={1}>
-                      <Icon as={FiActivity} color="blue.500" />
-                      <Heading size="md">Task Audit Log</Heading>
+                    <HStack spacing={3} mb={1} justify="space-between" align={{ base: 'stretch', md: 'center' }} flexWrap="wrap">
+                      <HStack spacing={3}>
+                        <Box
+                          w="38px"
+                          h="38px"
+                          borderRadius="12px"
+                          bg="blue.50"
+                          color="blue.500"
+                          display="grid"
+                          placeItems="center"
+                          border="1px solid"
+                          borderColor="blue.100"
+                        >
+                          <Icon as={FiClipboard} boxSize={5} />
+                        </Box>
+                        <Heading size="md">Task Audit Log</Heading>
+                      </HStack>
+                      <HStack spacing={3}>
+                        <Select maxW="180px" value={auditInterval} onChange={handleAuditIntervalChange}>
+                          {auditIntervals.map((option) => (
+                            <option key={option.value} value={option.value}>{option.label}</option>
+                          ))}
+                        </Select>
+                        <Button
+                          colorScheme="blue"
+                          variant={auditInterval === 'daily' || showAuditDetail ? 'solid' : 'outline'}
+                          onClick={() => setShowAuditDetail((value) => !value)}
+                          isDisabled={auditInterval === 'daily'}
+                        >
+                          {auditInterval === 'daily' ? 'Daily View' : showAuditDetail ? 'Hide Detail' : 'View Detail'}
+                        </Button>
+                      </HStack>
                     </HStack>
                     <Text color={mutedColor}>
-                      Tracks task creation, updates, comments, workflow changes, reassignment, reminders, and approvals.
+                      Showing {auditIntervals.find((item) => item.value === auditInterval)?.label.toLowerCase()} audit activity from {selectedAuditRange.start.toLocaleDateString()} to {selectedAuditRange.end.toLocaleDateString()}.
                     </Text>
                   </Box>
-                  <Card bg={cardBg} borderColor={borderColor} borderWidth="1px" borderRadius="xl">
-                    <CardBody>
-                      <TableContainer>
-                        <Table size="sm">
-                          <Thead>
-                            <Tr>
-                              <Th>Time</Th>
-                              <Th>Task</Th>
-                              <Th>Action</Th>
-                              <Th>Actor</Th>
-                              <Th>Note</Th>
-                            </Tr>
-                          </Thead>
-                          <Tbody>
-                            {auditLog.length === 0 ? (
+                  {auditInterval === 'daily' || showAuditDetail ? (
+                    <Card bg={cardBg} borderColor={borderColor} borderWidth="1px" borderRadius="xl">
+                      <CardBody>
+                        <HStack justify="space-between" mb={4}>
+                          <Heading size="sm">{auditIntervals.find((item) => item.value === auditInterval)?.label} Audit Detail</Heading>
+                          <Badge colorScheme="blue">{filteredAuditLog.length} entries</Badge>
+                        </HStack>
+                        <TableContainer>
+                          <Table size="sm">
+                            <Thead>
                               <Tr>
-                                <Td colSpan={5} textAlign="center" py={8} color={mutedColor}>
-                                  No audit entries yet.
-                                </Td>
+                                <Th>Time</Th>
+                                <Th>Task</Th>
+                                <Th>Action</Th>
+                                <Th>Actor</Th>
+                                <Th>Note</Th>
                               </Tr>
-                            ) : auditLog.slice(0, 100).map((entry) => (
-                              <Tr key={entry._id || `${entry.taskId}-${entry.createdAt}-${entry.action}`}>
-                                <Td>{entry.createdAt ? new Date(entry.createdAt).toLocaleString() : 'N/A'}</Td>
-                                <Td>
-                                  <Text fontWeight="semibold">{entry.taskName}</Text>
-                                  <Text fontSize="xs" color="gray.500">{entry.projectType}</Text>
-                                </Td>
-                                <Td>{String(entry.action || '').replaceAll('_', ' ')}</Td>
-                                <Td>
-                                  <Text>{entry.actorName || 'System'}</Text>
-                                  <Text fontSize="xs" color="gray.500">{entry.actorRole}</Text>
-                                </Td>
-                                <Td>{entry.note || '-'}</Td>
-                              </Tr>
-                            ))}
-                          </Tbody>
-                        </Table>
-                      </TableContainer>
-                    </CardBody>
-                  </Card>
+                            </Thead>
+                            <Tbody>
+                              {filteredAuditLog.length === 0 ? (
+                                <Tr>
+                                  <Td colSpan={5} textAlign="center" py={8} color={mutedColor}>
+                                    No audit entries in this {auditInterval} view.
+                                  </Td>
+                                </Tr>
+                              ) : filteredAuditLog.slice(0, 100).map((entry) => (
+                                <Tr key={entry._id || `${entry.taskId}-${entry.createdAt}-${entry.action}`}>
+                                  <Td>{entry.createdAt ? new Date(entry.createdAt).toLocaleString() : 'N/A'}</Td>
+                                  <Td>
+                                    <Text fontWeight="semibold">{entry.taskName}</Text>
+                                    <Text fontSize="xs" color="gray.500">{entry.projectType}</Text>
+                                  </Td>
+                                  <Td>{String(entry.action || '').replaceAll('_', ' ')}</Td>
+                                  <Td>
+                                    <Text>{entry.actorName || 'System'}</Text>
+                                    <Text fontSize="xs" color="gray.500">{entry.actorRole}</Text>
+                                  </Td>
+                                  <Td>{entry.note || '-'}</Td>
+                                </Tr>
+                              ))}
+                            </Tbody>
+                          </Table>
+                        </TableContainer>
+                      </CardBody>
+                    </Card>
+                  ) : (
+                    <Card bg={sidebarBg} borderColor={borderColor} borderWidth="1px" borderRadius="xl">
+                      <CardBody>
+                        <Flex justify="space-between" align={{ base: 'stretch', md: 'center' }} direction={{ base: 'column', md: 'row' }} gap={3}>
+                          <Box>
+                            <Heading size="sm">{auditIntervals.find((item) => item.value === auditInterval)?.label} audit detail hidden</Heading>
+                            <Text color={mutedColor} fontSize="sm">
+                              Select View Detail to display the {auditInterval} audit entries.
+                            </Text>
+                          </Box>
+                          <Button colorScheme="blue" onClick={() => setShowAuditDetail(true)}>View Detail</Button>
+                        </Flex>
+                      </CardBody>
+                    </Card>
+                  )}
                 </VStack>
               ) : (
                 <VStack align="stretch" spacing={6}>

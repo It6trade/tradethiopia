@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import { Fragment, useMemo, useState } from 'react';
 import {
   Badge,
   Box,
@@ -8,7 +8,6 @@ import {
   Flex,
   Heading,
   HStack,
-  Progress,
   Select,
   SimpleGrid,
   Stat,
@@ -40,6 +39,8 @@ const intervalOptions = [
   { value: 'monthly', label: 'Monthly' },
   { value: 'yearly', label: 'Yearly' },
 ];
+
+const defaultStaffPool = ['Selam Desta', 'Amanuel Bekele', 'Martha Tadesse', 'Lemlem Gashaw', 'Kebede Dagnachew'];
 
 const formatPct = (value) => `${Math.round(value || 0)}%`;
 
@@ -79,6 +80,8 @@ const getIntervalRange = (type) => {
 
 const taskActivityDate = (task) => task.completionDate || task.updatedAt || task.createdAt || task.startDate || task.date;
 
+const isTaskCompleted = (task) => task.status === 'done' || getWorkflowMeta(task.workflowStatus, task.status).value === 'completed';
+
 const calculateMetrics = (tasks, interval) => {
   const { start, end } = getIntervalRange(interval);
   const now = Date.now();
@@ -87,7 +90,7 @@ const calculateMetrics = (tasks, interval) => {
     || inRange(task.startDate, start, end)
     || inRange(task.endDate, start, end)
   ));
-  const completed = intervalTasks.filter((task) => task.status === 'done' || getWorkflowMeta(task.workflowStatus, task.status).value === 'completed');
+  const completed = intervalTasks.filter(isTaskCompleted);
   const approved = intervalTasks.filter((task) => task.approvalStatus === 'approved' || task.workflowStatus === 'approved');
   const submitted = intervalTasks.filter((task) => task.workflowStatus === 'submitted' || task.approvalStatus === 'pending_approval');
   const rejected = intervalTasks.filter((task) => task.workflowStatus === 'rejected' || task.approvalStatus === 'rejected');
@@ -152,7 +155,8 @@ const buildMemberRows = (tasks, members) => {
     const related = (tasks || []).filter((task) => (
       task.taskLeader === name || (task.assignedTo || []).includes(name)
     ));
-    const completed = related.filter((task) => task.status === 'done' || task.workflowStatus === 'completed');
+    const completed = related.filter(isTaskCompleted);
+    const unaccomplished = related.filter((task) => !isTaskCompleted(task));
     const points = completed.reduce((sum, task) => sum + (Number(task.featureCount) || 1), 0);
     const overdue = related.filter((task) => task.endDate && new Date(task.endDate).getTime() < Date.now() && task.status !== 'done');
     const submitted = related.filter((task) => task.workflowStatus === 'submitted' || task.approvalStatus === 'pending_approval');
@@ -163,6 +167,8 @@ const buildMemberRows = (tasks, members) => {
       name,
       assigned: related.length,
       completed: completed.length,
+      accomplishedTasks: completed,
+      unaccomplishedTasks: unaccomplished,
       submitted: submitted.length,
       overdue: overdue.length,
       points,
@@ -173,7 +179,8 @@ const buildMemberRows = (tasks, members) => {
 };
 
 const summarizeTaskGroup = (items) => {
-  const completed = items.filter((task) => task.status === 'done' || task.workflowStatus === 'completed');
+  const completed = items.filter(isTaskCompleted);
+  const unaccomplished = items.filter((task) => !isTaskCompleted(task));
   const overdue = items.filter((task) => task.endDate && new Date(task.endDate).getTime() < Date.now() && task.status !== 'done');
   const points = completed.reduce((sum, task) => sum + (Number(task.featureCount) || 1), 0);
   const score = items.length ? (completed.length / items.length) * 100 : 0;
@@ -184,8 +191,69 @@ const summarizeTaskGroup = (items) => {
     overdue: overdue.length,
     points,
     score,
+    accomplishedTasks: completed,
+    unaccomplishedTasks: unaccomplished,
   };
 };
+
+const TaskBreakdownPanel = ({ accomplishedTasks = [], unaccomplishedTasks = [], muted, subtleBg, onViewTask }) => (
+  <SimpleGrid columns={{ base: 1, md: 2 }} spacing={3} py={3}>
+    <Box bg={subtleBg} borderRadius="12px" p={3}>
+      <HStack justify="space-between" mb={2}>
+        <Text fontWeight="800">Accomplished Tasks</Text>
+        <Badge colorScheme="green">{accomplishedTasks.length}</Badge>
+      </HStack>
+      <VStack align="stretch" spacing={2}>
+        {accomplishedTasks.length === 0 ? (
+          <Text fontSize="sm" color={muted}>No accomplished tasks in this score.</Text>
+        ) : accomplishedTasks.map((task) => (
+          <Button
+            key={task._id || task.id || getTaskTitle(task)}
+            size="sm"
+            variant="ghost"
+            justifyContent="flex-start"
+            colorScheme="green"
+            whiteSpace="normal"
+            h="auto"
+            py={2}
+            onClick={() => onViewTask(task)}
+          >
+            {getTaskTitle(task)}
+          </Button>
+        ))}
+      </VStack>
+    </Box>
+    <Box bg={subtleBg} borderRadius="12px" p={3}>
+      <HStack justify="space-between" mb={2}>
+        <Text fontWeight="800">Unaccomplished Tasks</Text>
+        <Badge colorScheme="orange">{unaccomplishedTasks.length}</Badge>
+      </HStack>
+      <VStack align="stretch" spacing={2}>
+        {unaccomplishedTasks.length === 0 ? (
+          <Text fontSize="sm" color={muted}>No unaccomplished tasks in this score.</Text>
+        ) : unaccomplishedTasks.map((task) => {
+          const workflow = getWorkflowMeta(task.workflowStatus, task.status);
+          return (
+            <Button
+              key={task._id || task.id || getTaskTitle(task)}
+              size="sm"
+              variant="ghost"
+              justifyContent="space-between"
+              colorScheme="orange"
+              whiteSpace="normal"
+              h="auto"
+              py={2}
+              onClick={() => onViewTask(task)}
+            >
+              <Text textAlign="left">{getTaskTitle(task)}</Text>
+              <Badge colorScheme={workflow.color} ml={2}>{workflow.label}</Badge>
+            </Button>
+          );
+        })}
+      </VStack>
+    </Box>
+  </SimpleGrid>
+);
 
 const buildGroupedKpiRows = (tasks, interval) => {
   if (interval === 'daily') return [];
@@ -217,13 +285,14 @@ const buildGroupedKpiRows = (tasks, interval) => {
 };
 
 export default function KPITab({ users, usersLoading, tasks = [], fetchTasks }) {
-  const [selectedInterval, setSelectedInterval] = useState('weekly');
+  const [selectedInterval, setSelectedInterval] = useState('daily');
+  const [showIntervalDetail, setShowIntervalDetail] = useState(false);
   const [viewingTask, setViewingTask] = useState(null);
+  const [expandedScoreKey, setExpandedScoreKey] = useState('');
   const cardBg = useColorModeValue('white', 'gray.800');
   const borderColor = useColorModeValue('gray.200', 'gray.700');
   const muted = useColorModeValue('gray.600', 'gray.400');
   const subtleBg = useColorModeValue('gray.50', 'whiteAlpha.100');
-  const defaultStaffPool = ['Selam Desta', 'Amanuel Bekele', 'Martha Tadesse', 'Lemlem Gashaw', 'Kebede Dagnachew'];
 
   const itUsers = useMemo(
     () => (users || []).filter((user) => {
@@ -256,6 +325,14 @@ export default function KPITab({ users, usersLoading, tasks = [], fetchTasks }) 
   const dailyDetailRows = [...selectedMetrics.tasks]
     .sort((a, b) => new Date(a.endDate || a.updatedAt || 0) - new Date(b.endDate || b.updatedAt || 0));
   const groupedDetailRows = buildGroupedKpiRows(selectedMetrics.tasks, selectedInterval);
+  const shouldShowKpiDetail = selectedInterval === 'daily' || showIntervalDetail;
+
+  const handleIntervalChange = (event) => {
+    const nextInterval = event.target.value;
+    setSelectedInterval(nextInterval);
+    setShowIntervalDetail(false);
+    setExpandedScoreKey('');
+  };
 
   const metricCards = [
     { label: 'Task Volume', value: selectedMetrics.total, help: `${selectedMetrics.active} active, ${selectedMetrics.pending} pending`, color: 'blue' },
@@ -270,48 +347,33 @@ export default function KPITab({ users, usersLoading, tasks = [], fetchTasks }) 
     <VStack spacing={6} align="stretch">
       <ITCollapsibleSection
         title="Advanced KPI Intelligence"
-        subtitle="Automatic IT performance tracking across daily, weekly, monthly, and yearly intervals."
+        subtitle="Daily KPI view is shown by default. Select weekly, monthly, or yearly and open details when needed."
         defaultOpen
       >
         <VStack spacing={5} align="stretch">
-          <SimpleGrid columns={{ base: 1, md: 2, xl: 4 }} spacing={4}>
-            {intervalMetrics.map((metric) => (
-              <Card
-                key={metric.interval}
-                bg={cardBg}
-                borderColor={selectedInterval === metric.interval ? 'blue.400' : borderColor}
-                borderWidth="1px"
-                borderRadius="14px"
-                cursor="pointer"
-                onClick={() => setSelectedInterval(metric.interval)}
-              >
-                <CardBody>
-                  <HStack justify="space-between" mb={3}>
-                    <Badge colorScheme={selectedInterval === metric.interval ? 'blue' : 'gray'}>
-                      {intervalOptions.find((item) => item.value === metric.interval)?.label}
-                    </Badge>
-                    <Text fontSize="xs" color={muted}>
-                      {metric.start.toLocaleDateString()} - {metric.end.toLocaleDateString()}
-                    </Text>
-                  </HStack>
-                  <Heading size="lg">{formatPct(metric.qualityScore)}</Heading>
-                  <Text color={muted} fontSize="sm">Overall KPI score</Text>
-                  <Progress mt={3} value={metric.qualityScore} colorScheme={metric.qualityScore >= 80 ? 'green' : metric.qualityScore >= 60 ? 'orange' : 'red'} borderRadius="full" />
-                </CardBody>
-              </Card>
-            ))}
-          </SimpleGrid>
-
           <Flex justify="space-between" align={{ base: 'stretch', md: 'center' }} direction={{ base: 'column', md: 'row' }} gap={3}>
             <Box>
               <Heading size="md">Selected KPI Window</Heading>
-              <Text color={muted}>Review operational score, delivery quality, approvals, and staff performance.</Text>
+              <Text color={muted}>
+                {intervalOptions.find((item) => item.value === selectedInterval)?.label} performance from {selectedMetrics.start.toLocaleDateString()} to {selectedMetrics.end.toLocaleDateString()}.
+              </Text>
             </Box>
-            <Select maxW={{ base: '100%', md: '220px' }} value={selectedInterval} onChange={(event) => setSelectedInterval(event.target.value)}>
-              {intervalOptions.map((option) => (
-                <option key={option.value} value={option.value}>{option.label}</option>
-              ))}
-            </Select>
+            <HStack alignSelf={{ base: 'stretch', md: 'center' }} spacing={3}>
+              <Select maxW={{ base: '100%', md: '220px' }} value={selectedInterval} onChange={handleIntervalChange}>
+                {intervalOptions.map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
+              </Select>
+              <Button
+                colorScheme="blue"
+                variant={showIntervalDetail || selectedInterval === 'daily' ? 'solid' : 'outline'}
+                onClick={() => setShowIntervalDetail((value) => !value)}
+                isDisabled={selectedInterval === 'daily'}
+                minW="120px"
+              >
+                {selectedInterval === 'daily' ? 'Daily Detail' : showIntervalDetail ? 'Hide Detail' : 'View Detail'}
+              </Button>
+            </HStack>
           </Flex>
 
           <SimpleGrid columns={{ base: 1, md: 2, xl: 3 }} spacing={4}>
@@ -328,107 +390,156 @@ export default function KPITab({ users, usersLoading, tasks = [], fetchTasks }) 
             ))}
           </SimpleGrid>
 
-          <Card bg={cardBg} borderColor={borderColor} borderWidth="1px" borderRadius="14px">
-            <CardBody>
-              <Flex justify="space-between" align={{ base: 'stretch', md: 'center' }} direction={{ base: 'column', md: 'row' }} gap={3} mb={4}>
-                <Box>
-                  <Heading size="sm">
-                    {intervalOptions.find((item) => item.value === selectedInterval)?.label} KPI Detail
-                  </Heading>
-                  <Text color={muted} fontSize="sm">
-                    {selectedInterval === 'daily'
-                      ? 'Detailed daily KPI tasks for the selected day.'
-                      : `Grouped ${selectedInterval} KPI performance with task totals, completions, points, overdue work, and score.`}
-                  </Text>
-                </Box>
-                <HStack>
-                  <Badge colorScheme="blue">{selectedMetrics.total} tasks</Badge>
-                  <Badge colorScheme="green">{selectedMetrics.completed} completed</Badge>
-                  <Badge colorScheme="orange">{selectedMetrics.points} points</Badge>
-                </HStack>
-              </Flex>
-              {selectedInterval === 'daily' ? (
-                <TableContainer>
-                  <Table size="sm">
-                    <Thead>
-                      <Tr>
-                        <Th>Task</Th>
-                        <Th>Owner</Th>
-                        <Th>Workflow</Th>
-                        <Th>Due</Th>
-                        <Th isNumeric>Points</Th>
-                      </Tr>
-                    </Thead>
-                    <Tbody>
-                      {dailyDetailRows.length === 0 ? (
+          {shouldShowKpiDetail ? (
+            <Card bg={cardBg} borderColor={borderColor} borderWidth="1px" borderRadius="14px">
+              <CardBody>
+                <Flex justify="space-between" align={{ base: 'stretch', md: 'center' }} direction={{ base: 'column', md: 'row' }} gap={3} mb={4}>
+                  <Box>
+                    <Heading size="sm">
+                      {intervalOptions.find((item) => item.value === selectedInterval)?.label} KPI Detail
+                    </Heading>
+                    <Text color={muted} fontSize="sm">
+                      {selectedInterval === 'daily'
+                        ? 'Detailed daily KPI tasks for the selected day.'
+                        : `Grouped ${selectedInterval} KPI performance with task totals, completions, points, overdue work, and score.`}
+                    </Text>
+                  </Box>
+                  <HStack>
+                    <Badge colorScheme="blue">{selectedMetrics.total} tasks</Badge>
+                    <Badge colorScheme="green">{selectedMetrics.completed} completed</Badge>
+                    <Badge colorScheme="orange">{selectedMetrics.points} points</Badge>
+                  </HStack>
+                </Flex>
+                {selectedInterval === 'daily' ? (
+                  <TableContainer>
+                    <Table size="sm">
+                      <Thead>
                         <Tr>
-                          <Td colSpan={5} textAlign="center" color={muted} py={8}>
-                            No daily KPI task activity found.
-                          </Td>
+                          <Th>Task</Th>
+                          <Th>Owner</Th>
+                          <Th>Workflow</Th>
+                          <Th>Due</Th>
+                          <Th isNumeric>Points</Th>
                         </Tr>
-                      ) : dailyDetailRows.map((task) => {
-                        const workflow = getWorkflowMeta(task.workflowStatus, task.status);
-                        return (
-                          <Tr key={task._id || task.id || getTaskTitle(task)} _hover={{ bg: subtleBg }}>
-                            <Td>
-                              <Button variant="link" colorScheme="blue" fontWeight="800" onClick={() => setViewingTask(task)}>
-                                {getTaskTitle(task)}
-                              </Button>
-                              <Text fontSize="xs" color={muted}>{task.projectType || 'IT'} | {task.platform || task.category || 'No category'}</Text>
+                      </Thead>
+                      <Tbody>
+                        {dailyDetailRows.length === 0 ? (
+                          <Tr>
+                            <Td colSpan={5} textAlign="center" color={muted} py={8}>
+                              No daily KPI task activity found.
                             </Td>
-                            <Td>
-                              <Text fontSize="sm">{task.taskLeader || 'No leader'}</Text>
-                              <Text fontSize="xs" color={muted}>{(task.assignedTo || []).join(', ') || 'Unassigned'}</Text>
-                            </Td>
-                            <Td><Badge colorScheme={workflow.color}>{workflow.label}</Badge></Td>
-                            <Td>{task.endDate ? new Date(task.endDate).toLocaleDateString() : 'N/A'}</Td>
-                            <Td isNumeric>{task.status === 'done' || task.workflowStatus === 'completed' ? Number(task.featureCount) || 1 : 0}</Td>
                           </Tr>
-                        );
-                      })}
-                    </Tbody>
-                  </Table>
-                </TableContainer>
-              ) : (
-                <TableContainer>
-                  <Table size="sm">
-                    <Thead>
-                      <Tr>
-                        <Th>{selectedInterval === 'monthly' ? 'Week' : selectedInterval === 'yearly' ? 'Month' : 'Day'}</Th>
-                        <Th isNumeric>Tasks</Th>
-                        <Th isNumeric>Completed</Th>
-                        <Th isNumeric>Overdue</Th>
-                        <Th isNumeric>Points</Th>
-                        <Th isNumeric>Score</Th>
-                      </Tr>
-                    </Thead>
-                    <Tbody>
-                      {groupedDetailRows.length === 0 ? (
+                        ) : dailyDetailRows.map((task) => {
+                          const workflow = getWorkflowMeta(task.workflowStatus, task.status);
+                          return (
+                            <Tr key={task._id || task.id || getTaskTitle(task)} _hover={{ bg: subtleBg }}>
+                              <Td>
+                                <Button variant="link" colorScheme="blue" fontWeight="800" onClick={() => setViewingTask(task)}>
+                                  {getTaskTitle(task)}
+                                </Button>
+                                <Text fontSize="xs" color={muted}>{task.projectType || 'IT'} | {task.platform || task.category || 'No category'}</Text>
+                              </Td>
+                              <Td>
+                                <Text fontSize="sm">{task.taskLeader || 'No leader'}</Text>
+                                <Text fontSize="xs" color={muted}>{(task.assignedTo || []).join(', ') || 'Unassigned'}</Text>
+                              </Td>
+                              <Td><Badge colorScheme={workflow.color}>{workflow.label}</Badge></Td>
+                              <Td>{task.endDate ? new Date(task.endDate).toLocaleDateString() : 'N/A'}</Td>
+                              <Td isNumeric>{task.status === 'done' || task.workflowStatus === 'completed' ? Number(task.featureCount) || 1 : 0}</Td>
+                            </Tr>
+                          );
+                        })}
+                      </Tbody>
+                    </Table>
+                  </TableContainer>
+                ) : (
+                  <TableContainer>
+                    <Table size="sm">
+                      <Thead>
                         <Tr>
-                          <Td colSpan={6} textAlign="center" color={muted} py={8}>
-                            No grouped KPI performance found.
-                          </Td>
+                          <Th>{selectedInterval === 'monthly' ? 'Week' : selectedInterval === 'yearly' ? 'Month' : 'Day'}</Th>
+                          <Th isNumeric>Tasks</Th>
+                          <Th isNumeric>Completed</Th>
+                          <Th isNumeric>Overdue</Th>
+                          <Th isNumeric>Points</Th>
+                          <Th isNumeric>Score</Th>
                         </Tr>
-                      ) : groupedDetailRows.map((row) => (
-                        <Tr key={row.label} _hover={{ bg: subtleBg }}>
-                          <Td fontWeight="800">{row.label}</Td>
-                          <Td isNumeric>{row.tasks}</Td>
-                          <Td isNumeric>{row.completed}</Td>
-                          <Td isNumeric>{row.overdue}</Td>
-                          <Td isNumeric>{row.points}</Td>
-                          <Td isNumeric>
-                            <Badge colorScheme={row.score >= 80 ? 'green' : row.score >= 60 ? 'orange' : 'red'}>
-                              {formatPct(row.score)}
-                            </Badge>
-                          </Td>
-                        </Tr>
-                      ))}
-                    </Tbody>
-                  </Table>
-                </TableContainer>
-              )}
-            </CardBody>
-          </Card>
+                      </Thead>
+                      <Tbody>
+                        {groupedDetailRows.length === 0 ? (
+                          <Tr>
+                            <Td colSpan={6} textAlign="center" color={muted} py={8}>
+                              No grouped KPI performance found.
+                            </Td>
+                          </Tr>
+                        ) : groupedDetailRows.map((row) => {
+                          const scoreKey = `group-${selectedInterval}-${row.label}`;
+                          const isExpanded = expandedScoreKey === scoreKey;
+                          return (
+                            <Fragment key={scoreKey}>
+                              <Tr _hover={{ bg: subtleBg }}>
+                                <Td fontWeight="800">{row.label}</Td>
+                                <Td isNumeric>{row.tasks}</Td>
+                                <Td isNumeric>{row.completed}</Td>
+                                <Td isNumeric>{row.overdue}</Td>
+                                <Td isNumeric>{row.points}</Td>
+                                <Td isNumeric>
+                                  <HStack justify="flex-end" spacing={2}>
+                                    <Badge colorScheme={row.score >= 80 ? 'green' : row.score >= 60 ? 'orange' : 'red'}>
+                                      {formatPct(row.score)}
+                                    </Badge>
+                                    <Button
+                                      size="xs"
+                                      variant={isExpanded ? 'solid' : 'outline'}
+                                      colorScheme="blue"
+                                      onClick={() => setExpandedScoreKey(isExpanded ? '' : scoreKey)}
+                                    >
+                                      {isExpanded ? 'Hide Tasks' : 'View Tasks'}
+                                    </Button>
+                                  </HStack>
+                                </Td>
+                              </Tr>
+                              {isExpanded && (
+                                <Tr>
+                                  <Td colSpan={6} bg={subtleBg}>
+                                    <TaskBreakdownPanel
+                                      accomplishedTasks={row.accomplishedTasks}
+                                      unaccomplishedTasks={row.unaccomplishedTasks}
+                                      muted={muted}
+                                      subtleBg={cardBg}
+                                      onViewTask={setViewingTask}
+                                    />
+                                  </Td>
+                                </Tr>
+                              )}
+                            </Fragment>
+                          );
+                        })}
+                      </Tbody>
+                    </Table>
+                  </TableContainer>
+                )}
+              </CardBody>
+            </Card>
+          ) : (
+            <Card bg={subtleBg} borderColor={borderColor} borderWidth="1px" borderRadius="14px">
+              <CardBody>
+                <Flex justify="space-between" align={{ base: 'stretch', md: 'center' }} direction={{ base: 'column', md: 'row' }} gap={3}>
+                  <Box>
+                    <Heading size="sm">
+                      {intervalOptions.find((item) => item.value === selectedInterval)?.label} detail hidden
+                    </Heading>
+                    <Text color={muted} fontSize="sm">
+                      Select View Detail to show the grouped {selectedInterval} KPI breakdown.
+                    </Text>
+                  </Box>
+                  <Button colorScheme="blue" onClick={() => setShowIntervalDetail(true)}>
+                    View Detail
+                  </Button>
+                </Flex>
+              </CardBody>
+            </Card>
+          )}
 
           <SimpleGrid columns={{ base: 1, xl: 2 }} spacing={5}>
             <Card bg={cardBg} borderColor={borderColor} borderWidth="1px" borderRadius="14px">
@@ -448,22 +559,51 @@ export default function KPITab({ users, usersLoading, tasks = [], fetchTasks }) 
                     <Tbody>
                       {memberRows.length === 0 ? (
                         <Tr><Td colSpan={5} textAlign="center" color={muted}>No KPI activity in this window.</Td></Tr>
-                      ) : memberRows.map((row) => (
-                        <Tr key={row.name}>
-                          <Td>
-                            <Text fontWeight="700">{row.name}</Text>
-                            <Text fontSize="xs" color={muted}>{row.submitted} submitted, {row.overdue} overdue</Text>
-                          </Td>
-                          <Td isNumeric>{row.assigned}</Td>
-                          <Td isNumeric>{row.completed}</Td>
-                          <Td isNumeric>{row.points}</Td>
-                          <Td isNumeric>
-                            <Badge colorScheme={row.score >= 80 ? 'green' : row.score >= 60 ? 'orange' : 'red'}>
-                              {formatPct(row.score)}
-                            </Badge>
-                          </Td>
-                        </Tr>
-                      ))}
+                      ) : memberRows.map((row) => {
+                        const scoreKey = `member-${row.name}`;
+                        const isExpanded = expandedScoreKey === scoreKey;
+                        return (
+                          <Fragment key={scoreKey}>
+                            <Tr>
+                              <Td>
+                                <Text fontWeight="700">{row.name}</Text>
+                                <Text fontSize="xs" color={muted}>{row.submitted} submitted, {row.overdue} overdue</Text>
+                              </Td>
+                              <Td isNumeric>{row.assigned}</Td>
+                              <Td isNumeric>{row.completed}</Td>
+                              <Td isNumeric>{row.points}</Td>
+                              <Td isNumeric>
+                                <HStack justify="flex-end" spacing={2}>
+                                  <Badge colorScheme={row.score >= 80 ? 'green' : row.score >= 60 ? 'orange' : 'red'}>
+                                    {formatPct(row.score)}
+                                  </Badge>
+                                  <Button
+                                    size="xs"
+                                    variant={isExpanded ? 'solid' : 'outline'}
+                                    colorScheme="blue"
+                                    onClick={() => setExpandedScoreKey(isExpanded ? '' : scoreKey)}
+                                  >
+                                    {isExpanded ? 'Hide Tasks' : 'View Tasks'}
+                                  </Button>
+                                </HStack>
+                              </Td>
+                            </Tr>
+                            {isExpanded && (
+                              <Tr>
+                                <Td colSpan={5} bg={subtleBg}>
+                                  <TaskBreakdownPanel
+                                    accomplishedTasks={row.accomplishedTasks}
+                                    unaccomplishedTasks={row.unaccomplishedTasks}
+                                    muted={muted}
+                                    subtleBg={cardBg}
+                                    onViewTask={setViewingTask}
+                                  />
+                                </Td>
+                              </Tr>
+                            )}
+                          </Fragment>
+                        );
+                      })}
                     </Tbody>
                   </Table>
                 </TableContainer>
