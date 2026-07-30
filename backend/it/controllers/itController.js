@@ -230,13 +230,16 @@ const notifyTaskParticipants = async (task, req, options = {}) => {
       text: options.text || `${title}: ${taskTitle}.`,
       type: options.type || 'task',
       itTaskId: task._id,
-      link,
+      link: isCSExternalProjectRequest(task) && isCustomerSuccessRole(user.role)
+        ? `/Cdashboard?section=it-requests&task=${task._id}${options.commentId ? `&comment=${options.commentId}` : ''}`
+        : link,
       metadata: {
         title,
         taskTitle,
         taskLocation: getTaskLocation(task),
         actionLabel,
         actorName: getUserDisplayName(req.user),
+        recipientArea: isCSExternalProjectRequest(task) && isCustomerSuccessRole(user.role) ? 'customer_service' : 'it',
         ...(options.metadata || {}),
       },
     }));
@@ -856,6 +859,21 @@ const updateTask = async (req, res) => {
         },
       },
     });
+    if (
+      (previousSnapshot.status !== 'done' && updated.status === 'done')
+      || (previousSnapshot.workflowStatus !== 'completed' && updated.workflowStatus === 'completed')
+    ) {
+      await notifyManagersOfStaffCompletion(updated, req, {
+        title: 'Staff completed task',
+        text: `${getUserDisplayName(req.user)} marked task complete: ${getTaskTitle(updated)}.`,
+        actionLabel: 'Review completed task',
+        metadata: {
+          completionSource: 'progress_update',
+          previousStatus: previousSnapshot.status,
+          previousWorkflow: previousSnapshot.workflowStatus,
+        },
+      });
+    }
     if (shouldAcceptExternalRequestFromEdit) {
       const assignedUsers = await getAssignedItParticipants(updated);
       await notifyUsersForTask(assignedUsers, updated, req, {
@@ -1005,6 +1023,32 @@ const notifyUsersForTask = async (users = [], task, req, options = {}) => {
   }
 };
 
+const notifyManagersOfStaffCompletion = async (task, req, options = {}) => {
+  try {
+    const role = normalizeRole(req.user?.role);
+    if (!isItStaffRole(role)) return [];
+
+    const managers = await getActiveItManagers();
+    return notifyUsersForTask(managers, task, req, {
+      title: options.title || 'Staff completed task',
+      text: options.text || `${getUserDisplayName(req.user)} completed work on: ${getTaskTitle(task)}.`,
+      actionLabel: options.actionLabel || 'Review completed work',
+      link: options.link || `/it?tab=projects&task=${task._id}`,
+      type: options.type || 'task',
+      metadata: {
+        staffName: getUserDisplayName(req.user),
+        workflowStatus: task.workflowStatus,
+        status: task.status,
+        progressPercent: task.progressPercent,
+        ...(options.metadata || {}),
+      },
+    });
+  } catch (error) {
+    console.error('notifyManagersOfStaffCompletion error', error);
+    return [];
+  }
+};
+
 const getActiveItManagers = async () => {
   const users = await User.find({ status: 'active' }).select('username fullName email role department status');
   return users.filter((user) => isItManagerRole(user.role));
@@ -1092,6 +1136,18 @@ const addTicketRecord = async (req, res) => {
       text: `Ticket work recorded for ${getTaskTitle(task)} by ${getUserDisplayName(req.user)}.`,
       actionLabel: 'Review ticket work',
       metadata: {
+        recordId: record._id,
+        workType: record.workType,
+        approvalStatus: record.approvalStatus,
+      },
+    });
+    await notifyManagersOfStaffCompletion(task, req, {
+      title: 'Staff completed ticket work',
+      text: `${getUserDisplayName(req.user)} recorded completed ticket work for: ${getTaskTitle(task)}.`,
+      actionLabel: 'Review ticket work',
+      link: `/it?tab=tickets&task=${task._id}`,
+      metadata: {
+        completionSource: 'ticket_work_record',
         recordId: record._id,
         workType: record.workType,
         approvalStatus: record.approvalStatus,
@@ -1521,6 +1577,19 @@ const submitSupportReport = async (req, res) => {
 
     await task.save();
 
+    await notifyManagersOfStaffCompletion(task, req, {
+      title: 'Support work report submitted',
+      text: `${getUserDisplayName(req.user)} submitted completed support work for: ${getTaskTitle(task)}.`,
+      actionLabel: 'Review support report',
+      link: `/it?tab=tickets&task=${task._id}`,
+      metadata: {
+        completionSource: 'support_report',
+        recordId: record._id,
+        outstandingTasks: record.outstandingTasks,
+        approvalStatus: record.approvalStatus,
+      },
+    });
+
     if (String(record.outstandingTasks || '').trim() && record.approvalStatus !== 'approved') {
       const managers = await getActiveItManagers();
       await notifyUsersForTask(managers, task, req, {
@@ -1820,6 +1889,18 @@ const updateWorkflow = async (req, res) => {
         previousStatus,
       },
     });
+    if (previousWorkflow !== 'completed' && workflowStatus === 'completed') {
+      await notifyManagersOfStaffCompletion(task, req, {
+        title: 'Staff completed task workflow',
+        text: `${getUserDisplayName(req.user)} moved task to completed: ${getTaskTitle(task)}.`,
+        actionLabel: 'Review completed task',
+        metadata: {
+          completionSource: 'workflow_update',
+          previousWorkflow,
+          previousStatus,
+        },
+      });
+    }
     res.json({ success: true, data: task });
   } catch (error) {
     console.error('updateWorkflow error', error);

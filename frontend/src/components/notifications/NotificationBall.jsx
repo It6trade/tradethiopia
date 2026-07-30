@@ -45,6 +45,26 @@ const buildNotificationLink = (item) => (
   (item.itTaskId ? `/it?tab=projects&task=${item.itTaskId}${item.commentId ? `&comment=${item.commentId}` : ''}` : '')
 );
 
+const appendNotificationContext = (link, item) => {
+  if (!link) return '';
+  try {
+    const url = new URL(link, window.location.origin);
+    const title = getNotificationTitle(item);
+    const detail = getNotificationDetail(item);
+    const preview = getCommentPreview(item);
+    url.searchParams.set('notification', item._id || item.id || '');
+    url.searchParams.set('noticeType', item.type || 'notification');
+    if (title) url.searchParams.set('noticeTitle', title);
+    if (item.text) url.searchParams.set('noticeText', item.text);
+    if (detail) url.searchParams.set('noticeDetail', detail);
+    if (preview) url.searchParams.set('noticePreview', preview);
+    if (item.createdAt) url.searchParams.set('noticeTime', item.createdAt);
+    return `${url.pathname}${url.search}${url.hash}`;
+  } catch (error) {
+    return link;
+  }
+};
+
 const getNotificationTitle = (item) => {
   if (['comment', 'task', 'reminder'].includes(item.type)) {
     return item.metadata?.title || (item.type === 'reminder' ? 'Task reminder' : item.type === 'task' ? 'IT task update' : 'New task comment');
@@ -170,7 +190,7 @@ export default function NotificationBall({ extraNotifications = [], iconColor = 
     await markOneRead(item);
     const link = buildNotificationLink(item);
     if (link) {
-      navigate(link);
+      navigate(appendNotificationContext(link, item));
     }
   };
 

@@ -1,11 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import Layout from './Layout';
 import axios from 'axios';
 import { 
   Box, 
   Flex, 
   Grid, 
-  GridItem, 
   Card, 
   CardBody, 
   Heading, 
@@ -14,7 +13,6 @@ import {
   StatLabel, 
   StatNumber,
   Icon, 
-  Spinner, 
   Alert, 
   AlertIcon, 
   AlertTitle, 
@@ -23,7 +21,6 @@ import {
   useBreakpointValue,
   SimpleGrid,
   Skeleton,
-  SkeletonText,
   SkeletonCircle,
   VStack
 } from '@chakra-ui/react';
@@ -47,7 +44,7 @@ import {
   Tooltip as ChartTooltip, 
   Legend
 } from 'chart.js';
-import { Link } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import CustomerMessagesPage from '../../pages/CustomerMessagesPage';
 import RequestPage from '../../pages/RequestPage';
 import CompletedSalesTable from '../../pages/sales/manager/components/CompletedSalesTable';
@@ -65,6 +62,7 @@ ChartJS.register(
 );
 
 const CDashboard = ({ initialTab = 'dashboard' }) => {
+  const location = useLocation();
   const [customerData, setCustomerData] = useState({
     total: 0,
     new: 0,
@@ -88,7 +86,6 @@ const CDashboard = ({ initialTab = 'dashboard' }) => {
 
   // Responsive breakpoints
   const isMobile = useBreakpointValue({ base: true, md: false });
-  const cardMinHeight = useBreakpointValue({ base: '120px', md: '140px' });
   const chartHeight = useBreakpointValue({ base: "200px", md: "250px" });
   
   // Color mode values
@@ -244,6 +241,28 @@ const CDashboard = ({ initialTab = 'dashboard' }) => {
   useEffect(() => {
     setActiveTab(initialTab);
   }, [initialTab]);
+
+  const urlFocus = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    return {
+      section: params.get('section') || '',
+      taskId: params.get('task') || '',
+      commentId: params.get('comment') || '',
+      notificationId: params.get('notification') || '',
+      noticeType: params.get('noticeType') || '',
+      noticeTitle: params.get('noticeTitle') || '',
+      noticeText: params.get('noticeText') || '',
+      noticeDetail: params.get('noticeDetail') || '',
+      noticePreview: params.get('noticePreview') || '',
+      noticeTime: params.get('noticeTime') || '',
+    };
+  }, [location.search]);
+
+  useEffect(() => {
+    if (urlFocus.section === 'it-requests') {
+      setActiveTab('it-requests');
+    }
+  }, [urlFocus.section, urlFocus.taskId, urlFocus.commentId]);
 
   // Package distribution data with validation (packages 1-8)
   const packageChartData = {
@@ -441,7 +460,11 @@ const CDashboard = ({ initialTab = 'dashboard' }) => {
         <CustomerMessagesPage embedded />
       ) : activeTab === 'it-requests' ? (
         <Box p={{ base: 4, md: 6 }} bg={bgColor} minHeight="100vh">
-          <CSExternalITRequestsPanel />
+          <CSExternalITRequestsPanel
+            focusedTaskId={urlFocus.taskId}
+            focusedCommentId={urlFocus.commentId}
+            focusedNotification={urlFocus}
+          />
         </Box>
       ) : activeTab === 'requests' ? (
         <Box p={{ base: 4, md: 6 }} bg={bgColor} minHeight="100vh">

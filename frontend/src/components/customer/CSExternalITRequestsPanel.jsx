@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Badge,
   Box,
@@ -87,6 +87,14 @@ const getStatusColor = (task = {}) => {
   return "orange";
 };
 
+const getTypeColor = (type = "") => {
+  if (type === "comment") return "blue";
+  if (type === "reminder") return "purple";
+  if (type === "task") return "orange";
+  if (type === "report") return "green";
+  return "gray";
+};
+
 const hasManagerAcceptedProject = (task = {}) => (
   Boolean(task.managerAcceptedAt)
   || Boolean(task.taskLeader)
@@ -120,10 +128,11 @@ const isFeedbackOpen = (task = {}) => (
   || (task.ticketRecords || []).some((record) => record.approvalStatus === "approved")
 );
 
-export default function CSExternalITRequestsPanel() {
+export default function CSExternalITRequestsPanel({ focusedTaskId = "", focusedCommentId = "", focusedNotification = {} }) {
   const toast = useToast();
   const currentUser = useUserStore((state) => state.currentUser);
   const fileInputRef = useRef(null);
+  const projectRefs = useRef({});
   const cardBg = useColorModeValue("white", "gray.800");
   const panelBg = useColorModeValue("gray.50", "whiteAlpha.100");
   const borderColor = useColorModeValue("gray.200", "whiteAlpha.200");
@@ -188,6 +197,19 @@ export default function CSExternalITRequestsPanel() {
   useEffect(() => {
     fetchExternalProjects();
   }, [fetchExternalProjects]);
+
+  useEffect(() => {
+    if (!focusedTaskId) return;
+    setProjectSearch("");
+    setStatusFilter("all");
+    setPriorityFilter("all");
+    setAssignmentFilter("all");
+    setQuickView("all");
+    setExpandedProjectIds((prev) => ({
+      ...prev,
+      [focusedTaskId]: true,
+    }));
+  }, [focusedTaskId, focusedCommentId]);
 
   const submitExternalProjectRequest = async () => {
     if (!form.taskName.trim() || !form.summary.trim()) {
@@ -357,6 +379,23 @@ export default function CSExternalITRequestsPanel() {
     });
   }, [assignmentFilter, priorityFilter, projectSearch, projects, quickView, statusFilter]);
 
+  const focusedProject = useMemo(() => (
+    focusedTaskId
+      ? projects.find((task) => String(task._id || task.id) === String(focusedTaskId))
+      : null
+  ), [focusedTaskId, projects]);
+
+  useEffect(() => {
+    if (!focusedTaskId || loadingProjects) return undefined;
+    const timer = window.setTimeout(() => {
+      projectRefs.current[focusedTaskId]?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+    }, 150);
+    return () => window.clearTimeout(timer);
+  }, [displayedProjects, focusedTaskId, loadingProjects]);
+
   const clearProjectFilters = () => {
     setProjectSearch("");
     setStatusFilter("all");
@@ -511,6 +550,64 @@ export default function CSExternalITRequestsPanel() {
               </Flex>
 
               <VStack align="stretch" spacing={3} mb={4}>
+                {focusedTaskId && (
+                  <Box
+                    bg={cardBg}
+                    border="1px solid"
+                    borderColor="blue.200"
+                    borderRadius="xl"
+                    p={4}
+                    boxShadow="0 16px 42px rgba(37, 99, 235, 0.12)"
+                  >
+                    <Flex justify="space-between" align={{ base: "stretch", md: "center" }} direction={{ base: "column", md: "row" }} gap={3}>
+                      <Box>
+                        <HStack mb={1} wrap="wrap">
+                          <Badge colorScheme="blue">Opened Notification</Badge>
+                          {focusedNotification.noticeType && (
+                            <Badge colorScheme={getTypeColor(focusedNotification.noticeType)} variant="subtle">
+                              {focusedNotification.noticeType}
+                            </Badge>
+                          )}
+                          {focusedNotification.noticeTime && (
+                            <Text fontSize="xs" color={muted}>
+                              {new Date(focusedNotification.noticeTime).toLocaleString()}
+                            </Text>
+                          )}
+                        </HStack>
+                        <Text fontWeight="900">
+                          {focusedNotification.noticeTitle || "Task update opened from notification"}
+                        </Text>
+                        {(focusedNotification.noticeText || focusedNotification.noticeDetail) && (
+                          <Text fontSize="sm" color={muted} mt={1}>
+                            {focusedNotification.noticeText || focusedNotification.noticeDetail}
+                          </Text>
+                        )}
+                        {focusedNotification.noticePreview && (
+                          <Text fontSize="sm" color={muted} mt={1}>
+                            &quot;{focusedNotification.noticePreview}&quot;
+                          </Text>
+                        )}
+                      </Box>
+                      {focusedProject ? (
+                        <Box minW={{ base: "100%", md: "260px" }}>
+                          <HStack justify="space-between" mb={1}>
+                            <Text fontSize="xs" color={muted}>Current progress</Text>
+                            <Text fontSize="xs" fontWeight="900">{getProgressValue(focusedProject)}%</Text>
+                          </HStack>
+                          <Box h="9px" bg="gray.200" borderRadius="full" overflow="hidden">
+                            <Box h="100%" w={`${getProgressValue(focusedProject)}%`} bg="blue.400" transition="width 0.3s ease" />
+                          </Box>
+                          <Text fontSize="xs" color={muted} mt={2}>
+                            Assigned: {(focusedProject.assignedTo || []).join(", ") || "Waiting manager assignment"}
+                          </Text>
+                        </Box>
+                      ) : (
+                        <Text fontSize="sm" color={muted}>Loading the related project details...</Text>
+                      )}
+                    </Flex>
+                  </Box>
+                )}
+
                 <SimpleGrid columns={{ base: 1, md: 2 }} spacing={3}>
                   <Input
                     value={projectSearch}
@@ -591,10 +688,23 @@ export default function CSExternalITRequestsPanel() {
                   const canGiveFeedback = canCurrentUserGiveFeedback(task, userAliases);
                   const feedbackOpen = isFeedbackOpen(task);
                   const isExpanded = Boolean(expandedProjectIds[taskId]);
+                  const isFocused = String(taskId) === String(focusedTaskId);
                   const accepted = hasManagerAcceptedProject(task);
                   const progress = getProgressValue(task);
                   return (
-                    <Box key={taskId} bg={cardBg} border="1px solid" borderColor={borderColor} borderRadius="xl" p={4}>
+                    <Box
+                      key={taskId}
+                      ref={(node) => {
+                        if (node) projectRefs.current[taskId] = node;
+                      }}
+                      bg={isFocused ? "blue.50" : cardBg}
+                      border="1px solid"
+                      borderColor={isFocused ? "blue.300" : borderColor}
+                      borderRadius="xl"
+                      p={4}
+                      boxShadow={isFocused ? "0 0 0 3px rgba(49, 130, 206, 0.18)" : "none"}
+                      transition="background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease"
+                    >
                       <Flex justify="space-between" align="center" gap={3}>
                         <HStack minW={0} spacing={3}>
                           <Button
@@ -654,8 +764,17 @@ export default function CSExternalITRequestsPanel() {
                             <VStack align="stretch" spacing={2} mb={3} maxH="220px" overflowY="auto">
                               {(task.comments || []).length === 0 ? (
                                 <Text fontSize="sm" color={muted}>No discussion yet. Start a conversation with IT about this external request.</Text>
-                              ) : (task.comments || []).map((comment) => (
-                                <Box key={comment._id || comment.createdAt || comment.body} bg={cardBg} border="1px solid" borderColor={borderColor} borderRadius="lg" p={3}>
+                              ) : (task.comments || []).map((comment) => {
+                                const isFocusedComment = String(comment._id || "") === String(focusedCommentId);
+                                return (
+                                <Box
+                                  key={comment._id || comment.createdAt || comment.body}
+                                  bg={isFocusedComment ? "yellow.50" : cardBg}
+                                  border="1px solid"
+                                  borderColor={isFocusedComment ? "yellow.300" : borderColor}
+                                  borderRadius="lg"
+                                  p={3}
+                                >
                                   <HStack justify="space-between" align="start">
                                     <Box>
                                       <Text fontSize="sm" fontWeight="800">{comment.authorName || "Contributor"}</Text>
@@ -665,7 +784,8 @@ export default function CSExternalITRequestsPanel() {
                                   </HStack>
                                   <Text fontSize="sm" mt={2}>{comment.body}</Text>
                                 </Box>
-                              ))}
+                                );
+                              })}
                             </VStack>
                             <Textarea
                               size="sm"
