@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Badge,
   Box,
@@ -7,6 +7,7 @@ import {
   HStack,
   Select,
   SimpleGrid,
+  Spinner,
   Switch,
   Table,
   Tbody,
@@ -32,6 +33,7 @@ import {
   YAxis,
 } from 'recharts';
 import CompletedSalesTable from './salesmanager/CompletedSalesTable';
+import axiosInstance from '../services/axiosInstance';
 
 const PRIMARY = '#185FA5';
 const TARGET_GRAY = '#8A94A6';
@@ -48,80 +50,27 @@ const SCORE_LABELS = {
   1: 'Below',
 };
 const DEPARTMENTS = ['All', 'Sales', 'Customer Success', 'IT', 'Tradex TV', 'Operations'];
-const PILLARS = ['All Pillars', 'Process Efficiency', 'Service Delivery', 'Sales', 'Customer Success', 'IT', 'Tradex TV', 'HR', 'Finance'];
-const MONTHS = [
-  { key: '2025-01', label: 'Jan 2025', short: 'Jan' },
-  { key: '2025-02', label: 'Feb 2025', short: 'Feb' },
-  { key: '2025-03', label: 'Mar 2025', short: 'Mar' },
-  { key: '2025-04', label: 'Apr 2025', short: 'Apr' },
-  { key: '2025-05', label: 'May 2025', short: 'May' },
-  { key: '2025-06', label: 'Jun 2025', short: 'Jun' },
-];
+const PILLARS = ['All Pillars', 'Process Efficiency', 'Service Delivery', 'Sales', 'Customer Success', 'IT', 'Tradex TV', 'Operations', 'HR', 'Finance'];
+const buildCompleteMonthList = (periods = []) => {
+  const years = periods
+    .map((key) => Number(String(key).slice(0, 4)))
+    .filter(Number.isFinite);
+  const currentYear = new Date().getFullYear();
+  const firstYear = years.length ? Math.min(...years) : currentYear;
+  const lastYear = years.length ? Math.max(...years) : currentYear;
 
-const KPI_DEFS = [
-  { department: 'Sales', pillar: 'Sales', name: 'Daily Revenue/Rep', target: 55000, unit: 'ETB', format: 'currency', aggregate: 'avg' },
-  { department: 'Sales', pillar: 'Sales', name: 'Monthly Revenue/Rep', target: 1210000, unit: 'ETB', format: 'currency', aggregate: 'sum' },
-  { department: 'Sales', pillar: 'Sales', name: 'Lead Conversion', target: 30, unit: '%', format: 'percent', aggregate: 'avg' },
-  { department: 'Sales', pillar: 'Sales', name: 'New Clients', target: 5, unit: '/mo', format: 'number', aggregate: 'sum' },
-  { department: 'Sales', pillar: 'Sales', name: 'Team Monthly Revenue', target: 10890000, unit: 'ETB', format: 'currency', aggregate: 'sum' },
-  { department: 'Sales', pillar: 'Sales', name: 'Quarterly Revenue', target: 32670000, unit: 'ETB', format: 'currency', aggregate: 'sum' },
-  { department: 'Sales', pillar: 'Sales', name: 'Pipeline Value', target: 5000000, unit: 'ETB', format: 'currency', aggregate: 'avg' },
-  { department: 'Sales', pillar: 'Sales', name: 'Social Media Compliance', target: 85, unit: '%', format: 'percent', aggregate: 'avg' },
-  { department: 'Sales', pillar: 'Sales', name: 'Total Content Output', target: 108, unit: 'posts/mo', format: 'number', aggregate: 'sum' },
-  { department: 'Sales', pillar: 'Sales', name: 'Social Reach', target: 50000, unit: '/mo', format: 'compact', aggregate: 'sum' },
-  { department: 'Customer Success', pillar: 'Customer Success', name: 'CSAT', target: 4.3, unit: '/5', format: 'decimal', aggregate: 'avg' },
-  { department: 'Customer Success', pillar: 'Customer Success', name: 'NPS', target: 50, unit: '', format: 'number', aggregate: 'avg' },
-  { department: 'Customer Success', pillar: 'Customer Success', name: 'Retention Rate', target: 80, unit: '%', format: 'percent', aggregate: 'avg' },
-  { department: 'Customer Success', pillar: 'Customer Success', name: 'Churn Rate', target: 5, unit: '%', format: 'percent', aggregate: 'avg', lowerIsBetter: true },
-  { department: 'Customer Success', pillar: 'Service Delivery', name: 'First Response', target: 2, unit: 'hrs', format: 'decimal', aggregate: 'avg', lowerIsBetter: true },
-  { department: 'Customer Success', pillar: 'Service Delivery', name: 'Issue Resolution', target: 92, unit: '%', format: 'percent', aggregate: 'avg' },
-  { department: 'Customer Success', pillar: 'Customer Success', name: 'Onboarding Completion', target: 90, unit: '%', format: 'percent', aggregate: 'avg' },
-  { department: 'Customer Success', pillar: 'Customer Success', name: 'Renewal Rate', target: 75, unit: '%', format: 'percent', aggregate: 'avg' },
-  { department: 'Customer Success', pillar: 'Customer Success', name: 'B2B Connection Rate', target: 65, unit: '%', format: 'percent', aggregate: 'avg' },
-  { department: 'Customer Success', pillar: 'Customer Success', name: 'TESBINN Facilitation Rate', target: 90, unit: '%', format: 'percent', aggregate: 'avg' },
-  { department: 'IT', pillar: 'IT', name: 'System Uptime', target: 99.5, unit: '%', format: 'percent', aggregate: 'avg' },
-  { department: 'IT', pillar: 'IT', name: 'TeleBirr Uptime', target: 99, unit: '%', format: 'percent', aggregate: 'avg' },
-  { department: 'IT', pillar: 'Process Efficiency', name: 'Sprint Velocity', target: 80, unit: '%', format: 'percent', aggregate: 'avg' },
-  { department: 'IT', pillar: 'IT', name: 'Release Frequency', target: 4, unit: '/mo', format: 'number', aggregate: 'sum' },
-  { department: 'IT', pillar: 'Service Delivery', name: 'Critical Incident Response', target: 15, unit: 'min', format: 'number', aggregate: 'avg', lowerIsBetter: true },
-  { department: 'IT', pillar: 'IT', name: 'Feature Delivery Rate', target: 85, unit: '%', format: 'percent', aggregate: 'avg' },
-  { department: 'IT', pillar: 'Service Delivery', name: 'Bug Fix Turnaround', target: 6, unit: 'hrs critical', format: 'decimal', aggregate: 'avg', lowerIsBetter: true },
-  { department: 'IT', pillar: 'IT', name: 'Deployment Success', target: 95, unit: '%', format: 'percent', aggregate: 'avg' },
-  { department: 'IT', pillar: 'IT', name: 'Security Incidents', target: 0, unit: '', format: 'number', aggregate: 'sum', lowerIsBetter: true },
-  { department: 'IT', pillar: 'Service Delivery', name: 'Ticket Resolution', target: 95, unit: '%', format: 'percent', aggregate: 'avg' },
-  { department: 'Tradex TV', pillar: 'Tradex TV', name: 'YouTube Subscribers', target: 500, unit: '/mo', format: 'number', aggregate: 'sum' },
-  { department: 'Tradex TV', pillar: 'Tradex TV', name: 'YouTube Views', target: 20000, unit: '/mo', format: 'compact', aggregate: 'sum' },
-  { department: 'Tradex TV', pillar: 'Tradex TV', name: 'Watch Time', target: 1500, unit: 'hrs/mo', format: 'number', aggregate: 'sum' },
-  { department: 'Tradex TV', pillar: 'Tradex TV', name: 'Video Uploads', target: 8, unit: '/mo', format: 'number', aggregate: 'sum' },
-  { department: 'Tradex TV', pillar: 'Tradex TV', name: 'Engagement Rate', target: 5, unit: '%', format: 'percent', aggregate: 'avg' },
-  { department: 'Tradex TV', pillar: 'Tradex TV', name: 'Content Calendar Adherence', target: 90, unit: '%', format: 'percent', aggregate: 'avg' },
-  { department: 'Tradex TV', pillar: 'Tradex TV', name: 'Marketing Asset Delivery', target: 95, unit: '%', format: 'percent', aggregate: 'avg' },
-  { department: 'Tradex TV', pillar: 'Tradex TV', name: 'Social Reach', target: 50000, unit: '/mo', format: 'compact', aggregate: 'sum' },
-  { department: 'Operations', pillar: 'Process Efficiency', name: 'Project Delivery Rate', target: 85, unit: '%', format: 'percent', aggregate: 'avg' },
-  { department: 'Operations', pillar: 'Process Efficiency', name: 'SOP Compliance', target: 90, unit: '%', format: 'percent', aggregate: 'avg' },
-  { department: 'Operations', pillar: 'HR', name: 'Onboarding Cycle', target: 7, unit: 'days', format: 'number', aggregate: 'avg', lowerIsBetter: true },
-  { department: 'Operations', pillar: 'Service Delivery', name: 'Vendor Response', target: 24, unit: 'hrs', format: 'number', aggregate: 'avg', lowerIsBetter: true },
-  { department: 'Operations', pillar: 'Finance', name: 'Document Turnaround', target: 48, unit: 'hrs', format: 'number', aggregate: 'avg', lowerIsBetter: true },
-  { department: 'Operations', pillar: 'HR', name: 'Staff Retention', target: 85, unit: '%', format: 'percent', aggregate: 'avg' },
-  { department: 'Operations', pillar: 'HR', name: 'Training Completion', target: 90, unit: '%', format: 'percent', aggregate: 'avg' },
-  { department: 'Operations', pillar: 'HR', name: 'Time-to-Fill', target: 21, unit: 'days', format: 'number', aggregate: 'avg', lowerIsBetter: true },
-  { department: 'Operations', pillar: 'HR', name: 'Attendance Rate', target: 95, unit: '%', format: 'percent', aggregate: 'avg' },
-  { department: 'Operations', pillar: 'Finance', name: 'Revenue vs Target', target: 95, unit: '%', format: 'percent', aggregate: 'avg' },
-  { department: 'Operations', pillar: 'Finance', name: 'Operating Cost Ratio', target: 60, unit: '%', format: 'percent', aggregate: 'avg', lowerIsBetter: true },
-  { department: 'Operations', pillar: 'Finance', name: 'AR Days', target: 30, unit: 'days', format: 'number', aggregate: 'avg', lowerIsBetter: true },
-  { department: 'Operations', pillar: 'Finance', name: 'Budget Adherence', target: 90, unit: '%', format: 'percent', aggregate: 'avg' },
-  { department: 'Operations', pillar: 'Finance', name: 'Enisra Monthly Revenue', target: 50000, unit: 'ETB', format: 'currency', aggregate: 'sum' },
-].map((item, index) => ({ ...item, id: `${item.department}-${item.name}`.replace(/[^a-z0-9]+/gi, '-').toLowerCase(), index }));
-
-const ACHIEVEMENT_PATTERNS = [
-  [0.68, 0.84, 0.95, 1.05, 1.12, 0.88],
-  [0.91, 0.98, 1.04, 1.11, 1.16, 1.09],
-  [1.14, 1.08, 0.96, 0.86, 0.79, 0.92],
-  [0.74, 0.88, 0.93, 1.01, 1.07, 1.13],
-  [1.02, 1.10, 1.18, 1.05, 0.97, 0.89],
-  [0.82, 0.76, 0.91, 1.00, 1.08, 1.15],
-];
-
+  return Array.from({ length: (lastYear - firstYear + 1) * 12 }, (_, index) => {
+    const year = firstYear + Math.floor(index / 12);
+    const month = (index % 12) + 1;
+    const key = `${year}-${String(month).padStart(2, '0')}`;
+    const date = new Date(year, month - 1, 1);
+    return {
+      key,
+      label: date.toLocaleString('en', { month: 'short', year: 'numeric' }),
+      short: date.toLocaleString('en', { month: 'short' }),
+    };
+  });
+};
 const formatValue = (value, kpi) => {
   if (kpi.format === 'currency') return `ETB ${Math.round(value).toLocaleString()}`;
   if (kpi.format === 'compact') return Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 }).format(value);
@@ -142,74 +91,44 @@ const scoreFor = (achievement) => {
   return 1;
 };
 
-const actualFromAchievement = (kpi, achievementRatio, monthIndex) => {
-  if (kpi.target === 0) return achievementRatio >= 1.1 ? 0 : achievementRatio >= 0.7 ? 1 : 2;
-  const raw = kpi.lowerIsBetter ? kpi.target / achievementRatio : kpi.target * achievementRatio;
-  if (kpi.format === 'percent') return Math.min(kpi.lowerIsBetter ? 100 : 125, Math.max(0, raw));
-  if (kpi.format === 'decimal') return Number(raw.toFixed(1));
-  if (kpi.target < 10) return Math.max(0, Math.round(raw));
-  const rounding = kpi.format === 'currency' || kpi.format === 'compact' ? 1000 : 1;
-  return Math.max(0, Math.round((raw + (monthIndex % 2 ? rounding * 0.3 : -rounding * 0.15)) / rounding) * rounding);
-};
-
-const buildMonthlyRows = () =>
-  KPI_DEFS.flatMap((kpi) => {
-    const pattern = ACHIEVEMENT_PATTERNS[kpi.index % ACHIEVEMENT_PATTERNS.length];
-    const adjustment = ((kpi.index % 5) - 2) * 0.025;
-    return MONTHS.map((month, monthIndex) => {
-      const ratio = Math.max(0.45, pattern[monthIndex] + adjustment);
-      const actual = actualFromAchievement(kpi, ratio, monthIndex);
-      const achievement = achievementFor(kpi, actual);
-      const score = scoreFor(achievement);
-      return {
-        ...month,
-        kpiId: kpi.id,
-        actual,
-        target: kpi.target,
-        achievement,
-        score,
-        scoreLabel: SCORE_LABELS[score],
-      };
-    });
-  });
-
-const MONTHLY_ROWS = buildMonthlyRows();
-
-const getTargetForRange = (kpi, months) => (kpi.aggregate === 'sum' ? kpi.target * months.length : kpi.target);
 const getActualForRange = (kpi, rows) => {
   const total = rows.reduce((sum, row) => sum + row.actual, 0);
   return kpi.aggregate === 'sum' ? total : total / Math.max(rows.length, 1);
 };
 
 const aggregateRows = (kpi, rows, timeRange) => {
-  if (timeRange === 'Monthly') {
-    return rows.map((row, index) => ({ ...row, period: row.short, previousActual: row.actual * (index % 2 === 0 ? 0.93 : 1.06) }));
+  if (timeRange !== 'Quarterly') {
+    return rows.map((row) => ({ ...row, period: timeRange === 'Weekly' ? (row.period || row.key) : row.key }));
   }
-  const groups =
-    timeRange === 'Weekly'
-      ? [
-          { period: 'Jan W1', keys: ['2025-01'], divisor: 4 },
-          { period: 'Feb W2', keys: ['2025-02'], divisor: 4 },
-          { period: 'Mar W3', keys: ['2025-03'], divisor: 4 },
-          { period: 'Apr W4', keys: ['2025-04'], divisor: 4 },
-          { period: 'May W2', keys: ['2025-05'], divisor: 4 },
-          { period: 'Jun W3', keys: ['2025-06'], divisor: 4 },
-        ]
-      : [
-          { period: 'Q1 2025', keys: ['2025-01', '2025-02', '2025-03'], divisor: 1 },
-          { period: 'Q2 2025', keys: ['2025-04', '2025-05', '2025-06'], divisor: 1 },
-        ];
-
+  const grouped = new Map();
+  rows.forEach((row) => {
+    const [year, month] = row.key.split('-').map(Number);
+    const period = `Q${Math.ceil(month / 3)} ${year}`;
+    if (!grouped.has(period)) grouped.set(period, []);
+    grouped.get(period).push(row);
+  });
+  const groups = [...grouped.entries()].map(([period, groupRows]) => ({ period, groupRows }));
   return groups.map((group, groupIndex) => {
-    const groupRows = rows.filter((row) => group.keys.includes(row.key));
-    const actual = getActualForRange(kpi, groupRows) / group.divisor;
-    const target = getTargetForRange(kpi, groupRows) / group.divisor;
+    const groupRows = group.groupRows;
+    const actual = getActualForRange(kpi, groupRows);
+    const target = kpi.aggregate === 'sum'
+      ? groupRows.reduce((sum, row) => sum + row.target, 0)
+      : groupRows.reduce((sum, row) => sum + row.target, 0) / Math.max(groupRows.length, 1);
     const achievement = achievementFor(kpi, actual, target);
     const score = scoreFor(achievement);
-    const previousActual = actual * (groupIndex % 2 === 0 ? 0.92 : 1.08);
+    const previousActual = groupIndex > 0 ? getActualForRange(kpi, groups[groupIndex - 1].groupRows) : undefined;
     return { period: group.period, actual, target, achievement, score, scoreLabel: SCORE_LABELS[score], previousActual };
   });
 };
+
+const sortPeriods = (periods, timeRange) => [...periods].sort((a, b) => {
+  if (timeRange !== 'Quarterly') return String(a).localeCompare(String(b));
+  const parseQuarter = (value) => {
+    const match = String(value).match(/^Q([1-4])\s+(\d{4})$/);
+    return match ? (Number(match[2]) * 10) + Number(match[1]) : 0;
+  };
+  return parseQuarter(a) - parseQuarter(b);
+});
 
 const getTrend = (points) => {
   const last = points.slice(-3);
@@ -252,14 +171,19 @@ const CustomTooltip = ({ active, payload, label }) => {
 };
 
 const COOKpiDashboard = () => {
+  const [kpiDefs, setKpiDefs] = useState([]);
+  const [monthlyRows, setMonthlyRows] = useState([]);
+  const [months, setMonths] = useState([]);
   const [viewMode, setViewMode] = useState('Charts');
   const [timeRange, setTimeRange] = useState('Monthly');
-  const [startMonth, setStartMonth] = useState('2025-01');
-  const [endMonth, setEndMonth] = useState('2025-06');
+  const [startMonth, setStartMonth] = useState('');
+  const [endMonth, setEndMonth] = useState('');
   const [comparePrevious, setComparePrevious] = useState(false);
   const [department, setDepartment] = useState('All');
   const [pillar, setPillar] = useState('All Pillars');
   const [selectedKpiId, setSelectedKpiId] = useState('all');
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
 
   const pageBg = useColorModeValue('#F3F6FA', '#080D18');
   const surface = useColorModeValue('#FFFFFF', '#111827');
@@ -269,18 +193,57 @@ const COOKpiDashboard = () => {
   const muted = useColorModeValue('#64748B', '#A6B3C3');
   const softHover = useColorModeValue('#EFF6FF', '#162033');
 
+  useEffect(() => {
+    let active = true;
+    setIsLoading(true);
+    setLoadError('');
+    axiosInstance.get('/coo-dashboard/kpis', {
+      params: {
+        department: department === 'All' ? undefined : department,
+        pillar: pillar === 'All Pillars' ? undefined : pillar,
+      },
+    }).then(({ data }) => {
+      if (!active) return;
+      const periodList = buildCompleteMonthList(data.periods);
+
+      setKpiDefs(Array.isArray(data.definitions) ? data.definitions : []);
+      setMonthlyRows(Array.isArray(data.rows) ? data.rows : []);
+      setMonths(periodList);
+      if (periodList.length) {
+        setStartMonth(periodList[0].key);
+        setEndMonth(periodList[periodList.length - 1].key);
+      } else {
+        setStartMonth('');
+        setEndMonth('');
+      }
+    }).catch((error) => {
+      if (active) {
+        setKpiDefs([]);
+        setMonthlyRows([]);
+        setMonths([]);
+        setStartMonth('');
+        setEndMonth('');
+        setLoadError(error.response?.data?.message || error.message || 'Backend request failed.');
+      }
+    }).finally(() => {
+      if (active) setIsLoading(false);
+    });
+    return () => { active = false; };
+  }, [department, pillar]);
+
   const selectedMonths = useMemo(() => {
-    const start = MONTHS.findIndex((month) => month.key === startMonth);
-    const end = MONTHS.findIndex((month) => month.key === endMonth);
-    return MONTHS.slice(Math.min(start, end), Math.max(start, end) + 1);
-  }, [startMonth, endMonth]);
+    const start = months.findIndex((month) => month.key === startMonth);
+    const end = months.findIndex((month) => month.key === endMonth);
+    if (start < 0 || end < 0) return [];
+    return months.slice(Math.min(start, end), Math.max(start, end) + 1);
+  }, [startMonth, endMonth, months]);
 
   const filteredKpis = useMemo(
     () =>
-      KPI_DEFS.filter((kpi) => department === 'All' || kpi.department === department).filter(
+      kpiDefs.filter((kpi) => department === 'All' || kpi.department === department).filter(
         (kpi) => pillar === 'All Pillars' || kpi.pillar === pillar
       ),
-    [department, pillar]
+    [department, pillar, kpiDefs]
   );
 
   const effectiveSelectedKpiId = selectedKpiId !== 'all' && filteredKpis.some((kpi) => kpi.id === selectedKpiId) ? selectedKpiId : 'all';
@@ -288,8 +251,21 @@ const COOKpiDashboard = () => {
   const trendCards = useMemo(
     () =>
       filteredKpis.map((kpi) => {
-        const monthlyRows = MONTHLY_ROWS.filter((row) => row.kpiId === kpi.id && selectedMonths.some((month) => month.key === row.key));
-        const points = aggregateRows(kpi, monthlyRows, timeRange);
+        const requiredGranularity = timeRange === 'Weekly' ? 'week' : 'month';
+        const sourceRows = monthlyRows
+          .filter((row) => row.kpiId === kpi.id
+            && (row.granularity || 'month') === requiredGranularity
+            && selectedMonths.some((month) => month.key === row.key))
+          .sort((a, b) => String(a.period || a.key).localeCompare(String(b.period || b.key)));
+        const hydratedRows = sourceRows.map((row, index) => ({
+          ...row,
+          short: row.period || months.find((month) => month.key === row.key)?.short || row.key,
+          achievement: achievementFor(kpi, row.actual, row.target),
+          score: scoreFor(achievementFor(kpi, row.actual, row.target)),
+          scoreLabel: SCORE_LABELS[scoreFor(achievementFor(kpi, row.actual, row.target))],
+          previousActual: sourceRows[index - 1]?.actual,
+        }));
+        const points = aggregateRows(kpi, hydratedRows, timeRange);
         const current = points[points.length - 1];
         return {
           kpi,
@@ -298,8 +274,8 @@ const COOKpiDashboard = () => {
           trend: getTrend(points),
           spark: buildSparkPoints(points),
         };
-      }),
-    [filteredKpis, selectedMonths, timeRange]
+      }).filter((card) => card.points.length > 0),
+    [filteredKpis, selectedMonths, timeRange, monthlyRows, months]
   );
 
   const chartData = useMemo(() => {
@@ -317,16 +293,26 @@ const COOKpiDashboard = () => {
       }));
     }
 
-    const periods = trendCards[0]?.points.map((point) => point.period) || [];
+    const periods = sortPeriods(
+      new Set(trendCards.flatMap((card) => card.points.map((point) => point.period))),
+      timeRange
+    );
     return periods.map((periodLabel, index) => {
-      const matchingPoints = trendCards.map((card) => card.points[index]).filter(Boolean);
+      const matchingPoints = trendCards.map((card) => card.points.find((point) => point.period === periodLabel)).filter(Boolean);
       const achievement = matchingPoints.reduce((sum, point) => sum + point.achievement, 0) / Math.max(matchingPoints.length, 1);
+      const previousPeriod = periods[index - 1];
+      const previousPoints = previousPeriod
+        ? trendCards.map((card) => card.points.find((point) => point.period === previousPeriod)).filter(Boolean)
+        : [];
+      const previous = previousPoints.length
+        ? previousPoints.reduce((sum, point) => sum + point.achievement, 0) / previousPoints.length
+        : undefined;
       const score = scoreFor(achievement);
       return {
         period: periodLabel,
         actual: Number(achievement.toFixed(1)),
         target: 100,
-        previous: Number((achievement * (index % 2 === 0 ? 0.94 : 1.05)).toFixed(1)),
+        previous: previous === undefined ? undefined : Number(previous.toFixed(1)),
         score,
         achievement,
         tooltip: {
@@ -339,7 +325,7 @@ const COOKpiDashboard = () => {
         },
       };
     });
-  }, [trendCards, effectiveSelectedKpiId]);
+  }, [trendCards, effectiveSelectedKpiId, timeRange]);
 
   const tableRows = useMemo(
     () =>
@@ -461,6 +447,7 @@ const COOKpiDashboard = () => {
                   _hover={{ bg: department === item ? PRIMARY : panel }}
                   onClick={() => {
                     setDepartment(item);
+                    setPillar('All Pillars');
                     setSelectedKpiId('all');
                   }}
                 >
@@ -472,12 +459,12 @@ const COOKpiDashboard = () => {
           <SimpleGrid columns={{ base: 2, xl: 4 }} spacing={3} minW={{ xl: '720px' }}>
             <FilterControl label="Start Month" border={border}>
               <Select size="sm" value={startMonth} onChange={(event) => setStartMonth(event.target.value)}>
-                {MONTHS.map((month) => <option key={month.key} value={month.key}>{month.label}</option>)}
+                {months.map((month) => <option key={month.key} value={month.key}>{month.label}</option>)}
               </Select>
             </FilterControl>
             <FilterControl label="End Month" border={border}>
               <Select size="sm" value={endMonth} onChange={(event) => setEndMonth(event.target.value)}>
-                {MONTHS.map((month) => <option key={month.key} value={month.key}>{month.label}</option>)}
+                {months.map((month) => <option key={month.key} value={month.key}>{month.label}</option>)}
               </Select>
             </FilterControl>
             <FilterControl label="Pillar" border={border}>
@@ -521,7 +508,28 @@ const COOKpiDashboard = () => {
           </SimpleGrid>
         </Flex>
 
-        {viewMode === 'Charts' && (
+        {isLoading && (
+          <HStack justify="center" border="1px solid" borderColor={border} borderRadius="8px" p={8} bg={panel}>
+            <Spinner size="sm" color={PRIMARY} />
+            <Text fontWeight="700" color={text}>Loading KPI data from the backend…</Text>
+          </HStack>
+        )}
+
+        {!isLoading && loadError && (
+          <Box border="1px solid" borderColor="red.300" borderRadius="8px" p={6} textAlign="center" bg={panel}>
+            <Text fontWeight="800" color="red.500">Unable to load KPI data</Text>
+            <Text fontSize="13px" color={muted} mt={1}>{loadError}</Text>
+          </Box>
+        )}
+
+        {!isLoading && !loadError && trendCards.length === 0 && (
+          <Box border="1px solid" borderColor={border} borderRadius="8px" p={8} textAlign="center" bg={panel}>
+            <Text fontWeight="800" color={text}>No KPI data for the selected filters</Text>
+            <Text fontSize="13px" color={muted} mt={1}>Choose another period, department, pillar, or time range.</Text>
+          </Box>
+        )}
+
+        {!isLoading && !loadError && viewMode === 'Charts' && chartData.length > 0 && (
         <SimpleGrid columns={{ base: 1, xl: 3 }} spacing={4} mb={5}>
         <Box border="1px solid" borderColor={border} borderRadius="8px" p={{ base: 3, md: 4 }} gridColumn={{ xl: 'span 2' }}>
           <Flex justify="space-between" align={{ base: 'stretch', md: 'center' }} direction={{ base: 'column', md: 'row' }} gap={2} mb={4}>
@@ -530,7 +538,7 @@ const COOKpiDashboard = () => {
                 {effectiveSelectedKpiId === 'all' ? 'Filtered KPI Average Achievement' : selectedCard?.kpi.name}
               </Text>
               <Text fontSize="12px" color={muted}>
-                {timeRange} | {selectedMonths[0]?.short} - {selectedMonths[selectedMonths.length - 1]?.short} 2025 | Unit: {chartUnit}
+                {timeRange} | {selectedMonths[0]?.label || 'No data'} - {selectedMonths[selectedMonths.length - 1]?.label || 'No data'} | Unit: {chartUnit}
               </Text>
             </Box>
             <HStack spacing={2} flexWrap="wrap">
@@ -599,7 +607,7 @@ const COOKpiDashboard = () => {
         </SimpleGrid>
         )}
 
-        {viewMode === 'Cards' && (
+        {!isLoading && !loadError && viewMode === 'Cards' && trendCards.length > 0 && (
         <SimpleGrid columns={{ base: 1, md: 2, xl: 4 }} spacing={4}>
           {trendCards.map((card) => (
             <Box key={card.kpi.id} border="1px solid" borderColor={border} borderRadius="8px" p={4} bg={surface}>
@@ -631,7 +639,7 @@ const COOKpiDashboard = () => {
         </SimpleGrid>
         )}
 
-        {viewMode === 'Table' && (
+        {!isLoading && !loadError && viewMode === 'Table' && tableRows.length > 0 && (
           <Box overflowX="auto" border="1px solid" borderColor={border} borderRadius="8px">
             <Table size="sm">
               <Thead bg={panel}>

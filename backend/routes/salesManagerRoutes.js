@@ -42,7 +42,11 @@ router.route('/sales/:id/supervisor-comment')
   .put(protect, authorize('salesmanager'), updateSupervisorComment);
 
 router.route('/agents')
-  .get(protect, authorize('salesmanager'), getAllAgents);
+  .get(
+    protect,
+    authorize('salesmanager', 'hr', 'HR', 'finance', 'Finance', 'admin', 'coo', 'COO', 'ceo', 'CEO'),
+    getAllAgents
+  );
 
 router.route('/team-performance')
   .get(protect, authorize('salesmanager', 'coo'), getTeamPerformance);
@@ -55,5 +59,7 @@ router.route('/agent-sales/:agentId')
 
 router.route('/import-sales')
   .post(protect, authorize('salesmanager', 'hr', 'HR', 'finance', 'Finance', 'admin'), importSales);
+
+router.use('/kpis', require('./salesKpiRoutes'));
 
 module.exports = router;

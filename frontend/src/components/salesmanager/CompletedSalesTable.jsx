@@ -26,6 +26,7 @@ import {
 } from '@chakra-ui/react';
 import { FiSearch } from 'react-icons/fi';
 import { getAllSales } from '../../services/salesManagerService';
+import axiosInstance from '../../services/axiosInstance';
 
 const getAgentName = (sale) => {
   if (!sale?.agentId) return sale?.agentName || 'Unassigned';
@@ -57,9 +58,10 @@ export default function CompletedSalesTable({ title = 'Completed Sales Follow-up
   const [sales, setSales] = useState([]);
   const [agents, setAgents] = useState([]);
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [agentFilter, setAgentFilter] = useState('');
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(compact ? 10 : 25);
+  const [pageSize, setPageSize] = useState(compact ? 10 : 200);
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
@@ -71,11 +73,21 @@ export default function CompletedSalesTable({ title = 'Completed Sales Follow-up
   const muted = useColorModeValue('gray.600', 'gray.400');
 
   useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search.trim());
+      setPage(1);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  useEffect(() => {
     const loadSales = async () => {
       setLoading(true);
       try {
         const response = await getAllSales({
           status: 'Completed',
+          agentId: agentFilter || undefined,
+          search: debouncedSearch || undefined,
           page,
           limit: pageSize,
         });
@@ -93,25 +105,27 @@ export default function CompletedSalesTable({ title = 'Completed Sales Follow-up
     };
 
     loadSales();
-  }, [page, pageSize]);
+  }, [agentFilter, debouncedSearch, page, pageSize]);
 
   useEffect(() => {
-    const agentMap = new Map();
-    sales.forEach((sale) => {
-      const id = typeof sale.agentId === 'object' ? sale.agentId?._id : sale.agentId;
-      const name = getAgentName(sale);
-      if (id || name) {
-        agentMap.set(id || name, name);
-      }
+    let active = true;
+    axiosInstance.get('/sales-manager/agents').then(({ data }) => {
+      if (!active) return;
+      setAgents((Array.isArray(data) ? data : []).map((agent) => ({
+        id: agent._id,
+        name: agent.fullName || agent.username || agent.email || 'Unnamed Agent',
+      })));
+    }).catch(() => {
+      if (active) setAgents([]);
     });
-    setAgents(Array.from(agentMap.entries()).map(([id, name]) => ({ id, name })));
-  }, [sales]);
+    return () => { active = false; };
+  }, []);
 
   const filteredSales = useMemo(() => {
     const term = search.trim().toLowerCase();
     return sales.filter((sale) => {
       const resolvedAgentId = typeof sale.agentId === 'object' ? sale.agentId?._id : sale.agentId;
-      if (agentFilter && resolvedAgentId !== agentFilter && getAgentName(sale) !== agentFilter) return false;
+      if (agentFilter && String(resolvedAgentId || '') !== String(agentFilter)) return false;
       if (!term) return true;
 
       return [
@@ -154,7 +168,10 @@ export default function CompletedSalesTable({ title = 'Completed Sales Follow-up
             </InputLeftElement>
             <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search customer, course, agent" />
           </InputGroup>
-          <Select maxW={{ md: '240px' }} value={agentFilter} onChange={(event) => setAgentFilter(event.target.value)}>
+          <Select maxW={{ md: '240px' }} value={agentFilter} onChange={(event) => {
+            setAgentFilter(event.target.value);
+            setPage(1);
+          }}>
             <option value="">All agents</option>
             {agents.map((agent) => (
               <option key={agent.id} value={agent.id}>
