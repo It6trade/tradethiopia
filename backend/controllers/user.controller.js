@@ -3,6 +3,8 @@ const bcrypt = require('bcryptjs');
 const User = require('../models/user.model.js');
 const jwt = require('jsonwebtoken');
 
+const escapeRegex = (value = '') => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
 // Health check endpoint for users
 const userHealthCheck = async (req, res) => {
   try {
@@ -39,8 +41,9 @@ const userHealthCheck = async (req, res) => {
 // User login function
 const loginUser = async (req, res) => {
     const { email, password } = req.body;
+    const normalizedEmail = typeof email === 'string' ? email.trim() : '';
 
-    if (!email || !password) {
+    if (!normalizedEmail || typeof password !== 'string' || password.length === 0) {
         return res.status(400).json({ success: false, message: "Please provide both email and password" });
     }
 
@@ -50,7 +53,12 @@ const loginUser = async (req, res) => {
             return res.status(500).json({ success: false, message: "Database connection error" });
         }
         
-        const user = await User.findOne({ email });
+        // Historical employee records contain mixed-case email addresses.
+        // Authentication must treat email casing as insignificant while keeping
+        // password comparison exactly case-sensitive.
+        const user = await User.findOne({
+            email: { $regex: `^${escapeRegex(normalizedEmail)}$`, $options: 'i' }
+        });
         if (!user) {
             return res.status(401).json({ success: false, message: "Invalid email or password" });
         }
@@ -117,7 +125,10 @@ const createuser = async (req, res) => {
         salary, managerId
     } = req.body;
 
-    if (!username || !email || !password || !role) {
+    const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
+    const normalizedUsername = typeof username === 'string' ? username.trim() : '';
+
+    if (!normalizedUsername || !normalizedEmail || !password || !role) {
         return res.status(400).json({ success: false, message: "Please provide all required fields" });
     }
 
@@ -127,11 +138,15 @@ const createuser = async (req, res) => {
             return res.status(500).json({ success: false, message: "Database connection error" });
         }
         
-        const existingUser = await User.findOne({ email });
+        const existingUser = await User.findOne({
+            email: { $regex: `^${escapeRegex(normalizedEmail)}$`, $options: 'i' }
+        });
         if (existingUser) {
             return res.status(400).json({ success: false, message: "Email already exists" });
         }
-        const existingUsername = await User.findOne({ username });
+        const existingUsername = await User.findOne({
+            username: { $regex: `^${escapeRegex(normalizedUsername)}$`, $options: 'i' }
+        });
         if (existingUsername) {
             return res.status(400).json({ success: false, message: "Username already exists" });
         }
@@ -140,8 +155,8 @@ const createuser = async (req, res) => {
         const userStatus = status || (role === "admin" || role === "HR" ? "active" : "inactive");
 
         const newUser = new User({ 
-            username, 
-            email, 
+            username: normalizedUsername,
+            email: normalizedEmail,
             password, 
             role, 
             status: userStatus,
@@ -293,6 +308,16 @@ const getuser = async (req, res) => {
         console.error("Error fetching users:", error.message);
         res.status(500).json({ success: false, message: "Server error", error: error.message });
     }
+};
+
+// Return the authenticated employee's current database state. This allows
+// permission changes made by HR to take effect without requiring a new login.
+const getCurrentUser = async (req, res) => {
+    const user = await User.findById(req.user._id).select('-password');
+    if (!user) {
+        return res.status(404).json({ success: false, message: 'User not found' });
+    }
+    return res.status(200).json({ success: true, data: user });
 };
 
 // Return the complete employee profile only to authenticated HR users.
@@ -676,6 +701,7 @@ const getHRDashboardStats = async (req, res) => {
 module.exports = {
     userHealthCheck,
     loginUser,
+    getCurrentUser,
     createuser,
     getuser,
     getEmployeeDetails,

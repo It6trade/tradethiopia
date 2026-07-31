@@ -176,7 +176,8 @@ const HomePage = () => {
       setEditRole(selectedUser.role || '');
       setEditStatus(selectedUser.status || 'active');
       setAccountAccess(selectedUser.status === 'active');
-      setTrainingAccess(selectedUser.trainingAccess !== false);
+      const normalizedTrainingStatus = String(selectedUser.trainingStatus || '').trim().toLowerCase();
+      setTrainingAccess(['on', 'active', 'approved', 'enabled', 'true'].includes(normalizedTrainingStatus));
       setTwoFactorAuth(selectedUser.twoFactorAuth === true);
     }
   }, [selectedUser]);
@@ -305,7 +306,7 @@ const HomePage = () => {
         languages: editLanguages,
         role: editRole,
         status: accountAccess ? 'active' : 'inactive',
-        trainingAccess,
+        trainingStatus: trainingAccess ? 'on' : 'off',
         twoFactorAuth
       };
       

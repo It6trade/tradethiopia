@@ -41,6 +41,8 @@ const employeeRequestSchema = new mongoose.Schema({
       'sick_leave',
       'paternity_leave',
       'maternity_leave',
+      'marriage_leave',
+      'unpaid_leave',
       'other_leave',
       'material_handover',
       'task_handover',

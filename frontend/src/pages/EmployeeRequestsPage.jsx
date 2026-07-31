@@ -65,6 +65,8 @@ const CATEGORIES = [
       ['sick_leave', 'Sick Leave'],
       ['paternity_leave', 'Paternity Leave'],
       ['maternity_leave', 'Maternity Leave'],
+      ['marriage_leave', 'Marriage Leave'],
+      ['unpaid_leave', 'Unpaid Leave'],
       ['other_leave', 'Other Leave'],
     ],
   },
@@ -97,7 +99,9 @@ const labelFor = (key) =>
 const personName = (person) => person?.fullName || person?.username || person?.email || 'Not assigned';
 const formatDate = (value) => value ? new Date(value).toLocaleDateString() : 'Not recorded';
 const initialForm = () => ({
-  startDate: '', endDate: '', totalDays: '', reason: '', contactDuringLeave: '', handoverTo: '',
+  leaveDuration: 'full_day', startDate: '', endDate: '', totalDays: '',
+  halfDayDate: '',
+  reason: '', contactDuringLeave: '', handoverTo: '',
   incomingEmployeeId: '', handoverDate: '', witnessEmployeeId: '',
   makeModel: '', serialNumber: '', assetTag: '', physicalCondition: '', functionalIssues: '',
   chargerIncluded: false, mouseKeyboardIncluded: false, otherAccessories: '',
@@ -197,24 +201,54 @@ const EmployeeRequestsPage = () => {
   };
 
   const validate = () => {
+    const issues = [];
     if (category === 'leave') {
-      return form.startDate && form.endDate && form.reason.trim() &&
-        form.contactDuringLeave.trim() && form.handoverTo;
+      if (subcategory === 'annual_leave' && form.leaveDuration === 'half_day') {
+        if (!form.halfDayDate) issues.push('half-day leave date');
+      } else {
+        if (!form.startDate) issues.push('leave start date');
+        if (!form.endDate) issues.push('leave end date');
+      }
+      if (!form.contactDuringLeave.trim()) issues.push('contact during leave');
+      if (!form.reason.trim()) issues.push('reason for leave');
+      if (!form.handoverTo) issues.push('work handover employee');
+      return issues;
     }
     if (subcategory === 'material_handover') {
-      return form.incomingEmployeeId && form.handoverDate && form.makeModel.trim() &&
-        form.serialNumber.trim() && form.assetTag.trim() && form.physicalCondition.trim() &&
-        form.functionalIssues.trim() && form.laptopUsername.trim() &&
-        form.negligenceAccepted && form.outgoingConfirmed && form.incomingConfirmed;
+      if (!form.incomingEmployeeId) issues.push('incoming employee');
+      if (!form.handoverDate) issues.push('handover date');
+      if (!form.makeModel.trim()) issues.push('laptop make and model');
+      if (!form.serialNumber.trim()) issues.push('serial number');
+      if (!form.assetTag.trim()) issues.push('asset tag');
+      if (!form.physicalCondition.trim()) issues.push('physical condition');
+      if (!form.functionalIssues.trim()) issues.push('functional issues');
+      if (!form.laptopUsername.trim()) issues.push('laptop username');
+      if (!form.negligenceAccepted) issues.push('negligence acknowledgement');
+      if (!form.outgoingConfirmed) issues.push('outgoing employee confirmation');
+      if (!form.incomingConfirmed) issues.push('incoming employee confirmation');
+      return issues;
     }
-    return form.incomingEmployeeId && form.handoverDate && form.lastWorkingDate &&
-      form.responsibilities.trim() && form.pendingTasks.trim() &&
-      form.importantContacts.trim() && form.outgoingConfirmed && form.incomingConfirmed;
+    if (!form.incomingEmployeeId) issues.push('incoming employee');
+    if (!form.handoverDate) issues.push('handover date');
+    if (!form.lastWorkingDate) issues.push('last working date');
+    if (!form.responsibilities.trim()) issues.push('current responsibilities');
+    if (!form.pendingTasks.trim()) issues.push('pending tasks');
+    if (!form.importantContacts.trim()) issues.push('important contacts');
+    if (!form.outgoingConfirmed) issues.push('outgoing employee confirmation');
+    if (!form.incomingConfirmed) issues.push('incoming employee confirmation');
+    return issues;
   };
 
   const submit = async () => {
-    if (!validate()) {
-      toast({ title: 'Complete all required fields and confirmations', status: 'warning' });
+    const validationIssues = validate();
+    if (validationIssues.length) {
+      toast({
+        title: 'Complete the required request information',
+        description: `Please provide: ${validationIssues.join(', ')}. Attachments are optional.`,
+        status: 'warning',
+        duration: 7000,
+        isClosable: true,
+      });
       return;
     }
     if (form.endDate && form.startDate && new Date(form.endDate) < new Date(form.startDate)) {
@@ -226,7 +260,12 @@ const EmployeeRequestsPage = () => {
       const payload = new FormData();
       payload.append('category', category);
       payload.append('subcategory', subcategory);
-      payload.append('title', `${labelFor(subcategory)} Request`);
+      payload.append(
+        'title',
+        subcategory === 'annual_leave' && form.leaveDuration === 'half_day'
+          ? 'Half-Day Annual Leave Request'
+          : `${labelFor(subcategory)} Request`
+      );
       payload.append('formData', JSON.stringify(form));
       attachments.forEach((file) => payload.append('attachments', file));
       const response = await axiosInstance.post('/employee-requests', payload);
@@ -264,6 +303,11 @@ const EmployeeRequestsPage = () => {
       await load();
     } catch (error) {
       toast({ title: 'Decision could not be saved', description: error.response?.data?.message || error.message, status: 'error' });
+      if (error.response?.status === 409) {
+        setSelected(null);
+        setDecisionNote('');
+        await load();
+      }
     } finally {
       setDeciding(false);
     }
@@ -317,10 +361,54 @@ const EmployeeRequestsPage = () => {
         <Heading size="md">Leave information</Heading>
         <Text mt={1} fontSize="sm" color="gray.500">Provide the dates, reason, contact details, and work coverage for this leave.</Text>
       </Box>
+      {subcategory === 'annual_leave' && (
+        <Box p={4} bg="gray.50" border="1px solid" borderColor="gray.200" borderRadius="xl">
+          <Field label="Annual leave duration" required helper="Choose half-day when the absence is measured by working hours on one date.">
+            <HStack spacing={3} mt={1}>
+              <Button
+                flex="1"
+                variant={form.leaveDuration === 'full_day' ? 'solid' : 'outline'}
+                colorScheme="teal"
+                onClick={() => update('leaveDuration', 'full_day')}
+              >
+                Full-day leave
+              </Button>
+              <Button
+                flex="1"
+                variant={form.leaveDuration === 'half_day' ? 'solid' : 'outline'}
+                colorScheme="teal"
+                onClick={() => update('leaveDuration', 'half_day')}
+              >
+                Half-day leave
+              </Button>
+            </HStack>
+          </Field>
+        </Box>
+      )}
       <SimpleGrid columns={{ base: 1, md: 2 }} spacing={5}>
-        <Field label="Leave start date" required><Input type="date" value={form.startDate} onChange={(event) => handleDate('startDate', event.target.value)} /></Field>
-        <Field label="Leave end date" required><Input type="date" min={form.startDate} value={form.endDate} onChange={(event) => handleDate('endDate', event.target.value)} /></Field>
-        <Field label="Total calendar days"><Input value={form.totalDays} isReadOnly bg="gray.50" /></Field>
+        {subcategory === 'annual_leave' && form.leaveDuration === 'half_day' ? (
+          <>
+            <Field label="Half-day leave date" required>
+              <Input type="date" value={form.halfDayDate} onChange={(event) => update('halfDayDate', event.target.value)} />
+            </Field>
+            <Box gridColumn={{ md: '1 / -1' }} p={5} bg="teal.50" border="1px solid" borderColor="teal.200" borderRadius="xl">
+              <Text fontSize="xs" fontWeight="800" color="teal.700" textTransform="uppercase">Automatic half-day assignment</Text>
+              <Heading mt={1} size="sm">The submission time determines the session</Heading>
+              <Text mt={2} fontSize="sm" color="gray.600">
+                Requests submitted before 12:30 PM are recorded as Morning. Requests submitted at or after 12:30 PM are recorded as Afternoon.
+              </Text>
+              <Text mt={2} fontSize="sm" fontWeight="700" color="teal.700">
+                The exact Addis Ababa submission date and time will be attached automatically.
+              </Text>
+            </Box>
+          </>
+        ) : (
+          <>
+            <Field label="Leave start date" required><Input type="date" value={form.startDate} onChange={(event) => handleDate('startDate', event.target.value)} /></Field>
+            <Field label="Leave end date" required><Input type="date" min={form.startDate} value={form.endDate} onChange={(event) => handleDate('endDate', event.target.value)} /></Field>
+            <Field label="Total calendar days"><Input value={form.totalDays} isReadOnly bg="gray.50" /></Field>
+          </>
+        )}
         <Field label="Contact during leave" required><Input value={form.contactDuringLeave} onChange={(event) => update('contactDuringLeave', event.target.value)} placeholder="Phone number or email" /></Field>
         <Box gridColumn={{ md: '1 / -1' }}>
           <Field label="Reason for leave" required><Textarea minH="120px" value={form.reason} onChange={(event) => update('reason', event.target.value)} placeholder={`Explain the ${labelFor(subcategory).toLowerCase()} request`} /></Field>
@@ -569,17 +657,71 @@ const EmployeeRequestsPage = () => {
                 </Stack>
               </GridItem>
               <GridItem minW={0} bg="white" border="1px solid" borderColor="gray.200" borderRadius="2xl" p={{ base: 5, md: 8 }} shadow="sm">
+                {accessContext?.submissionManager ? (
+                  <Flex
+                    mb={7}
+                    p={5}
+                    gap={4}
+                    align={{ base: 'flex-start', sm: 'center' }}
+                    direction={{ base: 'column', sm: 'row' }}
+                    justify="space-between"
+                    bg="teal.50"
+                    border="1px solid"
+                    borderColor="teal.200"
+                    borderRadius="2xl"
+                  >
+                    <HStack spacing={4}>
+                      <Avatar
+                        size="md"
+                        name={personName(accessContext.submissionManager)}
+                        bg="teal.600"
+                        color="white"
+                      />
+                      <Box>
+                        <Text fontSize="xs" fontWeight="800" color="teal.700" textTransform="uppercase">
+                          Sending to your manager
+                        </Text>
+                        <Heading mt={1} size="sm">{personName(accessContext.submissionManager)}</Heading>
+                        <Text mt={1} fontSize="sm" color="gray.600">
+                          {accessContext.submissionManager.jobTitle || accessContext.submissionManager.role}
+                          {accessContext.submissionManager.email ? ` • ${accessContext.submissionManager.email}` : ''}
+                        </Text>
+                      </Box>
+                    </HStack>
+                    <Box textAlign={{ base: 'left', sm: 'right' }}>
+                      <Badge colorScheme="teal">First approver</Badge>
+                      <Text mt={1} fontSize="xs" color="gray.500" textTransform="capitalize">
+                        {accessContext.submissionManager.assignmentSource}
+                      </Text>
+                    </Box>
+                  </Flex>
+                ) : accessContext ? (
+                  <Alert status="error" borderRadius="xl" mb={7}>
+                    <AlertIcon />
+                    No active manager is assigned. Contact HR before submitting this request.
+                  </Alert>
+                ) : null}
                 <Flex justify="space-between" align="center" mb={7} gap={3} wrap="wrap">
                   <Box><Badge colorScheme="teal">{selectedCategory?.label}</Badge><Heading mt={2} size="lg">{labelFor(subcategory)}</Heading></Box>
                   <Badge variant="outline" colorScheme="gray">Manager → HR approval</Badge>
                 </Flex>
                 {category === 'leave' ? renderLeaveForm() : subcategory === 'material_handover' ? renderMaterialForm() : renderTaskForm()}
                 <Divider my={7} />
-                <Field label="Supporting attachments" helper="Up to five PDF, Word, JPG, or PNG files; maximum 10 MB each.">
+                <Field label="Supporting attachments (optional)" helper="No file is required. If needed, attach up to five PDF, Word, JPG, or PNG files; maximum 10 MB each.">
                   <Input type="file" multiple accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" p={1} onChange={(event) => setAttachments(Array.from(event.target.files || []))} />
                 </Field>
                 <Flex justify="flex-end" mt={7}>
-                  <Button colorScheme="teal" size="lg" leftIcon={<FiSend />} onClick={submit} isLoading={submitting} loadingText="Submitting">Submit to manager</Button>
+                  <Button
+                    colorScheme="teal"
+                    size="lg"
+                    leftIcon={<FiSend />}
+                    onClick={submit}
+                    isLoading={submitting}
+                    isDisabled={Boolean(accessContext && !accessContext.submissionManager)}
+                    loadingText="Submitting"
+                  >
+                    Submit to manager
+                  </Button>
                 </Flex>
               </GridItem>
             </Grid>
@@ -713,8 +855,8 @@ const EmployeeRequestsPage = () => {
                     <Heading size="sm">Record your decision</Heading>
                     <Textarea mt={4} value={decisionNote} onChange={(event) => setDecisionNote(event.target.value)} placeholder="Approval note or required rejection reason" minH="110px" />
                     <HStack mt={4} justify="flex-end">
-                      <Button leftIcon={<FiX />} colorScheme="red" variant="outline" isLoading={deciding} onClick={() => decide(selected.actor, 'rejected')}>Reject</Button>
-                      <Button leftIcon={<FiCheck />} colorScheme="teal" isLoading={deciding} onClick={() => decide(selected.actor, 'approved')}>{selected.actor === 'manager' ? 'Approve & send to HR' : 'Grant permission'}</Button>
+                      <Button leftIcon={<FiX />} colorScheme="red" variant="outline" isDisabled={deciding} onClick={() => decide(selected.actor, 'rejected')}>Reject</Button>
+                      <Button leftIcon={<FiCheck />} colorScheme="teal" isLoading={deciding} isDisabled={deciding} onClick={() => decide(selected.actor, 'approved')}>{selected.actor === 'manager' ? 'Approve & send to HR' : 'Approve request'}</Button>
                     </HStack>
                   </Box>
                 )}

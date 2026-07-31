@@ -200,9 +200,16 @@ return (
         }
       />
       <Route path="/resource" element={<Navigate to="/resources" replace />} />
-      <Route path="/employee-info" element={<EmployeeInfoPage />} />
+      <Route path="/employee-info" element={<ProtectedRoute><EmployeeInfoPage /></ProtectedRoute>} />
       <Route path="/employee-file-upload" element={<EmployeeFileUploadForm />} />
-      <Route path="/users" element={<LayoutWrapper><HomePage /></LayoutWrapper>} />
+      <Route
+        path="/users"
+        element={
+          <RoleProtectedRoute allowedRoles={["hr", "admin"]}>
+            <LayoutWrapper><HomePage /></LayoutWrapper>
+          </RoleProtectedRoute>
+        }
+      />
       <Route path="/dashboard" element={<LayoutWrapper><Dashboard /></LayoutWrapper>} />
       <Route path="/course" element={<LayoutWrapper><AdminTrainingUpload /></LayoutWrapper>} />
       <Route path="/hr-training" element={<LayoutWrapper><HRTrainingPage /></LayoutWrapper>} />

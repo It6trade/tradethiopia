@@ -1631,9 +1631,20 @@ const UserDetailDrawer = ({ isOpen, onClose, user: summaryUser, initialTab = 0 }
         <DrawerFooter px={{ base: 4, md: 8 }} py={4} borderTop="1px solid" borderColor="gray.200" bg="white">
           <HStack w="full" justify="space-between">
             <Button variant="ghost" onClick={onClose}>Close</Button>
-            <Button leftIcon={<FiPrinter />} colorScheme="teal" variant="outline" onClick={() => window.print()} isDisabled={!profile}>
-              Print profile
-            </Button>
+            <HStack>
+              <Button
+                as="a"
+                href={employee?._id ? `/employee-info?employeeId=${employee._id}` : undefined}
+                leftIcon={<FiFileText />}
+                colorScheme="teal"
+                isDisabled={!employee?._id}
+              >
+                Personal information form
+              </Button>
+              <Button leftIcon={<FiPrinter />} colorScheme="teal" variant="outline" onClick={() => window.print()} isDisabled={!profile}>
+                Print profile
+              </Button>
+            </HStack>
           </HStack>
         </DrawerFooter>
       </DrawerContent>

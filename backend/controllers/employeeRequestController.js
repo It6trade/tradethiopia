@@ -6,7 +6,15 @@ const User = require('../models/user.model');
 const { storage } = require('../config/appwriteClient');
 
 const CATEGORY_SUBCATEGORIES = {
-  leave: new Set(['annual_leave', 'sick_leave', 'paternity_leave', 'maternity_leave', 'other_leave']),
+  leave: new Set([
+    'annual_leave',
+    'sick_leave',
+    'paternity_leave',
+    'maternity_leave',
+    'marriage_leave',
+    'unpaid_leave',
+    'other_leave',
+  ]),
   handover: new Set(['material_handover', 'task_handover']),
 };
 
@@ -45,22 +53,72 @@ const userDepartment = (user) =>
 
 const resolveManager = async (requester) => {
   if (requester.managerId) {
-    const assigned = await User.findById(requester.managerId).select('_id role status');
+    const assigned = await User.findById(requester.managerId)
+      .select('_id fullName username email role jobTitle status');
     if (assigned && assigned.status === 'active') return assigned;
   }
   const department = userDepartment(requester);
   const users = await User.find({ status: 'active', _id: { $ne: requester._id } })
-    .select('_id role jobTitle');
+    .select('_id fullName username email role jobTitle status');
   return users.find((candidate) => {
     return isManagerAccount(candidate) && userDepartment(candidate).toLowerCase() === department.toLowerCase();
   }) || users.find((candidate) => ['admin', 'coo', 'supervisor'].includes(normalizeRole(candidate.role))) || null;
 };
 
 const required = (data, fields) => fields.filter((field) => !hasValue(data[field]));
+const addisAbabaSubmission = (date = new Date()) => {
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Africa/Addis_Ababa',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hourCycle: 'h23',
+    }).formatToParts(date).filter((part) => part.type !== 'literal').map((part) => [part.type, part.value])
+  );
+  const minutesAfterMidnight = (Number(parts.hour) * 60) + Number(parts.minute);
+  return {
+    submittedAt: date.toISOString(),
+    submittedLocalDate: `${parts.year}-${parts.month}-${parts.day}`,
+    submittedLocalTime: new Intl.DateTimeFormat('en-US', {
+      timeZone: 'Africa/Addis_Ababa',
+      hour: 'numeric',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: true,
+    }).format(date),
+    submissionTimezone: 'Africa/Addis_Ababa',
+    halfDaySession: minutesAfterMidnight < 750 ? 'morning' : 'afternoon',
+    sessionCutoff: '12:30 PM',
+  };
+};
+
 const validateForm = (category, subcategory, data = {}) => {
   if (!CATEGORY_SUBCATEGORIES[category]?.has(subcategory)) return ['valid category and subcategory'];
   if (category === 'leave') {
-    return required(data, ['startDate', 'endDate', 'reason', 'contactDuringLeave', 'handoverTo']);
+    const commonFields = ['reason', 'contactDuringLeave', 'handoverTo'];
+    if (subcategory === 'annual_leave' && data.leaveDuration === 'half_day') {
+      const missing = required(data, ['halfDayDate', ...commonFields]);
+      if (missing.length) return missing;
+      Object.assign(data, addisAbabaSubmission());
+      delete data.startDate;
+      delete data.endDate;
+      delete data.totalDays;
+      delete data.startTime;
+      delete data.endTime;
+      delete data.totalHours;
+      delete data.halfDayPeriod;
+      return [];
+    }
+    data.leaveDuration = 'full_day';
+    delete data.halfDayDate;
+    delete data.startTime;
+    delete data.endTime;
+    delete data.totalHours;
+    return required(data, ['startDate', 'endDate', ...commonFields]);
   }
   if (subcategory === 'material_handover') {
     return required(data, [
@@ -90,6 +148,15 @@ const createNotification = async (req, userId, text, targetId, actionLabel) => {
   const io = req.app.get('io');
   const socketId = req.app.get('connectedUsers')?.get?.(String(userId));
   if (io && socketId) io.to(socketId).emit('newNotification', notification.toObject());
+};
+
+const sendNotificationsSafely = async (notifications, context) => {
+  const results = await Promise.allSettled(notifications);
+  results.forEach((result) => {
+    if (result.status === 'rejected') {
+      console.error(`${context} notification failed:`, result.reason);
+    }
+  });
 };
 
 const uploadAttachments = async (files = []) => {
@@ -153,7 +220,9 @@ exports.create = async (req, res) => {
       department: userDepartment(req.user),
       category,
       subcategory,
-      title: String(req.body.title || '').trim() || `${subcategory.replace(/_/g, ' ')} request`,
+      title: subcategory === 'annual_leave' && formData.leaveDuration === 'half_day'
+        ? `${formData.halfDaySession === 'afternoon' ? 'Afternoon' : 'Morning'} Half-Day Annual Leave Request`
+        : String(req.body.title || '').trim() || `${subcategory.replace(/_/g, ' ')} request`,
       formData,
       attachments,
       history: [{
@@ -193,6 +262,7 @@ exports.mine = async (req, res) => {
 exports.accessContext = async (req, res) => {
   try {
     const role = normalizeRole(req.user.role);
+    const submissionManager = await resolveManager(req.user);
     const managedEmployees = await User.find({ managerId: req.user._id }).distinct('_id');
     const unassignedEmployees = await User.find({ managerId: null }).distinct('_id');
     const department = userDepartment(req.user);
@@ -217,6 +287,17 @@ exports.accessContext = async (req, res) => {
         role,
         displayRole: req.user.role,
         department,
+        submissionManager: submissionManager ? {
+          _id: submissionManager._id,
+          fullName: submissionManager.fullName,
+          username: submissionManager.username,
+          email: submissionManager.email,
+          role: submissionManager.role,
+          jobTitle: submissionManager.jobTitle,
+          assignmentSource: String(req.user.managerId || '') === String(submissionManager._id)
+            ? 'employee assignment'
+            : 'department routing',
+        } : null,
         isHr: HR_ROLES.has(role),
         hasManagerQueue: assignedRequestCount > 0,
         assignedRequestCount,
@@ -311,11 +392,16 @@ exports.managerDecision = async (req, res) => {
     item.managerDecision = { decidedBy: req.user._id, decision, note, decidedAt: new Date() };
     item.history.push({ action: `manager_${decision}`, status: item.status, actor: req.user._id, actorRole: req.user.role, note });
     await item.save();
-    await createNotification(req, item.requester, `Your ${item.title} was ${decision} by your manager.`, item._id, 'View request');
+    const notifications = [
+      createNotification(req, item.requester, `Your ${item.title} was ${decision} by your manager.`, item._id, 'View request'),
+    ];
     if (decision === 'approved') {
       const hrUsers = await User.find({ role: { $in: ['HR', 'hr', 'admin'] }, status: 'active' }).select('_id');
-      await Promise.all(hrUsers.map((user) => createNotification(req, user._id, `${item.title} is ready for HR review.`, item._id, 'Review request')));
+      notifications.push(
+        ...hrUsers.map((user) => createNotification(req, user._id, `${item.title} is ready for HR review.`, item._id, 'Review request'))
+      );
     }
+    await sendNotificationsSafely(notifications, 'Manager decision');
     res.json({ success: true, data: present(item) });
   } catch (error) { res.status(500).json({ message: error.message }); }
 };
@@ -327,20 +413,48 @@ exports.hrDecision = async (req, res) => {
     const note = String(req.body.note || '').trim();
     if (!['approved', 'rejected'].includes(decision)) return res.status(400).json({ message: 'Invalid decision.' });
     if (decision === 'rejected' && !note) return res.status(400).json({ message: 'A rejection reason is required.' });
-    const item = await EmployeeRequest.findById(req.params.id);
-    if (!item) return res.status(404).json({ message: 'Request not found.' });
-    if (item.status !== 'pending_hr') return res.status(409).json({ message: 'This request is not awaiting HR review.' });
-    item.status = decision === 'approved' ? 'hr_approved' : 'hr_rejected';
-    item.hrDecision = { decidedBy: req.user._id, decision, note, decidedAt: new Date() };
-    item.history.push({ action: `hr_${decision}`, status: item.status, actor: req.user._id, actorRole: req.user.role, note });
-    await item.save();
+    const nextStatus = decision === 'approved' ? 'hr_approved' : 'hr_rejected';
+    const decidedAt = new Date();
+    const item = await EmployeeRequest.findOneAndUpdate(
+      { _id: req.params.id, status: 'pending_hr' },
+      {
+        $set: {
+          status: nextStatus,
+          hrDecision: { decidedBy: req.user._id, decision, note, decidedAt },
+        },
+        $push: {
+          history: {
+            action: `hr_${decision}`,
+            status: nextStatus,
+            actor: req.user._id,
+            actorRole: req.user.role,
+            note,
+            occurredAt: decidedAt,
+          },
+        },
+      },
+      { new: true, runValidators: true }
+    )
+      .populate('requester', 'fullName username email digitalId jobTitle role')
+      .populate('manager', 'fullName username email digitalId jobTitle role')
+      .populate('hrDecision.decidedBy', 'fullName username role');
+    if (!item) {
+      const existing = await EmployeeRequest.findById(req.params.id).select('status');
+      if (!existing) return res.status(404).json({ message: 'Request not found.' });
+      return res.status(409).json({
+        message: `This request is no longer awaiting HR review. Current status: ${existing.status.replace(/_/g, ' ')}.`,
+      });
+    }
     const message = `HR ${decision} ${item.title}.`;
-    await Promise.all([
-      createNotification(req, item.requester, message, item._id, 'View final decision'),
-      createNotification(req, item.manager, message, item._id, 'View final decision'),
-    ]);
+    await sendNotificationsSafely([
+      createNotification(req, item.requester?._id || item.requester, message, item._id, 'View final decision'),
+      createNotification(req, item.manager?._id || item.manager, message, item._id, 'View final decision'),
+    ], 'HR decision');
     res.json({ success: true, data: present(item) });
-  } catch (error) { res.status(500).json({ message: error.message }); }
+  } catch (error) {
+    console.error('HR employee-request decision failed:', error);
+    res.status(500).json({ message: error.message || 'Unable to save the HR decision.' });
+  }
 };
 
 exports.cancel = async (req, res) => {

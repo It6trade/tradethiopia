@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { getAuthItem, removeAuthItem } from '../utils/authStorage';
 
 const defaultApiHost = import.meta.env.VITE_API_URL;
 
@@ -30,7 +31,7 @@ axiosInstance.interceptors.request.use(
       }
     }
 
-    const token = localStorage.getItem('userToken');
+    const token = getAuthItem('userToken');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -56,8 +57,8 @@ axiosInstance.interceptors.response.use(
     });
     if (error.response?.status === 401) {
       // Token expired or invalid
-      localStorage.removeItem('userToken');
-      localStorage.removeItem('userRole');
+      removeAuthItem('userToken');
+      removeAuthItem('userRole');
       window.location.href = '/login';
     }
     return Promise.reject(error);
