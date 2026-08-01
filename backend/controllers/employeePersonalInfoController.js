@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 const User = require('../models/user.model');
 const Document = require('../models/Document');
 const Notification = require('../models/Notification');
+const { validateEmployeePersonalInfo } = require('../utils/employeePersonalInfoValidation');
 
 const HR_ROLES = new Set(['hr', 'admin']);
 const normalizeRole = (value) => String(value || '').trim().toLowerCase();
@@ -91,6 +92,22 @@ const relatedDocuments = async (user) => {
   return Document.find({ $or: filters }).populate('category', 'name').sort({ createdAt: -1 }).lean();
 };
 
+// The previous employee form stored the emergency phone in User.altPhone.
+// Keep that legacy value visible until the employee saves the richer contact
+// record, without writing inferred data back to the database.
+const personalInformationForDisplay = (user) => {
+  const stored = user.personalInformation?.toObject
+    ? user.personalInformation.toObject()
+    : (user.personalInformation || {});
+  const emergencyContact = { ...(stored.emergencyContact || {}) };
+
+  if (!hasText(emergencyContact.phone) && hasText(user.altPhone)) {
+    emergencyContact.phone = user.altPhone;
+  }
+
+  return { ...stored, emergencyContact };
+};
+
 const present = async (user) => {
   const documents = await relatedDocuments(user);
   const linkedChecklist = {};
@@ -98,9 +115,7 @@ const present = async (user) => {
     const key = documentKey(document);
     if (key) linkedChecklist[key] = true;
   });
-  const record = user.personalInformation?.toObject
-    ? user.personalInformation.toObject()
-    : (user.personalInformation || {});
+  const record = personalInformationForDisplay(user);
   return {
     user: {
       _id: user._id,
@@ -144,7 +159,7 @@ const findAccessibleUser = async (req, res, id) => {
   }
   const user = await User.findById(id)
     .select('-password')
-    .populate('personalInformation.hrDecision.decidedBy', 'fullName username role')
+    .populate('personalInformation.hrDecision.decidedBy', 'fullName username email role')
     .populate('personalInformation.history.actor', 'fullName username role');
   if (!user) res.status(404).json({ success: false, message: 'Employee not found.' });
   return user;
@@ -173,6 +188,17 @@ exports.saveMine = async (req, res) => {
   try {
     const clean = cleanRecord(req.body);
     const profile = cleanEmployeeProfile(req.body);
+    const validationSection = ['A', 'B', 'C', 'D', 'E', 'declaration', 'upload'].includes(req.body.validationSection)
+      ? req.body.validationSection
+      : null;
+    const validationErrors = validateEmployeePersonalInfo({ profile, record: clean }, { section: validationSection });
+    if (validationErrors.length) {
+      return res.status(400).json({
+        success: false,
+        message: validationErrors[0].message,
+        errors: validationErrors,
+      });
+    }
     const set = {};
     Object.entries(clean).forEach(([key, value]) => { set[`personalInformation.${key}`] = value; });
     Object.entries(profile).forEach(([key, value]) => { set[key] = value; });
@@ -203,27 +229,24 @@ exports.submitMine = async (req, res) => {
   try {
     const clean = cleanRecord(req.body);
     const profile = cleanEmployeeProfile(req.body);
-    const required = [
-      ['full name', profile.fullName || req.user.fullName],
-      ['phone number', profile.phone || req.user.phone],
-      ['date of birth', clean.dateOfBirth],
-      ['nationality', clean.nationality],
-      ['marital status', clean.maritalStatus],
-      ['national ID or passport', clean.nationalIdOrPassport],
-      ['emergency contact name', clean.emergencyContact?.fullName],
-      ['emergency contact phone', clean.emergencyContact?.phone],
-    ];
-    const missing = required.filter(([, value]) => !hasText(value)).map(([label]) => label);
-    if (!clean.declarationAccepted) missing.push('employee declaration');
-    if (missing.length) {
-      return res.status(400).json({ success: false, message: `Complete the following before submission: ${missing.join(', ')}.` });
+    const validationErrors = validateEmployeePersonalInfo({ profile, record: clean }, { submit: true });
+    if (validationErrors.length) {
+      return res.status(400).json({
+        success: false,
+        message: `Please correct ${validationErrors.length} form field${validationErrors.length === 1 ? '' : 's'} before submitting.`,
+        errors: validationErrors,
+      });
     }
     const set = {};
     Object.entries(clean).forEach(([key, value]) => { set[`personalInformation.${key}`] = value; });
     Object.entries(profile).forEach(([key, value]) => { set[key] = value; });
     set['personalInformation.status'] = 'submitted';
     set['personalInformation.submittedAt'] = new Date();
-    set['personalInformation.hrDecision'] = { decidedBy: null, decision: '', note: '', decidedAt: null };
+    set['personalInformation.hrDecision'] = {
+      decidedBy: null, reviewerName: '', reviewerEmail: '', decision: '', note: '', decidedAt: null,
+    };
+    // Submission enters HR review. Only hrDecision may change this to active.
+    set.infoStatus = 'pending';
     const user = await User.findOneAndUpdate(
       { _id: req.user._id, 'personalInformation.status': { $ne: 'approved' } },
       {
@@ -276,7 +299,17 @@ exports.hrDecision = async (req, res) => {
       {
         $set: {
           'personalInformation.status': decision,
-          'personalInformation.hrDecision': { decidedBy: req.user._id, decision, note, decidedAt: now },
+          'personalInformation.hrDecision': {
+            decidedBy: req.user._id,
+            // HR navigation consistently identifies accounts by username. Keep
+            // a decision-time snapshot so later profile edits cannot rewrite
+            // the audit signature shown on an approved employee record.
+            reviewerName: req.user.username || req.user.fullName || req.user.email,
+            reviewerEmail: String(req.user.email || '').trim().toLowerCase(),
+            decision,
+            note,
+            decidedAt: now,
+          },
           // Keep the established login/onboarding gate synchronized with the
           // personal-information workflow. Approved employees advance to the
           // next onboarding stage; returned forms remain pending.
@@ -301,7 +334,7 @@ exports.hrDecision = async (req, res) => {
           : `This form cannot receive that decision while its status is ${status}.`,
       });
     }
-    await user.populate('personalInformation.hrDecision.decidedBy', 'fullName username role');
+    await user.populate('personalInformation.hrDecision.decidedBy', 'fullName username email role');
     await notifySafely([
       createNotification(req, user._id, {
         text: decision === 'approved'

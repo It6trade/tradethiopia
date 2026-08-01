@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Alert, AlertIcon, Badge, Box, Button, Checkbox, Divider, Flex, FormControl,
-  FormLabel, Grid, Heading, HStack, Icon, IconButton, Image, Input, Select,
+  FormErrorMessage, FormLabel, Grid, Heading, HStack, Icon, IconButton, Image, Input, Select,
   SimpleGrid, Skeleton, Stack, Text, Textarea, Tooltip, useToast,
 } from '@chakra-ui/react';
 import { FiCheck, FiChevronLeft, FiFileText, FiPlus, FiPrinter, FiSave, FiSend, FiShield, FiTrash2 } from 'react-icons/fi';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import axiosInstance from '../services/axiosInstance';
 import { normalizeRole, useUserStore } from '../store/user';
+import { ETHIOPIAN_REGIONS, validateEmployeePersonalInfo } from '../utils/employeePersonalInfoValidation';
 
 const emptyRecord = () => ({
   dateOfBirth: '',
@@ -27,7 +28,7 @@ const emptyRecord = () => ({
   declarationAccepted: false,
   status: 'draft',
   submittedAt: null,
-  hrDecision: { decision: '', note: '', decidedAt: null, decidedBy: null },
+  hrDecision: { decision: '', note: '', decidedAt: null, decidedBy: null, reviewerName: '', reviewerEmail: '' },
   history: [],
 });
 
@@ -41,12 +42,18 @@ const CHECKLIST = [
   ['employmentContract', 'Signed Employment Contract / Offer Letter'],
   ['bankAccountDetails', 'Bank Account Details'],
 ];
+const EDUCATION_LEVELS = ['Primary', 'Secondary', 'TVET Certificate', 'Diploma', 'Bachelor’s Degree', 'Master’s Degree', 'Doctorate (PhD)', 'Other'];
+const EMERGENCY_RELATIONSHIPS = ['Parent', 'Spouse', 'Sibling', 'Child', 'Relative', 'Friend', 'Guardian', 'Other'];
 
 const statusColor = { draft: 'gray', submitted: 'orange', approved: 'green', returned: 'red' };
 const dateValue = (value) => value ? String(value).slice(0, 10) : '';
 const formatDate = (value) => value
-  ? new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(value))
+  ? new globalThis.Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(value))
   : 'Not recorded';
+const reviewerIdentity = (decision = {}) => ({
+  name: decision.reviewerName || decision.decidedBy?.username || decision.decidedBy?.fullName || 'HR',
+  email: decision.reviewerEmail || decision.decidedBy?.email || '',
+});
 
 const SectionHeading = ({ code, title }) => (
   <Flex className="paper-section-heading" align="center" gap={2}>
@@ -54,12 +61,12 @@ const SectionHeading = ({ code, title }) => (
   </Flex>
 );
 
-const Field = ({ label, required, helper, owner = 'employee', children }) => {
+const Field = ({ label, required, helper, error, owner = 'employee', children }) => {
   const value = children?.props?.value;
   const text = String(value ?? '').trim().toLowerCase();
   const completed = text !== '' && text !== 'not provided' && text !== 'assigned by hr';
   return (
-  <FormControl isRequired={required}>
+  <FormControl isRequired={required} isInvalid={Boolean(error)} data-validation-error={error ? 'true' : undefined}>
     <Flex align="center" justify="space-between" gap={2} mb={1.5}>
       <FormLabel fontSize="sm" fontWeight="700" color="gray.700" mb={0}>{label}</FormLabel>
       <HStack spacing={1}>
@@ -78,10 +85,18 @@ const Field = ({ label, required, helper, owner = 'employee', children }) => {
       </HStack>
     </Flex>
     {children}
+    {error && <FormErrorMessage fontSize="xs">{error}</FormErrorMessage>}
     {helper && <Text mt={1.5} fontSize="xs" color="gray.500">{helper}</Text>}
   </FormControl>
   );
 };
+
+const RegionSelect = ({ value, disabled, onChange }) => (
+  <Select value={value} isDisabled={disabled} onChange={onChange} placeholder="Select region or city administration">
+    {value && !ETHIOPIAN_REGIONS.includes(value) && <option value={value}>{value} (saved value)</option>}
+    {ETHIOPIAN_REGIONS.map((region) => <option key={region} value={region}>{region}</option>)}
+  </Select>
+);
 
 const EmployeeInfoForm = () => {
   const toast = useToast();
@@ -102,9 +117,11 @@ const EmployeeInfoForm = () => {
   const [loading, setLoading] = useState(true);
   const [working, setWorking] = useState(false);
   const [decisionNote, setDecisionNote] = useState('');
+  const [validationMode, setValidationMode] = useState(null);
   // HR reviews a read-only employee record. For the employee, only final HR
   // approval locks the form; submitted and returned records remain editable.
   const locked = hrView || record.status === 'approved';
+  const reviewer = reviewerIdentity(record.hrDecision);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -166,29 +183,60 @@ const EmployeeInfoForm = () => {
     documentChecklist: record.documentChecklist,
     declarationAccepted: record.declarationAccepted,
   }), [profile, record]);
+  const validationErrors = useMemo(
+    () => validationMode ? validateEmployeePersonalInfo({ profile, record }, validationMode) : {},
+    [profile, record, validationMode]
+  );
 
-  const save = async (submit = false) => {
+  const focusFirstError = () => {
+    window.setTimeout(() => {
+      const container = document.querySelector('[data-validation-error="true"]');
+      container?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      container?.querySelector('input, select, textarea, button')?.focus({ preventScroll: true });
+    }, 0);
+  };
+
+  const save = async (submit = false, section = null) => {
+    const validationOptions = { submit, section };
+    const errors = validateEmployeePersonalInfo({ profile, record }, validationOptions);
+    setValidationMode(validationOptions);
+    if (Object.keys(errors).length) {
+      toast({
+        title: `Please correct ${Object.keys(errors).length} highlighted field${Object.keys(errors).length === 1 ? '' : 's'}`,
+        description: Object.values(errors)[0],
+        status: 'error',
+      });
+      focusFirstError();
+      return false;
+    }
     setWorking(true);
     try {
       const url = submit ? '/users/personal-information/me/submit' : '/users/personal-information/me';
       const method = submit ? 'post' : 'patch';
-      const { data } = await axiosInstance[method](url, payload);
+      const { data } = await axiosInstance[method](url, submit ? payload : { ...payload, validationSection: section });
       toast({ title: data.message, status: 'success' });
       await load();
+      return true;
     } catch (error) {
       toast({ title: submit ? 'Form could not be submitted' : 'Draft could not be saved', description: error.response?.data?.message || error.message, status: 'error' });
+      return false;
     } finally {
       setWorking(false);
     }
   };
 
-  const SectionAction = ({ section, description }) => !locked && (
+  const saveBeforeUpload = async () => {
+    const saved = await save(false, 'upload');
+    if (saved) navigate('/employee-file-upload');
+  };
+
+  const SectionAction = ({ section, validationSection, description }) => !locked && (
     <Flex className="screen-only section-action" mt={5} justify="space-between" align={{ base: 'stretch', sm: 'center' }} direction={{ base: 'column', sm: 'row' }} gap={3}>
       <Box>
         <Text fontSize="sm" fontWeight="700">{section}</Text>
         <Text fontSize="xs" color="gray.500">{description}</Text>
       </Box>
-      <Button leftIcon={<FiSave />} colorScheme="teal" variant="outline" isLoading={working} onClick={() => save(false)}>
+      <Button leftIcon={<FiSave />} colorScheme="teal" variant="outline" isLoading={working} onClick={() => save(false, validationSection)}>
         Save {section}
       </Button>
     </Flex>
@@ -234,6 +282,15 @@ const EmployeeInfoForm = () => {
           <AlertIcon /><Box><Text fontWeight="700">HR requires corrections</Text><Text fontSize="sm">{record.hrDecision?.note || 'Review the information and submit it again.'}</Text></Box>
         </Alert>
       )}
+      {params.get('documentsUploaded') === '1' && (
+        <Alert status="success" mb={4} borderRadius="xl" className="screen-only">
+          <AlertIcon />
+          <Box>
+            <Text fontWeight="700">Documents uploaded successfully</Text>
+            <Text fontSize="sm">Complete all highlighted sections, accept the declaration, then select <b>Submit to HR</b>. Onboarding continues only after HR approves the record.</Text>
+          </Box>
+        </Alert>
+      )}
       {record.status === 'draft' && record.hrDecision?.decision === 'returned' && (
         <Alert status="warning" mb={4} borderRadius="xl" className="screen-only">
           <AlertIcon /><Box><Text fontWeight="700">Corrections are in progress</Text><Text fontSize="sm">HR requested: {record.hrDecision?.note}. Complete the changes, then use <b>Submit to HR</b> to return the corrected form for approval.</Text></Box>
@@ -248,10 +305,7 @@ const EmployeeInfoForm = () => {
         <Alert status="success" mb={4} borderRadius="xl" className="screen-only">
           <AlertIcon />
           <Flex flex="1" justify="space-between" align={{ base: 'flex-start', md: 'center' }} direction={{ base: 'column', md: 'row' }} gap={3}>
-            <Box><Text fontWeight="700">Verified and approved by HR</Text><Text fontSize="sm">Approved by {record.hrDecision?.decidedBy?.fullName || record.hrDecision?.decidedBy?.username || 'HR'} on {formatDate(record.hrDecision?.decidedAt)}. The approved form is now locked.</Text></Box>
-            {!hrView && employee.status === 'inactive' && (
-              <Button colorScheme="green" size="sm" flexShrink={0} onClick={() => navigate('/secondpage')}>Continue onboarding</Button>
-            )}
+            <Box><Text fontWeight="700">Verified and approved by HR</Text><Text fontSize="sm">Approved by {reviewer.name} on {formatDate(record.hrDecision?.decidedAt)}. The approved form is now locked.</Text></Box>
           </Flex>
         </Alert>
       )}
@@ -271,42 +325,42 @@ const EmployeeInfoForm = () => {
 
           <SectionHeading code="A" title="PERSONAL INFORMATION" />
           <SimpleGrid columns={{ base: 1, md: 3 }} spacing={4} className="paper-grid">
-            <Field label="Full Name" required><Input value={profile.fullName} isReadOnly={locked} onChange={(e) => setProfile((previous) => ({ ...previous, fullName: e.target.value }))} /></Field>
-            <Field label="Date of Birth" required><Input type="date" value={record.dateOfBirth} isReadOnly={locked} onChange={(e) => setValue('dateOfBirth', e.target.value)} /></Field>
+            <Field label="Full Name" required error={validationErrors['profile.fullName']} helper="Enter at least two names as shown on official identification."><Input value={profile.fullName} isReadOnly={locked} autoComplete="name" onChange={(e) => setProfile((previous) => ({ ...previous, fullName: e.target.value }))} /></Field>
+            <Field label="Date of Birth" required error={validationErrors['record.dateOfBirth']} helper="Use the Gregorian date shown on your official record."><Input type="date" max={new Date().toISOString().slice(0, 10)} value={record.dateOfBirth} isReadOnly={locked} onChange={(e) => setValue('dateOfBirth', e.target.value)} /></Field>
             <Field label="Gender">
               <Select value={profile.gender} isDisabled={locked} onChange={(e) => setProfile((previous) => ({ ...previous, gender: e.target.value }))} placeholder="Select gender">
                 <option value="female">Female</option><option value="male">Male</option>
               </Select>
             </Field>
-            <Field label="Nationality" required><Input value={record.nationality} isReadOnly={locked} onChange={(e) => setValue('nationality', e.target.value)} /></Field>
-            <Field label="National ID / Passport No." required><Input value={record.nationalIdOrPassport} isReadOnly={locked} onChange={(e) => setValue('nationalIdOrPassport', e.target.value)} /></Field>
+            <Field label="Nationality" required error={validationErrors['record.nationality']}><Select value={record.nationality} isDisabled={locked} onChange={(e) => setValue('nationality', e.target.value)} placeholder="Select nationality">{record.nationality && !['Ethiopian', 'Other'].includes(record.nationality) && <option value={record.nationality}>{record.nationality} (saved value)</option>}<option value="Ethiopian">Ethiopian</option><option value="Other">Other / non-Ethiopian</option></Select></Field>
+            <Field label="National ID / Passport No." required error={validationErrors['record.nationalIdOrPassport']} helper="Enter 4–30 characters exactly as printed on the document."><Input value={record.nationalIdOrPassport} maxLength={30} isReadOnly={locked} onChange={(e) => setValue('nationalIdOrPassport', e.target.value)} /></Field>
             <Field label="Marital Status" required>
               <Select value={record.maritalStatus} isDisabled={locked} onChange={(e) => setValue('maritalStatus', e.target.value)} placeholder="Select status">
                 <option value="single">Single</option><option value="married">Married</option><option value="divorced">Divorced</option><option value="widowed">Widowed</option>
               </Select>
             </Field>
-            <Field label="Phone Number" required><Input value={profile.phone} isReadOnly={locked} onChange={(e) => setProfile((previous) => ({ ...previous, phone: e.target.value }))} /></Field>
-            <Field label="Personal Email Address"><Input type="email" value={profile.altEmail} isReadOnly={locked} onChange={(e) => setProfile((previous) => ({ ...previous, altEmail: e.target.value }))} /></Field>
+            <Field label="Phone Number" required error={validationErrors['profile.phone']} helper="Accepted formats: 0911234567 or +251911234567."><Input type="tel" inputMode="tel" autoComplete="tel" value={profile.phone} isReadOnly={locked} onChange={(e) => setProfile((previous) => ({ ...previous, phone: e.target.value }))} /></Field>
+            <Field label="Personal Email Address" error={validationErrors['profile.altEmail']}><Input type="email" autoComplete="email" value={profile.altEmail} isReadOnly={locked} onChange={(e) => setProfile((previous) => ({ ...previous, altEmail: e.target.value }))} /></Field>
             <Field label="Employee ID" owner="hr" helper="The unique employee number is assigned and maintained by HR."><Input value={employee.digitalId || 'Assigned by HR'} isReadOnly /></Field>
           </SimpleGrid>
 
           <Text className="paper-subheading">PLACE OF BIRTH</Text>
           <SimpleGrid columns={{ base: 1, md: 3 }} spacing={4}>
             <Field label="Place / City"><Input value={record.placeOfBirth.city} isReadOnly={locked} onChange={(e) => setNested('placeOfBirth', 'city', e.target.value)} /></Field>
-            <Field label="Region"><Input value={record.placeOfBirth.region} isReadOnly={locked} onChange={(e) => setNested('placeOfBirth', 'region', e.target.value)} /></Field>
+            <Field label="Region"><RegionSelect value={record.placeOfBirth.region} disabled={locked} onChange={(e) => setNested('placeOfBirth', 'region', e.target.value)} /></Field>
             <Field label="Kebele"><Input value={record.placeOfBirth.kebele} isReadOnly={locked} onChange={(e) => setNested('placeOfBirth', 'kebele', e.target.value)} /></Field>
           </SimpleGrid>
 
           <Text className="paper-subheading">PRESENT ADDRESS</Text>
           <SimpleGrid columns={{ base: 1, md: 3 }} spacing={4}>
-            <Field label="Region"><Input value={record.presentAddress.region} isReadOnly={locked} onChange={(e) => setNested('presentAddress', 'region', e.target.value)} /></Field>
-            <Field label="City / Town"><Input value={record.presentAddress.cityOrTown} isReadOnly={locked} onChange={(e) => setNested('presentAddress', 'cityOrTown', e.target.value)} /></Field>
+            <Field label="Region" required error={validationErrors['record.presentAddress.region']}><RegionSelect value={record.presentAddress.region} disabled={locked} onChange={(e) => setNested('presentAddress', 'region', e.target.value)} /></Field>
+            <Field label="City / Town" required error={validationErrors['record.presentAddress.cityOrTown']}><Input value={record.presentAddress.cityOrTown} isReadOnly={locked} autoComplete="address-level2" onChange={(e) => setNested('presentAddress', 'cityOrTown', e.target.value)} /></Field>
             <Field label="Sub-City / Woreda"><Input value={record.presentAddress.subCityOrWoreda} isReadOnly={locked} onChange={(e) => setNested('presentAddress', 'subCityOrWoreda', e.target.value)} /></Field>
             <Field label="Kebele"><Input value={record.presentAddress.kebele} isReadOnly={locked} onChange={(e) => setNested('presentAddress', 'kebele', e.target.value)} /></Field>
             <Field label="House Number"><Input value={record.presentAddress.houseNumber} isReadOnly={locked} onChange={(e) => setNested('presentAddress', 'houseNumber', e.target.value)} /></Field>
             <Field label="Address Summary"><Input value={profile.location} isReadOnly={locked} onChange={(e) => setProfile((previous) => ({ ...previous, location: e.target.value }))} /></Field>
           </SimpleGrid>
-          <SectionAction section="Section A" description="Save personal, birthplace, and present-address information as a draft." />
+          <SectionAction section="Section A" validationSection="A" description="Save personal, birthplace, and present-address information as a draft." />
 
           <SectionHeading code="B" title="EMPLOYMENT DETAILS" />
           <SimpleGrid columns={{ base: 1, md: 3 }} spacing={4}>
@@ -315,10 +369,10 @@ const EmployeeInfoForm = () => {
             <Field label="Hiring Date" owner="hr"><Input value={dateValue(employee.hireDate)} type="date" isReadOnly /></Field>
             <Field label="Employment Type" owner="hr"><Input value={employee.employmentType || 'Not provided'} isReadOnly /></Field>
             <Field label="Basic Pay (Birr)" owner="hr"><Input value={employee.salary ?? 'Not provided'} isReadOnly /></Field>
-            <Field label="TIN Number" helper="Provide the TIN registered for payroll processing."><Input value={record.tinNumber} isReadOnly={locked} onChange={(e) => setValue('tinNumber', e.target.value)} /></Field>
-            <Field label="Salary Bank Account Number" helper="Provide the account designated to receive salary payments."><Input value={record.salaryBankAccountNumber} isReadOnly={locked} onChange={(e) => setValue('salaryBankAccountNumber', e.target.value)} /></Field>
+            <Field label="TIN Number" error={validationErrors['record.tinNumber']} helper="Enter the 10-digit taxpayer identification number issued by the tax authority."><Input value={record.tinNumber} inputMode="numeric" maxLength={10} isReadOnly={locked} onChange={(e) => setValue('tinNumber', e.target.value.replace(/\D/g, ''))} /></Field>
+            <Field label="Salary Bank Account Number" error={validationErrors['record.salaryBankAccountNumber']} helper="Enter 6–24 digits for the account designated to receive salary payments."><Input value={record.salaryBankAccountNumber} inputMode="numeric" maxLength={24} isReadOnly={locked} onChange={(e) => setValue('salaryBankAccountNumber', e.target.value.replace(/\D/g, ''))} /></Field>
           </SimpleGrid>
-          <SectionAction section="Section B" description="Save employee-provided payroll identifiers. HR employment fields remain protected." />
+          <SectionAction section="Section B" validationSection="B" description="Save employee-provided payroll identifiers. HR employment fields remain protected." />
 
           <SectionHeading code="C" title="EDUCATIONAL BACKGROUND" />
           <Box mb={4}>
@@ -329,16 +383,16 @@ const EmployeeInfoForm = () => {
           <Stack spacing={3}>
             {record.educationRecords.map((item, index) => (
               <Grid key={index} templateColumns={{ base: '1fr', md: '1fr 1.4fr 1.3fr 0.7fr auto' }} gap={3} alignItems="end">
-                <Field label="Level of Education"><Input value={item.level} isReadOnly={locked} onChange={(e) => setEducation(index, 'level', e.target.value)} /></Field>
-                <Field label="Institution Name"><Input value={item.institution} isReadOnly={locked} onChange={(e) => setEducation(index, 'institution', e.target.value)} /></Field>
-                <Field label="Field of Study"><Input value={item.fieldOfStudy} isReadOnly={locked} onChange={(e) => setEducation(index, 'fieldOfStudy', e.target.value)} /></Field>
-                <Field label="Year"><Input value={item.graduationYear} isReadOnly={locked} onChange={(e) => setEducation(index, 'graduationYear', e.target.value)} /></Field>
+                <Field label="Level of Education" error={validationErrors[`record.educationRecords.${index}.level`]}><Select value={item.level} isDisabled={locked} onChange={(e) => setEducation(index, 'level', e.target.value)} placeholder="Select level">{item.level && !EDUCATION_LEVELS.includes(item.level) && <option value={item.level}>{item.level} (saved value)</option>}{EDUCATION_LEVELS.map((level) => <option key={level} value={level}>{level}</option>)}</Select></Field>
+                <Field label="Institution Name" error={validationErrors[`record.educationRecords.${index}.institution`]}><Input value={item.institution} isReadOnly={locked} onChange={(e) => setEducation(index, 'institution', e.target.value)} /></Field>
+                <Field label="Field of Study" error={validationErrors[`record.educationRecords.${index}.fieldOfStudy`]}><Input value={item.fieldOfStudy} isReadOnly={locked} onChange={(e) => setEducation(index, 'fieldOfStudy', e.target.value)} /></Field>
+                <Field label="Year (Gregorian)" error={validationErrors[`record.educationRecords.${index}.graduationYear`]}><Input value={item.graduationYear} inputMode="numeric" maxLength={4} isReadOnly={locked} onChange={(e) => setEducation(index, 'graduationYear', e.target.value.replace(/\D/g, ''))} /></Field>
                 {!locked && record.educationRecords.length > 1 && <IconButton mb="1px" aria-label="Remove education" icon={<FiTrash2 />} colorScheme="red" variant="ghost" onClick={() => setValue('educationRecords', record.educationRecords.filter((_, i) => i !== index))} />}
               </Grid>
             ))}
             {!locked && <Button className="screen-only" alignSelf="flex-start" size="sm" variant="outline" leftIcon={<FiPlus />} onClick={() => setValue('educationRecords', [...record.educationRecords, { level: '', institution: '', fieldOfStudy: '', graduationYear: '' }])}>Add education</Button>}
           </Stack>
-          <SectionAction section="Section C" description="Save the education summary and detailed qualification records." />
+          <SectionAction section="Section C" validationSection="C" description="Save the education summary and detailed qualification records." />
           <Text className="paper-footer">Confidential — For Internal HR Use Only <span>Page 1</span></Text>
         </Box>
 
@@ -348,13 +402,13 @@ const EmployeeInfoForm = () => {
           </Flex>
           <SectionHeading code="D" title="EMERGENCY CONTACT INFORMATION" />
           <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}>
-            <Field label="Full Name" required><Input value={record.emergencyContact.fullName} isReadOnly={locked} onChange={(e) => setNested('emergencyContact', 'fullName', e.target.value)} /></Field>
-            <Field label="Relationship to Employee"><Input value={record.emergencyContact.relationship} isReadOnly={locked} onChange={(e) => setNested('emergencyContact', 'relationship', e.target.value)} /></Field>
-            <Field label="Phone Number" required><Input value={record.emergencyContact.phone} isReadOnly={locked} onChange={(e) => setNested('emergencyContact', 'phone', e.target.value)} /></Field>
-            <Field label="Alternative Phone Number"><Input value={record.emergencyContact.alternativePhone} isReadOnly={locked} onChange={(e) => setNested('emergencyContact', 'alternativePhone', e.target.value)} /></Field>
+            <Field label="Full Name" required error={validationErrors['record.emergencyContact.fullName']}><Input value={record.emergencyContact.fullName} autoComplete="name" isReadOnly={locked} onChange={(e) => setNested('emergencyContact', 'fullName', e.target.value)} /></Field>
+            <Field label="Relationship to Employee" required error={validationErrors['record.emergencyContact.relationship']}><Select value={record.emergencyContact.relationship} isDisabled={locked} onChange={(e) => setNested('emergencyContact', 'relationship', e.target.value)} placeholder="Select relationship">{record.emergencyContact.relationship && !EMERGENCY_RELATIONSHIPS.includes(record.emergencyContact.relationship) && <option value={record.emergencyContact.relationship}>{record.emergencyContact.relationship} (saved value)</option>}{EMERGENCY_RELATIONSHIPS.map((relationship) => <option key={relationship} value={relationship}>{relationship}</option>)}</Select></Field>
+            <Field label="Phone Number" required error={validationErrors['record.emergencyContact.phone']} helper="Accepted formats: 0911234567 or +251911234567."><Input type="tel" inputMode="tel" value={record.emergencyContact.phone} isReadOnly={locked} onChange={(e) => setNested('emergencyContact', 'phone', e.target.value)} /></Field>
+            <Field label="Alternative Phone Number" error={validationErrors['record.emergencyContact.alternativePhone']}><Input type="tel" inputMode="tel" value={record.emergencyContact.alternativePhone} isReadOnly={locked} onChange={(e) => setNested('emergencyContact', 'alternativePhone', e.target.value)} /></Field>
             <Box gridColumn={{ md: '1 / -1' }}><Field label="Address"><Textarea value={record.emergencyContact.address} isReadOnly={locked} onChange={(e) => setNested('emergencyContact', 'address', e.target.value)} /></Field></Box>
           </SimpleGrid>
-          <SectionAction section="Section D" description="Save the employee’s emergency contact information." />
+          <SectionAction section="Section D" validationSection="D" description="Save the employee’s emergency contact information." />
 
           <SectionHeading code="E" title="ATTACHED DOCUMENTS CHECKLIST" />
           <Text fontSize="sm" color="gray.600" mb={4}>Checked items may be employee-confirmed or automatically verified from the existing Employee Documents repository.</Text>
@@ -381,8 +435,8 @@ const EmployeeInfoForm = () => {
             <Flex className="screen-only" mt={4} gap={3} justify="space-between" align={{ base: 'stretch', sm: 'center' }} direction={{ base: 'column', sm: 'row' }}>
               <Text fontSize="xs" color="gray.500">Select documents already provided. Repository-linked documents are verified automatically and cannot be unchecked.</Text>
               <HStack>
-                <Button variant="ghost" colorScheme="teal" onClick={() => navigate('/employee-file-upload')}>Upload documents</Button>
-                <Button leftIcon={<FiSave />} colorScheme="teal" variant="outline" isLoading={working} onClick={() => save(false)}>Save Section E</Button>
+                <Button variant="ghost" colorScheme="teal" isLoading={working} loadingText="Saving draft" onClick={saveBeforeUpload}>Save and upload documents</Button>
+                <Button leftIcon={<FiSave />} colorScheme="teal" variant="outline" isLoading={working} onClick={() => save(false, 'E')}>Save Section E</Button>
               </HStack>
             </Flex>
           )}
@@ -394,11 +448,39 @@ const EmployeeInfoForm = () => {
               I understand that false or misleading information may result in disciplinary action, up to and including termination
               of employment, in accordance with TradeEthiopia’s policies.
             </Text>
-            <Checkbox mt={4} isChecked={record.declarationAccepted} isDisabled={locked} onChange={(e) => setValue('declarationAccepted', e.target.checked)}>
+            <Checkbox mt={4} isChecked={record.declarationAccepted} isInvalid={Boolean(validationErrors['record.declarationAccepted'])} isDisabled={locked} onChange={(e) => setValue('declarationAccepted', e.target.checked)}>
               I have reviewed this record and accept the declaration.
             </Checkbox>
+            {validationErrors['record.declarationAccepted'] && <Text mt={2} fontSize="xs" color="red.500">{validationErrors['record.declarationAccepted']}</Text>}
           </Box>
-          <SectionAction section="Declaration" description="Save the declaration confirmation before submitting the complete form to HR." />
+          <SectionAction section="Declaration" validationSection="declaration" description="Save the declaration confirmation before submitting the complete form to HR." />
+
+          {!hrView && (
+            <Box mt={6} p={5} border="1px solid" borderColor={record.status === 'approved' ? 'green.200' : 'teal.200'} borderRadius="xl" bg={record.status === 'approved' ? 'green.50' : 'teal.50'} className="screen-only">
+              {record.status === 'approved' ? (
+                <Flex justify="space-between" align={{ base: 'stretch', md: 'center' }} direction={{ base: 'column', md: 'row' }} gap={4}>
+                  <Box>
+                    <Text fontWeight="800" color="green.800">HR approval complete</Text>
+                    <Text mt={1} fontSize="sm" color="green.700">Your employee record is approved. You may now continue to the company tutorials.</Text>
+                  </Box>
+                  <Button colorScheme="green" flexShrink={0} onClick={() => navigate('/secondpage')}>Continue to tutorials</Button>
+                </Flex>
+              ) : record.status === 'submitted' ? (
+                <Box>
+                  <Text fontWeight="800" color="teal.800">Form submitted to HR</Text>
+                  <Text mt={1} fontSize="sm" color="teal.700">HR must review and approve this record before tutorial access becomes available.</Text>
+                </Box>
+              ) : (
+                <Flex justify="space-between" align={{ base: 'stretch', md: 'center' }} direction={{ base: 'column', md: 'row' }} gap={4}>
+                  <Box>
+                    <Text fontWeight="800" color="teal.800">Final step: submit for HR approval</Text>
+                    <Text mt={1} fontSize="sm" color="teal.700">Complete the form, upload the required documents, and accept the declaration. Saving a draft does not send it to HR.</Text>
+                  </Box>
+                  <Button leftIcon={<FiSend />} colorScheme="teal" isLoading={working} loadingText="Submitting" flexShrink={0} onClick={() => save(true)}>Submit complete form to HR</Button>
+                </Flex>
+              )}
+            </Box>
+          )}
 
           <SimpleGrid columns={{ base: 1, md: 2 }} spacing={8} mt={10}>
             <Box className="signature-line">
@@ -406,8 +488,8 @@ const EmployeeInfoForm = () => {
               <Text fontSize="xs" color="gray.500">Employee confirmation • {formatDate(record.submittedAt)}</Text>
             </Box>
             <Box className="signature-line">
-              <Text fontWeight="700">{record.hrDecision?.decidedBy?.fullName || record.hrDecision?.decidedBy?.username || 'Awaiting HR verification'}</Text>
-              <Text fontSize="xs" color="gray.500">HR Officer verification • {formatDate(record.hrDecision?.decidedAt)}</Text>
+              <Text fontWeight="700">{record.hrDecision?.decidedAt ? reviewer.name : 'Awaiting HR verification'}</Text>
+              <Text fontSize="xs" color="gray.500">HR Officer verification • {formatDate(record.hrDecision?.decidedAt)}{reviewer.email ? ` • ${reviewer.email}` : ''}</Text>
             </Box>
           </SimpleGrid>
 

@@ -50,6 +50,7 @@ import ENISRANoticeBoard from "./components/ENSRA/ENSRANoticeBoard";
 import ENISRARequestEmbedded from "./components/ENSRA/ENISRARequestEmbedded";
 import ENISRAFollowUp from "./components/ENSRA/ENISRAFollowUp";
 import ProtectedRoute from "./routes/ProtectedRoute";
+import ApprovedOnboardingRoute from "./routes/ApprovedOnboardingRoute";
 import RoleProtectedRoute from "./components/RoleProtectedRoute";
 import InstructorLayout from "./components/instructor/InstructorLayout";
 import InstructorDashboard from "./pages/instructor/Dashboard";
@@ -155,7 +156,7 @@ return (
       <Route path="/" element={<WelcomePage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/InfoForm" element={<InfoForm />} />
-      <Route path="/secondpage" element={<SecondPage />} />
+      <Route path="/secondpage" element={<ApprovedOnboardingRoute><SecondPage /></ApprovedOnboardingRoute>} />
       <Route path="/thirdpage" element={<ThirdPage />} />
       <Route path="/fourthpage" element={<FourthPage />} />
       <Route path="/fifthpage" element={<FifthPage />} />
@@ -201,7 +202,7 @@ return (
       />
       <Route path="/resource" element={<Navigate to="/resources" replace />} />
       <Route path="/employee-info" element={<ProtectedRoute><EmployeeInfoPage /></ProtectedRoute>} />
-      <Route path="/employee-file-upload" element={<EmployeeFileUploadForm />} />
+      <Route path="/employee-file-upload" element={<ProtectedRoute><EmployeeFileUploadForm /></ProtectedRoute>} />
       <Route
         path="/users"
         element={

@@ -171,7 +171,7 @@ const Dashboard = () => {
   const navigate = useNavigate();
 
   const greetingTime = new Date().getHours() < 12 ? "Good morning" : new Date().getHours() < 17 ? "Good afternoon" : "Good evening";
-  const userGreetingName = currentUser?.fullName?.split(' ')[0] || currentUser?.username || "HR Manager";
+  const userGreetingName = currentUser?.username?.split(' ')[0] || currentUser?.fullName?.split(' ')[0] || "HR Manager";
 
   const fetchStatsAndUsers = async () => {
     setLoading(true);

@@ -178,6 +178,8 @@ const userSchema = new mongoose.Schema({
         submittedAt: { type: Date, default: null },
         hrDecision: {
             decidedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+            reviewerName: { type: String, trim: true, default: '' },
+            reviewerEmail: { type: String, trim: true, lowercase: true, default: '' },
             decision: { type: String, enum: ['', 'approved', 'returned'], default: '' },
             note: { type: String, trim: true, default: '' },
             decidedAt: { type: Date, default: null },

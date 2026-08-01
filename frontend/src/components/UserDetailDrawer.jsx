@@ -26,6 +26,10 @@ import {
   Input,
   InputGroup,
   InputLeftElement,
+  Menu,
+  MenuButton,
+  MenuItem,
+  MenuList,
   Progress,
   Select,
   SimpleGrid,
@@ -38,9 +42,9 @@ import {
   Tabs,
   Text,
   Tooltip,
-  VStack,
   useBreakpointValue,
   useColorModeValue,
+  useToast,
 } from '@chakra-ui/react';
 import {
   FiActivity,
@@ -61,13 +65,13 @@ import {
   FiMail,
   FiMapPin,
   FiPhone,
-  FiPrinter,
   FiSearch,
   FiShield,
   FiUser,
 } from 'react-icons/fi';
 import axiosInstance from '../services/axiosInstance';
 import { normalizeRole, useUserStore } from '../store/user';
+import { buildEmployeeExportData, exportEmployeePdf, exportEmployeeWord } from '../utils/employeeExport';
 
 const EMPTY_VALUE = 'Not provided';
 
@@ -75,7 +79,7 @@ const formatDate = (value, includeTime = false) => {
   if (!value) return EMPTY_VALUE;
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return EMPTY_VALUE;
-  return new Intl.DateTimeFormat('en-GB', {
+  return new globalThis.Intl.DateTimeFormat('en-GB', {
     day: '2-digit',
     month: 'short',
     year: 'numeric',
@@ -87,7 +91,7 @@ const formatSalary = (value) => {
   if (value === '' || value === null || value === undefined || Number.isNaN(Number(value))) {
     return EMPTY_VALUE;
   }
-  return new Intl.NumberFormat('en-ET', {
+  return new globalThis.Intl.NumberFormat('en-ET', {
     style: 'currency',
     currency: 'ETB',
     maximumFractionDigits: 2,
@@ -285,6 +289,8 @@ const UserDetailDrawer = ({ isOpen, onClose, user: summaryUser, initialTab = 0 }
   const [copiedLabel, setCopiedLabel] = useState('');
   const [documentSearch, setDocumentSearch] = useState('');
   const [documentCategory, setDocumentCategory] = useState('all');
+  const [exporting, setExporting] = useState('');
+  const toast = useToast();
   const drawerSize = useBreakpointValue({ base: 'full', md: 'xl' });
   const bodyBg = useColorModeValue('gray.50', 'gray.900');
 
@@ -320,7 +326,7 @@ const UserDetailDrawer = ({ isOpen, onClose, user: summaryUser, initialTab = 0 }
     };
   }, [isOpen, summaryUser?._id, isHr]);
 
-  const employee = profile || summaryUser || {};
+  const employee = useMemo(() => profile || summaryUser || {}, [profile, summaryUser]);
   const profileFiles = useMemo(() => [
     employee.photoUrl && {
       key: 'profile-photo',
@@ -475,6 +481,26 @@ const UserDetailDrawer = ({ isOpen, onClose, user: summaryUser, initialTab = 0 }
   const handleCopied = (label) => {
     setCopiedLabel(label);
     window.setTimeout(() => setCopiedLabel(''), 1800);
+  };
+
+  const handleExport = async (format) => {
+    if (!employee?._id || exporting) return;
+    setExporting(format);
+    try {
+      const { data } = await axiosInstance.get(`/users/${employee._id}/personal-information`);
+      const exportData = buildEmployeeExportData(employee, data.data || {});
+      if (format === 'pdf') await exportEmployeePdf(exportData);
+      else await exportEmployeeWord(exportData);
+      toast({ title: `${format === 'pdf' ? 'PDF' : 'Word'} employee record exported`, status: 'success' });
+    } catch (exportError) {
+      toast({
+        title: 'Employee record could not be exported',
+        description: exportError.response?.data?.message || exportError.message,
+        status: 'error',
+      });
+    } finally {
+      setExporting('');
+    }
   };
 
   return (
@@ -1641,9 +1667,23 @@ const UserDetailDrawer = ({ isOpen, onClose, user: summaryUser, initialTab = 0 }
               >
                 Personal information form
               </Button>
-              <Button leftIcon={<FiPrinter />} colorScheme="teal" variant="outline" onClick={() => window.print()} isDisabled={!profile}>
-                Print profile
-              </Button>
+              <Menu placement="top-end">
+                <MenuButton
+                  as={Button}
+                  leftIcon={<FiDownload />}
+                  colorScheme="teal"
+                  variant="outline"
+                  isLoading={Boolean(exporting)}
+                  loadingText="Exporting"
+                  isDisabled={!profile}
+                >
+                  Export profile
+                </MenuButton>
+                <MenuList minW="190px">
+                  <MenuItem icon={<FiFileText />} onClick={() => handleExport('pdf')}>Export as PDF</MenuItem>
+                  <MenuItem icon={<FiFile />} onClick={() => handleExport('word')}>Export as Word</MenuItem>
+                </MenuList>
+              </Menu>
             </HStack>
           </HStack>
         </DrawerFooter>
