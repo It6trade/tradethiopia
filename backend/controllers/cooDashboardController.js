@@ -26,6 +26,9 @@ const normalizeDepartment = (value) => {
   if (normalized.includes('customer')) return 'Customer Success';
   if (normalized === 'it' || normalized.startsWith('it ') || normalized.includes('information technology')) return 'IT';
   if (normalized.includes('tradex') || normalized.includes('trade x') || normalized.includes('socialmedia') || normalized.includes('social media')) return 'Tradex TV';
+  if (normalized.includes('financ') || normalized.includes('account')) return 'Finance';
+  if (normalized === 'hr' || normalized.includes('human resource')) return 'HR';
+  if (normalized.includes('operation')) return 'Operations';
   return 'Operations';
 };
 const hasValue = (value) => value !== undefined && value !== null && value !== '';

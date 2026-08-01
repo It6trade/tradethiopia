@@ -54,7 +54,12 @@ const formatDate = (value) => {
   });
 };
 
-export default function CompletedSalesTable({ title = 'Completed Sales Follow-ups', compact = false }) {
+export default function CompletedSalesTable({
+  title = 'Completed Sales Follow-ups',
+  compact = false,
+  dateFrom,
+  dateTo,
+}) {
   const [sales, setSales] = useState([]);
   const [agents, setAgents] = useState([]);
   const [search, setSearch] = useState('');
@@ -88,6 +93,8 @@ export default function CompletedSalesTable({ title = 'Completed Sales Follow-up
           status: 'Completed',
           agentId: agentFilter || undefined,
           search: debouncedSearch || undefined,
+          dateFrom: dateFrom || undefined,
+          dateTo: dateTo || undefined,
           page,
           limit: pageSize,
         });
@@ -105,7 +112,11 @@ export default function CompletedSalesTable({ title = 'Completed Sales Follow-up
     };
 
     loadSales();
-  }, [agentFilter, debouncedSearch, page, pageSize]);
+  }, [agentFilter, debouncedSearch, page, pageSize, dateFrom, dateTo]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [dateFrom, dateTo]);
 
   useEffect(() => {
     let active = true;

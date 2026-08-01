@@ -49,7 +49,7 @@ const SCORE_LABELS = {
   2: 'Near Miss',
   1: 'Below',
 };
-const DEPARTMENTS = ['All', 'Sales', 'Customer Success', 'IT', 'Tradex TV', 'Operations'];
+const DEPARTMENTS = ['All', 'Sales', 'Customer Success', 'IT', 'Tradex TV', 'Operations', 'HR', 'Finance'];
 const PILLARS = ['All Pillars', 'Process Efficiency', 'Service Delivery', 'Sales', 'Customer Success', 'IT', 'Tradex TV', 'Operations', 'HR', 'Finance'];
 const buildCompleteMonthList = (periods = []) => {
   const years = periods
@@ -132,11 +132,11 @@ const sortPeriods = (periods, timeRange) => [...periods].sort((a, b) => {
 
 const getTrend = (points) => {
   const last = points.slice(-3);
-  if (last.length < 3) return { symbol: '→', label: 'Stable' };
+  if (last.length < 3) return { symbol: 'â†’', label: 'Stable' };
   const delta = last[2].achievement - last[0].achievement;
-  if (delta > 4) return { symbol: '↑', label: 'Improving' };
-  if (delta < -4) return { symbol: '↓', label: 'Declining' };
-  return { symbol: '→', label: 'Stable' };
+  if (delta > 4) return { symbol: 'â†‘', label: 'Improving' };
+  if (delta < -4) return { symbol: 'â†“', label: 'Declining' };
+  return { symbol: 'â†’', label: 'Stable' };
 };
 
 const buildSparkPoints = (points, width = 132, height = 34) => {
@@ -237,6 +237,20 @@ const COOKpiDashboard = () => {
     if (start < 0 || end < 0) return [];
     return months.slice(Math.min(start, end), Math.max(start, end) + 1);
   }, [startMonth, endMonth, months]);
+
+  const salesFollowupDateRange = useMemo(() => {
+    if (!selectedMonths.length) return { dateFrom: undefined, dateTo: undefined };
+
+    const firstMonth = selectedMonths[0].key;
+    const lastMonth = selectedMonths[selectedMonths.length - 1].key;
+    const [endYear, endMonthNumber] = lastMonth.split('-').map(Number);
+    const endOfLastMonth = new Date(Date.UTC(endYear, endMonthNumber, 0, 23, 59, 59, 999));
+
+    return {
+      dateFrom: `${firstMonth}-01`,
+      dateTo: endOfLastMonth.toISOString(),
+    };
+  }, [selectedMonths]);
 
   const filteredKpis = useMemo(
     () =>
@@ -511,7 +525,7 @@ const COOKpiDashboard = () => {
         {isLoading && (
           <HStack justify="center" border="1px solid" borderColor={border} borderRadius="8px" p={8} bg={panel}>
             <Spinner size="sm" color={PRIMARY} />
-            <Text fontWeight="700" color={text}>Loading KPI data from the backend�</Text>
+            <Text fontWeight="700" color={text}>Loading KPI data from the backend…</Text>
           </HStack>
         )}
 
@@ -676,9 +690,66 @@ const COOKpiDashboard = () => {
           </Box>
         )}
 
-        <Box mt={5}>
-          <CompletedSalesTable title="Completed Sales Follow-ups" />
-        </Box>
+        {department === 'Sales' ? (
+          <Box mt={5}>
+            <CompletedSalesTable
+              title="Completed Sales Follow-ups by Agent"
+              dateFrom={salesFollowupDateRange.dateFrom}
+              dateTo={salesFollowupDateRange.dateTo}
+            />
+          </Box>
+        ) : (
+          <Box mt={5} border="1px solid" borderColor={border} borderRadius="8px" overflow="hidden">
+            <Box px={4} py={3} bg={panel} borderBottom="1px solid" borderColor={border}>
+              <Text fontSize="lg" fontWeight="800" color={text}>
+                {department === 'All' ? 'All Department KPI Records' : `${department} KPI Records`}
+              </Text>
+              <Text fontSize="sm" color={muted}>
+                Real department performance records for the selected month range.
+              </Text>
+            </Box>
+            <Box overflowX="auto">
+              <Table size="sm">
+                <Thead bg={panel}>
+                  <Tr>
+                    <Th>Department</Th>
+                    <Th>Pillar</Th>
+                    <Th>Employee / KPI</Th>
+                    <Th>Period</Th>
+                    <Th>Actual</Th>
+                    <Th>Target</Th>
+                    <Th isNumeric>Achievement</Th>
+                    <Th>Status</Th>
+                  </Tr>
+                </Thead>
+                <Tbody>
+                  {tableRows.length ? tableRows.map(({ kpi, point }) => (
+                    <Tr key={`department-record-${kpi.id}-${point.period}`}>
+                      <Td fontWeight="700" color={text}>{kpi.department}</Td>
+                      <Td color={muted}>{kpi.pillar}</Td>
+                      <Td color={text}>{kpi.name}</Td>
+                      <Td color={muted}>{point.period}</Td>
+                      <Td color={text} fontWeight="700">{formatValue(point.actual, kpi)}</Td>
+                      <Td color={muted}>{formatValue(point.target, kpi)}</Td>
+                      <Td isNumeric color={text}>{Math.round(point.achievement)}%</Td>
+                      <Td>
+                        <Badge bg={SCORE_COLORS[point.score]} color="white" borderRadius="6px">
+                          {point.score} - {SCORE_LABELS[point.score]}
+                        </Badge>
+                      </Td>
+                    </Tr>
+                  )) : (
+                    <Tr>
+                      <Td colSpan={8} py={8} textAlign="center" color={muted}>
+                        No real KPI records match the selected department and month range.
+                      </Td>
+                    </Tr>
+                  )}
+                </Tbody>
+              </Table>
+            </Box>
+          </Box>
+        )}
       </Box>
     </Box>
   );
