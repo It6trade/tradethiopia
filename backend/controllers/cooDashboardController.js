@@ -205,13 +205,13 @@ exports.getKpis = async (req, res) => {
     });
     const requestedDepartment = String(req.query.department || '').trim().toLowerCase();
     const requestedPillar = String(req.query.pillar || '').trim().toLowerCase();
-    const periods = [...new Set(store.rows.map((row) => row.key).filter(Boolean))].sort();
     const definitions = [...store.definitions.values()].filter((definition) => (
       (!requestedDepartment || definition.department.toLowerCase() === requestedDepartment)
       && (!requestedPillar || definition.pillar.toLowerCase() === requestedPillar)
     ));
     const allowedIds = new Set(definitions.map((definition) => definition.id));
     const rows = store.rows.filter((row) => allowedIds.has(row.kpiId)).sort((a, b) => a.key.localeCompare(b.key));
+    const periods = [...new Set(rows.map((row) => row.key).filter(Boolean))].sort();
     res.json({ definitions, rows, periods });
   } catch (error) {
     res.status(500).json({ message: 'Failed to load COO KPI data', error: error.message });

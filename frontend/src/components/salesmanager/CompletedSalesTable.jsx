@@ -134,9 +134,18 @@ export default function CompletedSalesTable({
 
   const filteredSales = useMemo(() => {
     const term = search.trim().toLowerCase();
+    const rangeStart = dateFrom ? new Date(dateFrom) : null;
+    const rangeEnd = dateTo ? new Date(dateTo) : null;
     return sales.filter((sale) => {
       const resolvedAgentId = typeof sale.agentId === 'object' ? sale.agentId?._id : sale.agentId;
       if (agentFilter && String(resolvedAgentId || '') !== String(agentFilter)) return false;
+
+      const saleDateValue = sale.date || sale.updatedAt || sale.createdAt;
+      const saleDate = saleDateValue ? new Date(saleDateValue) : null;
+      if ((rangeStart || rangeEnd) && (!saleDate || Number.isNaN(saleDate.getTime()))) return false;
+      if (rangeStart && saleDate < rangeStart) return false;
+      if (rangeEnd && saleDate > rangeEnd) return false;
+
       if (!term) return true;
 
       return [
@@ -153,7 +162,7 @@ export default function CompletedSalesTable({
         .filter(Boolean)
         .some((value) => String(value).toLowerCase().includes(term));
     });
-  }, [agentFilter, sales, search]);
+  }, [agentFilter, sales, search, dateFrom, dateTo]);
 
   return (
     <Card bg={cardBg} borderWidth="1px" borderColor={borderColor} boxShadow="sm">
@@ -164,7 +173,9 @@ export default function CompletedSalesTable({
               {title}
             </Text>
             <Text fontSize="sm" color={muted}>
-              Full table of sales follow-ups marked Completed.
+              {dateFrom && dateTo
+                ? `Completed follow-ups from ${formatDate(dateFrom)} through ${formatDate(dateTo)}.`
+                : 'Full table of sales follow-ups marked Completed.'}
             </Text>
           </Box>
           <Badge colorScheme="green" borderRadius="full" px={3} py={1} alignSelf={{ base: 'flex-start', md: 'center' }}>

@@ -50,26 +50,19 @@ const SCORE_LABELS = {
   1: 'Below',
 };
 const DEPARTMENTS = ['All', 'Sales', 'Customer Success', 'IT', 'Tradex TV', 'Operations', 'HR', 'Finance'];
-const PILLARS = ['All Pillars', 'Process Efficiency', 'Service Delivery', 'Sales', 'Customer Success', 'IT', 'Tradex TV', 'Operations', 'HR', 'Finance'];
 const buildCompleteMonthList = (periods = []) => {
-  const years = periods
-    .map((key) => Number(String(key).slice(0, 4)))
-    .filter(Number.isFinite);
-  const currentYear = new Date().getFullYear();
-  const firstYear = years.length ? Math.min(...years) : currentYear;
-  const lastYear = years.length ? Math.max(...years) : currentYear;
-
-  return Array.from({ length: (lastYear - firstYear + 1) * 12 }, (_, index) => {
-    const year = firstYear + Math.floor(index / 12);
-    const month = (index % 12) + 1;
-    const key = `${year}-${String(month).padStart(2, '0')}`;
+  return [...new Set(periods)]
+    .filter((key) => /^\d{4}-\d{2}$/.test(String(key)))
+    .sort()
+    .map((key) => {
+    const [year, month] = key.split('-').map(Number);
     const date = new Date(year, month - 1, 1);
     return {
       key,
       label: date.toLocaleString('en', { month: 'short', year: 'numeric' }),
       short: date.toLocaleString('en', { month: 'short' }),
     };
-  });
+    });
 };
 const formatValue = (value, kpi) => {
   if (kpi.format === 'currency') return `ETB ${Math.round(value).toLocaleString()}`;
@@ -200,7 +193,6 @@ const COOKpiDashboard = () => {
     axiosInstance.get('/coo-dashboard/kpis', {
       params: {
         department: department === 'All' ? undefined : department,
-        pillar: pillar === 'All Pillars' ? undefined : pillar,
       },
     }).then(({ data }) => {
       if (!active) return;
@@ -229,7 +221,7 @@ const COOKpiDashboard = () => {
       if (active) setIsLoading(false);
     });
     return () => { active = false; };
-  }, [department, pillar]);
+  }, [department]);
 
   const selectedMonths = useMemo(() => {
     const start = months.findIndex((month) => month.key === startMonth);
@@ -251,6 +243,11 @@ const COOKpiDashboard = () => {
       dateTo: endOfLastMonth.toISOString(),
     };
   }, [selectedMonths]);
+
+  const availablePillars = useMemo(
+    () => ['All Pillars', ...new Set(kpiDefs.map((kpi) => kpi.pillar).filter(Boolean))],
+    [kpiDefs]
+  );
 
   const filteredKpis = useMemo(
     () =>
@@ -486,7 +483,7 @@ const COOKpiDashboard = () => {
                 setPillar(event.target.value);
                 setSelectedKpiId('all');
               }}>
-                {PILLARS.map((item) => <option key={item} value={item}>{item}</option>)}
+                {availablePillars.map((item) => <option key={item} value={item}>{item}</option>)}
               </Select>
             </FilterControl>
             <FilterControl label="Compare" border={border}>
