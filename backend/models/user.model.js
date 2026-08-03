@@ -95,6 +95,16 @@ const userSchema = new mongoose.Schema({
         type: String, // Assuming this is a string identifier
         required: false, // Optional
     },
+    punchId: {
+        type: String,
+        trim: true,
+        default: undefined,
+    },
+    punchEmployeeName: {
+        type: String,
+        trim: true,
+        default: undefined,
+    },
     photo: {
         type: mongoose.Schema.Types.Mixed, // Supports various types (e.g., URL, file path)
         required: false, // Optional
@@ -195,6 +205,10 @@ const userSchema = new mongoose.Schema({
 }, {
     timestamps: true,
 });
+
+// A terminal identity may belong to only one TradeEthiopia employee. Sparse
+// keeps employees without a configured Punch ID valid during rollout.
+userSchema.index({ punchId: 1 }, { unique: true, sparse: true });
 
 userSchema.pre('save', async function (next) {
     if (!this.isModified('password')) {

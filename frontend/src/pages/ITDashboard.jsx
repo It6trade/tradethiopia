@@ -34,6 +34,7 @@ import ITNotesPanel from '../components/it/ITNotesPanel';
 import ITAdminPanel from '../components/it/ITAdminPanel';
 import ITCollapsibleSection from '../components/it/ITCollapsibleSection';
 import ITRemindersPanel from '../components/it/ITRemindersPanel';
+import EmployeeWarningsPage from './EmployeeWarningsPage';
 
 // Global shared imports
 import NoticeBoardPanel from '../components/NoticeBoardPanel';
@@ -275,6 +276,8 @@ export default function ITDashboard() {
         );
       case 'profile':
         return <ITProfilePanel user={currentUser} persona={persona} tasks={visibleTasks} />;
+      case 'warnings':
+        return <EmployeeWarningsPage mode="employee" />;
       case 'admin':
         return persona.canManageUsers ? (
           <ITAdminPanel tasks={tasks} users={users} refreshUsers={fetchUsers} />
@@ -389,6 +392,7 @@ export default function ITDashboard() {
                     <option value="notes">Notes</option>
                     <option value="reminders">Reminders</option>
                     <option value="profile">Profile</option>
+                    <option value="warnings">My Warnings</option>
                     {persona.canManageUsers && <option value="admin">Admin</option>}
                     {persona.canManageUsers && <option value="admin-users">User Management</option>}
                   </Select>

@@ -40,7 +40,8 @@ import {
   FiTarget,
   FiTrendingUp,
   FiUser,
-  FiUsers
+  FiUsers,
+  FiAlertTriangle
 } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import { useUserStore } from '../../store/user';
@@ -280,6 +281,7 @@ const MobileProfile = ({ onNavigate }) => {
         </Box>
 
         <Box bg="white" borderRadius="16px" p={4} mt={4} mb={4} borderWidth="1px" borderColor={theme.border} boxShadow="0 10px 26px rgba(8,26,52,0.05)">
+          <ActionRow icon={FiAlertTriangle} label="My Warnings" onClick={() => navigate('/my-warnings')} />
           <ActionRow icon={FiHelpCircle} label="Help & Support" onClick={() => toast({ title: 'Support', description: 'Support center will be connected here.', status: 'info', duration: 2200 })} />
           <ActionRow icon={FiLogOut} label="Log Out" color="#DC2626" onClick={handleLogout} />
         </Box>

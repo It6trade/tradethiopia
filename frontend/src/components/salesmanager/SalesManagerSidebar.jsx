@@ -37,7 +37,8 @@ import {
   FiHelpCircle, 
   FiCheckCircle,
   FiClipboard,
-  FiBookOpen
+  FiBookOpen,
+  FiAlertTriangle
 } from 'react-icons/fi';
 
 const SalesManagerSidebar = ({ isCollapsed = false, onToggleSidebar }) => {
@@ -74,6 +75,7 @@ const SalesManagerSidebar = ({ isCollapsed = false, onToggleSidebar }) => {
     { name: 'Calendar', icon: FiCalendar, path: '/salesmanager/calendar' },
     { name: 'Notice Board', icon: FiMessageSquare, path: '/salesmanager/messages' },
     { name: 'Employee Requests', icon: FiClipboard, path: '/salesmanager/employee-requests' },
+    { name: 'My Warnings', icon: FiAlertTriangle, path: '/my-warnings' },
     { name: 'Settings', icon: FiSettings, path: '/salesmanager/settings' },
   ];
 

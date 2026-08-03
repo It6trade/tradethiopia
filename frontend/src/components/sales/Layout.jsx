@@ -15,6 +15,7 @@ import MonthlyReport from './MonthlyReport.jsx';
 import SalesMessagesPage from '../../pages/SalesMessagesPage';
 import EmployeeRequestsPage from '../../pages/EmployeeRequestsPage';
 import EmployeeInfoPage from '../../pages/EmployeeInfoPage';
+import EmployeeWarningsPage from '../../pages/EmployeeWarningsPage';
 import ContentTrackerPage from './ContentTrackerPage.jsx';
 import { useUserStore } from '../../store/user';
 import { getUserDepartment } from '../../utils/department';
@@ -86,6 +87,8 @@ const Layout = ({ children, initialActiveItem }) => {
         return <EmployeeRequestsPage />;
       case 'Personal Information':
         return <EmployeeInfoPage />;
+      case 'My Warnings':
+        return <EmployeeWarningsPage mode="employee" />;
       case 'Content Tracker':
         return <ContentTrackerPage />;
       default:

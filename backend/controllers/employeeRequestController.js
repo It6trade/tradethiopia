@@ -346,6 +346,19 @@ exports.hrInbox = async (req, res) => {
   } catch (error) { res.status(500).json({ message: error.message }); }
 };
 
+// HR leave register includes every workflow stage for reporting and follow-up.
+// Decision permissions remain unchanged: HR can act only on pending_hr items.
+exports.hrLeaveDashboard = async (req, res) => {
+  try {
+    if (!HR_ROLES.has(normalizeRole(req.user.role))) {
+      return res.status(403).json({ message: 'HR access required.' });
+    }
+    await list({ category: 'leave' }, res);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 exports.details = async (req, res) => {
   try {
     const item = await EmployeeRequest.findById(req.params.id)

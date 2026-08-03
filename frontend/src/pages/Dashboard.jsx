@@ -628,7 +628,7 @@ const Dashboard = () => {
           </Text>
           <VStack align="stretch" spacing={2.5}>
             {[
-              { label: 'Review leave requests', to: '/FollowUpList' },
+              { label: 'Review leave requests', to: '/leave-management' },
               { label: 'Run payroll', to: '/payroll' },
               { label: 'Post a job', to: '/candidate-pool' },
               { label: 'Create announcement', to: '/chat' }

@@ -72,6 +72,9 @@ import RedirectMessagesPage from "./pages/RedirectMessagesPage";
 import RequestPage from "./pages/RequestPage";
 import TeamRequestsPage from "./pages/sales/TeamRequestsPage.jsx";
 import EmployeeRequestsPage from "./pages/EmployeeRequestsPage.jsx";
+import EmployeeWarningsPage from "./pages/EmployeeWarningsPage.jsx";
+import AttendancePage from "./pages/AttendancePage.jsx";
+import LeaveManagementPage from "./pages/LeaveManagementPage.jsx";
 import AppLayout from "./components/AppLayout"; // Import the new AppLayout component
 import SupervisorLayout from "./pages/supervisor/SupervisorLayout.jsx";
 import SupervisorDashboardPage from "./pages/supervisor/SupervisorDashboardPage.jsx";
@@ -208,6 +211,14 @@ return (
         element={
           <RoleProtectedRoute allowedRoles={["hr", "admin"]}>
             <LayoutWrapper><HomePage /></LayoutWrapper>
+          </RoleProtectedRoute>
+        }
+      />
+      <Route
+        path="/attendance"
+        element={
+          <RoleProtectedRoute allowedRoles={["hr", "admin"]}>
+            <LayoutWrapper><AttendancePage /></LayoutWrapper>
           </RoleProtectedRoute>
         }
       />
@@ -374,7 +385,31 @@ return (
         }
       />
       <Route path="/requests" element={<LayoutWrapper><RequestPage /></LayoutWrapper>} />
+      <Route
+        path="/leave-management"
+        element={
+          <RoleProtectedRoute allowedRoles={["hr", "admin"]}>
+            <LayoutWrapper><LeaveManagementPage /></LayoutWrapper>
+          </RoleProtectedRoute>
+        }
+      />
       <Route path="/employee-requests" element={<LayoutWrapper><EmployeeRequestsPage /></LayoutWrapper>} />
+      <Route
+        path="/warnings"
+        element={
+          <RoleProtectedRoute allowedRoles={["hr", "admin"]}>
+            <LayoutWrapper><EmployeeWarningsPage mode="hr" /></LayoutWrapper>
+          </RoleProtectedRoute>
+        }
+      />
+      <Route
+        path="/my-warnings"
+        element={
+          <ProtectedRoute>
+            <EmployeeWarningsPage mode="employee" />
+          </ProtectedRoute>
+        }
+      />
       <Route
         path="/chat"
         element={

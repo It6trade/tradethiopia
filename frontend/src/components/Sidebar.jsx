@@ -166,7 +166,7 @@ const Sidebar = ({ isCollapsed: controlledIsCollapsed, onToggleCollapse }) => {
   const location = useLocation();
 
   const isDocPath = location.pathname.startsWith("/documentlist") || location.pathname.startsWith("/EmployeeDocument") || location.pathname.startsWith("/resources") || location.pathname.startsWith("/Addresource") || location.pathname.startsWith("/category") || location.pathname.startsWith("/documentupload");
-  const isStaffPath = location.pathname.startsWith("/users") || location.pathname.startsWith("/attendance") || location.pathname.startsWith("/FollowUpList") || location.pathname.startsWith("/employee-requests");
+  const isStaffPath = location.pathname.startsWith("/users") || location.pathname.startsWith("/attendance") || location.pathname.startsWith("/leave-management") || location.pathname.startsWith("/employee-requests") || location.pathname.startsWith("/warnings");
   const isTrainingPath = location.pathname.startsWith("/candidate-pool") || location.pathname.startsWith("/hr-training") || location.pathname.startsWith("/course") || location.pathname.startsWith("/quiz") || location.pathname.startsWith("/awards");
   const isAssetPath = location.pathname.startsWith("/assets") || location.pathname.startsWith("/assetcategory");
 
@@ -349,16 +349,22 @@ const Sidebar = ({ isCollapsed: controlledIsCollapsed, onToggleCollapse }) => {
             isActive={isActive("/attendance")}
           />
           <SidebarSubItem
-            to="/FollowUpList"
+            to="/leave-management"
             label="Leave Management"
             isCollapsed={effectiveIsCollapsed}
-            isActive={isActive("/FollowUpList")}
+            isActive={isActive("/leave-management")}
           />
           <SidebarSubItem
             to="/employee-requests"
             label="Employee Requests"
             isCollapsed={effectiveIsCollapsed}
             isActive={isActive("/employee-requests")}
+          />
+          <SidebarSubItem
+            to="/warnings"
+            label="Warning Management"
+            isCollapsed={effectiveIsCollapsed}
+            isActive={isActive("/warnings")}
           />
         </SidebarExpandableItem>
 

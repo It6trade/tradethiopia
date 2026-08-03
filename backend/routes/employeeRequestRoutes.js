@@ -30,6 +30,7 @@ router.get('/mine', controller.mine);
 router.get('/access-context', controller.accessContext);
 router.get('/manager-inbox', controller.managerInbox);
 router.get('/hr-inbox', controller.hrInbox);
+router.get('/hr-leave-dashboard', controller.hrLeaveDashboard);
 router.get('/manager-options', controller.managerOptions);
 router.patch('/assign-manager/:userId', controller.assignManager);
 router.patch('/:id/reassign-manager', controller.reassignRequest);

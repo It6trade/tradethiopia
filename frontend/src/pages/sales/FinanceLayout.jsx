@@ -44,7 +44,8 @@ import {
   FaCogs,
   FaArrowRight,
   FaCommentDots,
-  FaChartLine
+  FaChartLine,
+  FaExclamationTriangle
 } from 'react-icons/fa';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useUserStore } from '../../store/user';
@@ -121,6 +122,7 @@ const FinanceLayout = ({ children }) => {
     { label: 'Requests', icon: FaStickyNote, path: '/finance/requests' },
     { label: 'Team Requests', icon: FaClipboardList, path: '/finance/team-requests' },
     { label: 'Notice Board', icon: FaCommentDots, path: '/finance/messages' },
+    { label: 'My Warnings', icon: FaExclamationTriangle, path: '/my-warnings' },
     { label: 'Settings', icon: FaCogs, path: '/finance-dashboard/settings' },
   ];
   

@@ -19,6 +19,7 @@ dotenv.config({
 
 const { connectDB, disconnectDB } = require('./config/db.js');
 const userRoutes = require('./routes/user.route.js');
+const attendanceIntegrationRoutes = require('./routes/attendanceIntegrationRoutes');
 const notificationRoutes = require('./routes/notificationRoutes.js');
 const messageRoutes = require('./routes/messageRoutes.js');
 const chatRoutes = require('./routes/chatRoutes.js');
@@ -30,6 +31,7 @@ const FollowUpRoutes = require('./routes/followupRoutes.js');
 const CategoryRoutes = require('./routes/categoryRoutes.js');
 const documentRoutes = require('./routes/documentRoutes.js');
 const employeeRequestRoutes = require('./routes/employeeRequestRoutes.js');
+const employeeWarningRoutes = require('./routes/employeeWarningRoutes.js');
 const assetCategoryRoutes = require('./routes/assetCategory.js');
 const assetRoutes = require('./routes/asset.js');
 const infouploadRoutes = require('./routes/infoupload.route.js');
@@ -290,6 +292,7 @@ app.get('/api/test-completed-sales', async (req, res) => {
 // API Routes
 
 app.use("/api/users", userRoutes);
+app.use('/api/attendance-integration', attendanceIntegrationRoutes);
 app.use("/api/quiz", quizRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/messages", messageRoutes);
@@ -300,6 +303,7 @@ app.use('/api/resources', ResourceRoute);
 app.use("/api/followups", FollowUpRoutes);
 app.use('/api/documents', documentRoutes);
 app.use('/api/employee-requests', employeeRequestRoutes);
+app.use('/api/employee-warnings', employeeWarningRoutes);
 app.use('/api/assetcategories', assetCategoryRoutes);
 app.use('/api/assets', assetRoutes);
 app.use('/api/categories', CategoryRoutes);

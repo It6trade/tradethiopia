@@ -22,6 +22,7 @@ import {
   FaClipboardList,
   FaRegCalendarAlt,
   FaIdCard,
+  FaExclamationTriangle,
 } from 'react-icons/fa';
 import { FiCheckCircle, FiMessageSquare } from 'react-icons/fi';
 import { getNotifications } from '../../services/notificationService';
@@ -37,6 +38,7 @@ const sidebarItems = [
   { label: 'Notice Board', icon: FiMessageSquare },
   { label: 'Requests', icon: FaClipboardList },
   { label: 'Personal Information', icon: FaIdCard },
+  { label: 'My Warnings', icon: FaExclamationTriangle },
   // { label: 'Financial Reports', icon: FaChartLine },
 ];
 
