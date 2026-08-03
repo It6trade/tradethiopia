@@ -54,6 +54,13 @@ const formatDate = (value) => {
   });
 };
 
+const toDateInputValue = (value) => {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+};
+
 export default function CompletedSalesTable({
   title = 'Completed Sales Follow-ups',
   compact = false,
@@ -66,16 +73,27 @@ export default function CompletedSalesTable({
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [agentFilter, setAgentFilter] = useState('');
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(compact ? 10 : 200);
+  const [pageSize, setPageSize] = useState(10);
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [tableStartDate, setTableStartDate] = useState(() => toDateInputValue(dateFrom));
+  const [tableEndDate, setTableEndDate] = useState(() => toDateInputValue(dateTo));
 
   const cardBg = useColorModeValue('white', 'gray.800');
   const borderColor = useColorModeValue('gray.200', 'gray.700');
   const rowHoverBg = useColorModeValue('gray.50', 'gray.700');
   const muted = useColorModeValue('gray.600', 'gray.400');
+
+  const tableDateRange = useMemo(() => {
+    const start = tableStartDate ? new Date(`${tableStartDate}T00:00:00`) : null;
+    const end = tableEndDate ? new Date(`${tableEndDate}T23:59:59.999`) : null;
+    return {
+      dateFrom: start && !Number.isNaN(start.getTime()) ? start.toISOString() : undefined,
+      dateTo: end && !Number.isNaN(end.getTime()) ? end.toISOString() : undefined,
+    };
+  }, [tableStartDate, tableEndDate]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -93,8 +111,8 @@ export default function CompletedSalesTable({
           status: 'Completed',
           agentId: agentFilter || undefined,
           search: debouncedSearch || undefined,
-          dateFrom: dateFrom || undefined,
-          dateTo: dateTo || undefined,
+          dateFrom: tableDateRange.dateFrom,
+          dateTo: tableDateRange.dateTo,
           page,
           limit: pageSize,
         });
@@ -112,20 +130,27 @@ export default function CompletedSalesTable({
     };
 
     loadSales();
-  }, [agentFilter, debouncedSearch, page, pageSize, dateFrom, dateTo]);
+  }, [agentFilter, debouncedSearch, page, pageSize, tableDateRange]);
 
   useEffect(() => {
     setPage(1);
+  }, [tableDateRange]);
+
+  useEffect(() => {
+    setTableStartDate(toDateInputValue(dateFrom));
+    setTableEndDate(toDateInputValue(dateTo));
   }, [dateFrom, dateTo]);
 
   useEffect(() => {
     let active = true;
     axiosInstance.get('/sales-manager/agents').then(({ data }) => {
       if (!active) return;
-      setAgents((Array.isArray(data) ? data : []).map((agent) => ({
-        id: agent._id,
-        name: agent.fullName || agent.username || agent.email || 'Unnamed Agent',
-      })));
+      setAgents((Array.isArray(data) ? data : [])
+        .filter((agent) => String(agent.role || '').trim().toLowerCase() === 'sales')
+        .map((agent) => ({
+          id: agent._id,
+          name: agent.fullName || agent.username || agent.email || 'Unnamed Agent',
+        })));
     }).catch(() => {
       if (active) setAgents([]);
     });
@@ -134,8 +159,8 @@ export default function CompletedSalesTable({
 
   const filteredSales = useMemo(() => {
     const term = search.trim().toLowerCase();
-    const rangeStart = dateFrom ? new Date(dateFrom) : null;
-    const rangeEnd = dateTo ? new Date(dateTo) : null;
+    const rangeStart = tableDateRange.dateFrom ? new Date(tableDateRange.dateFrom) : null;
+    const rangeEnd = tableDateRange.dateTo ? new Date(tableDateRange.dateTo) : null;
     return sales.filter((sale) => {
       const resolvedAgentId = typeof sale.agentId === 'object' ? sale.agentId?._id : sale.agentId;
       if (agentFilter && String(resolvedAgentId || '') !== String(agentFilter)) return false;
@@ -162,7 +187,14 @@ export default function CompletedSalesTable({
         .filter(Boolean)
         .some((value) => String(value).toLowerCase().includes(term));
     });
-  }, [agentFilter, sales, search, dateFrom, dateTo]);
+  }, [agentFilter, sales, search, tableDateRange]);
+
+  const visiblePages = useMemo(() => {
+    const visibleCount = Math.min(5, totalPages);
+    const maxStart = Math.max(1, totalPages - visibleCount + 1);
+    const start = Math.min(Math.max(1, page - Math.floor(visibleCount / 2)), maxStart);
+    return Array.from({ length: visibleCount }, (_, index) => start + index);
+  }, [page, totalPages]);
 
   return (
     <Card bg={cardBg} borderWidth="1px" borderColor={borderColor} boxShadow="sm">
@@ -173,8 +205,8 @@ export default function CompletedSalesTable({
               {title}
             </Text>
             <Text fontSize="sm" color={muted}>
-              {dateFrom && dateTo
-                ? `Completed follow-ups from ${formatDate(dateFrom)} through ${formatDate(dateTo)}.`
+              {tableDateRange.dateFrom && tableDateRange.dateTo
+                ? `Completed follow-ups from ${formatDate(tableDateRange.dateFrom)} through ${formatDate(tableDateRange.dateTo)}.`
                 : 'Full table of sales follow-ups marked Completed.'}
             </Text>
           </Box>
@@ -183,7 +215,7 @@ export default function CompletedSalesTable({
           </Badge>
         </Flex>
 
-        <Flex gap={3} direction={{ base: 'column', md: 'row' }} mb={4}>
+        <Flex gap={3} direction={{ base: 'column', md: 'row' }} align={{ md: 'center' }} flexWrap="wrap" mb={4}>
           <InputGroup maxW={{ md: '360px' }}>
             <InputLeftElement pointerEvents="none">
               <FiSearch color="#94A3B8" />
@@ -201,6 +233,49 @@ export default function CompletedSalesTable({
               </option>
             ))}
           </Select>
+          {(dateFrom || dateTo) && (
+            <HStack spacing={2} flexWrap="wrap">
+              <Box>
+                <Text fontSize="xs" color={muted} mb={1}>Table Start Date</Text>
+                <Input
+                  type="date"
+                  size="sm"
+                  value={tableStartDate}
+                  max={tableEndDate || undefined}
+                  onChange={(event) => setTableStartDate(event.target.value)}
+                />
+              </Box>
+              <Box>
+                <Text fontSize="xs" color={muted} mb={1}>Table End Date</Text>
+                <Input
+                  type="date"
+                  size="sm"
+                  value={tableEndDate}
+                  min={tableStartDate || undefined}
+                  max={toDateInputValue(new Date())}
+                  onChange={(event) => setTableEndDate(event.target.value)}
+                />
+              </Box>
+            </HStack>
+          )}
+          <HStack ml={{ md: 'auto' }} flexWrap="wrap">
+            <Text fontSize="sm" color={muted}>
+              Page {page} of {totalPages}
+            </Text>
+            <Select
+              size="sm"
+              w="120px"
+              value={pageSize}
+              onChange={(event) => {
+                setPageSize(Number(event.target.value));
+                setPage(1);
+              }}
+            >
+              {[10, 25, 50, 100, 200].map((size) => (
+                <option key={size} value={size}>{size} / page</option>
+              ))}
+            </Select>
+          </HStack>
         </Flex>
 
         {loading ? (
@@ -219,11 +294,11 @@ export default function CompletedSalesTable({
               <Table size="sm" variant="simple">
                 <Thead>
                   <Tr>
+                    <Th>Agent Name</Th>
                     <Th>Customer</Th>
                     <Th>Phone</Th>
                     <Th>Email</Th>
                     <Th>Course / Interest</Th>
-                    <Th>Agent</Th>
                     <Th>Call</Th>
                     <Th>Schedule</Th>
                     <Th>Date</Th>
@@ -237,6 +312,7 @@ export default function CompletedSalesTable({
                   {filteredSales.length ? (
                     filteredSales.map((sale) => (
                       <Tr key={sale._id} _hover={{ bg: rowHoverBg }}>
+                        <Td fontWeight="700">{getAgentName(sale)}</Td>
                         <Td>
                           <Text fontWeight="700">{sale.customerName || '-'}</Text>
                           <Badge mt={1} colorScheme="green" size="sm">Completed</Badge>
@@ -247,7 +323,6 @@ export default function CompletedSalesTable({
                           <Text fontWeight="600">{sale.courseName || sale.contactTitle || sale.productInterest || '-'}</Text>
                           {sale.note ? <Text color={muted} fontSize="xs" noOfLines={2}>{sale.note}</Text> : null}
                         </Td>
-                        <Td>{getAgentName(sale)}</Td>
                         <Td>{sale.callStatus || '-'}</Td>
                         <Td>{sale.schedulePreference || '-'}</Td>
                         <Td>{formatDate(sale.date || sale.updatedAt)}</Td>
@@ -270,34 +345,27 @@ export default function CompletedSalesTable({
               </Table>
             </Box>
 
-            <Flex justify="space-between" align="center" flexWrap="wrap" gap={3}>
-              <HStack>
-                <Text fontSize="sm" color={muted}>
-                  Page {page} of {totalPages}
-                </Text>
-                <Select
+            <HStack justify="flex-end" spacing={1} pt={1}>
+              <Button size="sm" onClick={() => setPage((value) => Math.max(1, value - 1))} isDisabled={page <= 1}>
+                Previous
+              </Button>
+              {visiblePages.map((pageNumber) => (
+                <Button
+                  key={pageNumber}
                   size="sm"
-                  w="120px"
-                  value={pageSize}
-                  onChange={(event) => {
-                    setPageSize(Number(event.target.value));
-                    setPage(1);
-                  }}
+                  minW="34px"
+                  variant={pageNumber === page ? 'solid' : 'outline'}
+                  colorScheme={pageNumber === page ? 'blue' : 'gray'}
+                  onClick={() => setPage(pageNumber)}
                 >
-                  {[10, 25, 50, 100, 200].map((size) => (
-                    <option key={size} value={size}>{size} / page</option>
-                  ))}
-                </Select>
-              </HStack>
-              <HStack>
-                <Button size="sm" onClick={() => setPage((value) => Math.max(1, value - 1))} isDisabled={page <= 1}>
-                  Previous
+                  {pageNumber}
                 </Button>
-                <Button size="sm" onClick={() => setPage((value) => Math.min(totalPages, value + 1))} isDisabled={page >= totalPages}>
-                  Next
-                </Button>
-              </HStack>
-            </Flex>
+              ))}
+              <Button size="sm" onClick={() => setPage((value) => Math.min(totalPages, value + 1))} isDisabled={page >= totalPages}>
+                Next
+              </Button>
+            </HStack>
+
           </VStack>
         )}
       </CardBody>

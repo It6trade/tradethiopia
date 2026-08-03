@@ -155,10 +155,6 @@ exports.getKpis = async (req, res) => {
         department: 'Sales', pillar: 'Sales', name: `${agent} Core Output`,
         unit: '%', format: 'percent', aggregate: 'avg', agentId,
       }, key, item.coreOutput, 100, metadata);
-      addMetric(store, {
-        department: 'Sales', pillar: 'Sales', name: `${agent} Attendance`,
-        unit: 'absent days', format: 'number', aggregate: 'sum', lowerIsBetter: true, agentId,
-      }, key, item.absents, 0, metadata);
     });
 
     const achievementKeys = new Set([...snapshotMap.keys(), ...liveSalesBuckets.keys()]);

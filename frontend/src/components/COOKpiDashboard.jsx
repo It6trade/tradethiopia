@@ -5,6 +5,7 @@ import {
   Button,
   Flex,
   HStack,
+  Input,
   Select,
   SimpleGrid,
   Spinner,
@@ -63,6 +64,20 @@ const buildCompleteMonthList = (periods = []) => {
       short: date.toLocaleString('en', { month: 'short' }),
     };
     });
+};
+const getDefaultMonthRange = (periods = [], currentMonth) => {
+  if (!periods.length) return { start: '', end: '' };
+  const currentYear = currentMonth.slice(0, 4);
+  const currentYearPeriods = periods.filter((month) => month.key.startsWith(`${currentYear}-`));
+  const activeYearPeriods = currentYearPeriods.length
+    ? currentYearPeriods
+    : periods.filter((month) => month.key.startsWith(`${periods[periods.length - 1].key.slice(0, 4)}-`));
+  const end = currentYearPeriods.length ? currentMonth : activeYearPeriods[activeYearPeriods.length - 1].key;
+  const [endYear, endMonthNumber] = end.split('-').map(Number);
+  const previousMonthDate = new Date(Date.UTC(endYear, endMonthNumber - 2, 1));
+  const previousMonth = `${previousMonthDate.getUTCFullYear()}-${String(previousMonthDate.getUTCMonth() + 1).padStart(2, '0')}`;
+  const earliestMonth = periods[0].key;
+  return { start: previousMonth >= earliestMonth ? previousMonth : earliestMonth, end };
 };
 const formatValue = (value, kpi) => {
   if (kpi.format === 'currency') return `ETB ${Math.round(value).toLocaleString()}`;
@@ -171,12 +186,16 @@ const COOKpiDashboard = () => {
   const [timeRange, setTimeRange] = useState('Monthly');
   const [startMonth, setStartMonth] = useState('');
   const [endMonth, setEndMonth] = useState('');
+  const [tableStartMonth, setTableStartMonth] = useState('');
+  const [tableEndMonth, setTableEndMonth] = useState('');
   const [comparePrevious, setComparePrevious] = useState(false);
   const [department, setDepartment] = useState('All');
   const [pillar, setPillar] = useState('All Pillars');
   const [selectedKpiId, setSelectedKpiId] = useState('all');
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
+  const [currentDate, setCurrentDate] = useState(() => new Date());
+  const currentMonth = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
 
   const pageBg = useColorModeValue('#F3F6FA', '#080D18');
   const surface = useColorModeValue('#FFFFFF', '#111827');
@@ -185,6 +204,16 @@ const COOKpiDashboard = () => {
   const text = useColorModeValue('#0F172A', '#F8FAFC');
   const muted = useColorModeValue('#64748B', '#A6B3C3');
   const softHover = useColorModeValue('#EFF6FF', '#162033');
+
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentDate(new Date()), 60000);
+    return () => clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    setEndMonth(currentMonth);
+    setTableEndMonth(currentMonth);
+  }, [currentMonth]);
 
   useEffect(() => {
     let active = true;
@@ -202,11 +231,16 @@ const COOKpiDashboard = () => {
       setMonthlyRows(Array.isArray(data.rows) ? data.rows : []);
       setMonths(periodList);
       if (periodList.length) {
-        setStartMonth(periodList[0].key);
-        setEndMonth(periodList[periodList.length - 1].key);
+        const defaultRange = getDefaultMonthRange(periodList, currentMonth);
+        setStartMonth(defaultRange.start);
+        setEndMonth(defaultRange.end);
+        setTableStartMonth(defaultRange.start);
+        setTableEndMonth(defaultRange.end);
       } else {
         setStartMonth('');
         setEndMonth('');
+        setTableStartMonth('');
+        setTableEndMonth('');
       }
     }).catch((error) => {
       if (active) {
@@ -215,6 +249,8 @@ const COOKpiDashboard = () => {
         setMonths([]);
         setStartMonth('');
         setEndMonth('');
+        setTableStartMonth('');
+        setTableEndMonth('');
         setLoadError(error.response?.data?.message || error.message || 'Backend request failed.');
       }
     }).finally(() => {
@@ -224,25 +260,46 @@ const COOKpiDashboard = () => {
   }, [department]);
 
   const selectedMonths = useMemo(() => {
-    const start = months.findIndex((month) => month.key === startMonth);
-    const end = months.findIndex((month) => month.key === endMonth);
-    if (start < 0 || end < 0) return [];
-    return months.slice(Math.min(start, end), Math.max(start, end) + 1);
+    if (!startMonth || !endMonth) return [];
+    const first = startMonth <= endMonth ? startMonth : endMonth;
+    const last = startMonth <= endMonth ? endMonth : startMonth;
+    return months.filter((month) => month.key >= first && month.key <= last);
   }, [startMonth, endMonth, months]);
 
   const salesFollowupDateRange = useMemo(() => {
-    if (!selectedMonths.length) return { dateFrom: undefined, dateTo: undefined };
-
-    const firstMonth = selectedMonths[0].key;
-    const lastMonth = selectedMonths[selectedMonths.length - 1].key;
+    if (!startMonth || !endMonth) return { dateFrom: undefined, dateTo: undefined };
+    const firstMonth = startMonth <= endMonth ? startMonth : endMonth;
+    const lastMonth = startMonth <= endMonth ? endMonth : startMonth;
     const [endYear, endMonthNumber] = lastMonth.split('-').map(Number);
-    const endOfLastMonth = new Date(Date.UTC(endYear, endMonthNumber, 0, 23, 59, 59, 999));
+    const endOfLastMonth = lastMonth === currentMonth
+      ? new Date(currentDate)
+      : new Date(Date.UTC(endYear, endMonthNumber, 0, 23, 59, 59, 999));
+    if (lastMonth === currentMonth) endOfLastMonth.setHours(23, 59, 59, 999);
 
     return {
       dateFrom: `${firstMonth}-01`,
       dateTo: endOfLastMonth.toISOString(),
     };
-  }, [selectedMonths]);
+  }, [startMonth, endMonth, currentDate, currentMonth]);
+
+  const tableSelectedMonths = useMemo(() => {
+    if (!tableStartMonth || !tableEndMonth) return [];
+    const first = tableStartMonth <= tableEndMonth ? tableStartMonth : tableEndMonth;
+    const last = tableStartMonth <= tableEndMonth ? tableEndMonth : tableStartMonth;
+    return months.filter((month) => month.key >= first && month.key <= last);
+  }, [tableStartMonth, tableEndMonth, months]);
+
+  const tableDateRange = useMemo(() => {
+    if (!tableStartMonth || !tableEndMonth) return { dateFrom: undefined, dateTo: undefined };
+    const firstMonth = tableStartMonth <= tableEndMonth ? tableStartMonth : tableEndMonth;
+    const lastMonth = tableStartMonth <= tableEndMonth ? tableEndMonth : tableStartMonth;
+    const [endYear, endMonthNumber] = lastMonth.split('-').map(Number);
+    const rangeEnd = lastMonth === currentMonth
+      ? new Date(currentDate)
+      : new Date(Date.UTC(endYear, endMonthNumber, 0, 23, 59, 59, 999));
+    if (lastMonth === currentMonth) rangeEnd.setHours(23, 59, 59, 999);
+    return { dateFrom: `${firstMonth}-01`, dateTo: rangeEnd.toISOString() };
+  }, [tableStartMonth, tableEndMonth, currentDate, currentMonth]);
 
   const availablePillars = useMemo(
     () => ['All Pillars', ...new Set(kpiDefs.map((kpi) => kpi.pillar).filter(Boolean))],
@@ -349,6 +406,29 @@ const COOKpiDashboard = () => {
           }))
         ),
     [trendCards, effectiveSelectedKpiId]
+  );
+
+  const detailTableRows = useMemo(
+    () => filteredKpis.flatMap((kpi) => monthlyRows
+      .filter((row) => row.kpiId === kpi.id
+        && (row.granularity || 'month') === 'month'
+        && tableSelectedMonths.some((month) => month.key === row.key))
+      .sort((a, b) => String(a.key).localeCompare(String(b.key)))
+      .map((row) => {
+        const achievement = achievementFor(kpi, row.actual, row.target);
+        const score = scoreFor(achievement);
+        return {
+          kpi,
+          point: {
+            ...row,
+            period: row.period || row.key,
+            achievement,
+            score,
+            scoreLabel: SCORE_LABELS[score],
+          },
+        };
+      })),
+    [filteredKpis, monthlyRows, tableSelectedMonths]
   );
 
   const pieData = useMemo(() => {
@@ -469,14 +549,24 @@ const COOKpiDashboard = () => {
           </Box>
           <SimpleGrid columns={{ base: 2, xl: 4 }} spacing={3} minW={{ xl: '720px' }}>
             <FilterControl label="Start Month" border={border}>
-              <Select size="sm" value={startMonth} onChange={(event) => setStartMonth(event.target.value)}>
-                {months.map((month) => <option key={month.key} value={month.key}>{month.label}</option>)}
-              </Select>
+              <Input
+                type="month"
+                size="sm"
+                value={startMonth}
+                min={months[0]?.key}
+                max={endMonth || months[months.length - 1]?.key}
+                onChange={(event) => setStartMonth(event.target.value)}
+              />
             </FilterControl>
             <FilterControl label="End Month" border={border}>
-              <Select size="sm" value={endMonth} onChange={(event) => setEndMonth(event.target.value)}>
-                {months.map((month) => <option key={month.key} value={month.key}>{month.label}</option>)}
-              </Select>
+              <Input
+                type="month"
+                size="sm"
+                value={endMonth}
+                min={startMonth || months[0]?.key}
+                max={currentMonth}
+                onChange={(event) => setEndMonth(event.target.value)}
+              />
             </FilterControl>
             <FilterControl label="Pillar" border={border}>
               <Select size="sm" value={pillar} onChange={(event) => {
@@ -687,16 +777,58 @@ const COOKpiDashboard = () => {
           </Box>
         )}
 
+        <Flex
+          mt={5}
+          mb={3}
+          px={4}
+          py={3}
+          border="1px solid"
+          borderColor={border}
+          borderRadius="8px"
+          bg={panel}
+          align={{ base: 'stretch', md: 'center' }}
+          justify="space-between"
+          direction={{ base: 'column', md: 'row' }}
+          gap={3}
+        >
+          <Box>
+            <Text fontSize="sm" fontWeight="800" color={text}>Table Date Filter</Text>
+            <Text fontSize="xs" color={muted}>This calendar range applies only to the detail table below.</Text>
+          </Box>
+          <HStack spacing={3} align="flex-end" flexWrap="wrap">
+            <FilterControl label="Table Start Month" border={border} minW="180px">
+              <Input
+                type="month"
+                size="sm"
+                value={tableStartMonth}
+                min={months[0]?.key}
+                max={tableEndMonth || currentMonth}
+                onChange={(event) => setTableStartMonth(event.target.value)}
+              />
+            </FilterControl>
+            <FilterControl label="Table End Month" border={border} minW="180px">
+              <Input
+                type="month"
+                size="sm"
+                value={tableEndMonth}
+                min={tableStartMonth || months[0]?.key}
+                max={currentMonth}
+                onChange={(event) => setTableEndMonth(event.target.value)}
+              />
+            </FilterControl>
+          </HStack>
+        </Flex>
+
         {department === 'Sales' ? (
-          <Box mt={5}>
+          <Box>
             <CompletedSalesTable
               title="Completed Sales Follow-ups by Agent"
-              dateFrom={salesFollowupDateRange.dateFrom}
-              dateTo={salesFollowupDateRange.dateTo}
+              dateFrom={tableDateRange.dateFrom}
+              dateTo={tableDateRange.dateTo}
             />
           </Box>
         ) : (
-          <Box mt={5} border="1px solid" borderColor={border} borderRadius="8px" overflow="hidden">
+          <Box border="1px solid" borderColor={border} borderRadius="8px" overflow="hidden">
             <Box px={4} py={3} bg={panel} borderBottom="1px solid" borderColor={border}>
               <Text fontSize="lg" fontWeight="800" color={text}>
                 {department === 'All' ? 'All Department KPI Records' : `${department} KPI Records`}
@@ -720,7 +852,7 @@ const COOKpiDashboard = () => {
                   </Tr>
                 </Thead>
                 <Tbody>
-                  {tableRows.length ? tableRows.map(({ kpi, point }) => (
+                  {detailTableRows.length ? detailTableRows.map(({ kpi, point }) => (
                     <Tr key={`department-record-${kpi.id}-${point.period}`}>
                       <Td fontWeight="700" color={text}>{kpi.department}</Td>
                       <Td color={muted}>{kpi.pillar}</Td>

@@ -254,7 +254,10 @@ const getAllAgents = asyncHandler(async (req, res) => {
     }
 
     // Get all sales agents with basic info
-    const agents = await User.find({ role: 'sales' }, 'username fullName email phone status');
+    const agents = await User.find(
+      { role: { $regex: /^sales$/i } },
+      'username fullName email phone status role'
+    ).sort({ fullName: 1, username: 1 });
 
     // Enhance agents with performance data
     const agentsWithPerformance = await Promise.all(agents.map(async (agent) => {
@@ -282,6 +285,7 @@ const getAllAgents = asyncHandler(async (req, res) => {
         email: agent.email,
         phone: agent.phone,
         status: agent.status,
+        role: agent.role,
         completedDeals,
         totalCommission
       };
