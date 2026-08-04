@@ -18,6 +18,8 @@ const leaveSubcategories = new Set([
 ]);
 const isEmployeeLeaveCategory = (category) =>
     String(category?.name || '').trim().toLowerCase() === 'employee leave';
+const isLicenseCategory = (category) =>
+    ['license', 'licenses', 'licensing'].includes(String(category?.name || '').trim().toLowerCase());
 
 // Configure multer to store files in memory for Appwrite upload
 const allowedMimeTypes = new Set([
@@ -230,9 +232,14 @@ router.put('/:id', async (req, res) => {
 // Partially update a document (without changing the file)
 router.patch('/:id', async (req, res) => {
     try {
-        const { title, categoryId, category, subcategory, department, section } = req.body;
+        const { title, categoryId, category, subcategory, department, section, licenseSchedule } = req.body;
         const nextCategoryId = categoryId || category;
         const update = {};
+
+        const currentDocument = await Document.findById(req.params.id).populate('category');
+        if (!currentDocument) {
+            return res.status(404).json({ error: 'Document not found' });
+        }
 
         if (title !== undefined) update.title = title;
         if (department !== undefined) update.department = department;
@@ -253,15 +260,30 @@ router.patch('/:id', async (req, res) => {
             if (!isEmployeeLeaveCategory(categoryDoc)) update.subcategory = '';
         }
 
+        if (licenseSchedule !== undefined) {
+            const effectiveCategory = nextCategoryId
+                ? await Category.findById(nextCategoryId)
+                : currentDocument.category;
+            if (!isLicenseCategory(effectiveCategory)) {
+                return res.status(400).json({ error: 'Renewal schedules can only be assigned to License documents' });
+            }
+
+            const renewalDate = new Date(licenseSchedule.renewalDate);
+            const reminderDaysBefore = Number(licenseSchedule.reminderDaysBefore);
+            if (!licenseSchedule.renewalDate || Number.isNaN(renewalDate.getTime())) {
+                return res.status(400).json({ error: 'Select a valid license renewal date' });
+            }
+            if (!Number.isInteger(reminderDaysBefore) || reminderDaysBefore < 0 || reminderDaysBefore > 365) {
+                return res.status(400).json({ error: 'Reminder interval must be a whole number from 0 to 365 days' });
+            }
+            update.licenseSchedule = { renewalDate, reminderDaysBefore, updatedAt: new Date() };
+        }
+
         const updatedDocument = await Document.findByIdAndUpdate(
             req.params.id,
             update,
             { new: true }
         ).populate('category');
-
-        if (!updatedDocument) {
-            return res.status(404).json({ error: 'Document not found' });
-        }
 
         res.status(200).json({
             ...updatedDocument.toObject(),

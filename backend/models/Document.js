@@ -19,6 +19,11 @@ const documentSchema = new mongoose.Schema({
     },
     department: { type: String, required: true, default: 'none' },
     section: { type: String, required: true },
+    licenseSchedule: {
+        renewalDate: { type: Date, default: null },
+        reminderDaysBefore: { type: Number, min: 0, max: 365, default: 30 },
+        updatedAt: { type: Date, default: null },
+    },
 }, {
     timestamps: true // Add createdAt and updatedAt timestamps
 });

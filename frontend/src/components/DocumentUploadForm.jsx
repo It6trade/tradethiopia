@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useCallback, useState, useEffect } from 'react';
 import {
     Box,
     FormControl,
@@ -11,23 +11,26 @@ import {
     CardBody,
     Grid,
     GridItem,
-    Divider,
     useColorModeValue,
-    IconButton,
+    Text,
+    Flex,
+    Icon,
 } from '@chakra-ui/react';
-import { MdRefresh } from 'react-icons/md'; // Import the refresh icon
+import { FiCheckCircle, FiUploadCloud } from 'react-icons/fi';
 import axios from 'axios';
 
-const DocumentUploadForm = () => {
+const DocumentUploadForm = ({ fetchDocuments, categoryOptions }) => {
     const [title, setTitle] = useState('');
     const [file, setFile] = useState(null);
     const [categories, setCategories] = useState([]);
     const [categoryId, setCategoryId] = useState('');
     const [department, setDepartment] = useState('');
     const [section, setSection] = useState('companys'); // Default value set here
+    const [isUploading, setIsUploading] = useState(false);
     const toast = useToast();
+    const availableCategories = Array.isArray(categoryOptions) ? categoryOptions : categories;
 
-    const fetchCategories = async () => {
+    const fetchCategories = useCallback(async () => {
         try {
             const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/categories`);
             const filteredCategories = res.data.data.filter(category => category.section === 'companys');
@@ -41,27 +44,39 @@ const DocumentUploadForm = () => {
                 isClosable: true,
             });
         }
-    };
+    }, [toast]);
 
     useEffect(() => {
         fetchCategories();
-    }, [toast]);
+    }, [fetchCategories]);
 
     const handleFileChange = (e) => setFile(e.target.files[0]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+
+        if (!title.trim() || !file || !categoryId || !department || department === 'none') {
+            toast({
+                title: 'Complete the upload details',
+                description: 'Title, category, company, and file are required.',
+                status: 'warning',
+                duration: 3500,
+                isClosable: true,
+            });
+            return;
+        }
     
         // Ensure section has a default value of 'employees'
         const finalSection = section || 'companys'; // Use 'companys' if section is empty
     
         const formData = new FormData();
-        formData.append('title', title);
+        formData.append('title', title.trim());
         formData.append('file', file);
         formData.append('categoryId', categoryId);
         formData.append('department', department); // Ensure department is included
         formData.append('section', finalSection); // Set section to finalSection
     
+        setIsUploading(true);
         try {
             const response = await axios.post(`${import.meta.env.VITE_API_URL}/api/documents`, formData, {
                 headers: { 'Content-Type': 'multipart/form-data' },
@@ -81,6 +96,7 @@ const DocumentUploadForm = () => {
                 setCategoryId('');
                 setDepartment(''); // Reset department to default
                 setSection('companys'); // Reset section to default
+                if (typeof fetchDocuments === 'function') await fetchDocuments();
             } else {
                 throw new Error('Unexpected response from the server.');
             }
@@ -93,29 +109,21 @@ const DocumentUploadForm = () => {
                 duration: 3000,
                 isClosable: true,
             });
+        } finally {
+            setIsUploading(false);
         }
-    };
-    
-
-    const handleReload = () => {
-        window.location.reload();
     };
 
     return (
         <Box
-            maxW="6xl"
-            mx="auto"
-            mt={6}
-            p={4}
-            bgGradient={useColorModeValue('linear(to-b, gray.50, gray.100)', 'linear(to-b, gray.800, gray.700)')}
-            borderRadius="md"
-            boxShadow="lg"
+            width="100%"
+            m="0"
+            p="0"
         >
-            <Card borderRadius="lg" boxShadow="md" bg={useColorModeValue('white', 'gray.700')}>
-                <CardBody>
-                    <Divider mb={3} />
+            <Card borderRadius="xl" boxShadow="none" borderWidth="1px" bg={useColorModeValue('gray.50', 'gray.700')}>
+                <CardBody p={{ base: 4, md: 5 }}>
                     <form onSubmit={handleSubmit}>
-                        <Grid templateColumns={{ base: '1fr', md: 'repeat(3, 1fr)' }} gap={3}>
+                        <Grid templateColumns={{ base: '1fr', md: 'repeat(2, 1fr)', xl: '1.1fr 1fr 1fr 1.4fr' }} gap={4}>
                             {/* Title Input */}
                             <GridItem>
                                 <FormControl isRequired>
@@ -162,7 +170,7 @@ const DocumentUploadForm = () => {
                                         color={useColorModeValue('gray.800', 'gray.200')}
                                         _hover={{ bg: useColorModeValue('gray.100', 'gray.700') }}
                                     >
-                                        {categories.map((category) => (
+                                        {availableCategories.map((category) => (
                                             <option key={category._id} value={category._id}>
                                                 {category.name}
                                             </option>
@@ -182,6 +190,7 @@ const DocumentUploadForm = () => {
                                         File
                                     </FormLabel>
                                     <Input
+                                        key={file?.name || 'empty-file'}
                                         type="file"
                                         onChange={handleFileChange}
                                         size="md"
@@ -190,6 +199,7 @@ const DocumentUploadForm = () => {
                                         bg={useColorModeValue('gray.50', 'gray.600')}
                                         _hover={{ bg: useColorModeValue('gray.100', 'gray.700') }}
                                     />
+                                    {file && <Flex align="center" gap="1.5" mt="2" color="teal.600" fontSize="xs"><Icon as={FiCheckCircle} /><Text noOfLines={1}>{file.name}</Text></Flex>}
                                 </FormControl>
                             </GridItem>
                             {/* Department Input */}
@@ -224,7 +234,8 @@ const DocumentUploadForm = () => {
 </GridItem>
 
                         </Grid>
-                        <Box textAlign="center" mt={2}>
+                        <Flex justify="flex-end" align="center" mt={5} gap="3" flexWrap="wrap">
+                            <Text color={useColorModeValue('gray.500', 'gray.300')} fontSize="sm">Accepted files are stored securely with the selected company record.</Text>
                             <Button
                                 type="submit" // Ensure this is a submit button
                                 size="md"
@@ -244,20 +255,13 @@ const DocumentUploadForm = () => {
                                     boxShadow: 'inner',
                                 }}
                                 transition="all 0.2s ease-in-out"
+                                leftIcon={<Icon as={FiUploadCloud} />}
+                                isLoading={isUploading}
+                                loadingText="Uploading"
                             >
-                                Upload
+                                Upload document
                             </Button>
-                            <IconButton
-                                aria-label="Reload"
-                                icon={<MdRefresh />}
-                                onClick={handleReload}
-                                size="md"
-                                ml={4}
-                                colorScheme="teal"
-                                variant="outline"
-                                _hover={{ bg: useColorModeValue('gray.100', 'gray.600') }}
-                            />
-                        </Box>
+                        </Flex>
                     </form>
                 </CardBody>
             </Card>
