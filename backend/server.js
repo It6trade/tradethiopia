@@ -156,6 +156,24 @@ const allowedOrigins = [
   'http://localhost:3004'
 ].filter(Boolean);
 
+const isLocalDevOrigin = (origin = '') => {
+  try {
+    const { protocol, hostname } = new URL(origin);
+    if (!['http:', 'https:'].includes(protocol)) return false;
+    return (
+      hostname === 'localhost'
+      || hostname === '127.0.0.1'
+      || hostname === '0.0.0.0'
+      || hostname === '::1'
+      || hostname.startsWith('192.168.')
+      || hostname.startsWith('10.')
+      || /^172\.(1[6-9]|2\d|3[0-1])\./.test(hostname)
+    );
+  } catch (error) {
+    return false;
+  }
+};
+
 const corsOptions = {
   origin: (origin, callback) => {
     console.log('CORS check - Origin:', origin);
@@ -164,7 +182,7 @@ const corsOptions = {
     // Allow requests with no origin (Postman, curl, mobile apps)
     if (!origin) return callback(null, true);
 
-    if (allowedOrigins.includes(origin)) {
+    if (allowedOrigins.includes(origin) || isLocalDevOrigin(origin)) {
       return callback(null, true);
     }
 
