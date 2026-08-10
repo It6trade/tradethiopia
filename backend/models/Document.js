@@ -20,6 +20,18 @@ const documentSchema = new mongoose.Schema({
     department: { type: String, required: true, default: 'none' },
     section: { type: String, required: true },
     licenseSchedule: {
+        startDateEthiopian: {
+            year: { type: Number, default: null },
+            month: { type: Number, default: null },
+            day: { type: Number, default: null },
+        },
+        endDateEthiopian: {
+            year: { type: Number, default: null },
+            month: { type: Number, default: null },
+            day: { type: Number, default: null },
+        },
+        startDate: { type: Date, default: null },
+        endDate: { type: Date, default: null },
         renewalDate: { type: Date, default: null },
         reminderDaysBefore: { type: Number, min: 0, max: 365, default: 30 },
         updatedAt: { type: Date, default: null },

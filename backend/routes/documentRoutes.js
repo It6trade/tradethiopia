@@ -7,6 +7,7 @@ const User = require('../models/user.model.js');
 const fs = require('fs');
 const { storage } = require('../config/appwriteClient.js'); // Import Appwrite storage
 const { File } = require('node-fetch-native-with-agent'); // Import File class
+const { ethiopianToGregorianDate, validateEthiopianDate } = require('../utils/ethiopianCalendar.js');
 
 const router = express.Router();
 const leaveSubcategories = new Set([
@@ -268,15 +269,36 @@ router.patch('/:id', async (req, res) => {
                 return res.status(400).json({ error: 'Renewal schedules can only be assigned to License documents' });
             }
 
-            const renewalDate = new Date(licenseSchedule.renewalDate);
+            const startDateEthiopian = licenseSchedule.startDateEthiopian;
+            const endDateEthiopian = licenseSchedule.endDateEthiopian;
+            if (!validateEthiopianDate(startDateEthiopian)) {
+                return res.status(400).json({ error: 'Enter a valid Ethiopian approval/start date' });
+            }
+            if (!validateEthiopianDate(endDateEthiopian)) {
+                return res.status(400).json({ error: 'Enter a valid Ethiopian expiry/end date' });
+            }
+            const startDate = ethiopianToGregorianDate(startDateEthiopian);
+            const endDate = ethiopianToGregorianDate(endDateEthiopian);
             const reminderDaysBefore = Number(licenseSchedule.reminderDaysBefore);
-            if (!licenseSchedule.renewalDate || Number.isNaN(renewalDate.getTime())) {
-                return res.status(400).json({ error: 'Select a valid license renewal date' });
+            if (endDate < startDate) {
+                return res.status(400).json({ error: 'License expiry/end date cannot be before its approval/start date' });
             }
             if (!Number.isInteger(reminderDaysBefore) || reminderDaysBefore < 0 || reminderDaysBefore > 365) {
                 return res.status(400).json({ error: 'Reminder interval must be a whole number from 0 to 365 days' });
             }
-            update.licenseSchedule = { renewalDate, reminderDaysBefore, updatedAt: new Date() };
+            update.licenseSchedule = {
+                startDateEthiopian: {
+                    year: Number(startDateEthiopian.year), month: Number(startDateEthiopian.month), day: Number(startDateEthiopian.day),
+                },
+                endDateEthiopian: {
+                    year: Number(endDateEthiopian.year), month: Number(endDateEthiopian.month), day: Number(endDateEthiopian.day),
+                },
+                startDate,
+                endDate,
+                renewalDate: endDate,
+                reminderDaysBefore,
+                updatedAt: new Date(),
+            };
         }
 
         const updatedDocument = await Document.findByIdAndUpdate(

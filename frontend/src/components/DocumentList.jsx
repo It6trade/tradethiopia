@@ -77,6 +77,19 @@ import axios from 'axios';
 import DocumentUploadForm from './DocumentUploadForm';
 
 const PAGE_SIZE = 9;
+const ETHIOPIAN_MONTHS = [
+    'Meskerem (መስከረም)', 'Tikimt (ጥቅምት)', 'Hidar (ኅዳር)', 'Tahsas (ታኅሣሥ)',
+    'Tir (ጥር)', 'Yekatit (የካቲት)', 'Megabit (መጋቢት)', 'Miazia (ሚያዝያ)',
+    'Ginbot (ግንቦት)', 'Sene (ሰኔ)', 'Hamle (ሐምሌ)', 'Nehase (ነሐሴ)', 'Pagumen (ጳጉሜን)',
+];
+const ETHIOPIAN_YEARS = Array.from({ length: 101 }, (_, index) => 2050 - index);
+const EMPTY_ETHIOPIAN_DATE = { year: '', month: '', day: '' };
+
+const isEthiopianLeapYear = (year) => Number(year) % 4 === 3;
+const getEthiopianMonthDays = (year, month) => Number(month) === 13 ? (isEthiopianLeapYear(year) ? 6 : 5) : (Number(month) >= 1 && Number(month) <= 12 ? 30 : 0);
+const isCompleteEthiopianDate = (value) => Boolean(value?.year && value?.month && value?.day) && Number(value.day) <= getEthiopianMonthDays(value.year, value.month);
+const ethiopianDateOrder = (value) => (Number(value.year) * 400) + (Number(value.month) * 30) + Number(value.day);
+const formatEthiopianDate = (value) => isCompleteEthiopianDate(value) ? `${ETHIOPIAN_MONTHS[Number(value.month) - 1].split(' (')[0]} ${value.day}, ${value.year} EC` : 'Not set';
 
 const COMPANY_BRANDS = [
     { name: 'Tradethiopia B2B', logo: '/company-logos/tradethiopia-b2b.png', aliases: ['tradethiopia b2b', 'trade ethiopia b2b', 'tradethiopia marketplace', 'tradeethiopia marketplace', 'b2b'] },
@@ -119,8 +132,8 @@ const formatDate = (value) => {
 const isLicenseDocument = (document) => ['license', 'licenses', 'licensing'].includes(normalize(document?.category?.name));
 
 const getLicenseStatus = (document) => {
-    const renewalValue = document?.licenseSchedule?.renewalDate;
-    if (!renewalValue) return { label: 'Set renewal date', detail: 'No schedule', color: 'gray', days: null };
+    const renewalValue = document?.licenseSchedule?.endDate || document?.licenseSchedule?.renewalDate;
+    if (!renewalValue) return { label: 'Set license dates', detail: 'No schedule', color: 'gray', days: null };
 
     const renewalDate = new Date(renewalValue);
     const today = new Date();
@@ -144,6 +157,26 @@ const CompanyLogo = ({ document, compact = false }) => {
             <Icon as={FiFileText} boxSize={compact ? '5' : '7'} />
         </Flex>
     );
+};
+
+const EthiopianDateField = ({ label, value, onChange, description }) => {
+    const maxDays = getEthiopianMonthDays(value.year, value.month);
+    const updatePart = (part, nextValue) => {
+        const next = { ...value, [part]: nextValue };
+        const nextMaxDays = getEthiopianMonthDays(next.year, next.month);
+        if (next.day && nextMaxDays && Number(next.day) > nextMaxDays) next.day = '';
+        onChange(next);
+    };
+
+    return <FormControl isRequired>
+        <FormLabel>{label}</FormLabel>
+        <SimpleGrid columns={{ base: 1, sm: 3 }} spacing="2">
+            <Select aria-label={`${label} year`} placeholder="Year (EC)" value={value.year} onChange={(event) => updatePart('year', event.target.value)}>{ETHIOPIAN_YEARS.map((year) => <option key={year} value={year}>{year} EC</option>)}</Select>
+            <Select aria-label={`${label} month`} placeholder="Month" value={value.month} onChange={(event) => updatePart('month', event.target.value)}>{ETHIOPIAN_MONTHS.map((month, index) => <option key={month} value={index + 1}>{month}</option>)}</Select>
+            <Select aria-label={`${label} day`} placeholder="Day" value={value.day} isDisabled={!maxDays} onChange={(event) => updatePart('day', event.target.value)}>{Array.from({ length: maxDays }, (_, index) => index + 1).map((day) => <option key={day} value={day}>{day}</option>)}</Select>
+        </SimpleGrid>
+        <Text color="gray.500" fontSize="sm" mt="2">{description}</Text>
+    </FormControl>;
 };
 
 const DocumentList = () => {
@@ -173,7 +206,8 @@ const DocumentList = () => {
     const [editCategoryId, setEditCategoryId] = useState('');
     const [isSavingCategory, setIsSavingCategory] = useState(false);
     const [licenseDocument, setLicenseDocument] = useState(null);
-    const [licenseRenewalDate, setLicenseRenewalDate] = useState('');
+    const [licenseStartDate, setLicenseStartDate] = useState(EMPTY_ETHIOPIAN_DATE);
+    const [licenseEndDate, setLicenseEndDate] = useState(EMPTY_ETHIOPIAN_DATE);
     const [licenseReminderDays, setLicenseReminderDays] = useState('30');
     const [isSavingLicense, setIsSavingLicense] = useState(false);
     const toast = useToast();
@@ -327,21 +361,26 @@ const DocumentList = () => {
 
     const openLicenseSchedule = (document) => {
         setLicenseDocument(document);
-        setLicenseRenewalDate(document.licenseSchedule?.renewalDate?.slice(0, 10) || '');
+        setLicenseStartDate(document.licenseSchedule?.startDateEthiopian
+            ? { ...document.licenseSchedule.startDateEthiopian }
+            : { ...EMPTY_ETHIOPIAN_DATE });
+        setLicenseEndDate(document.licenseSchedule?.endDateEthiopian
+            ? { ...document.licenseSchedule.endDateEthiopian }
+            : { ...EMPTY_ETHIOPIAN_DATE });
         setLicenseReminderDays(String(document.licenseSchedule?.reminderDaysBefore ?? 30));
     };
 
     const saveLicenseSchedule = async () => {
         const reminderDaysBefore = Number(licenseReminderDays);
-        if (!licenseRenewalDate || !Number.isInteger(reminderDaysBefore) || reminderDaysBefore < 0 || reminderDaysBefore > 365) {
-            toast({ title: 'Check the renewal schedule', description: 'Select a date and enter a whole-number reminder interval from 0 to 365 days.', status: 'warning', duration: 4000, isClosable: true });
+        if (!isCompleteEthiopianDate(licenseStartDate) || !isCompleteEthiopianDate(licenseEndDate) || ethiopianDateOrder(licenseEndDate) < ethiopianDateOrder(licenseStartDate) || !Number.isInteger(reminderDaysBefore) || reminderDaysBefore < 0 || reminderDaysBefore > 365) {
+            toast({ title: 'Check the Ethiopian license dates', description: 'Complete both Ethiopian dates, ensure the expiry date is not earlier than approval, and use a reminder interval from 0 to 365 days.', status: 'warning', duration: 4500, isClosable: true });
             return;
         }
 
         setIsSavingLicense(true);
         try {
             const response = await axios.patch(`${import.meta.env.VITE_API_URL}/api/documents/${licenseDocument._id}`, {
-                licenseSchedule: { renewalDate: licenseRenewalDate, reminderDaysBefore },
+                licenseSchedule: { startDateEthiopian: licenseStartDate, endDateEthiopian: licenseEndDate, reminderDaysBefore },
             });
             setDocuments((current) => current.map((doc) => doc._id === response.data._id ? response.data : doc));
             if (previewDocument?._id === response.data._id) setPreviewDocument(response.data);
@@ -437,13 +476,13 @@ const DocumentList = () => {
                                 {paginatedDocuments.map((doc) => {
                                     const brand = getDocumentBrand(doc);
                                     const licenseStatus = isLicenseDocument(doc) ? getLicenseStatus(doc) : null;
-                                    return <Box key={doc._id} bg={panelBg} borderWidth="1px" borderColor={borderColor} borderRadius="2xl" overflow="hidden" boxShadow="sm" transition="all .2s ease" _hover={{ transform: 'translateY(-3px)', boxShadow: 'lg', borderColor: 'teal.300' }} display="flex" flexDirection="column" minH="350px" cursor="pointer" onClick={() => isLicenseDocument(doc) ? openLicenseSchedule(doc) : setPreviewDocument(doc)}>
+                                    return <Box key={doc._id} bg={panelBg} borderWidth="1px" borderColor={borderColor} borderRadius="2xl" overflow="hidden" boxShadow="sm" transition="all .2s ease" _hover={{ transform: 'translateY(-3px)', boxShadow: 'lg', borderColor: 'teal.300' }} display="flex" flexDirection="column" minH="350px" cursor="pointer" onClick={() => setPreviewDocument(doc)}>
                                         <Flex h="112px" px="5" py="4" bg={softBg} align="center" justify="center" borderBottomWidth="1px" borderColor={borderColor}><CompanyLogo document={doc} /></Flex>
                                         <Box p="5" display="flex" flexDirection="column" flex="1">
                                             <HStack justify="space-between" align="start" mb="3"><Badge colorScheme={brand ? 'teal' : 'gray'}>{brand?.name || 'Unassigned'}</Badge><Badge variant="outline">{getFileType(doc)}</Badge></HStack>
                                             <Heading size="sm" lineHeight="1.45" noOfLines={2}>{doc.title}</Heading>
-                                            <VStack align="stretch" spacing="2" mt="4" color={muted} fontSize="sm"><HStack><Icon as={FiFolder} /><Text noOfLines={1}>{doc.category?.name || 'Not categorized'}</Text></HStack><HStack><Icon as={FiCalendar} /><Text>{formatDate(doc.createdAt)}</Text></HStack>{licenseStatus && <Flex bg={`${licenseStatus.color}.50`} borderWidth="1px" borderColor={`${licenseStatus.color}.200`} borderRadius="lg" p="2.5" justify="space-between" align="center"><HStack color={`${licenseStatus.color}.700`}><Icon as={FiClock} /><Box><Text fontSize="xs" fontWeight="800">{licenseStatus.label}</Text><Text fontSize="xs">{licenseStatus.detail}</Text></Box></HStack>{doc.licenseSchedule?.renewalDate && <Text fontSize="xs" fontWeight="700">{formatDate(doc.licenseSchedule.renewalDate)}</Text>}</Flex>}</VStack>
-                                            <Flex justify="space-between" align="center" mt="auto" pt="5"><Button size="sm" colorScheme="teal" leftIcon={<Icon as={isLicenseDocument(doc) ? FiClock : FiFileText} />} onClick={(event) => { event.stopPropagation(); isLicenseDocument(doc) ? openLicenseSchedule(doc) : setPreviewDocument(doc); }}>{isLicenseDocument(doc) ? (doc.licenseSchedule?.renewalDate ? 'Update schedule' : 'Set schedule') : 'Preview'}</Button><HStack><IconButton aria-label={`Edit ${doc.title}`} icon={<EditIcon />} size="sm" variant="outline" colorScheme="teal" onClick={(event) => { event.stopPropagation(); handleEditClick(doc); }} /><IconButton aria-label={`Delete ${doc.title}`} icon={<DeleteIcon />} size="sm" variant="ghost" colorScheme="red" onClick={(event) => { event.stopPropagation(); setDeleteDocument(doc); }} /></HStack></Flex>
+                                            <VStack align="stretch" spacing="2" mt="4" color={muted} fontSize="sm"><HStack><Icon as={FiFolder} /><Text noOfLines={1}>{doc.category?.name || 'Not categorized'}</Text></HStack><HStack><Icon as={FiCalendar} /><Text>{formatDate(doc.createdAt)}</Text></HStack>{licenseStatus && <Flex bg={`${licenseStatus.color}.50`} borderWidth="1px" borderColor={`${licenseStatus.color}.200`} borderRadius="lg" p="2.5" justify="space-between" align="center"><HStack color={`${licenseStatus.color}.700`}><Icon as={FiClock} /><Box><Text fontSize="xs" fontWeight="800">{licenseStatus.label}</Text><Text fontSize="xs">{licenseStatus.detail}</Text></Box></HStack>{(doc.licenseSchedule?.endDate || doc.licenseSchedule?.renewalDate) && <Text fontSize="xs" fontWeight="700">{doc.licenseSchedule?.endDateEthiopian?.year ? formatEthiopianDate(doc.licenseSchedule.endDateEthiopian) : formatDate(doc.licenseSchedule.endDate || doc.licenseSchedule.renewalDate)}</Text>}</Flex>}</VStack>
+                                            <Flex justify="space-between" align="center" mt="auto" pt="5" gap="2" flexWrap="wrap"><HStack spacing="2"><Button size="sm" variant="outline" colorScheme="teal" leftIcon={<Icon as={FiFileText} />} onClick={(event) => { event.stopPropagation(); setPreviewDocument(doc); }}>Preview</Button>{isLicenseDocument(doc) && <Button size="sm" colorScheme="teal" leftIcon={<Icon as={FiClock} />} onClick={(event) => { event.stopPropagation(); openLicenseSchedule(doc); }}>{(doc.licenseSchedule?.endDate || doc.licenseSchedule?.renewalDate) ? 'Update dates' : 'Set dates'}</Button>}</HStack><HStack><IconButton aria-label={`Edit ${doc.title}`} icon={<EditIcon />} size="sm" variant="outline" colorScheme="teal" onClick={(event) => { event.stopPropagation(); handleEditClick(doc); }} /><IconButton aria-label={`Delete ${doc.title}`} icon={<DeleteIcon />} size="sm" variant="ghost" colorScheme="red" onClick={(event) => { event.stopPropagation(); setDeleteDocument(doc); }} /></HStack></Flex>
                                         </Box>
                                     </Box>;
                                 })}
@@ -488,10 +527,12 @@ const DocumentList = () => {
                     <ModalHeader borderBottomWidth="1px"><Text color="teal.600" fontSize="xs" textTransform="uppercase" letterSpacing="wide">License renewal schedule</Text><Heading size="md" mt="1" pr="8">{licenseDocument?.title}</Heading><Text color={muted} fontSize="sm" fontWeight="400" mt="1">Set when this license must be updated and how early HR should begin follow-up.</Text></ModalHeader>
                     <ModalCloseButton isDisabled={isSavingLicense} />
                     <ModalBody py="6"><Stack spacing="5">
-                        {licenseDocument?.licenseSchedule?.renewalDate && <Alert status={getLicenseStatus(licenseDocument).color === 'green' ? 'success' : getLicenseStatus(licenseDocument).color === 'orange' ? 'warning' : 'error'} borderRadius="xl"><AlertIcon /><Box><AlertTitle>{getLicenseStatus(licenseDocument).label}</AlertTitle><AlertDescription>{getLicenseStatus(licenseDocument).detail}; scheduled for {formatDate(licenseDocument.licenseSchedule.renewalDate)}.</AlertDescription></Box></Alert>}
-                        <FormControl isRequired><FormLabel>Next license update date</FormLabel><Input type="date" value={licenseRenewalDate} onChange={(event) => setLicenseRenewalDate(event.target.value)} /><Text color={muted} fontSize="sm" mt="2">The date by which HR must renew or replace this license document.</Text></FormControl>
+                        {(licenseDocument?.licenseSchedule?.endDate || licenseDocument?.licenseSchedule?.renewalDate) && <Alert status={getLicenseStatus(licenseDocument).color === 'green' ? 'success' : getLicenseStatus(licenseDocument).color === 'orange' ? 'warning' : 'error'} borderRadius="xl"><AlertIcon /><Box><AlertTitle>{getLicenseStatus(licenseDocument).label}</AlertTitle><AlertDescription>{getLicenseStatus(licenseDocument).detail}; license ends on {licenseDocument.licenseSchedule?.endDateEthiopian?.year ? formatEthiopianDate(licenseDocument.licenseSchedule.endDateEthiopian) : formatDate(licenseDocument.licenseSchedule.endDate || licenseDocument.licenseSchedule.renewalDate)}.</AlertDescription></Box></Alert>}
+                        <Alert status="info" variant="left-accent" borderRadius="xl"><AlertIcon /><Box><AlertTitle>Ethiopian calendar dates</AlertTitle><AlertDescription>Read the approval and expiry dates exactly as printed on the license. All values below use Ethiopian Calendar (EC).</AlertDescription></Box></Alert>
+                        <EthiopianDateField label="Approval / start date (EC)" value={licenseStartDate} onChange={setLicenseStartDate} description="Enter the Ethiopian approval or effective date shown in the license document." />
+                        <EthiopianDateField label="Expiry / end date (EC)" value={licenseEndDate} onChange={setLicenseEndDate} description="The system converts this Ethiopian date internally and calculates the remaining renewal days from it." />
                         <FormControl isRequired><FormLabel>Reminder interval</FormLabel><Input type="number" min="0" max="365" step="1" value={licenseReminderDays} onChange={(event) => setLicenseReminderDays(event.target.value)} /><Text color={muted} fontSize="sm" mt="2">The future notification phase will alert HR this many days before the update date.</Text><HStack mt="3" spacing="2" flexWrap="wrap">{[7, 14, 30, 60, 90].map((days) => <Button key={days} size="xs" variant={licenseReminderDays === String(days) ? 'solid' : 'outline'} colorScheme="teal" onClick={() => setLicenseReminderDays(String(days))}>{days} days</Button>)}</HStack></FormControl>
-                        {licenseRenewalDate && <Flex bg="teal.50" borderWidth="1px" borderColor="teal.200" borderRadius="xl" p="4" gap="3" align="start"><Icon as={FiClock} color="teal.600" mt="1" /><Box><Text fontWeight="800" color="teal.800">Schedule summary</Text><Text color="teal.700" fontSize="sm">Update date: {formatDate(licenseRenewalDate)}. HR reminder window begins {licenseReminderDays || 0} day(s) before this date.</Text></Box></Flex>}
+                        {isCompleteEthiopianDate(licenseStartDate) && isCompleteEthiopianDate(licenseEndDate) && <Flex bg="teal.50" borderWidth="1px" borderColor="teal.200" borderRadius="xl" p="4" gap="3" align="start"><Icon as={FiClock} color="teal.600" mt="1" /><Box><Text fontWeight="800" color="teal.800">License period summary</Text><Text color="teal.700" fontSize="sm">Effective {formatEthiopianDate(licenseStartDate)} through {formatEthiopianDate(licenseEndDate)}. HR reminder window begins {licenseReminderDays || 0} day(s) before the expiry date.</Text></Box></Flex>}
                     </Stack></ModalBody>
                     <ModalFooter borderTopWidth="1px"><Button variant="ghost" mr="3" onClick={() => setLicenseDocument(null)} isDisabled={isSavingLicense}>Cancel</Button><Button colorScheme="teal" leftIcon={<Icon as={FiCalendar} />} onClick={saveLicenseSchedule} isLoading={isSavingLicense} loadingText="Saving">Save schedule</Button></ModalFooter>
                 </ModalContent>
