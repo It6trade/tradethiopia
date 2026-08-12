@@ -446,17 +446,17 @@ const SalesManagerNavbar = ({ onMenuClick, onToggleSidebar, isSidebarCollapsed }
               <HStack spacing={3}>
                 <Avatar
                   size="sm"
-                  name="Sales Manager"
+                  name={currentUser?.fullName || currentUser?.username || 'Sales Manager'}
                   bg={activeColor}
                   color="white"
                 />
                 {!isMobile && (
                   <Box textAlign="left">
                     <Text fontSize="sm" fontWeight="medium">
-                      Sales Manager
+                      {currentUser?.fullName || currentUser?.username || 'Sales Manager'}
                     </Text>
                     <Text fontSize="xs" color="gray.500">
-                      Admin
+                      {currentUser?.displayRole || currentUser?.role || 'salesmanager'}
                     </Text>
                   </Box>
                 )}

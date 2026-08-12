@@ -30,14 +30,57 @@ import {
   useColorMode,
   useColorModeValue,
   Image
+  ,useToast
 } from "@chakra-ui/react";
 
 import { FaMoon, FaSun } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
+import axiosInstance from "../services/axiosInstance";
+import { useUserStore } from "../store/user";
+
+const isTrainingEnabled = (value) =>
+  ["on", "active", "approved", "enabled", "true"].includes(
+    String(value || "").trim().toLowerCase()
+  );
 
 const FourthPage = () => {
   const { colorMode, toggleColorMode } = useColorMode();
   const navigate = useNavigate();
+  const toast = useToast();
+  const currentUser = useUserStore((state) => state.currentUser);
+  const setCurrentUser = useUserStore((state) => state.setCurrentUser);
+  const [isCheckingTraining, setIsCheckingTraining] = useState(false);
+
+  const handleFinish = async () => {
+    if (isCheckingTraining) return;
+    setIsCheckingTraining(true);
+    try {
+      const { data } = await axiosInstance.get('/users/me');
+      const refreshedUser = data?.data;
+      if (!isTrainingEnabled(refreshedUser?.trainingStatus)) {
+        toast({
+          title: 'Training access is awaiting HR approval',
+          description: 'HR must switch Training Access on before you can proceed to the assessment.',
+          status: 'warning',
+          duration: 5000,
+          isClosable: true,
+        });
+        return;
+      }
+      setCurrentUser({ ...currentUser, ...refreshedUser, token: currentUser?.token });
+      navigate('/exam');
+    } catch (error) {
+      toast({
+        title: 'Unable to verify training access',
+        description: error.response?.data?.message || 'Please try again.',
+        status: 'error',
+        duration: 4000,
+        isClosable: true,
+      });
+    } finally {
+      setIsCheckingTraining(false);
+    }
+  };
 
   const {
     isOpen: isDrawerOpen,
@@ -444,7 +487,9 @@ by 2030.
         </Button>
         <Button
           colorScheme="purple"
-          onClick={() => navigate("/exam")}
+          onClick={handleFinish}
+          isLoading={isCheckingTraining}
+          loadingText="Checking access"
           _hover={{ backgroundColor: "purple.500", color: "white" }}
         >
           Finish

@@ -22,6 +22,7 @@ import { FcGoogle } from 'react-icons/fc';
 import { FiEye, FiEyeOff } from 'react-icons/fi';
 import { useUserStore, normalizeRole } from '../store/user'; // Update the path if necessary
 import axiosInstance from '../services/axiosInstance';
+import { consumeReturnPath } from '../utils/authStorage';
 
 const LoginPage = () => {
     const [email, setEmail] = useState('');
@@ -39,18 +40,18 @@ const handleLogin = async (event) => {
 
     try {
         setIsLoggingIn(true);
-        const response = await axiosInstance.post('/users/login', { email, password });
+        const response = await axiosInstance.post('/users/login', { email: email.trim(), password });
 
         console.log('Login response:', response.data); // Debugging line
 
         if (response.data.success) {
             // Extract user data and token correctly
             const { user, token } = response.data;
-            const { _id, role, status, infoStatus, username, email, fullName, jobTitle } = user;
+            const { _id, role, status, infoStatus, trainingStatus, username, email, fullName, jobTitle } = user;
             console.log('LoginPage - Login Success:', { _id, role, status, infoStatus, username, email });
 
             // Save token and user information in local storage
-            setCurrentUser({ username, role, status, infoStatus, token, _id, email, fullName, jobTitle });
+            setCurrentUser({ username, role, status, infoStatus, trainingStatus, token, _id, email, fullName, jobTitle });
 
             // Check user and info statuses
             if (status === 'inactive' && infoStatus === 'active') {
@@ -61,7 +62,11 @@ const handleLogin = async (event) => {
                 redirectAfterLogin('/employee-info');
             } else {
                 const normalizedRole = normalizeRole(role);
+                const returnPath = consumeReturnPath({ _id, role: normalizedRole });
                 console.log('LoginPage - redirecting based on normalized role:', normalizedRole);
+                if (returnPath) {
+                    redirectAfterLogin(returnPath);
+                } else {
                 switch (normalizedRole) {
                    
                     case 'admin':
@@ -121,6 +126,7 @@ const handleLogin = async (event) => {
                     default:
                         redirectAfterLogin('/ComingSoonPage'); // Optional: handle unknown roles
                         break;
+                }
                 }
             }
 

@@ -4,7 +4,7 @@ const NotificationSchema = new mongoose.Schema({
   user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   text: { type: String, required: true },
   read: { type: Boolean, default: false },
-  type: { type: String, enum: ['general', 'task', 'target', 'chat', 'reminder', 'comment', 'report'], default: 'general' },
+  type: { type: String, enum: ['general', 'task', 'target', 'chat', 'reminder', 'comment', 'report', 'request', 'warning'], default: 'general' },
   taskId: { type: mongoose.Schema.Types.ObjectId, ref: 'Task' },
   itTaskId: { type: mongoose.Schema.Types.ObjectId, ref: 'ITTask' },
   commentId: { type: mongoose.Schema.Types.ObjectId },

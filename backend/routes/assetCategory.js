@@ -11,6 +11,26 @@ router.post('/', async (req, res) => {
   res.status(201).json(assetCategory);
 });
 
+// Bulk Create Categories
+router.post('/bulk', async (req, res) => {
+  try {
+    const { categories } = req.body;
+    if (!Array.isArray(categories) || categories.length === 0) {
+      return res.status(400).json({ message: "Categories array is required." });
+    }
+    const docs = categories.map(name => ({ name }));
+    const inserted = await AssetCategory.insertMany(docs, { ordered: false });
+    res.status(201).json({ success: true, data: inserted });
+  } catch (error) {
+    if (error.code === 11000) {
+      // Ignore duplicate key errors on bulk insert
+      res.status(201).json({ success: true, message: "Inserted with some duplicates skipped." });
+    } else {
+      res.status(500).json({ message: "Error in bulk creation." });
+    }
+  }
+});
+
 // Get Asset Categories
 router.get('/', async (req, res) => {
   try {

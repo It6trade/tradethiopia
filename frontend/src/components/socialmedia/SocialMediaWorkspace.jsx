@@ -56,6 +56,7 @@ import {
   FiFileText,
   FiTarget,
   FiTrendingUp,
+  FiAlertTriangle,
 } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
 import { useUserStore } from "../../store/user";
@@ -68,6 +69,7 @@ import SocialMediaAccountsManager from "./SocialMediaAccountsManager";
 import SocialMediaActivationsManager from "./SocialMediaActivationsManager";
 import SocialMediaAccountSummary from "./SocialMediaAccountSummary";
 import { EmptyStateBlock, SectionIntro, SurfaceCard } from "./SocialMediaPrimitives";
+import EmployeeWarningsPage from "../../pages/EmployeeWarningsPage";
 
 const navGroups = [
   {
@@ -100,6 +102,7 @@ const navGroups = [
     label: "Collaboration",
     items: [
       { key: "requests", label: "Requests", icon: FiClipboard },
+      { key: "warnings", label: "My Warnings", icon: FiAlertTriangle },
     ],
   },
 ];
@@ -154,6 +157,10 @@ const sectionMeta = {
   requests: {
     eyebrow: "Collaboration",
     title: "Request center",
+  },
+  warnings: {
+    eyebrow: "Employee record",
+    title: "My Warnings",
   },
 };
 
@@ -452,6 +459,10 @@ export default function SocialMediaWorkspace() {
           />
         </VStack>
       );
+    }
+
+    if (activeSection === "warnings") {
+      return <EmployeeWarningsPage mode="employee" />;
     }
 
     if (activeSection === "postTracker") {

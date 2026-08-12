@@ -17,7 +17,7 @@ const AppLayout = ({ children }) => {
       <Flex direction="column" minHeight="100vh">
       <NavbarPage sidebarWidth={sidebarWidth} />
       
-      <Flex flex="1" mt="52px">
+      <Flex flex="1" mt="56px">
         <Sidebar 
           isCollapsed={isSidebarCollapsed}
           onToggleCollapse={handleToggleCollapse}

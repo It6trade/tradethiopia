@@ -17,6 +17,8 @@ import {
     Input,
     Divider,
     Flex,
+    HStack,
+    Stack,
     SimpleGrid,
     Drawer,
     DrawerBody,
@@ -29,10 +31,15 @@ import {
     Select,
     Link,
     Badge,
+    Avatar,
+    Progress,
+    Icon,
     ModalCloseButton,
     useColorModeValue,
 } from '@chakra-ui/react';
 import { DeleteIcon, EditIcon, AddIcon } from '@chakra-ui/icons';
+import { Link as RouterLink, useLocation } from 'react-router-dom';
+import { FiAlertCircle, FiBriefcase, FiCheckCircle, FiDownload, FiFileText, FiFolder, FiUsers } from 'react-icons/fi';
 import axios from 'axios';
 import DocumentUploadForm from './EmployeeDocumentUploadForm';
 
@@ -49,6 +56,7 @@ const DocumentList = () => {
     const [title, setTitle] = useState('');
     const [employeeName, setEmployeeName] = useState('');
     const [categoryId, setCategoryId] = useState('');
+    const [subcategory, setSubcategory] = useState('');
     const [department, setDepartment] = useState('');
     const [isDrawerOpen, setIsDrawerOpen] = useState(false);
     const [newCategoryName, setNewCategoryName] = useState('');
@@ -65,7 +73,7 @@ const DocumentList = () => {
     useEffect(() => {
         const filtered = documents.filter(doc => {
             const query = searchQuery.toLowerCase();
-            const matchesSearch = [doc.title, doc.employeeName, doc.department, doc.category?.name]
+            const matchesSearch = [doc.title, doc.employeeName, doc.department, doc.category?.name, doc.subcategory]
                 .filter(Boolean)
                 .some(value => value.toLowerCase().includes(query));
             return matchesSearch &&
@@ -133,6 +141,7 @@ const DocumentList = () => {
         setTitle(doc.title);
         setEmployeeName(doc.employeeName || '');
         setCategoryId(doc.category?._id || '');
+        setSubcategory(doc.subcategory || '');
         setDepartment(doc.department || '');
         setIsEditOpen(true);
     };
@@ -141,8 +150,8 @@ const DocumentList = () => {
         try {
             const payload = {};
             if (title !== editDocument.title) payload.title = title;
-            if (employeeName !== (editDocument.employeeName || '')) payload.employeeName = employeeName;
             if (categoryId !== editDocument.category?._id) payload.category = categoryId;
+            if (subcategory !== (editDocument.subcategory || '')) payload.subcategory = subcategory;
             if (department !== editDocument.department) payload.department = department;
 
             await axios.patch(`${import.meta.env.VITE_API_URL}/api/documents/${editDocument._id}`, payload);
@@ -253,7 +262,10 @@ const DocumentList = () => {
         }
     };
 
-    const getEmployeeKey = (doc) => (doc.employeeName || doc.title || 'Unknown Employee').trim().toLowerCase();
+    const getEmployeeKey = (doc) =>
+        doc.userId
+            ? `user:${typeof doc.userId === 'object' ? doc.userId._id : doc.userId}`
+            : `legacy:${(doc.employeeName || doc.title || 'Unknown Employee').trim().toLowerCase()}`;
 
     const employeeGroups = Object.values(filteredDocuments.reduce((groups, doc) => {
         const key = getEmployeeKey(doc);
@@ -352,10 +364,62 @@ const DocumentList = () => {
         );
     });
 
+    const location = useLocation();
     const departments = [...new Set(documents.map(doc => doc.department).filter(Boolean))];
+    const selectedDocumentGroups = selectedEmployee
+        ? requiredEmployeeDocumentTypes
+            .map((type) => ({
+                ...type,
+                documents: getDocumentsForType(selectedEmployee.documents, type),
+            }))
+            .filter((group) => group.documents.length > 0)
+        : [];
+    const selectedMissingTypes = selectedEmployee
+        ? requiredEmployeeDocumentTypes.filter(
+            (type) => getDocumentsForType(selectedEmployee.documents, type).length === 0
+        )
+        : [];
+    const selectedOtherDocuments = selectedEmployee
+        ? getOtherDocuments(selectedEmployee.documents)
+        : [];
+    const documentCoverage = selectedEmployee
+        ? Math.round(
+            (selectedDocumentGroups.length / requiredEmployeeDocumentTypes.length) * 100
+        )
+        : 0;
 
     return (
         <Box p={{ base: '2', md: '4' }} maxW="1200px" mx="auto" mt={{ base: '0', sm: '-16', md: '-35', lg: '-75' }}>
+            {/* Top Navigation Tabs */}
+            <Flex justify="center" mb={5} gap={3} bg={useColorModeValue('white', 'gray.800')} p={2.5} borderRadius="xl" boxShadow="sm" borderWidth="1px">
+                <Button
+                    as={RouterLink}
+                    to="/documentlist"
+                    size="sm"
+                    variant={location.pathname === '/documentlist' ? 'solid' : 'ghost'}
+                    colorScheme="teal"
+                    borderRadius="lg"
+                    px={5}
+                    fontWeight="700"
+                    leftIcon={<Icon as={FiBriefcase} />}
+                >
+                    Company Documents
+                </Button>
+                <Button
+                    as={RouterLink}
+                    to="/EmployeeDocument"
+                    size="sm"
+                    variant={location.pathname === '/EmployeeDocument' ? 'solid' : 'ghost'}
+                    colorScheme="teal"
+                    borderRadius="lg"
+                    px={5}
+                    fontWeight="700"
+                    leftIcon={<Icon as={FiUsers} />}
+                >
+                    Employee Documents
+                </Button>
+            </Flex>
+
             <Heading as="h2" size="lg" mb="4" textAlign="center" color="teal.600">
                 Employee Document Management
             </Heading>
@@ -493,115 +557,207 @@ const DocumentList = () => {
                     <Drawer
                         isOpen={isEmployeeDrawerOpen}
                         placement="right"
-                        size="lg"
+                        size="full"
                         onClose={() => setIsEmployeeDrawerOpen(false)}
                     >
-                        <DrawerOverlay />
-                        <DrawerContent>
-                            <DrawerCloseButton />
-                            <DrawerHeader>
-                                <Heading size="md">{selectedEmployee?.employeeName || 'Employee Documents'}</Heading>
-                                <Text fontSize="sm" color="gray.500" mt={1}>
-                                    All uploaded employee files and information
-                                </Text>
+                        <DrawerOverlay bg="blackAlpha.600" backdropFilter="blur(3px)" />
+                        <DrawerContent
+                            ml="auto"
+                            maxW={{ base: '100%', md: '820px', xl: '980px' }}
+                            bg="gray.50"
+                        >
+                            <DrawerCloseButton top={5} right={5} color="white" size="lg" />
+                            <DrawerHeader p={0}>
+                                <Box
+                                    bgGradient="linear(to-r, teal.800, teal.600)"
+                                    color="white"
+                                    px={{ base: 5, md: 8 }}
+                                    py={{ base: 7, md: 9 }}
+                                >
+                                    <Text
+                                        fontSize="xs"
+                                        fontWeight="800"
+                                        color="teal.100"
+                                        letterSpacing="widest"
+                                        textTransform="uppercase"
+                                    >
+                                        HR employee document workspace
+                                    </Text>
+                                    <Heading mt={2} size="lg">
+                                        {selectedEmployee?.employeeName || 'Employee documents'}
+                                    </Heading>
+                                    <Text mt={2} fontSize="sm" color="teal.100">
+                                        Review available records, document coverage, and items requiring HR follow-up.
+                                    </Text>
+                                </Box>
                             </DrawerHeader>
-                            <DrawerBody>
+                            <DrawerBody px={{ base: 4, md: 8 }} py={{ base: 5, md: 7 }}>
                                 {selectedEmployee && (
-                                    <VStack align="stretch" spacing={4}>
-                                        <Box p={4} borderWidth="1px" borderRadius="md" bg={useColorModeValue('gray.50', 'gray.700')}>
-                                            <Text><strong>Employee:</strong> {selectedEmployee.employeeName}</Text>
-                                            <Text><strong>Departments:</strong> {[...new Set(selectedEmployee.documents.map(doc => doc.department).filter(Boolean))].join(', ') || 'N/A'}</Text>
-                                            <Text><strong>Total Files:</strong> {selectedEmployee.documents.length}</Text>
+                                    <Stack spacing={7}>
+                                        <Flex
+                                            bg="white"
+                                            border="1px solid"
+                                            borderColor="gray.200"
+                                            borderRadius="2xl"
+                                            shadow="sm"
+                                            p={{ base: 5, md: 6 }}
+                                            justify="space-between"
+                                            align={{ base: 'flex-start', md: 'center' }}
+                                            direction={{ base: 'column', md: 'row' }}
+                                            gap={5}
+                                        >
+                                            <HStack spacing={4}>
+                                                <Avatar
+                                                    size="lg"
+                                                    name={selectedEmployee.employeeName}
+                                                    bg="teal.700"
+                                                    color="white"
+                                                />
+                                                <Box>
+                                                    <Heading size="md" color="gray.900">
+                                                        {selectedEmployee.employeeName}
+                                                    </Heading>
+                                                    <Text mt={1} fontSize="sm" color="gray.600">
+                                                        {[...new Set(selectedEmployee.documents.map(doc => doc.department).filter(Boolean))].join(', ') || 'Department not recorded'}
+                                                    </Text>
+                                                    <Badge mt={2} colorScheme="teal" borderRadius="full" px={2.5}>
+                                                        {selectedEmployee.documents.length} uploaded {selectedEmployee.documents.length === 1 ? 'file' : 'files'}
+                                                    </Badge>
+                                                </Box>
+                                            </HStack>
+                                            <Box minW={{ md: '220px' }}>
+                                                <Flex justify="space-between" mb={2}>
+                                                    <Text fontSize="xs" fontWeight="700" color="gray.500">Required category coverage</Text>
+                                                    <Text fontSize="xs" fontWeight="800" color="teal.700">{documentCoverage}%</Text>
+                                                </Flex>
+                                                <Progress value={documentCoverage} size="sm" colorScheme="teal" borderRadius="full" />
+                                                <Text mt={2} fontSize="xs" color="gray.500">
+                                                    {selectedDocumentGroups.length} of {requiredEmployeeDocumentTypes.length} expected categories available
+                                                </Text>
+                                            </Box>
+                                        </Flex>
+
+                                        <SimpleGrid columns={{ base: 1, sm: 3 }} spacing={3}>
+                                            {[
+                                                ['Total files', selectedEmployee.documents.length, FiFileText],
+                                                ['Available categories', selectedDocumentGroups.length + (selectedOtherDocuments.length ? 1 : 0), FiFolder],
+                                                ['Needs attention', selectedMissingTypes.length, FiAlertCircle],
+                                            ].map(([label, value, metricIcon]) => (
+                                                <Box key={label} bg="white" border="1px solid" borderColor="gray.200" borderRadius="xl" p={4}>
+                                                    <HStack>
+                                                        <Flex w="38px" h="38px" borderRadius="lg" bg="teal.50" align="center" justify="center">
+                                                            <Icon as={metricIcon} color="teal.700" />
+                                                        </Flex>
+                                                        <Box>
+                                                            <Text fontSize="xl" fontWeight="800" color="gray.900">{value}</Text>
+                                                            <Text fontSize="xs" color="gray.500">{label}</Text>
+                                                        </Box>
+                                                    </HStack>
+                                                </Box>
+                                            ))}
+                                        </SimpleGrid>
+
+                                        <Box>
+                                            <Heading size="md" color="gray.900">Available employee documents</Heading>
+                                            <Text mt={1} fontSize="sm" color="gray.500">
+                                                Files are grouped by HR purpose for faster review and action.
+                                            </Text>
                                         </Box>
 
-                                        {requiredEmployeeDocumentTypes.map((documentType) => {
-                                            const matchingDocuments = getDocumentsForType(selectedEmployee.documents, documentType);
-                                            return (
-                                                <Box key={documentType.label} p={4} borderWidth="1px" borderRadius="md" boxShadow="sm">
-                                                    <Flex justify="space-between" align="center" mb={matchingDocuments.length ? 3 : 0} gap={3} wrap="wrap">
-                                                        <Heading size="sm">{documentType.label}</Heading>
-                                                        <Badge colorScheme={matchingDocuments.length ? 'green' : 'red'}>
-                                                            {matchingDocuments.length ? `${matchingDocuments.length} found` : 'Not found'}
-                                                        </Badge>
-                                                    </Flex>
-
-                                                    {matchingDocuments.length ? (
-                                                        <VStack align="stretch" spacing={3}>
-                                                            {matchingDocuments.map((doc) => (
-                                                                <Flex key={doc._id} justify="space-between" align="flex-start" gap={3} wrap="wrap" borderTopWidth="1px" pt={3}>
-                                                                    <Box>
-                                                                        <Text fontWeight="semibold">{doc.title}</Text>
-                                                                        <Text fontSize="sm" color="gray.600"><strong>Category:</strong> {doc.category?.name || 'N/A'}</Text>
-                                                                        <Text fontSize="sm" color="gray.600"><strong>Department:</strong> {doc.department || 'N/A'}</Text>
-                                                                        <Text fontSize="sm" color="gray.600"><strong>Uploaded:</strong> {doc.createdAt ? new Date(doc.createdAt).toLocaleDateString() : 'N/A'}</Text>
-                                                                    </Box>
-                                                                    <Flex gap={2} onClick={(event) => event.stopPropagation()}>
-                                                                        <Button as="a" href={doc.fileUrl} target="_blank" rel="noopener noreferrer" colorScheme="teal" size="sm">
-                                                                            View File
-                                                                        </Button>
-                                                                        <IconButton
-                                                                            icon={<EditIcon />}
-                                                                            colorScheme="blue"
-                                                                            aria-label="Edit document"
-                                                                            size="sm"
-                                                                            onClick={() => handleEditClick(doc)}
-                                                                        />
-                                                                        <IconButton
-                                                                            icon={<DeleteIcon />}
-                                                                            colorScheme="red"
-                                                                            aria-label="Delete document"
-                                                                            size="sm"
-                                                                            onClick={() => handleDelete(doc._id)}
-                                                                        />
-                                                                    </Flex>
-                                                                </Flex>
-                                                            ))}
-                                                        </VStack>
-                                                    ) : (
-                                                        <Text fontSize="sm" color="red.500" mt={2}>
-                                                            Not found for this employee.
-                                                        </Text>
-                                                    )}
-                                                </Box>
-                                            );
-                                        })}
-
-                                        {getOtherDocuments(selectedEmployee.documents).length > 0 && (
-                                            <Box p={4} borderWidth="1px" borderRadius="md" boxShadow="sm">
-                                                <Heading size="sm" mb={3}>Other Documents</Heading>
-                                                <VStack align="stretch" spacing={3}>
-                                                    {getOtherDocuments(selectedEmployee.documents).map((doc) => (
-                                                        <Flex key={doc._id} justify="space-between" align="flex-start" gap={3} wrap="wrap" borderTopWidth="1px" pt={3}>
-                                                            <Box>
-                                                                <Text fontWeight="semibold">{doc.title}</Text>
-                                                                <Text fontSize="sm" color="gray.600"><strong>Category:</strong> {doc.category?.name || 'N/A'}</Text>
-                                                                <Text fontSize="sm" color="gray.600"><strong>Department:</strong> {doc.department || 'N/A'}</Text>
-                                                                <Text fontSize="sm" color="gray.600"><strong>Uploaded:</strong> {doc.createdAt ? new Date(doc.createdAt).toLocaleDateString() : 'N/A'}</Text>
-                                                            </Box>
-                                                            <Flex gap={2} onClick={(event) => event.stopPropagation()}>
-                                                                <Button as="a" href={doc.fileUrl} target="_blank" rel="noopener noreferrer" colorScheme="teal" size="sm">
-                                                                    View File
-                                                                </Button>
-                                                                <IconButton
-                                                                    icon={<EditIcon />}
-                                                                    colorScheme="blue"
-                                                                    aria-label="Edit document"
-                                                                    size="sm"
-                                                                    onClick={() => handleEditClick(doc)}
-                                                                />
-                                                                <IconButton
-                                                                    icon={<DeleteIcon />}
-                                                                    colorScheme="red"
-                                                                    aria-label="Delete document"
-                                                                    size="sm"
-                                                                    onClick={() => handleDelete(doc._id)}
-                                                                />
-                                                            </Flex>
+                                        {selectedDocumentGroups.length || selectedOtherDocuments.length ? (
+                                            <SimpleGrid columns={{ base: 1, xl: 2 }} spacing={4}>
+                                                {[
+                                                    ...selectedDocumentGroups,
+                                                    ...(selectedOtherDocuments.length
+                                                        ? [{ label: 'Other documents', documents: selectedOtherDocuments }]
+                                                        : []),
+                                                ].map((group) => (
+                                                    <Box
+                                                        key={group.label}
+                                                        bg="white"
+                                                        border="1px solid"
+                                                        borderColor="gray.200"
+                                                        borderRadius="2xl"
+                                                        overflow="hidden"
+                                                        shadow="sm"
+                                                        transition="all 0.2s"
+                                                        _hover={{ borderColor: 'teal.300', shadow: 'md', transform: 'translateY(-2px)' }}
+                                                    >
+                                                        <Flex px={5} py={4} bg="gray.50" borderBottom="1px solid" borderColor="gray.200" justify="space-between" align="center">
+                                                            <HStack>
+                                                                <Icon as={FiFolder} color="teal.700" />
+                                                                <Heading size="sm" color="gray.800">{group.label}</Heading>
+                                                            </HStack>
+                                                            <Badge colorScheme="green" borderRadius="full">{group.documents.length} available</Badge>
                                                         </Flex>
-                                                    ))}
-                                                </VStack>
+                                                        <Stack spacing={0} divider={<Divider />} px={5}>
+                                                            {group.documents.map((doc) => (
+                                                                <Box key={doc._id} py={5}>
+                                                                    <Flex justify="space-between" align="flex-start" gap={4}>
+                                                                        <Box minW={0}>
+                                                                            <HStack mb={2}>
+                                                                                <Icon as={FiCheckCircle} color="green.500" />
+                                                                                <Text fontWeight="800" color="gray.900" noOfLines={1}>{doc.title}</Text>
+                                                                            </HStack>
+                                                                            <Stack spacing={1}>
+                                                                                <Text fontSize="xs" color="gray.600"><strong>Category:</strong> {doc.category?.name || 'Not recorded'}</Text>
+                                                                                {doc.subcategory && <Text fontSize="xs" color="gray.600"><strong>Leave type:</strong> {doc.subcategory}</Text>}
+                                                                                <Text fontSize="xs" color="gray.600"><strong>Department:</strong> {doc.department || 'Not recorded'}</Text>
+                                                                                <Text fontSize="xs" color="gray.600"><strong>Uploaded:</strong> {doc.createdAt ? new Date(doc.createdAt).toLocaleDateString() : 'Date unavailable'}</Text>
+                                                                            </Stack>
+                                                                        </Box>
+                                                                        <HStack spacing={1} flexShrink={0}>
+                                                                            <IconButton
+                                                                                as="a"
+                                                                                href={doc.fileUrl}
+                                                                                target="_blank"
+                                                                                rel="noopener noreferrer"
+                                                                                icon={<FiDownload />}
+                                                                                aria-label="Open document"
+                                                                                colorScheme="teal"
+                                                                                size="sm"
+                                                                            />
+                                                                            <IconButton icon={<EditIcon />} aria-label="Edit document" variant="ghost" colorScheme="blue" size="sm" onClick={() => handleEditClick(doc)} />
+                                                                            <IconButton icon={<DeleteIcon />} aria-label="Delete document" variant="ghost" colorScheme="red" size="sm" onClick={() => handleDelete(doc._id)} />
+                                                                        </HStack>
+                                                                    </Flex>
+                                                                </Box>
+                                                            ))}
+                                                        </Stack>
+                                                    </Box>
+                                                ))}
+                                            </SimpleGrid>
+                                        ) : (
+                                            <Box bg="white" border="1px dashed" borderColor="gray.300" borderRadius="2xl" p={8} textAlign="center">
+                                                <Icon as={FiFileText} boxSize={8} color="gray.400" />
+                                                <Heading mt={3} size="sm">No employee documents available</Heading>
+                                                <Text mt={2} fontSize="sm" color="gray.500">Upload the employee’s first verified HR document to begin the record.</Text>
                                             </Box>
-                                        )}                                    </VStack>
+                                        )}
+
+                                        {selectedMissingTypes.length > 0 && (
+                                            <Box bg="white" border="1px solid" borderColor="orange.200" borderRadius="2xl" p={{ base: 5, md: 6 }}>
+                                                <HStack align="flex-start" spacing={3}>
+                                                    <Flex w="40px" h="40px" borderRadius="lg" bg="orange.50" align="center" justify="center" flexShrink={0}>
+                                                        <Icon as={FiAlertCircle} color="orange.600" />
+                                                    </Flex>
+                                                    <Box>
+                                                        <Heading size="sm" color="gray.900">HR attention required</Heading>
+                                                        <Text mt={1} fontSize="sm" color="gray.600">
+                                                            The following expected document categories have no uploaded record.
+                                                        </Text>
+                                                    </Box>
+                                                </HStack>
+                                                <Flex mt={4} gap={2} wrap="wrap">
+                                                    {selectedMissingTypes.map((type) => (
+                                                        <Badge key={type.label} colorScheme="orange" variant="subtle" borderRadius="full" px={3} py={1}>
+                                                            {type.label}
+                                                        </Badge>
+                                                    ))}
+                                                </Flex>
+                                            </Box>
+                                        )}
+                                    </Stack>
                                 )}
                             </DrawerBody>
                         </DrawerContent>
@@ -702,11 +858,14 @@ const DocumentList = () => {
                                     <FormLabel>Employee Name</FormLabel>
                                     <Input
                                         value={employeeName}
-                                        onChange={(e) => setEmployeeName(e.target.value)}
-                                        placeholder="Enter employee name"
-                                        focusBorderColor="teal.500"
+                                        isReadOnly
+                                        bg="gray.50"
+                                        placeholder="Employee linked from database"
                                         size="md"
                                     />
+                                    <Text mt={1} fontSize="xs" color="gray.500">
+                                        Employee identity is controlled by the linked database record and cannot be typed manually.
+                                    </Text>
                                 </FormControl>
                                 <FormControl id="edit-title" mb={4}>
                                     <FormLabel>Document Type</FormLabel>
@@ -722,7 +881,10 @@ const DocumentList = () => {
                                     <FormLabel>Category</FormLabel>
                                     <Select
                                         value={categoryId}
-                                        onChange={(e) => setCategoryId(e.target.value)}
+                                        onChange={(e) => {
+                                            setCategoryId(e.target.value);
+                                            setSubcategory('');
+                                        }}
                                     >
                                         {categories.map((category) => (
                                             <option key={category._id} value={category._id}>
@@ -731,6 +893,20 @@ const DocumentList = () => {
                                         ))}
                                     </Select>
                                 </FormControl>
+                                {categories.find((category) => category._id === categoryId)?.name?.trim().toLowerCase() === 'employee leave' && (
+                                    <FormControl id="edit-leave-type" mb={4} isRequired>
+                                        <FormLabel>Leave Type</FormLabel>
+                                        <Select
+                                            value={subcategory}
+                                            onChange={(e) => setSubcategory(e.target.value)}
+                                            placeholder="Select leave type"
+                                        >
+                                            {['Annual Leave', 'Sick Leave', 'Paternity Leave', 'Maternity Leave', 'Other Leave'].map((leaveType) => (
+                                                <option key={leaveType} value={leaveType}>{leaveType}</option>
+                                            ))}
+                                        </Select>
+                                    </FormControl>
+                                )}
                                 <FormControl id="edit-department" mb={4}>
                                     <FormLabel>Department</FormLabel>
                                     <Input

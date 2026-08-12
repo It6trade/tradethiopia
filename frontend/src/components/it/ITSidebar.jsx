@@ -33,6 +33,7 @@ import {
   FiChevronRight,
   FiUserCheck,
   FiBell,
+  FiAlertTriangle,
 } from 'react-icons/fi';
 
 const SidebarButton = ({ label, icon: Icon, isActive, onClick, tooltip, isCollapsed, badge }) => {
@@ -247,6 +248,13 @@ export default function ITSidebar({ activeSection, setActiveSection, setModalOpe
               icon={FiUser}
               isActive={activeSection === 'profile'}
               onClick={() => setActiveSection('profile')}
+              isCollapsed={isCollapsed}
+            />
+            <SidebarButton
+              label="My Warnings"
+              icon={FiAlertTriangle}
+              isActive={activeSection === 'warnings'}
+              onClick={() => setActiveSection('warnings')}
               isCollapsed={isCollapsed}
             />
           </SidebarSection>

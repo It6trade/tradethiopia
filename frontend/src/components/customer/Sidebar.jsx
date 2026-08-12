@@ -24,6 +24,7 @@ import {
   FiClipboard,
   FiFileText,
   FiBarChart2,
+  FiAlertTriangle,
 } from "react-icons/fi";
 import { Link as RouterLink } from "react-router-dom";
 import { MdLibraryBooks } from "react-icons/md";
@@ -237,6 +238,17 @@ const SSidebar = ({ isCollapsed: collapsedProp, toggleCollapse: toggleProp, acti
             icon={<FiClipboard />}
             label="Requests"
             active={isActive("/requests")}
+            iconColor={iconColor}
+            activeIconColor={activeIconColor}
+            textColor={textColor}
+            activeTextColor={activeTextColor}
+          />
+          <SidebarLink
+            isCollapsed={isCollapsed}
+            to="/my-warnings"
+            icon={<FiAlertTriangle />}
+            label="My Warnings"
+            active={isActive("/my-warnings")}
             iconColor={iconColor}
             activeIconColor={activeIconColor}
             textColor={textColor}

@@ -50,10 +50,31 @@ router.get('/:id', async (req, res) => {
 // Update an asset by ID
 router.put('/:id', async (req, res) => {
   try {
-    const asset = await Asset.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
-    if (!asset) {
+    const existing = await Asset.findById(req.params.id);
+    if (!existing) {
       return res.status(404).json({ success: false, message: "Asset not found." });
     }
+
+    // Check if assignment changed
+    if (req.body.assignedTo !== undefined && req.body.assignedTo !== existing.assignedTo) {
+      const history = existing.assignmentHistory || [];
+      const lastAssignmentDate = history.length > 0 
+        ? history[history.length - 1].dateTo 
+        : existing.dateAcquired;
+        
+      const historyLog = {
+        assignedTo: existing.assignedTo || "Unassigned",
+        location: existing.location || "Unknown",
+        dateFrom: lastAssignmentDate || existing.createdAt || new Date(),
+        dateTo: new Date(),
+        condition: existing.condition || "Good"
+      };
+      
+      history.push(historyLog);
+      req.body.assignmentHistory = history;
+    }
+
+    const asset = await Asset.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
     res.status(200).json({ success: true, data: asset });
   } catch (error) {
     console.error("Error updating asset:", error);

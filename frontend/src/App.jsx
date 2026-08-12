@@ -50,6 +50,7 @@ import ENISRANoticeBoard from "./components/ENSRA/ENSRANoticeBoard";
 import ENISRARequestEmbedded from "./components/ENSRA/ENISRARequestEmbedded";
 import ENISRAFollowUp from "./components/ENSRA/ENISRAFollowUp";
 import ProtectedRoute from "./routes/ProtectedRoute";
+import ApprovedOnboardingRoute from "./routes/ApprovedOnboardingRoute";
 import RoleProtectedRoute from "./components/RoleProtectedRoute";
 import InstructorLayout from "./components/instructor/InstructorLayout";
 import InstructorDashboard from "./pages/instructor/Dashboard";
@@ -70,6 +71,10 @@ import FinanceMessagesPage from "./pages/FinanceMessagesPage";
 import RedirectMessagesPage from "./pages/RedirectMessagesPage";
 import RequestPage from "./pages/RequestPage";
 import TeamRequestsPage from "./pages/sales/TeamRequestsPage.jsx";
+import EmployeeRequestsPage from "./pages/EmployeeRequestsPage.jsx";
+import EmployeeWarningsPage from "./pages/EmployeeWarningsPage.jsx";
+import AttendancePage from "./pages/AttendancePage.jsx";
+import LeaveManagementPage from "./pages/LeaveManagementPage.jsx";
 import AppLayout from "./components/AppLayout"; // Import the new AppLayout component
 import SupervisorLayout from "./pages/supervisor/SupervisorLayout.jsx";
 import SupervisorDashboardPage from "./pages/supervisor/SupervisorDashboardPage.jsx";
@@ -154,7 +159,7 @@ return (
       <Route path="/" element={<WelcomePage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/InfoForm" element={<InfoForm />} />
-      <Route path="/secondpage" element={<SecondPage />} />
+      <Route path="/secondpage" element={<ApprovedOnboardingRoute><SecondPage /></ApprovedOnboardingRoute>} />
       <Route path="/thirdpage" element={<ThirdPage />} />
       <Route path="/fourthpage" element={<FourthPage />} />
       <Route path="/fifthpage" element={<FifthPage />} />
@@ -199,9 +204,24 @@ return (
         }
       />
       <Route path="/resource" element={<Navigate to="/resources" replace />} />
-      <Route path="/employee-info" element={<EmployeeInfoPage />} />
-      <Route path="/employee-file-upload" element={<EmployeeFileUploadForm />} />
-      <Route path="/users" element={<LayoutWrapper><HomePage /></LayoutWrapper>} />
+      <Route path="/employee-info" element={<ProtectedRoute><EmployeeInfoPage /></ProtectedRoute>} />
+      <Route path="/employee-file-upload" element={<ProtectedRoute><EmployeeFileUploadForm /></ProtectedRoute>} />
+      <Route
+        path="/users"
+        element={
+          <RoleProtectedRoute allowedRoles={["hr", "admin"]}>
+            <LayoutWrapper><HomePage /></LayoutWrapper>
+          </RoleProtectedRoute>
+        }
+      />
+      <Route
+        path="/attendance"
+        element={
+          <RoleProtectedRoute allowedRoles={["hr", "admin"]}>
+            <LayoutWrapper><AttendancePage /></LayoutWrapper>
+          </RoleProtectedRoute>
+        }
+      />
       <Route path="/dashboard" element={<LayoutWrapper><Dashboard /></LayoutWrapper>} />
       <Route path="/course" element={<LayoutWrapper><AdminTrainingUpload /></LayoutWrapper>} />
       <Route path="/hr-training" element={<LayoutWrapper><HRTrainingPage /></LayoutWrapper>} />
@@ -366,6 +386,31 @@ return (
       />
       <Route path="/requests" element={<LayoutWrapper><RequestPage /></LayoutWrapper>} />
       <Route
+        path="/leave-management"
+        element={
+          <RoleProtectedRoute allowedRoles={["hr", "admin"]}>
+            <LayoutWrapper><LeaveManagementPage /></LayoutWrapper>
+          </RoleProtectedRoute>
+        }
+      />
+      <Route path="/employee-requests" element={<LayoutWrapper><EmployeeRequestsPage /></LayoutWrapper>} />
+      <Route
+        path="/warnings"
+        element={
+          <RoleProtectedRoute allowedRoles={["hr", "admin"]}>
+            <LayoutWrapper><EmployeeWarningsPage mode="hr" /></LayoutWrapper>
+          </RoleProtectedRoute>
+        }
+      />
+      <Route
+        path="/my-warnings"
+        element={
+          <ProtectedRoute>
+            <EmployeeWarningsPage mode="employee" />
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/chat"
         element={
           <ProtectedRoute>
@@ -420,6 +465,7 @@ return (
       <Route path="/supervisor" element={<SupervisorLayout />}>
         <Route index element={<SupervisorDashboardPage />} />
         <Route path="requests" element={<TeamRequestsPage />} />
+        <Route path="employee-requests" element={<EmployeeRequestsPage />} />
         <Route path="notice-board" element={<FinanceMessagesPage embedded />} />
         <Route path="revenue-expense" element={<RevenuePage />} />
       </Route>
@@ -434,6 +480,7 @@ return (
       >
         <Route index element={<SalesManagerDashboard />} />
         <Route path="dashboard" element={<SalesManagerDashboard />} />
+        <Route path="employee-requests" element={<EmployeeRequestsPage />} />
         <Route path="course" element={<CourseManagerPage />} />
         <Route path="all-sales" element={<AllSalesPage />} />
         <Route path="performance" element={<PerformancePage />} />
