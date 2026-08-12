@@ -880,6 +880,7 @@ const Dashboard = () => {
                               aria-label="More options"
                             />
                             <MenuList borderRadius="xl" shadow="md">
+                              <MenuItem fontSize="xs" fontWeight="600" onClick={() => navigate('/users')}>Edit Account</MenuItem>
                               <MenuItem fontSize="xs" fontWeight="600" onClick={() => navigate('/payroll')}>Adjust Payroll</MenuItem>
                               <MenuItem fontSize="xs" fontWeight="600" onClick={() => navigate('/EmployeeDocument')}>Verify Documents</MenuItem>
                             </MenuList>

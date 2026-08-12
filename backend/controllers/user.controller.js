@@ -385,7 +385,7 @@ const getEmployeeDetails = async (req, res) => {
 // Update user by ID
 const updateuser = async (req, res) => {
     const { id } = req.params;
-    const userUpdates = req.body;
+    const userUpdates = { ...req.body };
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
         return res.status(404).json({ success: false, message: "Invalid user ID" });
@@ -397,16 +397,25 @@ const updateuser = async (req, res) => {
             return res.status(500).json({ success: false, message: "Database connection error" });
         }
         
-        if (userUpdates.password) {
+        if (userUpdates.password && userUpdates.password.trim() !== '') {
             const salt = await bcrypt.genSalt(10);
             userUpdates.password = await bcrypt.hash(userUpdates.password, salt);
+        } else {
+            delete userUpdates.password;
         }
         // Update user and return the updated user
-        const updatedUser = await User.findByIdAndUpdate(id, userUpdates, { new: true });
+        const updatedUser = await User.findByIdAndUpdate(id, userUpdates, { new: true, runValidators: true }).select('-password');
+        if (!updatedUser) {
+            return res.status(404).json({ success: false, message: "User not found" });
+        }
         res.status(200).json({ success: true, message: "User updated successfully!", data: updatedUser });
     } catch (error) {
         console.error("Error updating user:", error.message);
-        res.status(500).json({ success: false, message: "Failed to update user" });
+        if (error.code === 11000) {
+            const field = Object.keys(error.keyPattern || {})[0] || 'field';
+            return res.status(400).json({ success: false, message: `An account with this ${field} already exists.` });
+        }
+        res.status(500).json({ success: false, message: error.message || "Failed to update user" });
     }
 };
 

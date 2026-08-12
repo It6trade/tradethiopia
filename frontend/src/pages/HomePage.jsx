@@ -51,7 +51,17 @@ import {
   MenuList,
   MenuItem,
   CloseButton,
-  Tooltip
+  Tooltip,
+  Modal,
+  ModalOverlay,
+  ModalContent,
+  ModalHeader,
+  ModalFooter,
+  ModalBody,
+  ModalCloseButton,
+  FormControl,
+  FormLabel,
+  InputRightElement
 } from '@chakra-ui/react';
 import {
   FiUsers,
@@ -64,6 +74,12 @@ import {
   FiList,
   FiChevronRight,
   FiEdit,
+  FiEdit3,
+  FiEye,
+  FiEyeOff,
+  FiKey,
+  FiMail,
+  FiUser,
   FiTrash2,
   FiPrinter,
   FiAlertCircle,
@@ -141,7 +157,85 @@ const HomePage = () => {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isSavingDetails, setIsSavingDetails] = useState(false);
   
+  // Edit Account Modal State
+  const [isEditAccountOpen, setIsEditAccountOpen] = useState(false);
+  const [userToEdit, setUserToEdit] = useState(null);
+  const [isSavingAccount, setIsSavingAccount] = useState(false);
+  const [showEditPassword, setShowEditPassword] = useState(false);
+  const [editAccountForm, setEditAccountForm] = useState({
+    username: '',
+    email: '',
+    password: '',
+    fullName: '',
+    role: 'employee',
+    status: 'active',
+  });
+
   const toast = useToast();
+
+  const handleOpenEditAccountModal = (u) => {
+    setUserToEdit(u);
+    setEditAccountForm({
+      username: u?.username || '',
+      email: u?.email || '',
+      password: '',
+      fullName: u?.fullName || '',
+      role: u?.role || 'employee',
+      status: u?.status || 'active',
+    });
+    setShowEditPassword(false);
+    setIsEditAccountOpen(true);
+  };
+
+  const handleSaveAccountEdit = async () => {
+    if (!userToEdit) return;
+    setIsSavingAccount(true);
+    try {
+      const payload = {
+        username: editAccountForm.username,
+        email: editAccountForm.email,
+        fullName: editAccountForm.fullName,
+        role: editAccountForm.role,
+        status: editAccountForm.status,
+      };
+      if (editAccountForm.password && editAccountForm.password.trim() !== '') {
+        payload.password = editAccountForm.password;
+      }
+      const res = await updateUser(userToEdit._id, payload);
+      if (res.success) {
+        toast({
+          title: "Account Updated Successfully",
+          status: "success",
+          duration: 3000,
+          isClosable: true,
+        });
+        setIsEditAccountOpen(false);
+        setUserToEdit(null);
+        if (selectedUser?._id === userToEdit._id) {
+          setSelectedUser((prev) => ({ ...prev, ...(res.data || payload) }));
+        }
+        fetchUsers(true);
+      } else {
+        toast({
+          title: "Failed to Update Account",
+          description: res.message || "Could not update account credentials",
+          status: "error",
+          duration: 4000,
+          isClosable: true,
+        });
+      }
+    } catch (err) {
+      toast({
+        title: "Failed to Update Account",
+        description: err.response?.data?.message || err.message,
+        status: "error",
+        duration: 4000,
+        isClosable: true,
+      });
+    } finally {
+      setIsSavingAccount(false);
+    }
+  };
 
   const openEmployeeDetails = useCallback((employee, tab = 0) => {
     if (!isHrUser) {
@@ -684,6 +778,7 @@ const HomePage = () => {
                           <Menu size="sm">
                             <MenuButton as={IconButton} icon={<FiMoreVertical />} size="xs" variant="ghost" />
                             <MenuList borderRadius="xl" shadow="md">
+                              <MenuItem icon={<FiEdit3 />} onClick={() => handleOpenEditAccountModal(user)} fontSize="xs" fontWeight="600">Edit Account</MenuItem>
                               <MenuItem icon={<FiEdit />} onClick={() => openEmployeeDetails(user, 0)} fontSize="xs" fontWeight="600">View Details</MenuItem>
                               <MenuItem icon={<FiLock />} onClick={() => openEmployeeDetails(user, 3)} fontSize="xs" fontWeight="600">Access Details</MenuItem>
                               <MenuItem icon={<FiTrash2 />} color="red.500" onClick={() => handleDeleteEmployee(user._id)} fontSize="xs" fontWeight="600">Delete Account</MenuItem>
@@ -724,6 +819,17 @@ const HomePage = () => {
                       onChange={(e) => handleSelectToggle(user._id, e)}
                       onClick={(e) => e.stopPropagation()}
                     />
+                    <Box position="absolute" top="12px" right="12px" onClick={(e) => e.stopPropagation()}>
+                      <Menu size="sm">
+                        <MenuButton as={IconButton} icon={<FiMoreVertical />} size="xs" variant="ghost" />
+                        <MenuList borderRadius="xl" shadow="md">
+                          <MenuItem icon={<FiEdit3 />} onClick={() => handleOpenEditAccountModal(user)} fontSize="xs" fontWeight="600">Edit Account</MenuItem>
+                          <MenuItem icon={<FiEdit />} onClick={() => openEmployeeDetails(user, 0)} fontSize="xs" fontWeight="600">View Details</MenuItem>
+                          <MenuItem icon={<FiLock />} onClick={() => openEmployeeDetails(user, 3)} fontSize="xs" fontWeight="600">Access Details</MenuItem>
+                          <MenuItem icon={<FiTrash2 />} color="red.500" onClick={() => handleDeleteEmployee(user._id)} fontSize="xs" fontWeight="600">Delete Account</MenuItem>
+                        </MenuList>
+                      </Menu>
+                    </Box>
                     <VStack spacing={3} align="center" pt={2}>
                       <Avatar size="md" name={user.fullName || user.username} src={user.photoUrl} bg="teal.600" />
                       <VStack align="center" spacing={0.5}>
@@ -1012,7 +1118,7 @@ const HomePage = () => {
                         <VStack align="stretch" spacing={2.5} fontSize="xs">
                           <Flex justify="space-between" align="center">
                             <Text color="gray.500" fontWeight="600">Account access</Text>
-                            <Switch size="sm" isChecked={accountAccess} onChange={(e) => setAccountAccess(e.target.checked)} colorScheme="teal" />
+                            <Switch size="sm" isChecked={accountAccess} onChange={handleDeactivateToggle} colorScheme="teal" />
                           </Flex>
                           <Flex justify="space-between" align="center">
                             <Text color="gray.500" fontWeight="600">Training access</Text>
@@ -1023,6 +1129,18 @@ const HomePage = () => {
                             <Switch size="sm" isChecked={twoFactorAuth} onChange={(e) => setTwoFactorAuth(e.target.checked)} colorScheme="teal" />
                           </Flex>
                         </VStack>
+                        <Button
+                          size="xs"
+                          mt={3}
+                          colorScheme="teal"
+                          variant="outline"
+                          w="full"
+                          leftIcon={<Icon as={FiEdit3} />}
+                          onClick={() => handleOpenEditAccountModal(selectedUser)}
+                          borderRadius="lg"
+                        >
+                          Edit Credentials & Username
+                        </Button>
                       </Box>
                     </VStack>
                   </TabPanel>
@@ -1038,12 +1156,11 @@ const HomePage = () => {
                           value={editRole}
                           onChange={(e) => setEditRole(e.target.value)}
                         >
-                          <option value="admin">Admin</option>
+                          <option value="employee">Employee</option>
+                          <option value="hr">HR Manager</option>
                           <option value="sales">Sales</option>
-                          <option value="customerservice">Customer Service</option>
-                          <option value="CustomerSuccessManager">Customer Success Manager</option>
-                          <option value="SocialmediaManager">Socialmedia Manager</option>
-                          <option value="salesmanager">Sales Manager</option>
+                          <option value="it">IT Staff</option>
+                          <option value="finance">Finance</option>
                           <option value="supervisor">Supervisor</option>
                           <option value="IT">IT</option>
                           <option value="HR">HR</option>
@@ -1187,6 +1304,7 @@ const HomePage = () => {
         onClose={() => setSelectedUser(null)}
         user={selectedUser}
         initialTab={activeTabIdx}
+        onUserUpdated={() => fetchUsers(true)}
       />
 
       {/* Add Employee Drawer Modal */}
@@ -1202,6 +1320,145 @@ const HomePage = () => {
           </DrawerBody>
         </DrawerContent>
       </Drawer>
+
+      {/* Edit Account Credentials Modal */}
+      <Modal isOpen={isEditAccountOpen} onClose={() => setIsEditAccountOpen(false)} isCentered size="md">
+        <ModalOverlay backdropFilter="blur(3px)" />
+        <ModalContent borderRadius="2xl" shadow="2xl">
+          <ModalHeader borderBottom="1px solid" borderColor="gray.100" pb={3}>
+            <HStack spacing={3}>
+              <Flex w="38px" h="38px" borderRadius="xl" bg="teal.50" color="teal.600" align="center" justify="center">
+                <Icon as={FiKey} boxSize={5} />
+              </Flex>
+              <Box>
+                <Heading size="sm" color="gray.800">Edit Account Credentials</Heading>
+                <Text fontSize="xs" color="gray.500">Update username, login email, password, role & status</Text>
+              </Box>
+            </HStack>
+          </ModalHeader>
+          <ModalCloseButton top={4} right={4} />
+          <ModalBody py={5}>
+            <Stack spacing={4}>
+              <FormControl isRequired>
+                <FormLabel fontSize="xs" fontWeight="700" color="gray.700">Full Name</FormLabel>
+                <Input
+                  borderRadius="xl"
+                  size="sm"
+                  placeholder="Enter full name"
+                  value={editAccountForm.fullName}
+                  onChange={(e) => setEditAccountForm({ ...editAccountForm, fullName: e.target.value })}
+                />
+              </FormControl>
+
+              <FormControl isRequired>
+                <FormLabel fontSize="xs" fontWeight="700" color="gray.700">Username</FormLabel>
+                <InputGroup size="sm">
+                  <InputLeftElement pointerEvents="none">
+                    <Icon as={FiUser} color="gray.400" />
+                  </InputLeftElement>
+                  <Input
+                    borderRadius="xl"
+                    placeholder="Enter username"
+                    value={editAccountForm.username}
+                    onChange={(e) => setEditAccountForm({ ...editAccountForm, username: e.target.value })}
+                  />
+                </InputGroup>
+              </FormControl>
+
+              <FormControl isRequired>
+                <FormLabel fontSize="xs" fontWeight="700" color="gray.700">Login Email</FormLabel>
+                <InputGroup size="sm">
+                  <InputLeftElement pointerEvents="none">
+                    <Icon as={FiMail} color="gray.400" />
+                  </InputLeftElement>
+                  <Input
+                    type="email"
+                    borderRadius="xl"
+                    placeholder="Enter login email address"
+                    value={editAccountForm.email}
+                    onChange={(e) => setEditAccountForm({ ...editAccountForm, email: e.target.value })}
+                  />
+                </InputGroup>
+              </FormControl>
+
+              <FormControl>
+                <FormLabel fontSize="xs" fontWeight="700" color="gray.700">
+                  New Password <Text as="span" color="gray.400" fontWeight="normal">(Leave blank to keep unchanged)</Text>
+                </FormLabel>
+                <InputGroup size="sm">
+                  <InputLeftElement pointerEvents="none">
+                    <Icon as={FiLock} color="gray.400" />
+                  </InputLeftElement>
+                  <Input
+                    type={showEditPassword ? 'text' : 'password'}
+                    borderRadius="xl"
+                    placeholder="Type new password"
+                    value={editAccountForm.password}
+                    onChange={(e) => setEditAccountForm({ ...editAccountForm, password: e.target.value })}
+                  />
+                  <InputRightElement>
+                    <IconButton
+                      size="xs"
+                      variant="ghost"
+                      icon={<Icon as={showEditPassword ? FiEyeOff : FiEye} />}
+                      onClick={() => setShowEditPassword(!showEditPassword)}
+                      aria-label="Toggle password visibility"
+                    />
+                  </InputRightElement>
+                </InputGroup>
+              </FormControl>
+
+              <SimpleGrid columns={2} spacing={3}>
+                <FormControl>
+                  <FormLabel fontSize="xs" fontWeight="700" color="gray.700">Security Role</FormLabel>
+                  <Select
+                    size="sm"
+                    borderRadius="xl"
+                    value={editAccountForm.role}
+                    onChange={(e) => setEditAccountForm({ ...editAccountForm, role: e.target.value })}
+                  >
+                    <option value="employee">Employee</option>
+                    <option value="hr">HR Manager</option>
+                    <option value="sales">Sales</option>
+                    <option value="it">IT Staff</option>
+                    <option value="finance">Finance</option>
+                    <option value="supervisor">Supervisor</option>
+                  </Select>
+                </FormControl>
+
+                <FormControl>
+                  <FormLabel fontSize="xs" fontWeight="700" color="gray.700">Account Status</FormLabel>
+                  <Select
+                    size="sm"
+                    borderRadius="xl"
+                    value={editAccountForm.status}
+                    onChange={(e) => setEditAccountForm({ ...editAccountForm, status: e.target.value })}
+                  >
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                  </Select>
+                </FormControl>
+              </SimpleGrid>
+            </Stack>
+          </ModalBody>
+          <ModalFooter borderTop="1px solid" borderColor="gray.100" pt={3}>
+            <HStack spacing={3}>
+              <Button size="sm" variant="ghost" onClick={() => setIsEditAccountOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                colorScheme="teal"
+                isLoading={isSavingAccount}
+                loadingText="Saving"
+                onClick={handleSaveAccountEdit}
+              >
+                Save Account Changes
+              </Button>
+            </HStack>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
 
     </Box>
   );

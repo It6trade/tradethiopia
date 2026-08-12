@@ -17,6 +17,8 @@ import {
   DrawerHeader,
   DrawerOverlay,
   Flex,
+  FormControl,
+  FormLabel,
   Grid,
   GridItem,
   Heading,
@@ -26,15 +28,24 @@ import {
   Input,
   InputGroup,
   InputLeftElement,
+  InputRightElement,
   Menu,
   MenuButton,
   MenuItem,
   MenuList,
+  Modal,
+  ModalBody,
+  ModalCloseButton,
+  ModalContent,
+  ModalFooter,
+  ModalHeader,
+  ModalOverlay,
   Progress,
   Select,
   SimpleGrid,
   Skeleton,
   Stack,
+  Switch,
   Tab,
   TabList,
   TabPanel,
@@ -45,6 +56,7 @@ import {
   useBreakpointValue,
   useColorModeValue,
   useToast,
+  VStack,
 } from '@chakra-ui/react';
 import {
   FiActivity,
@@ -56,6 +68,10 @@ import {
   FiDatabase,
   FiDollarSign,
   FiDownload,
+  FiEdit,
+  FiEdit3,
+  FiEye,
+  FiEyeOff,
   FiFile,
   FiFileText,
   FiHash,
@@ -278,7 +294,7 @@ const LoadingDrawer = () => (
   </Stack>
 );
 
-const UserDetailDrawer = ({ isOpen, onClose, user: summaryUser, initialTab = 0 }) => {
+const UserDetailDrawer = ({ isOpen, onClose, user: summaryUser, initialTab = 0, onUserUpdated }) => {
   const currentUser = useUserStore((state) => state.currentUser);
   const isHr = normalizeRole(currentUser?.role || currentUser?.displayRole) === 'hr';
   const [profile, setProfile] = useState(null);
@@ -293,6 +309,86 @@ const UserDetailDrawer = ({ isOpen, onClose, user: summaryUser, initialTab = 0 }
   const toast = useToast();
   const drawerSize = useBreakpointValue({ base: 'full', md: 'xl' });
   const bodyBg = useColorModeValue('gray.50', 'gray.900');
+
+  // Edit Account Credentials State
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [editForm, setEditForm] = useState({
+    username: '',
+    email: '',
+    password: '',
+    fullName: '',
+    role: 'employee',
+    status: 'active',
+  });
+
+  const handleOpenEditModal = () => {
+    const currentEmp = profile || summaryUser || {};
+    setEditForm({
+      username: currentEmp.username || '',
+      email: currentEmp.email || '',
+      password: '',
+      fullName: currentEmp.fullName || '',
+      role: currentEmp.role || 'employee',
+      status: currentEmp.status || 'active',
+    });
+    setShowPassword(false);
+    setIsEditModalOpen(true);
+  };
+
+  const handleSaveAccountEdit = async () => {
+    const currentEmp = profile || summaryUser || {};
+    if (!currentEmp._id) return;
+    setSavingEdit(true);
+    try {
+      const payload = {
+        username: editForm.username,
+        email: editForm.email,
+        fullName: editForm.fullName,
+        role: editForm.role,
+        status: editForm.status,
+      };
+      if (editForm.password && editForm.password.trim() !== '') {
+        payload.password = editForm.password;
+      }
+      const response = await axiosInstance.put(`/users/${currentEmp._id}`, payload);
+      const updatedUser = response.data?.data || payload;
+      setProfile((prev) => ({ ...prev, ...updatedUser }));
+      toast({ title: 'Account credentials updated successfully!', status: 'success' });
+      setIsEditModalOpen(false);
+      if (onUserUpdated) onUserUpdated(updatedUser);
+    } catch (err) {
+      toast({
+        title: 'Failed to update account',
+        description: err.response?.data?.message || err.message,
+        status: 'error',
+      });
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
+  const handleDirectStatusChange = async (newStatus) => {
+    const currentEmp = profile || summaryUser || {};
+    if (!currentEmp._id) return;
+    try {
+      const response = await axiosInstance.put(`/users/${currentEmp._id}`, { status: newStatus });
+      const updatedUser = response.data?.data || { ...currentEmp, status: newStatus };
+      setProfile((prev) => ({ ...prev, ...updatedUser }));
+      toast({
+        title: newStatus === 'active' ? 'Account Activated' : 'Account Deactivated',
+        status: newStatus === 'active' ? 'success' : 'info',
+      });
+      if (onUserUpdated) onUserUpdated(updatedUser);
+    } catch (err) {
+      toast({
+        title: 'Failed to change status',
+        description: err.response?.data?.message || err.message,
+        status: 'error',
+      });
+    }
+  };
 
   useEffect(() => {
     setTabIndex(initialTab);
@@ -560,10 +656,37 @@ const UserDetailDrawer = ({ isOpen, onClose, user: summaryUser, initialTab = 0 }
                     </HStack>
                   </Box>
                 </HStack>
-                <Box textAlign={{ base: 'left', sm: 'right' }}>
-                  <Text fontSize="xs" fontWeight="700" color="gray.500" textTransform="uppercase">Employee ID</Text>
-                  <Text mt={1} fontSize="sm" fontWeight="800" color="teal.700">{employeeId}</Text>
-                </Box>
+                <VStack align={{ base: 'flex-start', sm: 'flex-end' }} spacing={2}>
+                  <Box textAlign={{ base: 'left', sm: 'right' }}>
+                    <Text fontSize="xs" fontWeight="700" color="gray.500" textTransform="uppercase">Employee ID</Text>
+                    <Text mt={0.5} fontSize="sm" fontWeight="800" color="teal.700">{employeeId}</Text>
+                  </Box>
+                  <HStack spacing={2}>
+                    <Select
+                      size="xs"
+                      w="115px"
+                      borderRadius="md"
+                      fontWeight="700"
+                      bg={employee.status === 'active' ? 'green.50' : 'red.50'}
+                      color={employee.status === 'active' ? 'green.700' : 'red.700'}
+                      borderColor={employee.status === 'active' ? 'green.300' : 'red.300'}
+                      value={employee.status === 'active' ? 'active' : 'inactive'}
+                      onChange={(e) => handleDirectStatusChange(e.target.value)}
+                    >
+                      <option value="active">Active</option>
+                      <option value="inactive">Inactive</option>
+                    </Select>
+                    <Button
+                      size="xs"
+                      colorScheme="teal"
+                      leftIcon={<Icon as={FiEdit3} />}
+                      onClick={handleOpenEditModal}
+                      borderRadius="md"
+                    >
+                      Edit Account
+                    </Button>
+                  </HStack>
+                </VStack>
               </Flex>
 
               <Tabs index={tabIndex} onChange={setTabIndex} colorScheme="teal" variant="soft-rounded" isLazy>
@@ -1112,16 +1235,31 @@ const UserDetailDrawer = ({ isOpen, onClose, user: summaryUser, initialTab = 0 }
                               </Text>
                             </Box>
                           </HStack>
-                          <Badge
-                            bg="whiteAlpha.300"
-                            color="white"
-                            borderRadius="full"
-                            px={3}
-                            py={1}
-                            textTransform="uppercase"
-                          >
-                            {employee.status || 'Status not provided'}
-                          </Badge>
+                          <HStack spacing={2}>
+                            <Select
+                              size="xs"
+                              w="110px"
+                              bg="white"
+                              color="gray.900"
+                              fontWeight="700"
+                              borderRadius="md"
+                              value={employee.status === 'active' ? 'active' : 'inactive'}
+                              onChange={(e) => handleDirectStatusChange(e.target.value)}
+                            >
+                              <option value="active">Active</option>
+                              <option value="inactive">Inactive</option>
+                            </Select>
+                            <Button
+                              size="xs"
+                              colorScheme="teal"
+                              variant="solid"
+                              leftIcon={<Icon as={FiEdit3} />}
+                              onClick={handleOpenEditModal}
+                              borderRadius="md"
+                            >
+                              Edit Account
+                            </Button>
+                          </HStack>
                         </Flex>
                         <Text mt={4} fontSize="xs" color="whiteAlpha.800">
                           This is the employee’s recorded account status. An inactive label is not currently a confirmed login restriction, so HR should coordinate with the system administrator when access must be fully blocked.
@@ -1688,6 +1826,144 @@ const UserDetailDrawer = ({ isOpen, onClose, user: summaryUser, initialTab = 0 }
           </HStack>
         </DrawerFooter>
       </DrawerContent>
+      {/* Edit Account Credentials Modal */}
+      <Modal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} isCentered size="md">
+        <ModalOverlay backdropFilter="blur(3px)" />
+        <ModalContent borderRadius="2xl" shadow="2xl">
+          <ModalHeader borderBottom="1px solid" borderColor="gray.100" pb={3}>
+            <HStack spacing={3}>
+              <Flex w="38px" h="38px" borderRadius="xl" bg="teal.50" color="teal.600" align="center" justify="center">
+                <Icon as={FiKey} boxSize={5} />
+              </Flex>
+              <Box>
+                <Heading size="sm" color="gray.800">Edit Account Credentials</Heading>
+                <Text fontSize="xs" color="gray.500">Update username, login email, password, role & status</Text>
+              </Box>
+            </HStack>
+          </ModalHeader>
+          <ModalCloseButton top={4} right={4} />
+          <ModalBody py={5}>
+            <Stack spacing={4}>
+              <FormControl isRequired>
+                <FormLabel fontSize="xs" fontWeight="700" color="gray.700">Full Name</FormLabel>
+                <Input
+                  borderRadius="xl"
+                  size="sm"
+                  placeholder="Enter full name"
+                  value={editForm.fullName}
+                  onChange={(e) => setEditForm({ ...editForm, fullName: e.target.value })}
+                />
+              </FormControl>
+
+              <FormControl isRequired>
+                <FormLabel fontSize="xs" fontWeight="700" color="gray.700">Username</FormLabel>
+                <InputGroup size="sm">
+                  <InputLeftElement pointerEvents="none">
+                    <Icon as={FiUser} color="gray.400" />
+                  </InputLeftElement>
+                  <Input
+                    borderRadius="xl"
+                    placeholder="Enter username"
+                    value={editForm.username}
+                    onChange={(e) => setEditForm({ ...editForm, username: e.target.value })}
+                  />
+                </InputGroup>
+              </FormControl>
+
+              <FormControl isRequired>
+                <FormLabel fontSize="xs" fontWeight="700" color="gray.700">Login Email</FormLabel>
+                <InputGroup size="sm">
+                  <InputLeftElement pointerEvents="none">
+                    <Icon as={FiMail} color="gray.400" />
+                  </InputLeftElement>
+                  <Input
+                    type="email"
+                    borderRadius="xl"
+                    placeholder="Enter login email address"
+                    value={editForm.email}
+                    onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+                  />
+                </InputGroup>
+              </FormControl>
+
+              <FormControl>
+                <FormLabel fontSize="xs" fontWeight="700" color="gray.700">
+                  New Password <Text as="span" color="gray.400" fontWeight="normal">(Leave blank to keep unchanged)</Text>
+                </FormLabel>
+                <InputGroup size="sm">
+                  <InputLeftElement pointerEvents="none">
+                    <Icon as={FiLock} color="gray.400" />
+                  </InputLeftElement>
+                  <Input
+                    type={showPassword ? 'text' : 'password'}
+                    borderRadius="xl"
+                    placeholder="Type new password"
+                    value={editForm.password}
+                    onChange={(e) => setEditForm({ ...editForm, password: e.target.value })}
+                  />
+                  <InputRightElement>
+                    <IconButton
+                      size="xs"
+                      variant="ghost"
+                      icon={<Icon as={showPassword ? FiEyeOff : FiEye} />}
+                      onClick={() => setShowPassword(!showPassword)}
+                      aria-label="Toggle password visibility"
+                    />
+                  </InputRightElement>
+                </InputGroup>
+              </FormControl>
+
+              <SimpleGrid columns={2} spacing={3}>
+                <FormControl>
+                  <FormLabel fontSize="xs" fontWeight="700" color="gray.700">Security Role</FormLabel>
+                  <Select
+                    size="sm"
+                    borderRadius="xl"
+                    value={editForm.role}
+                    onChange={(e) => setEditForm({ ...editForm, role: e.target.value })}
+                  >
+                    <option value="employee">Employee</option>
+                    <option value="hr">HR Manager</option>
+                    <option value="sales">Sales</option>
+                    <option value="it">IT Staff</option>
+                    <option value="finance">Finance</option>
+                    <option value="supervisor">Supervisor</option>
+                  </Select>
+                </FormControl>
+
+                <FormControl>
+                  <FormLabel fontSize="xs" fontWeight="700" color="gray.700">Account Status</FormLabel>
+                  <Select
+                    size="sm"
+                    borderRadius="xl"
+                    value={editForm.status}
+                    onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
+                  >
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                  </Select>
+                </FormControl>
+              </SimpleGrid>
+            </Stack>
+          </ModalBody>
+          <ModalFooter borderTop="1px solid" borderColor="gray.100" pt={3}>
+            <HStack spacing={3}>
+              <Button size="sm" variant="ghost" onClick={() => setIsEditModalOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                colorScheme="teal"
+                isLoading={savingEdit}
+                loadingText="Saving"
+                onClick={handleSaveAccountEdit}
+              >
+                Save Account Changes
+              </Button>
+            </HStack>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
     </Drawer>
   );
 };

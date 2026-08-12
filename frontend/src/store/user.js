@@ -144,10 +144,13 @@ export const useUserStore = create((set) => ({
             set((state) => ({
                 users: state.users.map((user) => (user._id === uid ? data.data : user)),
             }));
-            return { success: true, message: "User updated successfully!" };
+            return { success: true, message: "User updated successfully!", data: data.data };
         } catch (error) {
             console.error("Error updating user:", error);
-            return { success: false, message: "Failed to update user. Please try again later." };
+            return {
+                success: false,
+                message: error.response?.data?.message || "Failed to update user. Please try again later.",
+            };
         }
     },
 
