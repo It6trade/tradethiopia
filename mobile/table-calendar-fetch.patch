@@ -1,0 +1,92 @@
+*** Begin Patch
+*** Update File: ../frontend/src/components/salesmanager/CompletedSalesTable.jsx
+@@
+ const formatDate = (value) => {
+@@
+ };
++
++const toDateInputValue = (value) => {
++  if (!value) return '';
++  const date = new Date(value);
++  if (Number.isNaN(date.getTime())) return '';
++  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
++};
+@@
+   const [error, setError] = useState('');
++  const [tableStartDate, setTableStartDate] = useState(() => toDateInputValue(dateFrom));
++  const [tableEndDate, setTableEndDate] = useState(() => toDateInputValue(dateTo));
+@@
+   const muted = useColorModeValue('gray.600', 'gray.400');
++
++  const tableDateRange = useMemo(() => {
++    const start = tableStartDate ? new Date(`${tableStartDate}T00:00:00`) : null;
++    const end = tableEndDate ? new Date(`${tableEndDate}T23:59:59.999`) : null;
++    return {
++      dateFrom: start && !Number.isNaN(start.getTime()) ? start.toISOString() : undefined,
++      dateTo: end && !Number.isNaN(end.getTime()) ? end.toISOString() : undefined,
++    };
++  }, [tableStartDate, tableEndDate]);
+@@
+-          dateFrom: dateFrom || undefined,
+-          dateTo: dateTo || undefined,
++          dateFrom: tableDateRange.dateFrom,
++          dateTo: tableDateRange.dateTo,
+@@
+-  }, [agentFilter, debouncedSearch, page, pageSize, dateFrom, dateTo]);
++  }, [agentFilter, debouncedSearch, page, pageSize, tableDateRange]);
+ 
+   useEffect(() => {
+     setPage(1);
+-  }, [dateFrom, dateTo]);
++  }, [tableDateRange]);
++
++  useEffect(() => {
++    setTableStartDate(toDateInputValue(dateFrom));
++    setTableEndDate(toDateInputValue(dateTo));
++  }, [dateFrom, dateTo]);
+@@
+-    const rangeStart = dateFrom ? new Date(dateFrom) : null;
+-    const rangeEnd = dateTo ? new Date(dateTo) : null;
++    const rangeStart = tableDateRange.dateFrom ? new Date(tableDateRange.dateFrom) : null;
++    const rangeEnd = tableDateRange.dateTo ? new Date(tableDateRange.dateTo) : null;
+@@
+-  }, [agentFilter, sales, search, dateFrom, dateTo]);
++  }, [agentFilter, sales, search, tableDateRange]);
+@@
+-              {dateFrom && dateTo
+-                ? `Completed follow-ups from ${formatDate(dateFrom)} through ${formatDate(dateTo)}.`
++              {tableDateRange.dateFrom && tableDateRange.dateTo
++                ? `Completed follow-ups from ${formatDate(tableDateRange.dateFrom)} through ${formatDate(tableDateRange.dateTo)}.`
+                 : 'Full table of sales follow-ups marked Completed.'}
+@@
+           <Select maxW={{ md: '240px' }} value={agentFilter} onChange={(event) => {
+@@
+             ))}
+           </Select>
++          {(dateFrom || dateTo) && (
++            <HStack spacing={2} flexWrap="wrap">
++              <Box>
++                <Text fontSize="xs" color={muted} mb={1}>Table Start Date</Text>
++                <Input
++                  type="date"
++                  size="sm"
++                  value={tableStartDate}
++                  max={tableEndDate || undefined}
++                  onChange={(event) => setTableStartDate(event.target.value)}
++                />
++              </Box>
++              <Box>
++                <Text fontSize="xs" color={muted} mb={1}>Table End Date</Text>
++                <Input
++                  type="date"
++                  size="sm"
++                  value={tableEndDate}
++                  min={tableStartDate || undefined}
++                  max={toDateInputValue(new Date())}
++                  onChange={(event) => setTableEndDate(event.target.value)}
++                />
++              </Box>
++            </HStack>
++          )}
+           <HStack ml={{ md: 'auto' }} flexWrap="wrap">
+*** End Patch

@@ -92,9 +92,36 @@ const getAllSales = asyncHandler(async (req, res) => {
 
     // Agent filtering
     if (req.query.agentId) {
-      filter.agentId = req.query.agentId;
+      const resolvedAgentId = await resolveAgentId(req.query.agentId);
+      filter.agentId = resolvedAgentId || String(req.query.agentId).trim();
     }
-    
+
+    // Search the complete backend dataset, not only the current frontend page.
+    const search = String(req.query.search || '').trim();
+    if (search) {
+      const searchRegex = new RegExp(escapeRegex(search), 'i');
+      const matchingAgents = await User.find({
+        role: { $regex: /^sales$/i },
+        $or: [
+          { username: searchRegex },
+          { fullName: searchRegex },
+          { name: searchRegex },
+          { email: searchRegex }
+        ]
+      }).select('_id').lean();
+      filter.$or = [
+        { customerName: searchRegex },
+        { phone: searchRegex },
+        { email: searchRegex },
+        { contactTitle: searchRegex },
+        { courseName: searchRegex },
+        { productInterest: searchRegex },
+        { note: searchRegex },
+        { supervisorComment: searchRegex },
+        { agentId: { $in: matchingAgents.map((agent) => String(agent._id)) } }
+      ];
+    }
+
     console.log('Applied filter:', filter);
 
     // Get paginated sales with lean objects for speed
@@ -227,7 +254,10 @@ const getAllAgents = asyncHandler(async (req, res) => {
     }
 
     // Get all sales agents with basic info
-    const agents = await User.find({ role: 'sales' }, 'username fullName email phone status');
+    const agents = await User.find(
+      { role: { $regex: /^sales$/i } },
+      'username fullName email phone status role'
+    ).sort({ fullName: 1, username: 1 });
 
     // Enhance agents with performance data
     const agentsWithPerformance = await Promise.all(agents.map(async (agent) => {
@@ -255,6 +285,7 @@ const getAllAgents = asyncHandler(async (req, res) => {
         email: agent.email,
         phone: agent.phone,
         status: agent.status,
+        role: agent.role,
         completedDeals,
         totalCommission
       };

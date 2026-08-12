@@ -44,7 +44,7 @@ import {
   AlertDialogFooter
 } from "@chakra-ui/react";
 import { useToast } from "@chakra-ui/react";
-import { getAllAgents } from "../../services/salesManagerService";
+import axiosInstance from "../../services/axiosInstance";
 
 // Helper to get ISO week number
 const getISOWeek = (dateObj) => {
@@ -75,77 +75,52 @@ const KPIScorecardPage = () => {
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const cancelRef = React.useRef();
 
-  // helpers for local persistence
-  const storageKey = "kpi-agent-scores-v1";
-  const periodKey = (type, value) => `${type}:${value}`;
+  const recordsToRows = (records = []) => records.reduce((result, record) => {
+    const id = record.agentId?._id || record.agentId;
+    if (id) result[id] = record;
+    return result;
+  }, {});
 
-  const loadSavedRows = (type, value) => {
-    try {
-      const raw = localStorage.getItem(storageKey);
-      if (!raw) return {};
-      const parsed = JSON.parse(raw);
-      const entry = parsed[periodKey(type, value)];
-      if (!entry) return {};
-      // Support legacy structure (plain rows object)
-      return entry.rows || entry;
-    } catch (e) {
-      console.warn("loadSaved failed", e);
-      return {};
-    }
+  const loadSavedRows = async (type, value) => {
+    const response = await axiosInstance.get('/sales-manager/kpis', { params: { periodType: type, periodValue: value } });
+    return recordsToRows(response.data?.records);
   };
 
-  const loadSavedList = () => {
-    try {
-      const raw = localStorage.getItem(storageKey);
-      if (!raw) return [];
-      const parsed = JSON.parse(raw);
-      return Object.entries(parsed).map(([key, value]) => {
-        const [type, val] = key.split(":");
-        const savedAt = value.savedAt || null;
-        const rows = value.rows || value; // legacy
-        return { key, type, value: val, savedAt, rows };
-      }).sort((a, b) => (b.savedAt || "").localeCompare(a.savedAt || ""));
-    } catch (e) {
-      console.warn("loadSavedList failed", e);
-      return [];
-    }
-  };
-
-  const saveCurrent = () => {
-    const payload = agents.reduce((acc, row) => {
-      acc[row.id] = {
-        target: row.target,
-        achieved: row.achieved,
-        coreOutput: row.coreOutput,
-        absents: row.absents
-      };
-      return acc;
+  const loadSavedList = async () => {
+    const response = await axiosInstance.get('/sales-manager/kpis');
+    const grouped = (response.data?.records || []).reduce((result, record) => {
+      const key = `${record.periodType}:${record.periodValue}`;
+      if (!result[key]) result[key] = { key, type: record.periodType, value: record.periodValue, savedAt: record.updatedAt, rows: {} };
+      const id = record.agentId?._id || record.agentId;
+      if (id) result[key].rows[id] = record;
+      if ((record.updatedAt || '') > (result[key].savedAt || '')) result[key].savedAt = record.updatedAt;
+      return result;
     }, {});
+    return Object.values(grouped).sort((a, b) => (b.value || '').localeCompare(a.value || ''));
+  };
+
+  const saveCurrent = async () => {
+    const payload = agents.map((row) => ({
+      agentId: row.id, target: row.target, achieved: row.achieved,
+      coreOutput: row.coreOutput, absents: row.absents,
+    }));
     try {
-      const raw = localStorage.getItem(storageKey);
-      const parsed = raw ? JSON.parse(raw) : {};
-      parsed[periodKey(periodType, periodValue)] = {
-        rows: payload,
-        savedAt: new Date().toISOString(),
-        periodType,
-        periodValue
-      };
-      localStorage.setItem(storageKey, JSON.stringify(parsed));
+      await axiosInstance.post('/sales-manager/kpis/bulk', { periodType, periodValue, rows: payload });
       setError(null);
-      setSavedItems(loadSavedList());
+      setSavedItems(await loadSavedList());
       toast({
         title: "KPIs saved",
-        description: `Saved ${Object.keys(payload).length} agents for ${periodType} ${periodValue}.`,
+        description: `Saved ${payload.length} agents for ${periodType} ${periodValue}.`,
         status: "success",
         duration: 3000,
         isClosable: true,
       });
     } catch (e) {
       console.warn("saveCurrent failed", e);
-      setError("Failed to save KPIs locally");
+      setError("Failed to save KPIs to the backend");
       toast({
         title: "Save failed",
-        description: "Unable to save KPI data locally.",
+        description: "Unable to save KPI data to the backend.",
         status: "error",
         duration: 3000,
         isClosable: true,
@@ -157,8 +132,11 @@ const KPIScorecardPage = () => {
     const loadAgents = async () => {
       try {
         setLoading(true);
-        const data = await getAllAgents();
-        const saved = loadSavedRows(periodType, periodValue);
+        const response = await axiosInstance.get('/sales-manager/kpis', {
+          params: { periodType, periodValue },
+        });
+        const data = Array.isArray(response.data?.agents) ? response.data.agents : [];
+        const saved = recordsToRows(response.data?.records);
         const rows = (data || []).map((agent) => ({
           id: agent._id,
           name: agent.fullName || agent.username || "Unnamed Agent",
@@ -178,7 +156,7 @@ const KPIScorecardPage = () => {
       }
     };
 
-    setSavedItems(loadSavedList());
+    loadSavedList().then(setSavedItems).catch(() => setSavedItems([]));
     loadAgents();
   }, [periodType, periodValue]);
 
