@@ -19,6 +19,7 @@ import {
   Tr,
   VStack,
   useColorModeValue,
+  useToast,
 } from '@chakra-ui/react';
 import {
   CartesianGrid,
@@ -53,7 +54,7 @@ const SCORE_LABELS = {
   2: 'Near Miss',
   1: 'Below',
 };
-const DEPARTMENTS = ['All', 'Sales', 'Customer Success', 'IT', 'Tradex TV', 'Operations', 'HR', 'Finance'];
+const DEPARTMENTS = ['All', 'Sales', 'Customer Success', 'IT', 'Tradex TV', 'Operations', 'HR', 'Finance', 'Supervisor', 'ENISRA'];
 const buildCompleteMonthList = (periods = []) => {
   return [...new Set(periods)]
     .filter((key) => /^\d{4}-\d{2}$/.test(String(key)))
@@ -189,9 +190,59 @@ const CustomTooltip = ({ active, payload, label }) => {
   );
 };
 
+const EditableTargetCell = ({ kpi, point, onSave, border, text, muted }) => {
+  const value = point.target ?? '';
+  const [draft, setDraft] = useState(value === '' ? '' : String(value));
+  const [saving, setSaving] = useState(false);
+  const period = point.period || point.key || '';
+  const isEditablePeriod = /^\d{4}-(?:\d{2}|W\d{2})$/.test(period);
+
+  useEffect(() => setDraft(value === '' ? '' : String(value)), [value]);
+
+  const commit = async () => {
+    if (draft === '' || (value !== '' && Number(draft) === Number(value))) return;
+    const parsed = Number(draft);
+    if (!Number.isFinite(parsed) || parsed < 0) {
+      setDraft(value === '' ? '' : String(value));
+      return;
+    }
+    setSaving(true);
+    try {
+      await onSave(kpi, point, parsed);
+    } catch {
+      setDraft(value === '' ? '' : String(value));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (!isEditablePeriod) return <Text color={muted}>{formatTarget(point.target, kpi)}</Text>;
+  return (
+    <Input
+      type="number"
+      min="0"
+      step="any"
+      size="xs"
+      width="112px"
+      height="30px"
+      value={draft}
+      placeholder="Set target"
+      aria-label={`Target for ${kpi.department} ${kpi.name} ${period}`}
+      borderColor={border}
+      color={text}
+      _placeholder={{ color: muted }}
+      isDisabled={saving}
+      onChange={(event) => setDraft(event.target.value)}
+      onBlur={commit}
+      onKeyDown={(event) => { if (event.key === 'Enter') event.currentTarget.blur(); }}
+    />
+  );
+};
+
 const COOKpiDashboard = () => {
   const navigate = useNavigate();
   const clearUser = useUserStore((state) => state.clearUser);
+  const toast = useToast();
   const [kpiDefs, setKpiDefs] = useState([]);
   const [monthlyRows, setMonthlyRows] = useState([]);
   const [months, setMonths] = useState([]);
@@ -235,6 +286,40 @@ const COOKpiDashboard = () => {
   const handleLogout = () => {
     clearUser();
     navigate('/login', { replace: true });
+  };
+
+  const saveKpiTarget = async (kpi, point, target) => {
+    const granularity = point.granularity || (String(point.period).includes('-W') ? 'week' : 'month');
+    const period = point.period || point.key;
+    try {
+      await axiosInstance.put('/coo-dashboard/kpi-target', { kpiId: kpi.id, period, granularity, target });
+      const applyTarget = (rows) => rows.map((row) => (
+        row.kpiId === kpi.id
+        && (row.granularity || 'month') === granularity
+        && (row.period || row.key) === period
+          ? { ...row, target }
+          : row
+      ));
+      setMonthlyRows(applyTarget);
+      setDetailMonthlyRows(applyTarget);
+      setSelectedKpiRows(applyTarget);
+      toast({
+        title: 'Target saved',
+        description: `${kpi.department} · ${kpi.name}`,
+        status: 'success',
+        duration: 2200,
+        isClosable: true,
+      });
+    } catch (error) {
+      toast({
+        title: 'Could not save target',
+        description: error.response?.data?.message || error.message,
+        status: 'error',
+        duration: 3500,
+        isClosable: true,
+      });
+      throw error;
+    }
   };
 
   useEffect(() => {
@@ -939,7 +1024,9 @@ const COOKpiDashboard = () => {
                     <Td color={text}>{kpi.name}</Td>
                     <Td color={muted}>{point.period}</Td>
                     <Td color={text} fontWeight="700">{formatValue(point.actual, kpi)}</Td>
-                    <Td color={muted}>{formatTarget(point.target, kpi)}</Td>
+                    <Td>
+                      <EditableTargetCell kpi={kpi} point={point} onSave={saveKpiTarget} border={border} text={text} muted={muted} />
+                    </Td>
                     <Td isNumeric color={text}>{formatAchievement(point.achievement)}</Td>
                     <Td>
                       <Badge bg={point.score ? SCORE_COLORS[point.score] : '#64748B'} color="white" borderRadius="6px">
@@ -1060,7 +1147,9 @@ const COOKpiDashboard = () => {
                       <Td color={text}>{kpi.name}</Td>
                       <Td color={muted}>{point.period}</Td>
                       <Td color={text} fontWeight="700">{formatValue(point.actual, kpi)}</Td>
-                      <Td color={muted}>{formatTarget(point.target, kpi)}</Td>
+                      <Td>
+                        <EditableTargetCell kpi={kpi} point={point} onSave={saveKpiTarget} border={border} text={text} muted={muted} />
+                      </Td>
                       <Td isNumeric color={text}>{formatAchievement(point.achievement)}</Td>
                       <Td>
                         <Badge bg={point.score ? SCORE_COLORS[point.score] : '#64748B'} color="white" borderRadius="6px">

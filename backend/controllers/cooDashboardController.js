@@ -11,6 +11,7 @@ const Buyer = require('../models/Buyer');
 const Seller = require('../models/Seller');
 const TrainingFollowup = require('../models/TrainingFollowup');
 const InventoryItem = require('../models/InventoryItem');
+const CooKpiTarget = require('../models/CooKpiTarget');
 const { calculateRevenueSummary } = require('../utils/revenue');
 const { buildExpenseSummary } = require('./financeController');
 
@@ -35,6 +36,8 @@ const normalizeDepartment = (value) => {
   if (normalized.includes('tradex') || normalized.includes('trade x') || normalized.includes('socialmedia') || normalized.includes('social media')) return 'Tradex TV';
   if (normalized.includes('financ') || normalized.includes('account')) return 'Finance';
   if (normalized === 'hr' || normalized.includes('human resource')) return 'HR';
+  if (normalized.includes('supervisor')) return 'Supervisor';
+  if (normalized.includes('enisra') || normalized.includes('ensra')) return 'ENISRA';
   if (normalized.includes('operation')) return 'Operations';
   return 'Operations';
 };
@@ -113,7 +116,7 @@ exports.getKpis = async (req, res) => {
     const [
       performances, revenue, social, weekly, salesKpis, completedSales, salesTargets, salesAgents,
       customerFollowups, buyerCount, sellerCount, incompleteTrainingCount,
-      financeRevenue, financeExpenses, inventoryItems,
+      financeRevenue, financeExpenses, inventoryItems, targetOverrides,
     ] = await Promise.all([
       MonthlyPerformance.find({}).populate('employeeId', 'fullName username').lean(),
       RevenueActual.find({ active: { $ne: false } }).lean(),
@@ -130,6 +133,7 @@ exports.getKpis = async (req, res) => {
       calculateRevenueSummary(),
       buildExpenseSummary(),
       InventoryItem.find({}).select('price quantity').lean(),
+      CooKpiTarget.find({}).lean(),
     ]);
     const store = { definitions: new Map(), rows: [] };
 
@@ -268,6 +272,16 @@ exports.getKpis = async (req, res) => {
         lowerIsBetter: Boolean(values.lowerIsBetter),
       }, periodKey(item.month), actual, target);
     });
+    const targetOverrideMap = new Map(targetOverrides.map((item) => [
+      `${item.kpiId}|${item.granularity || 'month'}|${item.period}`,
+      numeric(item.target),
+    ]));
+    store.rows = store.rows.map((row) => {
+      const granularity = row.granularity || 'month';
+      const period = row.period || row.key;
+      const overrideKey = `${row.kpiId}|${granularity}|${period}`;
+      return targetOverrideMap.has(overrideKey) ? { ...row, target: targetOverrideMap.get(overrideKey) } : row;
+    });
     const requestedDepartment = String(req.query.department || '').trim().toLowerCase();
     const requestedPillar = String(req.query.pillar || '').trim().toLowerCase();
     const requestedKpiId = String(req.query.kpiId || '').trim().toLowerCase();
@@ -294,5 +308,27 @@ exports.getKpis = async (req, res) => {
     res.json({ definitions, rows, periods, requestedRange: { startMonth: firstPeriod, endMonth: lastPeriod } });
   } catch (error) {
     res.status(500).json({ message: 'Failed to load COO KPI data', error: error.message });
+  }
+};
+
+exports.upsertKpiTarget = async (req, res) => {
+  try {
+    const kpiId = String(req.body.kpiId || '').trim().toLowerCase();
+    const period = String(req.body.period || '').trim();
+    const granularity = req.body.granularity === 'week' ? 'week' : 'month';
+    const target = Number(req.body.target);
+    const validPeriod = granularity === 'week' ? /^\d{4}-W\d{2}$/.test(period) : /^\d{4}-\d{2}$/.test(period);
+    if (!kpiId || !validPeriod || !Number.isFinite(target) || target < 0) {
+      return res.status(400).json({ message: 'A valid KPI, period, and non-negative target are required.' });
+    }
+    const saved = await CooKpiTarget.findOneAndUpdate(
+      { kpiId, period, granularity },
+      { $set: { target, updatedBy: req.user?._id } },
+      { new: true, upsert: true, runValidators: true, setDefaultsOnInsert: true }
+    ).lean();
+    return res.json({ message: 'Target saved successfully.', target: saved });
+  } catch (error) {
+    if (error?.code === 11000) return res.status(409).json({ message: 'The target was updated by another request. Please try again.' });
+    return res.status(500).json({ message: 'Failed to save COO KPI target.', error: error.message });
   }
 };

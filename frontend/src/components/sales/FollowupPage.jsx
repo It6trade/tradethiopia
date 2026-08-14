@@ -215,6 +215,16 @@ const FollowupPage = () => {
       delete payload.commission;
     }
 
+    const temporaryId = `pending-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const pendingCustomer = {
+      ...payload,
+      _id: temporaryId,
+      id: temporaryId,
+      date: new Date().toISOString(),
+      _saving: true,
+    };
+    setCustomers((previous) => [...previous, pendingCustomer]);
+
     try {
       const newCustomer = await createCustomer(payload);
       // Map the new customer to match the expected structure
@@ -226,7 +236,7 @@ const FollowupPage = () => {
         schedulePreference: newCustomer.schedulePreference || newCustomer.schedule || 'Regular'
       };
       setCustomers(prev => {
-        const next = [...prev, mappedCustomer];
+        const next = prev.map((customer) => customer.id === temporaryId ? mappedCustomer : customer);
         // update active prospects count
         try {
               const prospectCount = next.filter(c => (c.followupStatus || '').toString().toLowerCase() === 'prospect').length;
@@ -238,6 +248,7 @@ const FollowupPage = () => {
       fetchStats();
       // No success toast - handled with visual indicator in table
     } catch (err) {
+      setCustomers((previous) => previous.filter((customer) => customer.id !== temporaryId));
       toast({
         title: "Error adding customer",
         description: err.message || "Failed to add customer",
