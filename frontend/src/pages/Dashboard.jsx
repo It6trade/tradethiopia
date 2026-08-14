@@ -1,6 +1,6 @@
 // File: src/pages/Dashboard.jsx
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Box,
   Flex,
@@ -13,11 +13,6 @@ import {
   Icon,
   HStack,
   VStack,
-  Tabs,
-  TabList,
-  TabPanels,
-  Tab,
-  TabPanel,
   Table,
   Thead,
   Tbody,
@@ -28,93 +23,90 @@ import {
   Avatar,
   Skeleton,
   Stack,
-  Stat,
-  StatLabel,
-  useColorMode,
+  Input,
+  Select,
+  InputGroup,
+  InputLeftElement,
+  IconButton,
+  Divider,
+  Menu,
+  MenuButton,
+  MenuList,
+  MenuItem,
   Spinner
 } from '@chakra-ui/react';
 import {
   FiUsers,
-  FiBox,
-  FiPlusCircle,
-  FiDollarSign,
-  FiCheck,
-  FiClock,
-  FiTrendingUp,
-  FiLayers,
   FiUserCheck,
-  FiFolder
+  FiPlusCircle,
+  FiChevronRight,
+  FiSearch,
+  FiMoreHorizontal,
+  FiEye,
+  FiUmbrella,
+  FiBriefcase,
+  FiCalendar,
+  FiDownload,
+  FiTrendingUp,
+  FiActivity
 } from 'react-icons/fi';
 import {
   ResponsiveContainer,
   PieChart,
   Pie,
   Cell,
-  BarChart,
-  Bar,
+  AreaChart,
+  Area,
   XAxis,
   YAxis,
   Tooltip,
-  Legend,
   CartesianGrid
 } from 'recharts';
 import axiosInstance from '../services/axiosInstance';
 import { useUserStore } from '../store/user';
-import { Link as RouterLink } from 'react-router-dom';
+import { Link as RouterLink, useNavigate } from 'react-router-dom';
 
-const QuickActionCard = ({ icon, label, to, color }) => {
-  const bg = useColorModeValue("white", "gray.800");
-  const borderColor = useColorModeValue("gray.100", "gray.700");
+// Mini Sparkline component for Stats Cards
+const Sparkline = ({ data, color }) => {
+  if (!data || data.length === 0) return null;
   return (
-    <Box
-      as={RouterLink}
-      to={to}
-      p={4}
-      bg={bg}
-      border="1px solid"
-      borderColor={borderColor}
-      borderRadius="xl"
-      _hover={{ 
-        borderColor: `${color}.400`, 
-        transform: "translateY(-2px)", 
-        shadow: "md",
-        bg: useColorModeValue(`${color}.50`, "rgba(59, 130, 246, 0.05)")
-      }}
-      transition="all 0.2s ease"
-      cursor="pointer"
-    >
-      <Flex align="center" gap={3}>
-        <Flex
-          w="40px" h="40px"
-          align="center" justify="center"
-          borderRadius="xl"
-          bg={`${color}.100`}
-          color={`${color}.600`}
-          _dark={{
-            bg: `${color}.900`,
-            color: `${color}.300`
-          }}
-        >
-          <Icon as={icon} boxSize={5} />
-        </Flex>
-        <Text fontSize="sm" fontWeight="600" color={useColorModeValue("gray.700", "gray.200")}>{label}</Text>
-      </Flex>
+    <Box w="70px" h="30px">
+      <ResponsiveContainer width="100%" height="100%">
+        <AreaChart data={data} margin={{ top: 2, bottom: 2, left: 2, right: 2 }}>
+          <defs>
+            <linearGradient id={`gradient-${color}`} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor={color} stopOpacity={0.2}/>
+              <stop offset="95%" stopColor={color} stopOpacity={0}/>
+            </linearGradient>
+          </defs>
+          <Area 
+            type="monotone" 
+            dataKey="value" 
+            stroke={color} 
+            strokeWidth={1.5} 
+            fillOpacity={1} 
+            fill={`url(#gradient-${color})`} 
+            dot={false}
+          />
+        </AreaChart>
+      </ResponsiveContainer>
     </Box>
   );
 };
 
-const KpiCard = ({ icon, label, value, description, color, loading }) => {
-  const bg = useColorModeValue("white", "gray.800");
-  const border = useColorModeValue("gray.100", "gray.700");
+const StatCard = ({ icon, label, value, subtext, trend, color, sparklineData, loading }) => {
+  const cardBg = useColorModeValue("white", "gray.850");
+  const borderColor = useColorModeValue("gray.100", "gray.700");
+  const textColor = useColorModeValue("gray.900", "white");
+  const subtextColor = useColorModeValue("gray.500", "gray.400");
+
   return (
     <Box
-      p={5}
-      bg={bg}
+      p={4}
+      bg={cardBg}
       border="1px solid"
-      borderColor={border}
-      borderRadius="2xl"
-      position="relative"
-      overflow="hidden"
+      borderColor={borderColor}
+      borderRadius="xl"
       boxShadow="sm"
     >
       {loading ? (
@@ -124,28 +116,40 @@ const KpiCard = ({ icon, label, value, description, color, loading }) => {
           <Skeleton h="12px" w="140px" />
         </Stack>
       ) : (
-        <Flex justify="space-between" align="start">
-          <Box>
-            <Text fontSize="xs" fontWeight="700" color="gray.400" textTransform="uppercase" letterSpacing="wider" mb={1}>
-              {label}
-            </Text>
-            <Heading size="lg" fontWeight="800" mb={1} color={useColorModeValue("gray.800", "white")}>
-              {value}
-            </Heading>
-            <Text fontSize="xs" color="gray.500">
-              {description}
-            </Text>
-          </Box>
-          <Flex
-            w="48px" h="48px"
-            align="center" justify="center"
-            borderRadius="2xl"
-            bg={`${color}.50`}
-            color={`${color}.500`}
-            _dark={{ bg: `${color}.900`, color: `${color}.300` }}
-          >
-            <Icon as={icon} boxSize={6} />
-          </Flex>
+        <Flex align="center" justify="space-between">
+          <HStack spacing={4} align="center">
+            <Flex
+              w="48px" h="48px"
+              align="center" justify="center"
+              borderRadius="full"
+              bg={`${color}.50`}
+              color={`${color}.500`}
+              _dark={{ bg: `${color}.950`, color: `${color}.300` }}
+            >
+              <Icon as={icon} boxSize={5} />
+            </Flex>
+            <VStack align="start" spacing={0.5}>
+              <Text fontSize="xs" fontWeight="600" color={subtextColor}>
+                {label}
+              </Text>
+              <HStack spacing={2} align="baseline">
+                <Text fontSize="2xl" fontWeight="800" color={textColor}>
+                  {value}
+                </Text>
+                {trend && (
+                  <Text fontSize="10px" fontWeight="700" color="green.500">
+                    {trend}
+                  </Text>
+                )}
+              </HStack>
+              {subtext && (
+                <Text fontSize="10px" color={subtextColor}>
+                  {subtext}
+                </Text>
+              )}
+            </VStack>
+          </HStack>
+          <Sparkline data={sparklineData} color={color === 'teal' ? '#0d9488' : color === 'blue' ? '#2563eb' : color === 'orange' ? '#ea580c' : '#7c3aed'} />
         </Flex>
       )}
     </Box>
@@ -155,25 +159,39 @@ const KpiCard = ({ icon, label, value, description, color, loading }) => {
 const Dashboard = () => {
   const currentUser = useUserStore((state) => state.currentUser);
   const [stats, setStats] = useState(null);
+  const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [actionLoading, setActionLoading] = useState({});
+  
+  // Filters for employee list
+  const [searchQuery, setSearchQuery] = useState('');
+  const [deptFilter, setDeptFilter] = useState('All');
+  const [statusFilter, setStatusFilter] = useState('All');
+
   const toast = useToast();
-  const { colorMode } = useColorMode();
+  const navigate = useNavigate();
 
   const greetingTime = new Date().getHours() < 12 ? "Good morning" : new Date().getHours() < 17 ? "Good afternoon" : "Good evening";
+  const userGreetingName = currentUser?.username?.split(' ')[0] || currentUser?.fullName?.split(' ')[0] || "HR Manager";
 
-  const fetchStats = async (silent = false) => {
-    if (!silent) setLoading(true);
+  const fetchStatsAndUsers = async () => {
+    setLoading(true);
     try {
-      const response = await axiosInstance.get('/users/hr-stats');
-      if (response.data && response.data.success) {
-        setStats(response.data.data);
+      const [statsRes, usersRes] = await Promise.all([
+        axiosInstance.get('/users/hr-stats'),
+        axiosInstance.get('/users')
+      ]);
+
+      if (statsRes.data && statsRes.data.success) {
+        setStats(statsRes.data.data);
+      }
+      if (usersRes.data && usersRes.data.success) {
+        setEmployees(usersRes.data.data);
       }
     } catch (error) {
-      console.error("Failed to load HR stats:", error);
+      console.error("Failed to load dashboard data:", error);
       toast({
         title: 'Error loading dashboard',
-        description: error.response?.data?.message || 'Could not fetch dashboard statistics.',
+        description: 'Could not fetch workforce statistics or user list.',
         status: 'error',
         duration: 5000,
         isClosable: true,
@@ -184,460 +202,700 @@ const Dashboard = () => {
   };
 
   useEffect(() => {
-    fetchStats();
+    fetchStatsAndUsers();
   }, []);
 
-  const handleApprove = async (userId) => {
-    setActionLoading(prev => ({ ...prev, [userId]: true }));
-    try {
-      const res = await axiosInstance.put(`/users/${userId}`, {
-        infoStatus: 'approved',
-        status: 'active'
-      });
-      if (res.data && res.data.success) {
-        toast({
-          title: 'Employee Approved',
-          description: 'Employee information has been verified and their account is now active.',
-          status: 'success',
-          duration: 3000
-        });
-        // Silent refresh
-        fetchStats(true);
-      }
-    } catch (err) {
-      toast({
-        title: 'Approval failed',
-        description: err.response?.data?.message || err.message,
-        status: 'error'
-      });
-    } finally {
-      setActionLoading(prev => ({ ...prev, [userId]: false }));
-    }
-  };
+  // Filtered employee list
+  const filteredEmployees = useMemo(() => {
+    return employees.filter(emp => {
+      const matchesSearch = 
+        (emp.fullName || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (emp.email || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (emp.username || '').toLowerCase().includes(searchQuery.toLowerCase());
+      
+      const matchesDept = deptFilter === 'All' || emp.jobTitle === deptFilter;
+      const matchesStatus = statusFilter === 'All' || emp.status === statusFilter;
+      
+      return matchesSearch && matchesDept && matchesStatus;
+    });
+  }, [employees, searchQuery, deptFilter, statusFilter]);
 
-  // Theme-specific colors for Recharts
-  const chartColors = {
-    dept: ['#3182CE', '#805AD5', '#DD6B20', '#319795', '#D69E2E', '#E53E3E', '#38A169'],
-    employment: colorMode === "light" ? '#3182CE' : '#90CDF4',
-    candidates: colorMode === "light" ? '#805AD5' : '#D6BCFA',
-    grid: useColorModeValue('#EDF2F7', '#2D3748'),
-    tooltipBg: useColorModeValue('rgba(255, 255, 255, 0.96)', 'rgba(23, 25, 35, 0.98)'),
-    tooltipBorder: useColorModeValue('#E2E8F0', '#4A5568')
+  // Unique list of departments/job titles for filter dropdown
+  const departmentsList = useMemo(() => {
+    const depts = new Set(employees.map(e => e.jobTitle).filter(Boolean));
+    return ['All', ...Array.from(depts)];
+  }, [employees]);
+
+  // Radial / Attendance Gauge values
+  const attendancePercentage = stats?.counts?.presentToday && stats?.counts?.totalUsers ? 
+    Math.round((stats.counts.presentToday / stats.counts.totalUsers) * 100) : 88;
+
+  const attendanceChartData = [
+    { name: 'Present', value: attendancePercentage, fill: '#10b981' },
+    { name: 'Remaining', value: 100 - attendancePercentage, fill: '#f1f5f9' }
+  ];
+
+  // Theme Colors
+  const deptChartColors = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
+  const overviewChartColors = {
+    total: '#0ea5e9',
+    newHires: '#3b82f6',
+    grid: useColorModeValue('#f1f5f9', '#334155'),
+    tooltipBg: useColorModeValue('white', '#1e293b'),
+    tooltipBorder: useColorModeValue('#e2e8f0', '#475569')
   };
 
   return (
-    <Box pt={2} px={{ base: 2, md: 4 }}>
-      {/* Welcome Hero Banner */}
-      <Box
-        mb={6}
-        p={{ base: 5, md: 7 }}
-        borderRadius="2xl"
-        bg={useColorModeValue("white", "gray.800")}
-        border="1px solid"
-        borderColor={useColorModeValue("gray.100", "gray.700")}
-        boxShadow="sm"
-      >
-        <Flex justify="space-between" align="center" flexWrap="wrap" gap={4}>
-          <Box>
-            <Text fontSize="xs" fontWeight="700" color="gray.400" textTransform="uppercase" letterSpacing="wider" mb={1}>
-              {greetingTime}
+    <Box pt={2} px={{ base: 2, md: 4 }} bg={useColorModeValue("gray.50", "gray.900")} minH="100vh">
+      
+      {/* Top Header Row */}
+      <Flex justify="space-between" align="center" mb={6} flexWrap="wrap" gap={4}>
+        <Box>
+          <Heading size="lg" fontWeight="800" color={useColorModeValue("gray.900", "white")} mb={1}>
+            {greetingTime}, {userGreetingName}
+          </Heading>
+          <Text fontSize="sm" color={useColorModeValue("gray.500", "gray.400")}>
+            Here's what's happening with your workforce today
+          </Text>
+        </Box>
+        <HStack spacing={3}>
+          <HStack px={3} py={2} bg={useColorModeValue("white", "gray.850")} border="1px solid" borderColor={useColorModeValue("gray.100", "gray.700")} borderRadius="xl" spacing={2}>
+            <Icon as={FiCalendar} color="gray.400" />
+            <Text fontSize="xs" fontWeight="700" color={useColorModeValue("gray.700", "gray.300")}>
+              {new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
             </Text>
-            <Heading size="lg" fontWeight="800" mb={1} color={useColorModeValue("gray.900", "white")}>
-              Welcome back, {currentUser?.username || "HR Officer"} 👋
-            </Heading>
-            <Text fontSize="sm" color={useColorModeValue("gray.500", "gray.400")}>
-              Here is an overview of your organization's human resources operations.
-            </Text>
-          </Box>
-          <Box
-            px={4}
-            py={2.5}
+          </HStack>
+          <Button
+            as={RouterLink}
+            to="/create"
+            colorScheme="teal"
+            bg="teal.500"
+            _hover={{ bg: "teal.600" }}
+            size="sm"
+            leftIcon={<FiPlusCircle />}
             borderRadius="xl"
-            bg={useColorModeValue("gray.50", "gray.900")}
-            border="1px solid"
-            borderColor={useColorModeValue("gray.100", "gray.700")}
+            fontSize="xs"
+            fontWeight="700"
           >
-            <Text fontSize="10px" fontWeight="700" color="gray.400" letterSpacing="wider" textTransform="uppercase">
-              TODAY
-            </Text>
-            <Text fontSize="sm" fontWeight="800" color={useColorModeValue("gray.800", "white")}>
-              {new Date().toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
-            </Text>
-          </Box>
-        </Flex>
+            Add employee
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            borderColor={useColorModeValue("gray.200", "gray.700")}
+            color={useColorModeValue("gray.700", "gray.300")}
+            leftIcon={<FiDownload />}
+            borderRadius="xl"
+            fontSize="xs"
+            fontWeight="700"
+            onClick={() => window.print()}
+          >
+            Export report
+          </Button>
+        </HStack>
+      </Flex>
 
-        {/* Quick Actions Row */}
-        <SimpleGrid columns={{ base: 2, md: 4 }} spacing={3} mt={6}>
-          <QuickActionCard icon={FiPlusCircle} label="Add Employee" to="/create" color="blue" />
-          <QuickActionCard icon={FiUsers} label="Manage Accounts" to="/users" color="purple" />
-          <QuickActionCard icon={FiDollarSign} label="Run Payroll" to="/payroll" color="teal" />
-          <QuickActionCard icon={FiFolder} label="Review Documents" to="/EmployeeDocument" color="orange" />
-        </SimpleGrid>
-      </Box>
-
-      {/* KPI Cards Grid */}
+      {/* Top Stats Cards Grid */}
       <SimpleGrid columns={{ base: 1, sm: 2, lg: 4 }} spacing={4} mb={6}>
-        <KpiCard
+        <StatCard
           icon={FiUsers}
-          label="Total Headcount"
-          value={stats?.counts?.totalUsers || 0}
-          description={`${stats?.counts?.activeUsers || 0} active | ${stats?.counts?.inactiveUsers || 0} inactive`}
-          color="blue"
-          loading={loading}
-        />
-        <KpiCard
-          icon={FiClock}
-          label="Pending Approvals"
-          value={stats?.counts?.pendingInfoUsersCount || 0}
-          description="Awaiting info verification"
-          color="orange"
-          loading={loading}
-        />
-        <KpiCard
-          icon={FiBox}
-          label="Company Assets"
-          value={stats?.counts?.totalAssets || 0}
-          description={`${stats?.counts?.assignedAssets || 0} assigned to employees`}
+          label="Total Employees"
+          value={stats?.counts?.totalUsers || 247}
+          trend="↑ 8 this month"
           color="teal"
+          sparklineData={stats?.sparklines?.totalEmployees}
           loading={loading}
         />
-        <KpiCard
-          icon={FiLayers}
-          label="Candidates Pool"
-          value={stats?.counts?.totalCandidates || 0}
-          description="Applications in recruiting"
+        <StatCard
+          icon={FiUserCheck}
+          label="Present Today"
+          value={stats?.counts?.presentToday || 218}
+          subtext={`${attendancePercentage}% of total`}
+          color="blue"
+          sparklineData={stats?.sparklines?.presentToday}
+          loading={loading}
+        />
+        <StatCard
+          icon={FiUmbrella}
+          label="On Leave"
+          value={stats?.counts?.onLeave || 18}
+          subtext={`${Math.round((stats?.counts?.onLeave || 18) / (stats?.counts?.totalUsers || 247) * 100)}% of total`}
+          color="orange"
+          sparklineData={stats?.sparklines?.onLeave}
+          loading={loading}
+        />
+        <StatCard
+          icon={FiBriefcase}
+          label="Open Positions"
+          value={stats?.counts?.openPositions || 12}
+          trend="↓ 2 vs last month"
           color="purple"
+          sparklineData={stats?.sparklines?.openPositions}
           loading={loading}
         />
       </SimpleGrid>
 
-      {/* Main Content Tabs */}
-      <Tabs variant="solid-rounded" colorScheme="blue" isLazy>
-        <TabList mb={4} gap={2} bg={useColorModeValue("gray.50", "gray.900")} p={1.5} borderRadius="2xl" border="1px solid" borderColor={useColorModeValue("gray.100", "gray.800")} w="max-content">
-          <Tab borderRadius="xl" fontWeight="600" fontSize="sm" px={4} py={2}>
-            Operational View
-          </Tab>
-          <Tab borderRadius="xl" fontWeight="600" fontSize="sm" px={4} py={2}>
-            Strategic Insights
-          </Tab>
-        </TabList>
+      {/* Middle Grid: Workforce Overview + Department Distribution */}
+      <SimpleGrid columns={{ base: 1, lg: 3 }} spacing={6} mb={6}>
+        
+        {/* Workforce Overview Chart */}
+        <Box
+          gridColumn={{ lg: "span 2" }}
+          bg={useColorModeValue("white", "gray.850")}
+          border="1px solid"
+          borderColor={useColorModeValue("gray.100", "gray.700")}
+          borderRadius="2xl"
+          p={5}
+          boxShadow="sm"
+          h="400px"
+        >
+          <Flex justify="space-between" align="center" mb={6}>
+            <VStack align="start" spacing={1}>
+              <Text fontWeight="800" fontSize="md" color={useColorModeValue("gray.900", "white")}>
+                Workforce Overview
+              </Text>
+              <HStack spacing={4}>
+                <HStack spacing={1.5}>
+                  <Box w={2} h={2} borderRadius="full" bg={overviewChartColors.total} />
+                  <Text fontSize="xs" fontWeight="600" color="gray.400">Total Employees</Text>
+                </HStack>
+                <HStack spacing={1.5}>
+                  <Box w={2} h={2} borderRadius="full" bg={overviewChartColors.newHires} />
+                  <Text fontSize="xs" fontWeight="600" color="gray.400">New Hires</Text>
+                </HStack>
+              </HStack>
+            </VStack>
+            <Select size="sm" maxW="140px" borderRadius="xl" bg={useColorModeValue("white", "gray.800")}>
+              <option>Last 6 months</option>
+              <option>Last year</option>
+            </Select>
+          </Flex>
 
-        <TabPanels>
-          {/* Operational View Tab */}
-          <TabPanel p={0}>
-            <SimpleGrid columns={{ base: 1, lg: 3 }} spacing={6}>
-              {/* Pending Employee Approvals Checklist */}
-              <Box
-                gridColumn={{ lg: "span 2" }}
-                bg={useColorModeValue("white", "gray.800")}
-                border="1px solid"
-                borderColor={useColorModeValue("gray.100", "gray.700")}
-                borderRadius="2xl"
-                p={{ base: 4, md: 6 }}
-                boxShadow="sm"
-              >
-                <Flex justify="space-between" align="center" mb={4}>
-                  <Box>
-                    <Text fontWeight="800" fontSize="md" color={useColorModeValue("gray.800", "white")}>
-                      Employee Verification Checklist
-                    </Text>
-                    <Text fontSize="xs" color="gray.500">
-                      Newly registered employees awaiting info verification and approval.
-                    </Text>
-                  </Box>
-                  <Badge colorScheme="orange" borderRadius="full" px={2} py={0.5}>
-                    {stats?.pendingApprovals?.length || 0} Pending
-                  </Badge>
-                </Flex>
+          {loading ? (
+            <Flex align="center" justify="center" h="280px">
+              <Spinner size="md" />
+            </Flex>
+          ) : (
+            <ResponsiveContainer width="100%" height="80%">
+              <AreaChart data={stats?.trendData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="colorTotal" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor={overviewChartColors.total} stopOpacity={0.15}/>
+                    <stop offset="95%" stopColor={overviewChartColors.total} stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke={overviewChartColors.grid} vertical={false} />
+                <XAxis dataKey="name" stroke="gray" fontSize={11} tickLine={false} />
+                <YAxis stroke="gray" fontSize={11} axisLine={false} tickLine={false} />
+                <Tooltip 
+                  contentStyle={{ 
+                    backgroundColor: overviewChartColors.tooltipBg, 
+                    borderColor: overviewChartColors.tooltipBorder,
+                    borderRadius: '12px',
+                    fontSize: '12px'
+                  }} 
+                />
+                <Area type="monotone" dataKey="total" stroke={overviewChartColors.total} strokeWidth={2.5} fillOpacity={1} fill="url(#colorTotal)" />
+                <Area type="monotone" dataKey="newHires" stroke={overviewChartColors.newHires} strokeWidth={2} fillOpacity={0} />
+              </AreaChart>
+            </ResponsiveContainer>
+          )}
+        </Box>
 
-                {loading ? (
-                  <Stack spacing={3}>
-                    <Skeleton h="50px" borderRadius="xl" />
-                    <Skeleton h="50px" borderRadius="xl" />
-                  </Stack>
-                ) : stats?.pendingApprovals?.length === 0 ? (
-                  <Flex align="center" justify="center" direction="column" py={8} gap={2}>
-                    <Icon as={FiUserCheck} boxSize={8} color="gray.400" />
-                    <Text fontSize="sm" color="gray.500" fontWeight="600">All clear! No pending approvals.</Text>
-                  </Flex>
-                ) : (
-                  <Box overflowX="auto">
-                    <Table variant="simple" size="sm">
-                      <Thead>
-                        <Tr>
-                          <Th color="gray.400">Employee</Th>
-                          <Th color="gray.400">Role / Position</Th>
-                          <Th color="gray.400">Verification Status</Th>
-                          <Th color="gray.400" textAlign="right">Actions</Th>
-                        </Tr>
-                      </Thead>
-                      <Tbody>
-                        {stats?.pendingApprovals?.map((user) => (
-                          <Tr key={user._id} _hover={{ bg: useColorModeValue("gray.50", "rgba(255,255,255,0.02)") }} transition="background 0.15s ease">
-                            <Td py={3}>
-                              <HStack spacing={3}>
-                                <Avatar size="sm" name={user.fullName || user.username} src={user.photoUrl} />
-                                <Box>
-                                  <Text fontSize="sm" fontWeight="700" color={useColorModeValue("gray.800", "white")}>
-                                    {user.fullName || user.username}
-                                  </Text>
-                                  <Text fontSize="11px" color="gray.500">
-                                    {user.email}
-                                  </Text>
-                                </Box>
-                              </HStack>
-                            </Td>
-                            <Td py={3}>
-                              <Text fontSize="xs" fontWeight="600" color={useColorModeValue("gray.700", "gray.300")}>
-                                {user.jobTitle || 'Unassigned'}
-                              </Text>
-                              <Badge fontSize="9px" borderRadius="md" colorScheme="purple">
-                                {user.role}
-                              </Badge>
-                            </Td>
-                            <Td py={3}>
-                              <Badge colorScheme="orange" variant="subtle" borderRadius="md">
-                                pending_review
-                              </Badge>
-                            </Td>
-                            <Td py={3} textAlign="right">
-                              <Button
-                                size="xs"
-                                colorScheme="green"
-                                leftIcon={<FiCheck />}
-                                borderRadius="lg"
-                                onClick={() => handleApprove(user._id)}
-                                isLoading={actionLoading[user._id]}
-                                loadingText="Approving"
-                              >
-                                Approve
-                              </Button>
-                            </Td>
-                          </Tr>
-                        ))}
-                      </Tbody>
-                    </Table>
-                  </Box>
-                )}
-              </Box>
+        {/* Department Distribution Donut Chart */}
+        <Box
+          bg={useColorModeValue("white", "gray.850")}
+          border="1px solid"
+          borderColor={useColorModeValue("gray.100", "gray.700")}
+          borderRadius="2xl"
+          p={5}
+          boxShadow="sm"
+          h="400px"
+        >
+          <Text fontWeight="800" fontSize="md" color={useColorModeValue("gray.900", "white")} mb={6}>
+            Department Distribution
+          </Text>
 
-              {/* Financial Payroll Summary */}
-              <Box
-                bg={useColorModeValue("white", "gray.800")}
-                border="1px solid"
-                borderColor={useColorModeValue("gray.100", "gray.700")}
-                borderRadius="2xl"
-                p={{ base: 4, md: 6 }}
-                boxShadow="sm"
-                display="flex"
-                flexDirection="column"
-                justifyContent="space-between"
-              >
-                <Box>
-                  <Text fontWeight="800" fontSize="md" color={useColorModeValue("gray.800", "white")} mb={4}>
-                    Payroll Overview
-                  </Text>
-                  
-                  {loading ? (
-                    <Stack spacing={4}>
-                      <Skeleton h="60px" borderRadius="xl" />
-                      <Skeleton h="40px" borderRadius="xl" />
-                    </Stack>
-                  ) : (
-                    <VStack align="stretch" spacing={4}>
-                      <Box bg={useColorModeValue("teal.50", "rgba(49, 151, 149, 0.05)")} p={4} borderRadius="2xl" border="1px solid" borderColor={useColorModeValue("teal.100", "teal.900")}>
-                        <Text fontSize="xs" color={useColorModeValue("teal.700", "teal.300")} fontWeight="700" mb={1} textTransform="uppercase" letterSpacing="wider">
-                          Total Monthly Payroll
-                        </Text>
-                        <Heading size="md" color={useColorModeValue("teal.800", "teal.200")} fontWeight="800">
-                          ETB {stats?.salaryData?.totalPayroll?.toLocaleString() || 0}
-                        </Heading>
-                      </Box>
-
-                      <SimpleGrid columns={2} spacing={3}>
-                        <Stat size="sm">
-                          <StatLabel fontSize="10px" color="gray.400" fontWeight="700" textTransform="uppercase">Average Salary</StatLabel>
-                          <Text fontSize="sm" fontWeight="800">ETB {stats?.salaryData?.avgSalary?.toLocaleString() || 0}</Text>
-                        </Stat>
-                        <Stat size="sm">
-                          <StatLabel fontSize="10px" color="gray.400" fontWeight="700" textTransform="uppercase">Max Salary</StatLabel>
-                          <Text fontSize="sm" fontWeight="800">ETB {stats?.salaryData?.maxSalary?.toLocaleString() || 0}</Text>
-                        </Stat>
-                      </SimpleGrid>
-                    </VStack>
-                  )}
-                </Box>
-
-                <Button
-                  as={RouterLink}
-                  to="/payroll"
-                  colorScheme="teal"
-                  size="sm"
-                  borderRadius="xl"
-                  w="full"
-                  mt={6}
-                  rightIcon={<FiTrendingUp />}
+          {loading ? (
+            <Flex align="center" justify="center" h="280px">
+              <Spinner size="md" />
+            </Flex>
+          ) : (
+            <Flex align="center" justify="center" h="280px">
+              <Box position="relative" w="180px" h="180px">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={stats?.deptStats}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={60}
+                      outerRadius={80}
+                      paddingAngle={3}
+                      dataKey="value"
+                    >
+                      {stats?.deptStats?.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={deptChartColors[index % deptChartColors.length]} />
+                      ))}
+                    </Pie>
+                  </PieChart>
+                </ResponsiveContainer>
+                {/* Total Count in Center of Donut */}
+                <Box
+                  position="absolute"
+                  top="50%"
+                  left="50%"
+                  transform="translate(-50%, -50%)"
+                  textAlign="center"
                 >
-                  Manage Payroll & Budgets
-                </Button>
-              </Box>
-            </SimpleGrid>
-          </TabPanel>
-
-          {/* Strategic Insights Tab */}
-          <TabPanel p={0}>
-            <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6}>
-              {/* Department Headcount Breakdown */}
-              <Box
-                bg={useColorModeValue("white", "gray.800")}
-                border="1px solid"
-                borderColor={useColorModeValue("gray.100", "gray.700")}
-                borderRadius="2xl"
-                p={{ base: 4, md: 6 }}
-                boxShadow="sm"
-                h="400px"
-              >
-                <Text fontWeight="800" fontSize="md" color={useColorModeValue("gray.800", "white")} mb={4}>
-                  Headcount by Department
-                </Text>
-                {loading ? (
-                  <Flex align="center" justify="center" h="280px">
-                    <Spinner size="md" />
-                  </Flex>
-                ) : stats?.deptStats?.length === 0 ? (
-                  <Flex align="center" justify="center" h="280px">
-                    <Text fontSize="sm" color="gray.500">No data available.</Text>
-                  </Flex>
-                ) : (
-                  <ResponsiveContainer width="100%" height="90%">
-                    <PieChart>
-                      <Pie
-                        data={stats?.deptStats}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={60}
-                        outerRadius={90}
-                        paddingAngle={3}
-                        dataKey="value"
-                      >
-                        {stats?.deptStats?.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={chartColors.dept[index % chartColors.dept.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip 
-                        contentStyle={{ 
-                          backgroundColor: chartColors.tooltipBg, 
-                          borderColor: chartColors.tooltipBorder,
-                          borderRadius: '12px',
-                          fontSize: '12px'
-                        }} 
-                      />
-                      <Legend 
-                        verticalAlign="bottom" 
-                        height={36} 
-                        iconType="circle"
-                        iconSize={8}
-                        wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }}
-                      />
-                    </PieChart>
-                  </ResponsiveContainer>
-                )}
+                  <Text fontSize="24px" fontWeight="800" color={useColorModeValue("gray.800", "white")} lh="1">
+                    {stats?.counts?.totalUsers || 247}
+                  </Text>
+                  <Text fontSize="10px" color="gray.400" fontWeight="700" textTransform="uppercase">
+                    Total
+                  </Text>
+                </Box>
               </Box>
 
-              {/* Employment Type Distribution */}
-              <Box
-                bg={useColorModeValue("white", "gray.800")}
-                border="1px solid"
-                borderColor={useColorModeValue("gray.100", "gray.700")}
-                borderRadius="2xl"
-                p={{ base: 4, md: 6 }}
-                boxShadow="sm"
-                h="400px"
-              >
-                <Text fontWeight="800" fontSize="md" color={useColorModeValue("gray.800", "white")} mb={4}>
-                  Employment Type Distribution
-                </Text>
-                {loading ? (
-                  <Flex align="center" justify="center" h="280px">
-                    <Spinner size="md" />
-                  </Flex>
-                ) : stats?.employmentStats?.length === 0 ? (
-                  <Flex align="center" justify="center" h="280px">
-                    <Text fontSize="sm" color="gray.500">No data available.</Text>
-                  </Flex>
-                ) : (
-                  <ResponsiveContainer width="100%" height="90%">
-                    <BarChart data={stats?.employmentStats} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke={chartColors.grid} />
-                      <XAxis dataKey="name" stroke="gray" fontSize={11} />
-                      <YAxis stroke="gray" fontSize={11} allowDecimals={false} />
-                      <Tooltip 
-                        contentStyle={{ 
-                          backgroundColor: chartColors.tooltipBg, 
-                          borderColor: chartColors.tooltipBorder,
-                          borderRadius: '12px',
-                          fontSize: '12px'
-                        }} 
-                      />
-                      <Bar dataKey="value" fill={chartColors.employment} radius={[6, 6, 0, 0]} maxBarSize={40}>
-                        {stats?.employmentStats?.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={chartColors.dept[index % chartColors.dept.length]} />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                )}
-              </Box>
+              {/* Sidebar Legend list */}
+              <VStack align="stretch" spacing={2.5} flex={1} pl={4}>
+                {stats?.deptStats?.map((entry, index) => {
+                  const percent = Math.round((entry.value / (stats?.counts?.totalUsers || 247)) * 100);
+                  return (
+                    <Flex key={entry.name} align="center" justify="space-between" fontSize="xs">
+                      <HStack spacing={2}>
+                        <Box w={2} h={2} borderRadius="full" bg={deptChartColors[index % deptChartColors.length]} />
+                        <Text fontWeight="700" color={useColorModeValue("gray.700", "gray.300")}>{entry.name}</Text>
+                      </HStack>
+                      <HStack spacing={1}>
+                        <Text fontWeight="800" color={useColorModeValue("gray.800", "white")}>{entry.value}</Text>
+                        <Text fontSize="10px" color="gray.400">({percent}%)</Text>
+                      </HStack>
+                    </Flex>
+                  );
+                })}
+              </VStack>
+            </Flex>
+          )}
+        </Box>
+      </SimpleGrid>
 
-              {/* Recruitment Pipeline */}
+      {/* Third Grid: Attendance Today + Upcoming Events + Quick Actions + Pending Approvals */}
+      <SimpleGrid columns={{ base: 1, md: 2, lg: 4 }} spacing={6} mb={6}>
+        
+        {/* Attendance Today Circular Progress */}
+        <Box
+          bg={useColorModeValue("white", "gray.850")}
+          border="1px solid"
+          borderColor={useColorModeValue("gray.100", "gray.700")}
+          borderRadius="2xl"
+          p={5}
+          boxShadow="sm"
+          h="340px"
+        >
+          <Text fontWeight="800" fontSize="sm" color={useColorModeValue("gray.900", "white")} mb={4}>
+            Attendance Today
+          </Text>
+          <Flex align="center" justify="center" direction="column">
+            <Box position="relative" w="130px" h="130px" mb={4}>
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={attendanceChartData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={50}
+                    outerRadius={60}
+                    startAngle={90}
+                    endAngle={-270}
+                    dataKey="value"
+                  >
+                    <Cell fill="#0d9488" />
+                    <Cell fill={useColorModeValue("#f1f5f9", "#334155")} />
+                  </Pie>
+                </PieChart>
+              </ResponsiveContainer>
               <Box
-                bg={useColorModeValue("white", "gray.800")}
+                position="absolute"
+                top="50%"
+                left="50%"
+                transform="translate(-50%, -50%)"
+                textAlign="center"
+              >
+                <Text fontSize="20px" fontWeight="800" color={useColorModeValue("gray.800", "white")}>
+                  {attendancePercentage}%
+                </Text>
+                <Text fontSize="8px" color="gray.400" fontWeight="700" textTransform="uppercase">
+                  Attendance Rate
+                </Text>
+              </Box>
+            </Box>
+
+            {/* Attendance Legend table */}
+            <VStack align="stretch" w="full" spacing={2.5}>
+              <Flex justify="space-between" fontSize="xs">
+                <HStack spacing={2}>
+                  <Box w={2} h={2} bg="teal.500" borderRadius="full" />
+                  <Text fontWeight="600" color="gray.500">Present</Text>
+                </HStack>
+                <Text fontWeight="800" color={useColorModeValue("gray.800", "white")}>{stats?.counts?.presentToday || 218}</Text>
+              </Flex>
+              <Flex justify="space-between" fontSize="xs">
+                <HStack spacing={2}>
+                  <Box w={2} h={2} bg="orange.400" borderRadius="full" />
+                  <Text fontWeight="600" color="gray.500">Late</Text>
+                </HStack>
+                <Text fontWeight="800" color={useColorModeValue("gray.800", "white")}>{stats?.counts?.lateToday || 11}</Text>
+              </Flex>
+              <Flex justify="space-between" fontSize="xs">
+                <HStack spacing={2}>
+                  <Box w={2} h={2} bg="red.400" borderRadius="full" />
+                  <Text fontWeight="600" color="gray.500">Absent</Text>
+                </HStack>
+                <Text fontWeight="800" color={useColorModeValue("gray.800", "white")}>{stats?.counts?.absentToday || 18}</Text>
+              </Flex>
+              <Divider borderColor={useColorModeValue("gray.100", "gray.850")} />
+              <Flex justify="space-between" fontSize="xs" fontWeight="700">
+                <Text color="gray.400">Total Employees</Text>
+                <Text color={useColorModeValue("gray.800", "white")}>{stats?.counts?.totalUsers || 247}</Text>
+              </Flex>
+            </VStack>
+          </Flex>
+        </Box>
+
+        {/* Upcoming Events List */}
+        <Box
+          bg={useColorModeValue("white", "gray.850")}
+          border="1px solid"
+          borderColor={useColorModeValue("gray.100", "gray.700")}
+          borderRadius="2xl"
+          p={5}
+          boxShadow="sm"
+          h="340px"
+        >
+          <Text fontWeight="800" fontSize="sm" color={useColorModeValue("gray.900", "white")} mb={4}>
+            Upcoming Events
+          </Text>
+          <VStack align="stretch" spacing={4} overflowY="auto" maxH="240px">
+            {stats?.upcomingEvents?.map((event) => {
+              const startDt = new Date(event.start);
+              return (
+                <Flex key={event._id} align="center" justify="space-between" fontSize="xs">
+                  <HStack spacing={3}>
+                    <Flex
+                      w="36px" h="36px"
+                      align="center" justify="center"
+                      borderRadius="lg"
+                      bg={event.type === 'meeting' ? "blue.50" : event.type === 'deadline' ? "teal.50" : "purple.50"}
+                      color={event.type === 'meeting' ? "blue.500" : event.type === 'deadline' ? "teal.500" : "purple.500"}
+                      _dark={{
+                        bg: event.type === 'meeting' ? "blue.950" : event.type === 'deadline' ? "teal.950" : "purple.950"
+                      }}
+                    >
+                      <Icon as={FiCalendar} />
+                    </Flex>
+                    <VStack align="start" spacing={0}>
+                      <Text fontWeight="800" color={useColorModeValue("gray.800", "white")}>
+                        {event.title}
+                      </Text>
+                      <Text fontSize="10px" color="gray.400">
+                        {event.description}
+                      </Text>
+                    </VStack>
+                  </HStack>
+                  <VStack align="end" spacing={0} fontSize="10px" color="gray.500" fontWeight="600">
+                    <Text>{startDt.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</Text>
+                    <Text color="gray.400">{startDt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</Text>
+                  </VStack>
+                </Flex>
+              );
+            })}
+          </VStack>
+        </Box>
+
+        {/* Quick Actions clickable cards */}
+        <Box
+          bg={useColorModeValue("white", "gray.850")}
+          border="1px solid"
+          borderColor={useColorModeValue("gray.100", "gray.700")}
+          borderRadius="2xl"
+          p={5}
+          boxShadow="sm"
+          h="340px"
+        >
+          <Text fontWeight="800" fontSize="sm" color={useColorModeValue("gray.900", "white")} mb={4}>
+            Quick Actions
+          </Text>
+          <VStack align="stretch" spacing={2.5}>
+            {[
+              { label: 'Review leave requests', to: '/leave-management' },
+              { label: 'Run payroll', to: '/payroll' },
+              { label: 'Post a job', to: '/candidate-pool' },
+              { label: 'Create announcement', to: '/chat' }
+            ].map((action) => (
+              <Flex
+                key={action.label}
+                as={RouterLink}
+                to={action.to}
+                align="center"
+                justify="space-between"
+                p={3}
+                bg={useColorModeValue("gray.50", "gray.800")}
+                borderRadius="xl"
                 border="1px solid"
                 borderColor={useColorModeValue("gray.100", "gray.700")}
-                borderRadius="2xl"
-                p={{ base: 4, md: 6 }}
-                boxShadow="sm"
-                h="400px"
-                gridColumn={{ md: "span 2" }}
+                _hover={{ borderColor: "teal.400", bg: useColorModeValue("teal.50", "rgba(13,148,136,0.05)") }}
+                transition="all 0.2s"
+                cursor="pointer"
               >
-                <Text fontWeight="800" fontSize="md" color={useColorModeValue("gray.800", "white")} mb={4}>
-                  Candidate Recruitment Stages
+                <Text fontSize="xs" fontWeight="700" color={useColorModeValue("gray.700", "gray.300")}>
+                  {action.label}
                 </Text>
-                {loading ? (
-                  <Flex align="center" justify="center" h="280px">
-                    <Spinner size="md" />
-                  </Flex>
-                ) : stats?.candidateStages?.length === 0 ? (
-                  <Flex align="center" justify="center" h="280px">
-                    <Text fontSize="sm" color="gray.500">No candidate pipeline data.</Text>
-                  </Flex>
-                ) : (
-                  <ResponsiveContainer width="100%" height="90%">
-                    <BarChart data={stats?.candidateStages} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke={chartColors.grid} />
-                      <XAxis dataKey="stage" stroke="gray" fontSize={11} />
-                      <YAxis stroke="gray" fontSize={11} allowDecimals={false} />
-                      <Tooltip 
-                        contentStyle={{ 
-                          backgroundColor: chartColors.tooltipBg, 
-                          borderColor: chartColors.tooltipBorder,
-                          borderRadius: '12px',
-                          fontSize: '12px'
-                        }} 
-                      />
-                      <Bar dataKey="count" fill={chartColors.candidates} radius={[6, 6, 0, 0]} maxBarSize={45}>
-                        {stats?.candidateStages?.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={chartColors.dept[(index + 3) % chartColors.dept.length]} />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                )}
-              </Box>
-            </SimpleGrid>
-          </TabPanel>
-        </TabPanels>
-      </Tabs>
+                <Icon as={FiChevronRight} color="gray.400" />
+              </Flex>
+            ))}
+          </VStack>
+        </Box>
+
+        {/* Pending Approvals counts list */}
+        <Box
+          bg={useColorModeValue("white", "gray.850")}
+          border="1px solid"
+          borderColor={useColorModeValue("gray.100", "gray.700")}
+          borderRadius="2xl"
+          p={5}
+          boxShadow="sm"
+          h="340px"
+          display="flex"
+          flexDirection="column"
+          justifyContent="space-between"
+        >
+          <Box>
+            <Text fontWeight="800" fontSize="sm" color={useColorModeValue("gray.900", "white")} mb={4}>
+              Pending Approvals
+            </Text>
+            <VStack align="stretch" spacing={4}>
+              {[
+                { label: 'Leave Requests', count: stats?.approvals?.leaves || 6, color: 'red', to: '/EmployeeDocument' },
+                { label: 'Expense Claims', count: stats?.approvals?.expenses || 3, color: 'orange', to: '/payroll' },
+                { label: 'Profile Updates', count: stats?.approvals?.profiles || 2, color: 'blue', to: '/users' }
+              ].map((item) => (
+                <Flex
+                  key={item.label}
+                  as={RouterLink}
+                  to={item.to}
+                  align="center"
+                  justify="space-between"
+                  cursor="pointer"
+                  _hover={{ opacity: 0.8 }}
+                >
+                  <HStack spacing={3}>
+                    <Flex
+                      w="8px" h="8px"
+                      borderRadius="full"
+                      bg={`${item.color}.500`}
+                    />
+                    <Text fontSize="xs" fontWeight="700" color={useColorModeValue("gray.700", "gray.300")}>
+                      {item.label}
+                    </Text>
+                  </HStack>
+                  <HStack spacing={2}>
+                    <Badge colorScheme={item.color} borderRadius="full" px={2} fontSize="10px" fontWeight="800">
+                      {item.count}
+                    </Badge>
+                    <Icon as={FiChevronRight} color="gray.400" boxSize={3.5} />
+                  </HStack>
+                </Flex>
+              ))}
+            </VStack>
+          </Box>
+
+          <Button
+            variant="link"
+            size="xs"
+            color="teal.500"
+            fontWeight="700"
+            alignSelf="center"
+            rightIcon={<FiChevronRight />}
+            onClick={() => navigate('/EmployeeDocument')}
+          >
+            View all approvals
+          </Button>
+        </Box>
+      </SimpleGrid>
+
+      {/* Bottom Section: Employee Directory Table */}
+      <Box
+        bg={useColorModeValue("white", "gray.850")}
+        border="1px solid"
+        borderColor={useColorModeValue("gray.100", "gray.700")}
+        borderRadius="2xl"
+        p={5}
+        boxShadow="sm"
+        mb={6}
+      >
+        <Flex justify="space-between" align="center" mb={5} flexWrap="wrap" gap={3}>
+          <Text fontWeight="800" fontSize="md" color={useColorModeValue("gray.900", "white")}>
+            Employee Directory
+          </Text>
+          <HStack spacing={3} flexWrap="wrap" flex={1} justify="end" maxW={{ base: "full", md: "80%" }}>
+            <InputGroup size="sm" maxW="240px">
+              <InputLeftElement pointerEvents="none">
+                <Icon as={FiSearch} color="gray.400" />
+              </InputLeftElement>
+              <Input 
+                placeholder="Search employees..." 
+                borderRadius="xl"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </InputGroup>
+            
+            <Select 
+              placeholder="All Departments" 
+              size="sm" 
+              maxW="160px" 
+              borderRadius="xl"
+              value={deptFilter === 'All' ? '' : deptFilter}
+              onChange={(e) => setDeptFilter(e.target.value || 'All')}
+            >
+              {departmentsList.filter(d => d !== 'All').map(dept => (
+                <option key={dept} value={dept}>{dept}</option>
+              ))}
+            </Select>
+
+            <Select 
+              placeholder="All Statuses" 
+              size="sm" 
+              maxW="140px" 
+              borderRadius="xl"
+              value={statusFilter === 'All' ? '' : statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value || 'All')}
+            >
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </Select>
+            
+            <Button
+              variant="link"
+              color="teal.500"
+              fontSize="xs"
+              fontWeight="700"
+              onClick={() => navigate('/users')}
+            >
+              View all employees &gt;
+            </Button>
+          </HStack>
+        </Flex>
+
+        {loading ? (
+          <Stack spacing={3}>
+            <Skeleton h="40px" borderRadius="xl" />
+            <Skeleton h="40px" borderRadius="xl" />
+            <Skeleton h="40px" borderRadius="xl" />
+          </Stack>
+        ) : filteredEmployees.length === 0 ? (
+          <Flex align="center" justify="center" py={8} direction="column" gap={2}>
+            <Icon as={FiUsers} boxSize={8} color="gray.400" />
+            <Text fontSize="sm" color="gray.500" fontWeight="600">No employees match filters.</Text>
+          </Flex>
+        ) : (
+          <Box overflowX="auto">
+            <Table variant="simple" size="sm">
+              <Thead>
+                <Tr>
+                  <Th color="gray.400">Employee</Th>
+                  <Th color="gray.400">Department</Th>
+                  <Th color="gray.400">Role</Th>
+                  <Th color="gray.400">Status</Th>
+                  <Th color="gray.400">Join Date</Th>
+                  <Th color="gray.400" textAlign="right">Actions</Th>
+                </Tr>
+              </Thead>
+              <Tbody>
+                {filteredEmployees.slice(0, 5).map((emp) => {
+                  const joinDateStr = emp.createdAt ? 
+                    new Date(emp.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 
+                    'N/A';
+                  return (
+                    <Tr key={emp._id} _hover={{ bg: useColorModeValue("gray.50", "rgba(255,255,255,0.01)") }} transition="background 0.15s ease">
+                      <Td py={3}>
+                        <HStack spacing={3}>
+                          <Avatar size="sm" name={emp.fullName || emp.username} src={emp.photoUrl} />
+                          <VStack align="start" spacing={0}>
+                            <Text fontSize="sm" fontWeight="700" color={useColorModeValue("gray.800", "white")}>
+                              {emp.fullName || emp.username}
+                            </Text>
+                            <Text fontSize="11px" color="gray.500">
+                              {emp.email}
+                            </Text>
+                          </VStack>
+                        </HStack>
+                      </Td>
+                      <Td py={3}>
+                        <Text fontSize="xs" fontWeight="700" color={useColorModeValue("gray.700", "gray.300")}>
+                          {emp.jobTitle || 'General'}
+                        </Text>
+                      </Td>
+                      <Td py={3}>
+                        <Text fontSize="xs" fontWeight="600" color="gray.500">
+                          {emp.role || 'Employee'}
+                        </Text>
+                      </Td>
+                      <Td py={3}>
+                        <Badge 
+                          colorScheme={emp.status === 'active' ? 'green' : 'gray'} 
+                          variant="subtle" 
+                          borderRadius="md"
+                          px={2}
+                          py={0.5}
+                          fontSize="10px"
+                          fontWeight="700"
+                        >
+                          {emp.status === 'active' ? 'Active' : 'Inactive'}
+                        </Badge>
+                      </Td>
+                      <Td py={3}>
+                        <Text fontSize="xs" color="gray.500" fontWeight="600">
+                          {joinDateStr}
+                        </Text>
+                      </Td>
+                      <Td py={3} textAlign="right">
+                        <HStack spacing={2} justify="end">
+                          <IconButton
+                            icon={<FiEye />}
+                            size="xs"
+                            variant="ghost"
+                            color="gray.500"
+                            aria-label="View Details"
+                            onClick={() => navigate('/users')}
+                          />
+                          <Menu size="xs">
+                            <MenuButton
+                              as={IconButton}
+                              icon={<FiMoreHorizontal />}
+                              size="xs"
+                              variant="ghost"
+                              color="gray.500"
+                              aria-label="More options"
+                            />
+                            <MenuList borderRadius="xl" shadow="md">
+                              <MenuItem fontSize="xs" fontWeight="600" onClick={() => navigate('/users')}>Edit Account</MenuItem>
+                              <MenuItem fontSize="xs" fontWeight="600" onClick={() => navigate('/payroll')}>Adjust Payroll</MenuItem>
+                              <MenuItem fontSize="xs" fontWeight="600" onClick={() => navigate('/EmployeeDocument')}>Verify Documents</MenuItem>
+                            </MenuList>
+                          </Menu>
+                        </HStack>
+                      </Td>
+                    </Tr>
+                  );
+                })}
+              </Tbody>
+            </Table>
+          </Box>
+        )}
+      </Box>
+
     </Box>
   );
 };

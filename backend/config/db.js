@@ -1,10 +1,18 @@
 const mongoose = require('mongoose');
 const Package = require('../models/Package');
 
-let isConnected = false; // Track connection status
+let isConnected = false;
+
+const connectionOptions = {
+  serverSelectionTimeoutMS: 10000,
+  socketTimeoutMS: 45000,
+  family: 4,
+  maxPoolSize: 10
+};
 
 const dropLegacyPackageIndex = async () => {
   if (!mongoose.connection.readyState) return;
+
   try {
     const collection = mongoose.connection.collection('packages');
     const exists = await collection.indexExists('packageNumber_1');
@@ -22,71 +30,100 @@ const dropLegacyPackageIndex = async () => {
 const ensurePackageIndexSetup = async () => {
   try {
     await dropLegacyPackageIndex();
-    await Package.init(); // ensure mongoose has created declared indexes
+    await Package.init();
   } catch (error) {
     console.error('Package index setup error:', error);
   }
 };
 
-const connectDB = async () => {
-    console.log('Attempting to connect to database...');
-    console.log('Environment:', {
-      vercel: !!process.env.VERCEL,
-      nodeEnv: process.env.NODE_ENV,
-      hasMongoUri: !!process.env.MONGO_URI
-    });
-    
-    // If already connected, return immediately
-    if (isConnected) {
-        console.log('Using existing database connection');
-        return;
-    }
-    
-    // Get MongoDB URI from environment variables
-    const mongoUri = process.env.MONGO_URI;
-    
-    if (!mongoUri) {
-        const error = new Error('MONGO_URI is not defined in environment variables');
-        console.error('Database connection error:', error.message);
-        throw error;
-    }
-    
-    try {
-        // Check if we're in a Vercel environment
-        const isVercel = !!process.env.VERCEL;
-        
-        if (isVercel) {
-            console.log('Running in Vercel environment');
-        }
-        
-        console.log('Connecting to MongoDB...');
-        // Connection options to handle network issues
-        const conn = await mongoose.connect(mongoUri, {
-            serverSelectionTimeoutMS: 10000, // Increase timeout to 10 seconds
-            socketTimeoutMS: 45000,
-            family: 4, // Force IPv4 to avoid DNS issues
-            maxPoolSize: 10 // Maintain up to 10 socket connections
-        });
-        isConnected = true;
-        await ensurePackageIndexSetup();
-        console.log(`MongoDB connected: ${conn.connection.host}`);
-        return conn;
-    }
-    catch (error){
-        console.log(`Database failed to connect: ${error.message}`);
-        console.error('Connection error details:', error);
-        // Don't exit in serverless environment
-        throw error;
-    }
-}
+const connect = async (uri, options = connectionOptions) => {
+  const connection = await mongoose.connect(uri, options);
+  isConnected = true;
+  await ensurePackageIndexSetup();
+  return connection;
+};
 
-// Add a function to disconnect from database (useful for Vercel)
-const disconnectDB = async () => {
-    if (isConnected) {
-        await mongoose.disconnect();
-        isConnected = false;
-        console.log('MongoDB disconnected');
+const SRV_DNS_ERROR_CODES = new Set(['ECONNREFUSED', 'ETIMEOUT', 'ENOTFOUND', 'EAI_AGAIN']);
+const isSrvDnsFailure = (error) =>
+  SRV_DNS_ERROR_CODES.has(error?.code) &&
+  String(error?.message || '').includes('querySrv');
+
+const buildAtlasSeedListUri = (srvUri) => {
+  const seedList = process.env.MONGO_ATLAS_SEED_LIST?.trim();
+  const replicaSet = process.env.MONGO_ATLAS_REPLICA_SET?.trim();
+
+  if (!srvUri.startsWith('mongodb+srv://') || !seedList || !replicaSet) {
+    return null;
+  }
+
+  const uriWithoutScheme = srvUri.slice('mongodb+srv://'.length);
+  const credentialsEnd = uriWithoutScheme.lastIndexOf('@');
+  if (credentialsEnd < 0) return null;
+
+  const credentials = uriWithoutScheme.slice(0, credentialsEnd);
+  const hostAndPath = uriWithoutScheme.slice(credentialsEnd + 1);
+  const pathStart = hostAndPath.indexOf('/');
+  const pathAndQuery = pathStart >= 0 ? hostAndPath.slice(pathStart) : '/';
+  const separator = pathAndQuery.includes('?') ? '&' : '?';
+
+  return `mongodb://${credentials}@${seedList}${pathAndQuery}${separator}` +
+    `tls=true&authSource=admin&replicaSet=${encodeURIComponent(replicaSet)}`;
+};
+
+const connectDB = async () => {
+  console.log('Attempting to connect to database...');
+  console.log('Environment:', {
+    vercel: Boolean(process.env.VERCEL),
+    nodeEnv: process.env.NODE_ENV || 'development',
+    hasMongoUri: Boolean(process.env.MONGO_URI)
+  });
+
+  if (isConnected && mongoose.connection.readyState === 1) {
+    console.log('Using existing database connection');
+    return mongoose.connection;
+  }
+
+  const mongoUri = process.env.MONGO_URI;
+  if (!mongoUri) {
+    throw new Error('MONGO_URI is not defined in environment variables');
+  }
+
+  try {
+    console.log('Connecting to MongoDB...');
+    const connection = await connect(mongoUri);
+    console.log(`MongoDB connected: ${connection.connection.host}`);
+    return connection;
+  } catch (error) {
+    console.error(`Database failed to connect: ${error.message}`);
+
+    const atlasSeedListUri = isSrvDnsFailure(error)
+      ? buildAtlasSeedListUri(mongoUri)
+      : null;
+
+    if (!atlasSeedListUri) {
+      throw error;
     }
-}
+
+    console.warn('SRV DNS lookup failed; retrying the same Atlas cluster with its configured seed list...');
+
+    try {
+      await mongoose.disconnect();
+      const connection = await connect(atlasSeedListUri);
+      console.log(`MongoDB Atlas connected through seed list: ${connection.connection.host}`);
+      return connection;
+    } catch (seedListError) {
+      console.error(`MongoDB Atlas seed-list connection failed: ${seedListError.message}`);
+      throw seedListError;
+    }
+  }
+};
+
+const disconnectDB = async () => {
+  if (isConnected || mongoose.connection.readyState !== 0) {
+    await mongoose.disconnect();
+    isConnected = false;
+    console.log('MongoDB disconnected');
+  }
+};
 
 module.exports = { connectDB, disconnectDB };

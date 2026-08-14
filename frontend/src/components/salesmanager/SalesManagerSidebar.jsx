@@ -19,6 +19,7 @@ import {
   IconButton
 } from '@chakra-ui/react';
 import { NavLink, useLocation } from 'react-router-dom';
+import { useUserStore } from '../../store/user';
 import { 
   FiHome, 
   FiUsers, 
@@ -36,10 +37,14 @@ import {
   FiHelpCircle, 
   FiCheckCircle,
   FiClipboard,
-  FiBookOpen
+  FiBookOpen,
+  FiAlertTriangle
 } from 'react-icons/fi';
 
 const SalesManagerSidebar = ({ isCollapsed = false, onToggleSidebar }) => {
+  const currentUser = useUserStore((state) => state.currentUser);
+  const managerName = currentUser?.fullName || currentUser?.username || 'Sales Manager';
+  const managerRole = currentUser?.displayRole || currentUser?.role || 'salesmanager';
   const { colorMode } = useColorMode();
   const location = useLocation();
   
@@ -69,6 +74,8 @@ const SalesManagerSidebar = ({ isCollapsed = false, onToggleSidebar }) => {
     { name: 'Content Tracker Report', icon: FiClipboard, path: '/salesmanager/content-tracker-report' },
     { name: 'Calendar', icon: FiCalendar, path: '/salesmanager/calendar' },
     { name: 'Notice Board', icon: FiMessageSquare, path: '/salesmanager/messages' },
+    { name: 'Employee Requests', icon: FiClipboard, path: '/salesmanager/employee-requests' },
+    { name: 'My Warnings', icon: FiAlertTriangle, path: '/my-warnings' },
     { name: 'Settings', icon: FiSettings, path: '/salesmanager/settings' },
   ];
 
@@ -189,7 +196,7 @@ const SalesManagerSidebar = ({ isCollapsed = false, onToggleSidebar }) => {
             <Flex align="center">
               <Avatar 
                 size="sm" 
-                name="Sales Manager"
+                name={managerName}
                 bg={activeBg}
                 color={activeColor}
               />
@@ -201,14 +208,14 @@ const SalesManagerSidebar = ({ isCollapsed = false, onToggleSidebar }) => {
                     color={textColor}
                     isTruncated
                   >
-                    Sales Manager
+                    {managerName}
                   </Text>
                   <Text 
                     fontSize="xs" 
                     color="gray.500"
                     isTruncated
                   >
-                    Admin
+                    {managerRole}
                   </Text>
                 </Box>
               )}

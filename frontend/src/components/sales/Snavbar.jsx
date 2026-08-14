@@ -19,16 +19,18 @@ import {
   Spinner,
   Button
 } from '@chakra-ui/react';
-import { FaBell, FaUserCircle, FaMoon, FaSun, FaBars, FaCheck, FaComments } from 'react-icons/fa';
+import { FaBell, FaUserCircle, FaMoon, FaSun, FaBars, FaCheck, FaComments, FaEnvelope, FaSignOutAlt } from 'react-icons/fa';
 import NotesLauncher from '../notes/NotesLauncher';
 import ChatLauncher from '../chat/ChatLauncher';
 import { useUserStore } from '../../store/user';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { getNotifications, markNotificationAsRead, markAllNotificationsAsRead } from '../../services/notificationService';
+import { rememberReturnPath } from '../../utils/authStorage';
 
 const Snavbar = ({ onToggleSidebar }) => {
   const { colorMode, toggleColorMode } = useColorMode();
   const navigate = useNavigate();
+  const location = useLocation();
   const isMobile = useBreakpointValue({ base: true, md: false });
 
   // State for Socket.IO connection
@@ -151,13 +153,14 @@ const Snavbar = ({ onToggleSidebar }) => {
   };
 
   const handleLogout = () => {
+    rememberReturnPath(`${location.pathname}${location.search}${location.hash}`, currentUser);
     clearUser();
-    localStorage.removeItem('userToken');
-    localStorage.removeItem('userRole');
-    localStorage.removeItem('userStatus');
-    localStorage.removeItem('userName');
-    navigate('/login');
+    navigate('/login', { replace: true });
   };
+
+  const employeeName = currentUser?.fullName || currentUser?.username || 'Employee';
+  const employeeEmail = currentUser?.email || 'Email not available';
+  const employeeRole = currentUser?.jobTitle || currentUser?.displayRole || currentUser?.role || 'Employee';
 
   // Gradient background based on color mode
   const gradientBg = colorMode === 'light'
@@ -311,16 +314,24 @@ const Snavbar = ({ onToggleSidebar }) => {
             onClick={toggleColorMode}
           />
           <Menu>
-            <MenuButton>
-              <Avatar
-                name={currentUser?.username || "User"}
-                size="sm"
-                bg="teal.300"
-                icon={<FaUserCircle fontSize="20px" />}
-                cursor="pointer"
-              />
+            <MenuButton
+              as={Button}
+              variant="ghost"
+              color="white"
+              h="48px"
+              px={{ base: 1, lg: 3 }}
+              _hover={{ bg: 'whiteAlpha.200' }}
+              _active={{ bg: 'whiteAlpha.300' }}
+            >
+              <HStack spacing={2}>
+                <Avatar name={employeeName} size="sm" bg="teal.300" icon={<FaUserCircle fontSize="20px" />} />
+                <Box display={{ base: 'none', lg: 'block' }} textAlign="left" maxW="190px">
+                  <Text fontSize="sm" fontWeight="700" noOfLines={1}>{employeeName}</Text>
+                  <Text fontSize="xs" color="whiteAlpha.800" noOfLines={1}>{employeeEmail}</Text>
+                </Box>
+              </HStack>
             </MenuButton>
-            <MenuList p={0} maxW="300px">
+            <MenuList p={0} minW="320px">
               {/* Simplified Profile Header */}
               <Box 
                 px={4} 
@@ -330,58 +341,36 @@ const Snavbar = ({ onToggleSidebar }) => {
               >
                 <Flex align="center" gap={3}>
                   <Avatar 
-                    name={currentUser?.username || "User"} 
+                    name={employeeName}
                     size="md" 
                     bg="teal.500"
                   />
                   <Box>
-                    <Text fontWeight="bold" fontSize="lg">{currentUser?.username || "User"}</Text>
+                    <Text fontWeight="bold" fontSize="lg" noOfLines={1}>{employeeName}</Text>
+                    <HStack spacing={1} color="gray.600" _dark={{ color: 'gray.300' }}>
+                      <FaEnvelope fontSize="12px" />
+                      <Text fontSize="sm" noOfLines={1}>{employeeEmail}</Text>
+                    </HStack>
+                    <Badge mt={1} colorScheme="teal" textTransform="capitalize">{employeeRole}</Badge>
                   </Box>
                 </Flex>
               </Box>
               
               <MenuDivider mt={0} mb={2} />
               
-              {/* Logout Card Only */}
-              <Box 
-                px={4} 
-                pb={3}
-              >
-                {/* Logout Card */}
-                <Box 
-                  bg={colorMode === 'light' ? 'red.50' : 'red.900'}
-                  borderRadius="md"
-                  p={3}
-                  border="1px solid"
-                  borderColor={colorMode === 'light' ? 'red.200' : 'red.700'}
-                >
-                  <Flex justify="space-between" align="center">
-                    <Text fontSize="sm" fontWeight="medium">Logout</Text>
-                    <Button 
-                      size="sm" 
-                      colorScheme="red" 
-                      variant="solid"
-                      onClick={handleLogout}
-                    >
-                      Confirm Logout
-                    </Button>
-                  </Flex>
-                </Box>
-              </Box>
-              
-              <MenuDivider />
-              
-              {/* View Profile Button */}
-              <Box p={3}>
+              <Box px={3} pb={3}>
                 <Button 
                   leftIcon={<FaUserCircle />} 
                   colorScheme="teal" 
                   variant="outline" 
                   size="sm" 
                   width="full"
-                  onClick={() => navigate('/supervisor/account')}
+                  onClick={() => navigate('/employee-info')}
                 >
-                  View Profile
+                  My personal information
+                </Button>
+                <Button mt={2} leftIcon={<FaSignOutAlt />} colorScheme="red" variant="ghost" size="sm" width="full" onClick={handleLogout}>
+                  Log out
                 </Button>
               </Box>
             </MenuList>

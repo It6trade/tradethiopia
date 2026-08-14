@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "test": "node tests/finance_erp_core.test.js && node --test tests/payrollHelpers.test.js tests/payrollAttendance.test.js",
+    "test": "node tests/finance_erp_core.test.js && node --test tests/payrollHelpers.test.js tests/payrollAttendance.test.js tests/employeePersonalInfoValidation.test.js",
     "test:finance": "node tests/finance_erp_core.test.js",
     "test:finance:e2e": "node tests/finance_erp_flow.e2e.js",
     "start": "node server.js",

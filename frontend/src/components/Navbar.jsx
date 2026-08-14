@@ -1,6 +1,4 @@
-
 import {
-    Container,
     Flex,
     Text,
     HStack,
@@ -16,24 +14,65 @@ import {
     Divider,
     Badge,
     VStack,
-    useColorModeValue
+    useColorModeValue,
+    Input,
+    InputGroup,
+    InputLeftElement,
+    InputRightElement,
+    Icon,
+    Kbd,
 } from "@chakra-ui/react";
 import { BsBell, BsChat } from "react-icons/bs";
 import { IoMoon } from "react-icons/io5";
 import { SunIcon } from "@chakra-ui/icons";
-import { Link, useNavigate } from "react-router-dom";
+import { FiSearch } from "react-icons/fi";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useUserStore } from "../store/user";
 import { useEffect, useState } from "react";
 import ChatLauncher from "./chat/ChatLauncher";
 import NotificationBall from "./notifications/NotificationBall";
 
+/* ─── route → breadcrumb name map ─── */
+const routeNameMap = {
+    "/dashboard": "Overview",
+    "/users": "Account Management",
+    "/assets": "Asset Management",
+    "/attendance": "Attendance",
+    "/candidate-pool": "Recruitment",
+    "/hr-training": "Onboarding",
+    "/FollowUpList": "Follow-Up Records",
+    "/leave-management": "Leave Management",
+    "/awards": "Performance",
+    "/payroll": "Payroll",
+    "/course": "Training",
+    "/chat": "Announcements",
+    "/documentlist": "Documents",
+    "/EmployeeDocument": "Employee Documents",
+    "/employee-requests": "Employee Requests",
+    "/quiz": "Quiz Center",
+    "/resources": "Resources",
+    "/CustomerFollowUpForm": "Customer Follow-Up",
+    "/CustomerFollowup": "Customer Follow-Up",
+};
+
+const getPageName = (pathname) => {
+    // Exact match first
+    if (routeNameMap[pathname]) return routeNameMap[pathname];
+    // Prefix match
+    for (const [route, name] of Object.entries(routeNameMap)) {
+        if (pathname.startsWith(route + "/")) return name;
+    }
+    return "Dashboard";
+};
+
 const NavbarPage = ({ sidebarWidth = "0px" }) => {
     const { colorMode, toggleColorMode } = useColorMode();
-    const bg = useColorModeValue("rgba(255, 255, 255, 0.8)", "rgba(15, 23, 42, 0.85)");
+    const bg = useColorModeValue("white", "rgba(15, 23, 42, 0.95)");
     const textColor = useColorModeValue("gray.800", "gray.100");
     const borderColor = useColorModeValue("gray.200", "rgba(255,255,255,0.08)");
     const toggleLabel = colorMode === "light" ? "Switch to dark theme" : "Switch to light theme";
     const navigate = useNavigate();
+    const location = useLocation();
     const currentUser = useUserStore((state) => state.currentUser);
     const users = useUserStore((state) => state.users);
     const [notifications, setNotifications] = useState([]);
@@ -41,9 +80,7 @@ const NavbarPage = ({ sidebarWidth = "0px" }) => {
     const clearUser = useUserStore((state) => state.clearUser);
 
     const handleLogout = () => {
-        // Use the Zustand store to clear user state (also clears localStorage)
         if (typeof clearUser === 'function') clearUser();
-        // Navigate to login
         navigate('/login');
     };
 
@@ -65,11 +102,12 @@ const NavbarPage = ({ sidebarWidth = "0px" }) => {
         })),
     ];
 
+    const pageName = getPageName(location.pathname);
+
     return (
-        <Container
-            maxW="100%"
-            px={4}
-            py={2}
+        <Box
+            px={5}
+            py={0}
             bg={bg}
             color={textColor}
             zIndex="20"
@@ -77,79 +115,64 @@ const NavbarPage = ({ sidebarWidth = "0px" }) => {
             top="0"
             left={sidebarWidth}
             width={`calc(100% - ${sidebarWidth})`}
-            boxShadow="sm"
-            backdropFilter="blur(16px)"
-            transition="all 0.3s ease"
-            borderBottomWidth="1px"
+            borderBottom="1px solid"
             borderBottomColor={borderColor}
+            transition="all 0.25s ease"
         >
             <Flex
-                h="52px"
+                h="56px"
                 alignItems="center"
                 justifyContent="space-between"
-                px={3}
-                flexDir={{ base: "column", sm: "row" }}
             >
-                <Flex direction="row" alignItems="center" gap={3}>
+                {/* Left: Breadcrumb */}
+                <HStack spacing={2} flexShrink={0}>
                     <Text
-                        fontSize="18px"
-                        fontWeight="800"
-                        letterSpacing="tight"
+                        fontSize="13px"
+                        fontWeight="500"
+                        color={useColorModeValue("gray.400", "gray.500")}
+                    >
+                        HR Workspace
+                    </Text>
+                    <Text fontSize="13px" color={useColorModeValue("gray.300", "gray.600")}>/</Text>
+                    <Text
+                        fontSize="13px"
+                        fontWeight="700"
                         color={useColorModeValue("gray.800", "white")}
                     >
-                        Trade Ethiopia
+                        {pageName}
                     </Text>
-                </Flex>
-{/* Navigation Icons */}
-                <HStack spacing={4} alignItems="center">
-                    <Box display="none">
-                    <Menu>
-                        <MenuButton as={Button} variant="ghost" color={useColorModeValue("gray.600", "gray.300")}>
-                            <BsBell size="18" />
-                            {notifications.length > 0 && (
-                                <Badge ml={1} colorScheme="red" borderRadius="full">
-                                    {notifications.length}
-                                </Badge>
-                            )}
-                        </MenuButton>
-                        <MenuList p={3} minW="250px" boxShadow="lg">
-                            <Text fontWeight="bold" mb={2}>Notifications</Text>
-                            <Divider />
-                            {notifications.length === 0 ? (
-                                <Text mt={2} textAlign="center">No new notifications</Text>
-                            ) : (
-                                <VStack spacing={3} align="stretch">
-                                    {notifications.map(user => (
-                                        <Box
-                                            key={user._id}
-                                            p={2}
-                                            borderRadius="md"
-                                            bg="gray.100"
-                                            cursor="pointer"
-                                            _hover={{ bg: "gray.200" }}
-                                            onClick={() => navigateToUser(user._id)}
-                                        >
-                                            <HStack>
-                                                <Avatar size="sm" name={user.username} src={user.photoURL} />
-                                                <Box>
-                                                    <Text fontWeight="bold">{user.username}</Text>
-                                                    <Text fontSize="sm" color="gray.500">
-                                                        {user.infoStatus}
-                                                    </Text>
-                                                </Box>
-                                            </HStack>
-                                        </Box>
-                                    ))}
-                                </VStack>
-                            )}
-                        </MenuList>
-                    </Menu>
-                    </Box>
+                </HStack>
+
+                {/* Center: Global Search */}
+                <InputGroup maxW="420px" size="sm" mx={6} display={{ base: "none", md: "flex" }}>
+                    <InputLeftElement pointerEvents="none">
+                        <Icon as={FiSearch} color="gray.400" boxSize={3.5} />
+                    </InputLeftElement>
+                    <Input
+                        placeholder="Search employees, assets, documents..."
+                        borderRadius="lg"
+                        bg={useColorModeValue("gray.50", "gray.800")}
+                        border="1px solid"
+                        borderColor={useColorModeValue("gray.200", "gray.700")}
+                        fontSize="xs"
+                        _placeholder={{ color: "gray.400" }}
+                        _focus={{ borderColor: "green.400", boxShadow: "0 0 0 1px #2d6a4f" }}
+                    />
+                    <InputRightElement width="auto" pr={2}>
+                        <HStack spacing={0.5}>
+                            <Kbd fontSize="9px" bg={useColorModeValue("gray.100", "gray.700")} borderRadius="md" px={1.5} py={0.5} color="gray.500">⌘</Kbd>
+                            <Kbd fontSize="9px" bg={useColorModeValue("gray.100", "gray.700")} borderRadius="md" px={1.5} py={0.5} color="gray.500">K</Kbd>
+                        </HStack>
+                    </InputRightElement>
+                </InputGroup>
+
+                {/* Right: Actions */}
+                <HStack spacing={3} alignItems="center" flexShrink={0}>
                     <NotificationBall extraNotifications={extraNotifications} />
 
                     <ChatLauncher
-                        icon={<BsChat size="18" />}
-                        iconButtonProps={{ variant: "ghost", color: useColorModeValue("gray.600", "gray.300") }}
+                        icon={<BsChat size="16" />}
+                        iconButtonProps={{ variant: "ghost", color: useColorModeValue("gray.500", "gray.400"), size: "sm" }}
                     />
 
                     {/* User Profile Dropdown */}
@@ -157,11 +180,11 @@ const NavbarPage = ({ sidebarWidth = "0px" }) => {
                         <MenuButton cursor="pointer">
                             <HStack spacing={2}>
                                 <Avatar size="sm" name={currentUser?.username} src={currentUser?.photoURL} />
-                                <Box display={{ base: "none", md: "block" }}>
+                                <Box display={{ base: "none", lg: "block" }}>
                                     <Text fontSize="xs" fontWeight="700" lineHeight="short" color={useColorModeValue("gray.800", "white")}>
                                         {currentUser?.username}
                                     </Text>
-                                    <Badge fontSize="9px" colorScheme="blue" variant="subtle" borderRadius="full" px={1.5} textTransform="capitalize">
+                                    <Badge fontSize="9px" colorScheme="green" variant="subtle" borderRadius="full" px={1.5} textTransform="capitalize">
                                         {currentUser?.role}
                                     </Badge>
                                 </Box>
@@ -178,21 +201,20 @@ const NavbarPage = ({ sidebarWidth = "0px" }) => {
                         </MenuList>
                     </Menu>
 
-
-{/* Dark Mode Toggle */}
+                    {/* Dark Mode Toggle */}
                     <IconButton
-                        icon={colorMode === "light" ? <IoMoon size="16" /> : <SunIcon boxSize="4" />}
+                        icon={colorMode === "light" ? <IoMoon size="14" /> : <SunIcon boxSize="3.5" />}
                         onClick={toggleColorMode}
                         variant="ghost"
                         aria-label={toggleLabel}
-                        rounded="xl"
+                        rounded="lg"
                         size="sm"
                         color={useColorModeValue("gray.500", "gray.400")}
                         _hover={{ bg: useColorModeValue("gray.100", "whiteAlpha.100") }}
                     />
                 </HStack>
             </Flex>
-        </Container>
+        </Box>
     );
 };
 

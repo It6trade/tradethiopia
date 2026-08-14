@@ -8,7 +8,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "lint": "eslint .",
-    "postbuild": "node -e \"import { existsSync, readdirSync } from 'node:fs'; const dir='dist'; console.log('dist contents:', existsSync(dir)?readdirSync(dir):'missing');\""
+    "postbuild": "node -e \"const fs=require('fs'); const dir='dist'; console.log('dist contents:', fs.existsSync(dir)?fs.readdirSync(dir):'missing');\""
   },
   "dependencies": {
     "@chakra-ui/icons": "^2.2.4",

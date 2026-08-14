@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import {
     Box,
     Button,
@@ -14,9 +14,7 @@ import {
 } from '@chakra-ui/react';
 import { useUserStore } from '../store/user';
 import { useNavigate } from 'react-router-dom';
-
-const normalizeRoleValue = (value = '') =>
-    value?.toString().trim().toLowerCase().replace(/\s+/g, '');
+import axiosInstance from '../services/axiosInstance';
 
 const EmployeeFileUploadForm = () => {
     const currentUser = useUserStore((status) => status.currentUser);
@@ -49,9 +47,7 @@ const EmployeeFileUploadForm = () => {
         if (photo) formData.append('photo', photo);
         if (guarantorFile) formData.append('guarantorFile', guarantorFile);
 
-        const userId = currentUser?._id;
-
-        if (!userId) {
+        if (!currentUser?._id) {
             toast({
                 title: "Error",
                 description: "User ID is not available.",
@@ -62,47 +58,8 @@ const EmployeeFileUploadForm = () => {
             return;
         }
 
-        // Set infostatus to 'pending' before uploading
-        const updateStatusUrl = `${import.meta.env.VITE_API_URL}/api/users/${userId}`;
         try {
-            const updateResponse = await fetch(updateStatusUrl, {
-                method: "PUT",
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ infostatus: 'pending' }), // Set infostatus to pending
-            });
-
-            if (!updateResponse.ok) {
-                const errorText = await updateResponse.text();
-                console.error("Update status error:", errorText);
-                toast({
-                    title: "Error",
-                    description: "Failed to set info status to pending.",
-                    status: "error",
-                    duration: 5000,
-                    isClosable: true,
-                });
-                return; // Stop further execution if status update fails
-            }
-
-            // Proceed with file upload
-            formData.append('userId', userId);
-
-            const uploadUrl = `${import.meta.env.VITE_API_URL}/api/upload-info`;
-
-            const response = await fetch(uploadUrl, {
-                method: 'POST',
-                body: formData,
-            });
-
-            if (!response.ok) {
-                const text = await response.text();
-                console.error("Response error:", text);
-                throw new Error(`HTTP error! Status: ${response.status}`);
-            }
-
-            const result = await response.json();
+            const { data: result } = await axiosInstance.post('/upload-info', formData);
             if (result.success) {
                 toast({
                     title: "Success",
@@ -123,53 +80,7 @@ const EmployeeFileUploadForm = () => {
                         infoStatus: result.user.infoStatus
                     });
                 }
-
-                if (!updateResponse.ok) {
-                    const errorText = await updateResponse.text();
-                    console.error("Final update status error:", errorText);
-                    toast({
-                        title: "Error",
-                        description: "Failed to update info status.",
-                        status: "error",
-                        duration: 5000,
-                        isClosable: true,
-                    });
-                } else {
-                    console.log('currentUser.status:', currentUser.status);
-                    console.log('currentUser.infoStatus:', currentUser.infoStatus);
-                    
-                    if (currentUser.status === 'inactive') {
-                        navigate('/secondpage');
-                    } else {
-                        if (currentUser.infoStatus === 'active') {
-                            const normalizedRole =
-                                currentUser.normalizedRole || normalizeRoleValue(currentUser.role);
-                            // Redirect based on normalized user role
-                            switch (normalizedRole) {
-                                case 'admin':
-                                    navigate('/dashboard');
-                                    break;
-                                case 'sales':
-                                    navigate('/sdashboard');
-                                    break;
-                                case 'salesmanager':
-                                    navigate('/salesmanager');
-                                    break;
-                                case 'customerservice':
-                                    navigate('/Cdashboard');
-                                    break;
-                                case 'hr':
-                                    navigate('/hdashboard');
-                                    break;
-                                default:
-                                    navigate('/home'); // Optional: handle unknown roles
-                                    break;
-                            }
-                        } else {
-                            navigate('/waitingForApproval');
-                        }
-                    }
-                }
+                navigate('/employee-info?documentsUploaded=1', { replace: true });
             } else {
                 toast({
                     title: "Error",
@@ -183,7 +94,7 @@ const EmployeeFileUploadForm = () => {
             console.error("Error during file upload:", error);
             toast({
                 title: "Error",
-                description: "There was an error uploading your files.",
+                description: error.response?.data?.message || "There was an error uploading your files.",
                 status: "error",
                 duration: 5000,
                 isClosable: true,
@@ -214,6 +125,9 @@ const EmployeeFileUploadForm = () => {
             >
                 <Text fontSize="2xl" fontWeight="extrabold" color={textColor} mb={4}>
                     Upload Employee Files
+                </Text>
+                <Text fontSize="sm" color="gray.500" mb={5}>
+                    After uploading, you will return to the personal information form to complete and submit it for HR approval.
                 </Text>
                 <form onSubmit={handleSubmit}>
                     <VStack spacing={6} align="stretch">
@@ -253,7 +167,7 @@ const EmployeeFileUploadForm = () => {
                             size="lg"
                             borderRadius="full"
                         >
-                            Upload
+                            Upload and return to form
                         </Button>
                         <Button
                             colorScheme="gray"
@@ -262,7 +176,7 @@ const EmployeeFileUploadForm = () => {
                             borderRadius="full"
                             onClick={handleGoBack}
                         >
-                            Go Back
+                            Return to form
                         </Button>
                         <FormControl display="flex" alignItems="center" justifyContent="center" mt={4}>
                             <FormLabel htmlFor="theme-toggle" mb={0} color={textColor}>

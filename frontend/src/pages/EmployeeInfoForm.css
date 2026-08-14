@@ -1,0 +1,50 @@
+.employee-paper { display: grid; gap: 24px; font-family: Arial, Helvetica, sans-serif; }
+.paper-page { position: relative; background: #fff; border: 1px solid #dce5eb; border-radius: 18px; box-shadow: 0 12px 32px rgba(28, 54, 76, .08); padding: 34px 38px 42px; color: #263746; }
+.paper-header { padding-bottom: 18px; }
+.paper-header.compact { padding-bottom: 8px; }
+.company-logo {
+  width: min(450px, 90%);
+  height: 160px;
+  object-fit: cover;
+  object-position: center 38%;
+  display: block;
+  margin-inline: auto;
+}
+.paper-header h2 { font-family: Georgia, "Times New Roman", serif; color: #294f73; font-weight: 700; }
+.paper-section-heading { margin: 26px 0 18px; min-height: 34px; padding: 8px 14px; color: #fff; background: linear-gradient(90deg, #284d70, #3f6d92); border-radius: 3px; font-family: Georgia, "Times New Roman", serif; }
+.paper-section-heading p { font-family: Georgia, "Times New Roman", serif; }
+.paper-subheading { margin: 22px 0 12px; color: #365f7e; font-size: 12px; font-weight: 800; letter-spacing: .12em; }
+.paper-page label { font-family: Arial, Helvetica, sans-serif; font-size: 12px; }
+.paper-page input, .paper-page select, .paper-page textarea { font-family: Arial, Helvetica, sans-serif; }
+.paper-page input, .paper-page select, .paper-page textarea { background: #fff; border-color: #cdd9e2; }
+.paper-page input[readonly], .paper-page textarea[readonly] { background: #f5f8fa; color: #263746; }
+.signature-line { border-top: 1px solid #7890a3; padding-top: 10px; }
+.section-action { padding: 14px 16px; border: 1px solid #cfe3e5; border-radius: 12px; background: #f3fbfb; }
+.paper-footer { margin-top: 34px; padding-top: 10px; border-top: 1px solid #e3e9ee; color: #8a9aa8; font-size: 10px; }
+.paper-footer span { float: right; }
+@media (max-width: 767px) {
+  .paper-page { border-radius: 0; padding: 22px 18px 34px; }
+  .company-logo {
+    width: min(340px, 92%);
+    height: 125px;
+    object-fit: cover;
+    object-position: center 38%;
+  }
+}
+@media print {
+  @page { size: A4 portrait; margin: 9mm; }
+  body { background: #fff !important; }
+  body * { visibility: hidden; }
+  .employee-paper, .employee-paper * { visibility: visible; }
+  .employee-paper { position: absolute; inset: 0; display: block; }
+  .company-logo { width: 360px; height: 125px; object-fit: cover; object-position: center 38%; }
+  .screen-toolbar, .screen-only, button { display: none !important; }
+  .field-owner-badge, .field-status-badge { display: none !important; }
+  .paper-page { width: 100%; min-height: 277mm; border: 0; border-radius: 0; box-shadow: none; padding: 5mm 7mm 12mm; break-after: page; page-break-after: always; font-size: 9pt; }
+  .paper-page-two { break-after: auto; page-break-after: auto; }
+  .paper-section-heading { margin: 5mm 0 3mm; min-height: 7mm; padding: 2mm 3mm; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  .paper-page input, .paper-page select, .paper-page textarea { height: 28px !important; min-height: 28px !important; padding: 2px 6px !important; border-width: 0 0 1px !important; border-radius: 0 !important; font-size: 9pt !important; }
+  .paper-page textarea { height: 42px !important; }
+  .paper-page label, .paper-page p { font-size: 8pt !important; }
+  .paper-footer { position: absolute; bottom: 4mm; left: 7mm; right: 7mm; }
+}
