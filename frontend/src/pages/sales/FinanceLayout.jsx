@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import {
   Avatar,
   Badge,
@@ -18,7 +18,6 @@ import {
   MenuList,
   Text,
   Tooltip,
-  useBreakpointValue,
   useColorMode,
   useColorModeValue,
   useDisclosure,
@@ -32,12 +31,10 @@ import {
   FaMoon, 
   FaSun, 
   FaUserCircle, 
-  FaBars,
   FaHome,
   FaChartBar,
   FaShoppingCart,
   FaDollarSign,
-  FaTruck,
   FaUsers,
   FaClipboardList,
   FaMoneyBillWave,
@@ -45,7 +42,8 @@ import {
   FaArrowRight,
   FaCommentDots,
   FaChartLine,
-  FaExclamationTriangle
+  FaExclamationTriangle,
+  FaFileAlt
 } from 'react-icons/fa';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useUserStore } from '../../store/user';
@@ -75,7 +73,6 @@ const FinanceLayout = ({ children }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { colorMode, toggleColorMode } = useColorMode();
-  const isMobile = useBreakpointValue({ base: true, md: false });
   
   // State variables
   const [isSidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -119,6 +116,7 @@ const FinanceLayout = ({ children }) => {
     { label: 'Costs', icon: FaMoneyBillWave, path: '/finance-dashboard/costs' },
     { label: 'Payroll', icon: FaDollarSign, path: '/finance-dashboard/payroll' },
     { label: 'Commission Approved', icon: FaChartLine, path: '/finance-dashboard/commission-approval' },
+    { label: 'Forms', icon: FaFileAlt, path: '/finance-dashboard/forms' },
     { label: 'Requests', icon: FaStickyNote, path: '/finance/requests' },
     { label: 'Team Requests', icon: FaClipboardList, path: '/finance/team-requests' },
     { label: 'Notice Board', icon: FaCommentDots, path: '/finance/messages' },
@@ -181,10 +179,6 @@ const FinanceLayout = ({ children }) => {
 
   const toggleSidebar = () => {
     setSidebarCollapsed(!isSidebarCollapsed);
-  };
-
-  const isCurrentPath = (path) => {
-    return location.pathname === path;
   };
 
   const normalizedTeamRequestSeen = lastTeamRequestSeen || new Date(0);
@@ -263,7 +257,7 @@ const FinanceLayout = ({ children }) => {
 
   // Removed duplicate useEffect for active item
 
-  const SidebarItem = ({ icon, label, path, isActive, onClick, badgeLabel }) => {
+  const SidebarItem = ({ icon, label, isActive, onClick, badgeLabel }) => {
     return (
       <Tooltip label={isSidebarCollapsed ? label : ''} placement="right" hasArrow>
           <HStack
@@ -359,7 +353,7 @@ const FinanceLayout = ({ children }) => {
               />
             </HStack>
             <Divider mb={3} borderColor={borderColor} />
-                <VStack align="stretch" spacing={0.5} px={1.5} flex="1">
+                <VStack align="stretch" spacing={0.5} px={1.5} pb={2} flex="1" overflowY="auto">
                   {navItems.map((item) => (
                     <SidebarItem
                       key={item.label}
@@ -398,7 +392,7 @@ const FinanceLayout = ({ children }) => {
                 />
               </HStack>
               <Divider mb={2} borderColor={borderColor} />
-              <VStack align="stretch" spacing={0.5} px={1.5} flex="1">
+              <VStack align="stretch" spacing={0.5} px={1.5} pb={2} flex="1" overflowY="auto">
                 {navItems.map((item) => (
                   <SidebarItem
                     key={item.label}
