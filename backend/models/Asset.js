@@ -8,15 +8,9 @@ const AssetSchema = new mongoose.Schema({
   assignedTo: { type: String, required: true },
   status: { type: String, required: true, enum: ['Active', 'Inactive', 'Under Maintenance'] },
   amount: { type: Number, required: true },
-  category: { type: String, required: true, index: true },
+  category: { type: String, required: true },
   dateAcquired: { type: Date, required: true },
-  description: { type: String },
-  imageURL: { type: String },
-  warrantyExpiry: { type: Date },
-  condition: { type: String, default: "Good" },
-  assignmentHistory: { type: Array, default: [] },
-  maintenanceLog: { type: Array, default: [] },
-  documents: { type: Array, default: [] }
+  description: { type: String }
 });
 
 const Asset = mongoose.model('Asset', AssetSchema);

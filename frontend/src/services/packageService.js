@@ -35,13 +35,17 @@ export const logPackageSalesActivity = (activity) =>
 export const fetchUserProfile = (userId) => axiosInstance.get(`/users/${userId}`).then(response => response.data);
 
 // Fetch pending commissions for approval
-export const fetchPendingCommissions = () => 
-  axiosInstance.get('/commissions/pending').then(response => response.data);
+export const fetchPendingCommissions = () => axiosInstance.get('/commissions/pending').then(response => response.data);
 
 // Fetch approved commissions
-export const fetchApprovedCommissions = () => 
-  axiosInstance.get('/commissions/approved').then(response => response.data);
+export const fetchApprovedCommissions = () => axiosInstance.get('/commissions/approved').then(response => response.data);
 
 // Approve commission and add to payroll
 export const approveCommission = (commissionId, commissionData) => 
   axiosInstance.post(`/commissions/approve/${commissionId}`, commissionData).then(response => response.data);
+
+export const updatePackageSale = (id, sale) =>
+  axiosInstance.put(`/packages/sales/${id}`, sale).then(response => response.data);
+
+export const deletePackageSale = (id) =>
+  axiosInstance.delete(`/packages/sales/${id}`).then(response => response.data);

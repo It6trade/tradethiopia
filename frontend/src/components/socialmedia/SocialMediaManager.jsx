@@ -23,7 +23,13 @@ import {
   useDisclosure,
   useToast,
 } from "@chakra-ui/react";
-import axios from "axios";
+import axiosInstance from "../../services/axiosInstance";
+import {
+  fetchContentPlans,
+  createContentPlan,
+  updateContentPlan,
+  deleteContentPlan,
+} from "../../services/contentPlanService";
 import {
   FiActivity,
   FiBarChart2,
@@ -250,7 +256,7 @@ const buildTargetRow = (target) => {
    SocialMediaManager — data provider + section renderer
    ────────────────────────────────────────────── */
 
-const SocialMediaManager = ({ activeSection = "dashboard" }) => {
+const SocialMediaManager = ({ activeSection = "dashboard", setActiveSection }) => {
   const toast = useToast();
   const { isOpen: isEditOpen, onOpen: onEditOpen, onClose: onEditClose } = useDisclosure();
   const { isOpen: isKpiEditOpen, onOpen: onKpiEditOpen, onClose: onKpiEditClose } = useDisclosure();
@@ -265,10 +271,8 @@ const SocialMediaManager = ({ activeSection = "dashboard" }) => {
   const [kpiLoading, setKpiLoading] = useState(true);
   const [savingPlatform, setSavingPlatform] = useState("");
   const [savingKpiPlatform, setSavingKpiPlatform] = useState("");
-  const [posts, setPosts] = useState(() => {
-    const saved = localStorage.getItem("posts");
-    return saved ? JSON.parse(saved) : calendarSlots;
-  });
+  const [posts, setPosts] = useState([]);
+  const [plansLoading, setPlansLoading] = useState(true);
   const [weeklyReports] = useState(() => {
     const saved = localStorage.getItem("weeklyReports");
     return saved ? JSON.parse(saved) : [];
@@ -288,10 +292,28 @@ const SocialMediaManager = ({ activeSection = "dashboard" }) => {
   /* ── Persistence ── */
   useEffect(() => {
     try {
-      localStorage.setItem("posts", JSON.stringify(posts));
       localStorage.setItem("weeklyReports", JSON.stringify(weeklyReports));
     } catch (error) { console.warn("Failed to persist social media data", error); }
-  }, [posts, weeklyReports]);
+  }, [weeklyReports]);
+
+  useEffect(() => {
+    const loadPlans = async () => {
+      try {
+        setPlansLoading(true);
+        const res = await fetchContentPlans();
+        setPosts(res.data || res || []);
+      } catch (error) {
+        console.error("Failed to load content plans", error);
+      } finally {
+        setPlansLoading(false);
+      }
+    };
+    loadPlans();
+  }, []);
+
+  useEffect(() => {
+    window.dispatchEvent(new Event("contentPlansUpdated"));
+  }, [posts]);
 
   /* ── Recalc targets when date/actuals change ── */
   useEffect(() => {
@@ -356,7 +378,7 @@ const SocialMediaManager = ({ activeSection = "dashboard" }) => {
     const fetchSocialActuals = async () => {
       try {
         setTargetsLoading(true);
-        const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/social-actuals`);
+        const response = await axiosInstance.get('/social-actuals');
         setSocialActuals(Array.isArray(response.data) ? response.data : response.data?.data || []);
       } catch (error) { console.error("Failed to load social target data", error); }
       finally { setTargetsLoading(false); }
@@ -368,7 +390,7 @@ const SocialMediaManager = ({ activeSection = "dashboard" }) => {
     const fetchWeeklyKpis = async () => {
       try {
         setKpiLoading(true);
-        const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/social-weekly-kpis`);
+        const response = await axiosInstance.get('/social-weekly-kpis');
         setWeeklyKpiRecords(Array.isArray(response.data) ? response.data : response.data?.data || []);
       } catch (error) { console.error("Failed to load weekly KPI data", error); }
       finally { setKpiLoading(false); }
@@ -398,7 +420,7 @@ const SocialMediaManager = ({ activeSection = "dashboard" }) => {
     const { month, year } = getMetricPeriod(selectedDate);
     setSavingPlatform(platform);
     try {
-      const response = await axios.post(`${import.meta.env.VITE_API_URL}/api/social-actuals`, { platform, target, actual, month, year });
+      const response = await axiosInstance.post('/social-actuals', { platform, target, actual, month, year });
       upsertSocialActual(response.data);
       return response.data;
     } catch (error) {
@@ -411,7 +433,7 @@ const SocialMediaManager = ({ activeSection = "dashboard" }) => {
     const { weekStart } = getWeekWindowForDate(selectedDate);
     setSavingKpiPlatform(platform);
     try {
-      const response = await axios.post(`${import.meta.env.VITE_API_URL}/api/social-weekly-kpis`, { platform, date: weekStart, videos, graphics, views, likes, shares });
+      const response = await axiosInstance.post('/social-weekly-kpis', { platform, date: weekStart, videos, graphics, views, likes, shares });
       upsertWeeklyKpi(response.data);
       return response.data;
     } catch (error) {
@@ -483,12 +505,47 @@ const SocialMediaManager = ({ activeSection = "dashboard" }) => {
     } catch { toast({ title: "Reopen failed", status: "error", duration: 3500, isClosable: true }); }
   };
 
-  const togglePostCompletion = (index) => {
-    setPosts((prev) => prev.map((post, i) => (i === index ? { ...post, completed: !post.completed } : post)));
+  const handleAddPost = async (newPost) => {
+    try {
+      const res = await createContentPlan(newPost);
+      setPosts((prev) => [...prev, res.data || res]);
+      toast({ title: "Plan created successfully", status: "success", duration: 3000, isClosable: true });
+    } catch (err) {
+      console.error("Failed to create content plan", err);
+      toast({ title: "Failed to create content plan", status: "error", duration: 3500, isClosable: true });
+    }
   };
 
-  const handleAddPost = (newPost) => {
-    setPosts((prev) => [...prev, newPost]);
+  const handleUpdatePost = async (id, updatedFields) => {
+    try {
+      const res = await updateContentPlan(id, updatedFields);
+      setPosts((prev) => prev.map((post) => (post._id === id || post.id === id ? (res.data || res) : post)));
+      if (updatedFields.scheduledDate) {
+        toast({ title: "Plan rescheduled", status: "success", duration: 2000, isClosable: true });
+      } else if (updatedFields.completed !== undefined) {
+        toast({
+          title: updatedFields.completed ? "Plan marked complete" : "Plan reopened",
+          description: updatedFields.completed ? "Synced to Post Tracker" : "Removed from Post Tracker",
+          status: "success",
+          duration: 3000,
+          isClosable: true
+        });
+      }
+    } catch (err) {
+      console.error("Failed to update content plan", err);
+      toast({ title: "Failed to update content plan", status: "error", duration: 3500, isClosable: true });
+    }
+  };
+
+  const handleDeletePost = async (id) => {
+    try {
+      await deleteContentPlan(id);
+      setPosts((prev) => prev.filter((post) => post._id !== id && post.id !== id));
+      toast({ title: "Plan deleted successfully", status: "success", duration: 3000, isClosable: true });
+    } catch (err) {
+      console.error("Failed to delete content plan", err);
+      toast({ title: "Failed to delete content plan", status: "error", duration: 3500, isClosable: true });
+    }
   };
 
   /* ── Section renderer ── */
@@ -504,8 +561,8 @@ const SocialMediaManager = ({ activeSection = "dashboard" }) => {
             posts={posts}
             weekRange={weekRange}
             selectedDate={selectedDate}
-            onNewPost={onNewPostOpen}
-            loading={targetsLoading}
+            onNewPost={() => setActiveSection("planner")}
+            loading={targetsLoading || plansLoading}
           />
         );
       case "targets":
@@ -522,6 +579,7 @@ const SocialMediaManager = ({ activeSection = "dashboard" }) => {
             targetsLoading={targetsLoading}
             savingPlatform={savingPlatform}
             dashboardSummary={dashboardSummary}
+            setActiveSection={setActiveSection}
           />
         );
       case "kpis":
@@ -544,7 +602,8 @@ const SocialMediaManager = ({ activeSection = "dashboard" }) => {
             selectedDate={selectedDate}
             onDateChange={handleDateChange}
             onAddPost={handleAddPost}
-            onToggleCompletion={togglePostCompletion}
+            onUpdatePost={handleUpdatePost}
+            onDeletePost={handleDeletePost}
           />
         );
       case "analytics":
@@ -591,8 +650,8 @@ const SocialMediaManager = ({ activeSection = "dashboard" }) => {
         <ModalContent borderRadius="16px" boxShadow="0 12px 36px rgba(15,23,42,0.2)">
           <ModalHeader>
             <VStack align="start" spacing={0.5}>
-              <Text fontSize="md" fontWeight="800">Edit {editingPlatform || "Platform"} Points</Text>
-              <Text fontSize="xs" color={muted}>Update the weekly target and actual counts centrally.</Text>
+              <Text fontSize="md" fontWeight="800">Edit {editingPlatform || "Platform"} Target</Text>
+              <Text fontSize="xs" color={muted}>Update the weekly target count centrally. Actual posts are tracked automatically.</Text>
             </VStack>
           </ModalHeader>
           <ModalCloseButton />
@@ -605,12 +664,14 @@ const SocialMediaManager = ({ activeSection = "dashboard" }) => {
                   <NumberInputStepper><NumberIncrementStepper /><NumberDecrementStepper /></NumberInputStepper>
                 </NumberInput>
               </FormControl>
-              <FormControl size="sm">
-                <FormLabel fontSize="xs" mb={1}>Actual</FormLabel>
-                <NumberInput size="sm" min={0} value={editForm.actual} onChange={(_, v) => setEditForm((p) => ({ ...p, actual: Number.isNaN(v) ? 0 : v }))} clampValueOnBlur>
-                  <NumberInputField borderRadius="10px" borderColor={surfaceBorder} fontSize="xs" />
-                  <NumberInputStepper><NumberIncrementStepper /><NumberDecrementStepper /></NumberInputStepper>
+              <FormControl size="sm" isDisabled>
+                <FormLabel fontSize="xs" mb={1} color="gray.500">Actual Posts (Calculated Automatically)</FormLabel>
+                <NumberInput size="sm" isReadOnly value={editForm.actual}>
+                  <NumberInputField borderRadius="10px" borderColor={surfaceBorder} fontSize="xs" bg="gray.50" />
                 </NumberInput>
+                <Text fontSize="10px" color="gray.500" mt={1}>
+                  This count updates in real time based on approved posts in the Post Tracker.
+                </Text>
               </FormControl>
             </VStack>
           </ModalBody>

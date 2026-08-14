@@ -13,7 +13,7 @@ import {
   Avatar,
   useToast,
 } from "@chakra-ui/react";
-import { FiHome, FiClipboard, FiBell, FiLogOut, FiBook, FiMessageSquare, FiAlertTriangle } from "react-icons/fi";
+import { FiHome, FiClipboard, FiBell, FiLogOut, FiBook, FiMessageSquare } from "react-icons/fi";
 import { Link, useNavigate, Outlet } from "react-router-dom";
 import { useUserStore } from "../../store/user";
 import NotesLauncher from "../notes/NotesLauncher";
@@ -23,7 +23,6 @@ const navItems = [
   { label: "Dashboard", icon: FiHome, to: "/instructor/dashboard" },
   { label: "Request", icon: FiClipboard, to: "/instructor/request" },
   { label: "Notice Board", icon: FiBell, to: "/instructor/notice-board" },
-  { label: "My Warnings", icon: FiAlertTriangle, to: "/my-warnings" },
 ];
 
 const InstructorLayout = ({ children }) => {

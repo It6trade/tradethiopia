@@ -1,6 +1,6 @@
 const express = require("express");
 const { createPackage, listPackages, getPackageByNumber, getPackageAnalytics, updatePackage, deletePackage } = require("../controllers/packageController");
-const { getPackageSales, getPackageSalesCommissions } = require("../controllers/packageSalesController");
+const { getPackageSales, getPackageSalesCommissions } = require("../sales/controllers/packageSalesController");
 
 const router = express.Router();
 

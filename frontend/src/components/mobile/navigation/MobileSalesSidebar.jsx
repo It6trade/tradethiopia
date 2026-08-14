@@ -33,9 +33,8 @@ import {
   FiUsers,
   FiX
 } from 'react-icons/fi';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useUserStore } from '../../../store/user';
-import { rememberReturnPath } from '../../../utils/authStorage';
 
 const theme = {
   navy: '#001f4d',
@@ -130,14 +129,12 @@ const MobileSalesSidebar = ({ isOpen, onClose, activeItem, onNavigate }) => {
   const currentUser = useUserStore((state) => state.currentUser);
   const clearUser = useUserStore((state) => state.clearUser);
   const navigate = useNavigate();
-  const location = useLocation();
 
   const fullName = clean(
     currentUser?.fullName || currentUser?.name || currentUser?.username || localStorage.getItem('userName'),
     'Sales User'
   );
   const role = roleLabel(currentUser?.jobTitle || currentUser?.position || currentUser?.displayRole || currentUser?.role);
-  const email = clean(currentUser?.email, 'Email not available');
 
   const goTo = (value) => {
     onNavigate(value);
@@ -145,7 +142,6 @@ const MobileSalesSidebar = ({ isOpen, onClose, activeItem, onNavigate }) => {
   };
 
   const logout = () => {
-    rememberReturnPath(`${location.pathname}${location.search}${location.hash}`, currentUser);
     clearUser();
     onClose();
     navigate('/login', { replace: true });
@@ -194,7 +190,6 @@ const MobileSalesSidebar = ({ isOpen, onClose, activeItem, onNavigate }) => {
               <Box minW={0}>
                 <Text fontSize="15px" fontWeight="900" noOfLines={1}>{fullName}</Text>
                 <Text fontSize="11px" color="whiteAlpha.800" fontWeight="800" noOfLines={1}>{role}</Text>
-                <Text fontSize="10px" color="whiteAlpha.700" noOfLines={1}>{email}</Text>
               </Box>
             </HStack>
 

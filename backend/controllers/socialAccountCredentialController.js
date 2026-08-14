@@ -8,32 +8,44 @@ const normalizeSocialPlatforms = (value) => {
 const syncEmailSocialAccounts = async (payload) => {
   if (payload.platform !== 'Email' || !payload.socialPlatforms.length) return [];
 
-  const socialPayload = {
-    employeeFullName: payload.employeeFullName,
-    accountName: payload.accountName,
-    email: payload.email,
-    phoneNumber: payload.phoneNumber,
-    password: payload.password,
-    notes: payload.notes,
-    active: payload.active,
-    socialPlatforms: [],
-  };
-
   return Promise.all(
     payload.socialPlatforms
       .filter((platform) => platform && platform !== 'Email')
-      .map((platform) =>
-        SocialAccountCredential.findOneAndUpdate(
-          { platform, accountName: payload.accountName },
-          { $set: { ...socialPayload, platform } },
-          {
-            new: true,
-            runValidators: true,
-            setDefaultsOnInsert: true,
-            upsert: true,
-          }
-        )
-      )
+      .map(async (platform) => {
+        const existing = await SocialAccountCredential.findOne({ platform, accountName: payload.accountName });
+        
+        if (existing) {
+          // If the account already exists, we preserve its specific email, password, and phone number
+          // so that they can be managed and vary independently from the primary email credentials.
+          existing.employeeFullName = payload.employeeFullName;
+          existing.active = payload.active;
+          if (!existing.email) existing.email = payload.email;
+          if (!existing.password) existing.password = payload.password;
+          if (!existing.phoneNumber) existing.phoneNumber = payload.phoneNumber;
+          return existing.save();
+        } else {
+          // If it doesn't exist, create it with the email account's details as default values
+          const newDoc = new SocialAccountCredential({
+            platform,
+            employeeFullName: payload.employeeFullName,
+            accountName: payload.accountName,
+            email: payload.email,
+            phoneNumber: payload.phoneNumber,
+            password: payload.password,
+            notes: payload.notes,
+            active: payload.active,
+            pageId: payload.pageId,
+            accessToken: payload.accessToken,
+            isConnected: payload.isConnected,
+            instagramBusinessAccountId: payload.instagramBusinessAccountId,
+            whatsappPhoneNumberId: payload.whatsappPhoneNumberId,
+            whatsappBusinessAccountId: payload.whatsappBusinessAccountId,
+            linkedinUrn: payload.linkedinUrn,
+            socialPlatforms: [],
+          });
+          return newDoc.save();
+        }
+      })
   );
 };
 
@@ -58,6 +70,13 @@ exports.createSocialAccountCredential = async (req, res) => {
       socialPlatforms: normalizeSocialPlatforms(req.body.socialPlatforms),
       notes: (req.body.notes || '').trim(),
       active: req.body.active !== false,
+      pageId: (req.body.pageId || '').trim(),
+      accessToken: (req.body.accessToken || '').trim(),
+      isConnected: req.body.isConnected === true,
+      instagramBusinessAccountId: (req.body.instagramBusinessAccountId || '').trim(),
+      whatsappPhoneNumberId: (req.body.whatsappPhoneNumberId || '').trim(),
+      whatsappBusinessAccountId: (req.body.whatsappBusinessAccountId || '').trim(),
+      linkedinUrn: (req.body.linkedinUrn || '').trim(),
     };
 
     if (!payload.platform || !payload.accountName) {
@@ -84,6 +103,13 @@ exports.syncEmailSocialAccount = async (req, res) => {
       socialPlatforms: normalizeSocialPlatforms(req.body.socialPlatforms),
       notes: (req.body.notes || '').trim(),
       active: req.body.active !== false,
+      pageId: (req.body.pageId || '').trim(),
+      accessToken: (req.body.accessToken || '').trim(),
+      isConnected: req.body.isConnected === true,
+      instagramBusinessAccountId: (req.body.instagramBusinessAccountId || '').trim(),
+      whatsappPhoneNumberId: (req.body.whatsappPhoneNumberId || '').trim(),
+      whatsappBusinessAccountId: (req.body.whatsappBusinessAccountId || '').trim(),
+      linkedinUrn: (req.body.linkedinUrn || '').trim(),
     };
 
     if (!payload.accountName || !payload.socialPlatforms.length) {
@@ -109,6 +135,13 @@ exports.updateSocialAccountCredential = async (req, res) => {
       socialPlatforms: normalizeSocialPlatforms(req.body.socialPlatforms),
       notes: (req.body.notes || '').trim(),
       active: req.body.active !== false,
+      pageId: (req.body.pageId || '').trim(),
+      accessToken: (req.body.accessToken || '').trim(),
+      isConnected: req.body.isConnected === true,
+      instagramBusinessAccountId: (req.body.instagramBusinessAccountId || '').trim(),
+      whatsappPhoneNumberId: (req.body.whatsappPhoneNumberId || '').trim(),
+      whatsappBusinessAccountId: (req.body.whatsappBusinessAccountId || '').trim(),
+      linkedinUrn: (req.body.linkedinUrn || '').trim(),
     };
 
     if (!payload.platform || !payload.accountName) {

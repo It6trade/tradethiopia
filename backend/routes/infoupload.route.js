@@ -3,7 +3,6 @@ const User = require('../models/user.model.js');
 const upload = require('../multerConfig');
 const { storage: appwriteStorage } = require('../config/appwriteClient');
 const { File } = require('node-fetch-native-with-agent'); // Import File class like in document routes
-const { protect } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -16,15 +15,16 @@ function generateAppwriteFileUrl(fileId) {
 // Define the upload route for photo and guarantor file
 router.post(
   '/upload-info',
-  protect,
   upload.fields([{ name: 'photo' }, { name: 'guarantorFile' }]),
   async (req, res) => {
     try {
-      const userId = req.user._id;
-      const { photo, guarantorFile } = req.files || {};
+      const userId = req.body.userId;
+      const { photo, guarantorFile } = req.files;
 
-      if ((!photo || !photo[0]) && (!guarantorFile || !guarantorFile[0])) {
-        return res.status(400).json({ success: false, message: 'Select at least one file to upload.' });
+      if (!userId) {
+        return res
+          .status(400)
+          .json({ success: false, message: 'User ID is required.' });
       }
 
       const user = await User.findById(userId);
@@ -70,8 +70,10 @@ router.post(
         user.guarantorFile = appwriteGuarantorId;
       }
 
-      // Uploading evidence does not complete or approve the employee record.
-      // Only HR's personal-information decision may advance infoStatus.
+      if ((photo && photo[0]) || (guarantorFile && guarantorFile[0])) {
+        user.infoStatus = 'completed';
+      }
+
       await user.save();
 
       res.status(200).json({
@@ -84,7 +86,6 @@ router.post(
           guarantorFile: user.guarantorFile,
           guarantorFileUrl: generateAppwriteFileUrl(user.guarantorFile),
           infoStatus: user.infoStatus,
-          personalInformationStatus: user.personalInformation?.status || 'draft',
         },
       });
     } catch (error) {

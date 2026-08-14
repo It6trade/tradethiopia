@@ -10,14 +10,14 @@ const AppLayout = ({ children }) => {
     setIsSidebarCollapsed(!isSidebarCollapsed);
   };
 
-  const sidebarWidth = isSidebarCollapsed ? "60px" : "220px";
+  const sidebarWidth = isSidebarCollapsed ? "50px" : "200px";
   const contentWidth = `calc(100% - ${sidebarWidth})`;
 
   return (
       <Flex direction="column" minHeight="100vh">
       <NavbarPage sidebarWidth={sidebarWidth} />
       
-      <Flex flex="1" mt="56px">
+      <Flex flex="1" mt="52px">
         <Sidebar 
           isCollapsed={isSidebarCollapsed}
           onToggleCollapse={handleToggleCollapse}

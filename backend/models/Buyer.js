@@ -48,6 +48,11 @@ const BuyerSchema = new mongoose.Schema({
     ref: 'User',
     required: false,
   },
+  kpiPoint: {
+    type: Number,
+    default: 1,
+    min: 0,
+  },
   // Add packages field for tracking purchased packages
   packages: [{
     packageName: String,

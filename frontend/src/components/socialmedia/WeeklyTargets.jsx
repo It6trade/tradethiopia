@@ -67,6 +67,7 @@ const WeeklyTargets = ({
   targetsLoading = false,
   savingPlatform = "",
   dashboardSummary = {},
+  setActiveSection,
 }) => {
   const { surfaceBorder, muted, softBg, primaryButton, outlineButton, progressTrack } = useSocialStyles();
 
@@ -78,7 +79,7 @@ const WeeklyTargets = ({
     );
   }
 
-  const columns = ["Platform", "Active Week", "Weekly Target", "Posted", "Remaining", "Status", "Actual", "Progress", "Edit", "Actions"];
+  const columns = ["Platform", "Active Week", "Weekly Target", "Posted", "Remaining", "Status", "Progress", "Edit", "Actions"];
 
   const renderMobileCard = (row) => {
     const progress = row.progress || 0;
@@ -145,26 +146,24 @@ const WeeklyTargets = ({
               Edit
             </Button>
             {row.completed ? (
-              <Button
-                size="xs"
-                variant="outline"
-                borderRadius="8px"
-                isLoading={savingPlatform === row.platform}
-                onClick={() => onReopenTask(row.platform)}
-                {...outlineButton}
-              >
-                Reopen
-              </Button>
+              <Badge colorScheme="green" variant="subtle" px={2.5} py={1} borderRadius="8px" fontSize="xs" display="flex" alignSelf="center">
+                ✓ Achieved
+              </Badge>
             ) : (
               <Button
                 size="xs"
-                colorScheme="green"
-                leftIcon={<CheckIcon />}
+                colorScheme="teal"
+                variant="solid"
+                leftIcon={<AddIcon fontSize="9px" />}
                 borderRadius="8px"
-                isLoading={savingPlatform === row.platform}
-                onClick={() => onCompleteTask(row.platform)}
+                onClick={() => {
+                  localStorage.setItem("sm_auto_add_post_platform", row.platform);
+                  if (setActiveSection) {
+                    setActiveSection("postTracker");
+                  }
+                }}
               >
-                Done
+                Add Post
               </Button>
             )}
           </HStack>
@@ -201,7 +200,6 @@ const WeeklyTargets = ({
         <Td {...cellProps}><Text fontWeight="700" fontSize="xs">{row.posted}</Text></Td>
         <Td {...cellProps}><Text color={muted} fontSize="xs">{row.remaining}</Text></Td>
         <Td {...cellProps}><StatusPill status={row.completed ? "COMPLETED" : getStatusInfo(progress).status} colorScheme={colorScheme} /></Td>
-        <Td {...cellProps}><Text fontWeight="700" fontSize="xs">{row.actual}</Text></Td>
         <Td {...cellProps} minW="140px">
           <VStack align="stretch" spacing={1}>
             <HStack justify="space-between">
@@ -216,9 +214,26 @@ const WeeklyTargets = ({
         </Td>
         <Td {...cellProps}>
           {row.completed ? (
-            <Button size="xs" variant="outline" h="24px" borderRadius="8px" isLoading={savingPlatform === row.platform} onClick={() => onReopenTask(row.platform)} {...outlineButton}>Reopen</Button>
+            <Badge colorScheme="green" variant="subtle" px={2.5} py={1} borderRadius="8px" fontSize="xs" display="inline-block">
+              ✓ Achieved
+            </Badge>
           ) : (
-            <Button size="xs" colorScheme="green" h="24px" leftIcon={<CheckIcon />} borderRadius="8px" isLoading={savingPlatform === row.platform} onClick={() => onCompleteTask(row.platform)}>Complete</Button>
+            <Button
+              size="xs"
+              colorScheme="teal"
+              variant="solid"
+              h="24px"
+              leftIcon={<AddIcon fontSize="9px" />}
+              borderRadius="8px"
+              onClick={() => {
+                localStorage.setItem("sm_auto_add_post_platform", row.platform);
+                if (setActiveSection) {
+                  setActiveSection("postTracker");
+                }
+              }}
+            >
+              Add Post
+            </Button>
           )}
         </Td>
       </Tr>

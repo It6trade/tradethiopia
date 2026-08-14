@@ -32,7 +32,6 @@ const Esidebar = () => {
                 <Text fontSize="md" color={textColor}>Username: {currentUser?.username || 'N/A'}</Text>
                 <Text fontSize="md" color={textColor}>Role: {currentUser?.role || 'N/A'}</Text>
                 <Button as={RouterLink} to="/awards" variant="ghost" size="sm">Awards</Button>
-                <Button as={RouterLink} to="/candidate-pool" variant="ghost" size="sm">Candidate Pool</Button>
                 <Button colorScheme="teal" onClick={handleLogout}>
                     Logout
                 </Button>
@@ -42,4 +41,3 @@ const Esidebar = () => {
 };
 
 export default Esidebar;
-

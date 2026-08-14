@@ -160,49 +160,49 @@ export default function SocialMediaActivationsManager() {
   };
 
   const renderStatusBadge = (isActive) => (
-    <Badge borderRadius="full" px={2.5} py={1} colorScheme={isActive ? "green" : "gray"} variant="subtle">
+    <Badge borderRadius="full" px={2} py={0.5} fontSize="10px" colorScheme={isActive ? "green" : "gray"} variant="subtle">
       {isActive ? "Active" : "Deactive"}
     </Badge>
   );
 
   return (
     <VStack align="stretch" spacing={6}>
-      <SimpleGrid columns={{ base: 1, md: 3 }} spacing={4}>
+      <SimpleGrid columns={{ base: 1, md: 3 }} spacing={3}>
         <SurfaceCard>
-          <Box p={5}>
+          <Box p={3.5}>
             <Stat>
               <HStack justify="space-between">
                 <Box>
-                  <StatLabel color={muted}>All accounts</StatLabel>
-                  <StatNumber>{summary.total}</StatNumber>
+                  <StatLabel fontSize="xs" color={muted}>All accounts</StatLabel>
+                  <StatNumber fontSize="xl">{summary.total}</StatNumber>
                 </Box>
-                <Icon as={FiGlobe} boxSize={6} color="#2563EB" />
+                <Icon as={FiGlobe} boxSize={5} color="#2563EB" />
               </HStack>
             </Stat>
           </Box>
         </SurfaceCard>
         <SurfaceCard>
-          <Box p={5}>
+          <Box p={3.5}>
             <Stat>
               <HStack justify="space-between">
                 <Box>
-                  <StatLabel color={muted}>Active</StatLabel>
-                  <StatNumber>{summary.active}</StatNumber>
+                  <StatLabel fontSize="xs" color={muted}>Active</StatLabel>
+                  <StatNumber fontSize="xl">{summary.active}</StatNumber>
                 </Box>
-                <Icon as={FiCheckCircle} boxSize={6} color="#16A34A" />
+                <Icon as={FiCheckCircle} boxSize={5} color="#16A34A" />
               </HStack>
             </Stat>
           </Box>
         </SurfaceCard>
         <SurfaceCard>
-          <Box p={5}>
+          <Box p={3.5}>
             <Stat>
               <HStack justify="space-between">
                 <Box>
-                  <StatLabel color={muted}>Deactive</StatLabel>
-                  <StatNumber>{summary.deactive}</StatNumber>
+                  <StatLabel fontSize="xs" color={muted}>Deactive</StatLabel>
+                  <StatNumber fontSize="xl">{summary.deactive}</StatNumber>
                 </Box>
-                <Icon as={FiSlash} boxSize={6} color="#64748B" />
+                <Icon as={FiSlash} boxSize={5} color="#64748B" />
               </HStack>
             </Stat>
           </Box>
@@ -221,28 +221,30 @@ export default function SocialMediaActivationsManager() {
 
       <SurfaceCard>
         <Box p={{ base: 4, md: 5 }}>
-          <SimpleGrid columns={{ base: 1, md: 3 }} spacing={3} mb={5}>
-            <InputGroup>
-              <InputLeftElement pointerEvents="none">
-                <SearchIcon color={muted} />
+          <SimpleGrid columns={{ base: 1, md: 3 }} spacing={3} mb={4}>
+            <InputGroup size="sm">
+              <InputLeftElement pointerEvents="none" h="100%">
+                <SearchIcon color={muted} boxSize={3} />
               </InputLeftElement>
               <Input
                 value={searchTerm}
                 onChange={(event) => setSearchTerm(event.target.value)}
                 placeholder="Search platform, user, email"
-                borderRadius="16px"
+                borderRadius="10px"
                 borderColor={borderColor}
                 bg={inputBg}
+                h="34px"
+                fontSize="xs"
               />
             </InputGroup>
-            <Select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} borderRadius="16px" borderColor={borderColor} bg={inputBg}>
+            <Select size="sm" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} borderRadius="10px" borderColor={borderColor} bg={inputBg} h="34px" fontSize="xs">
               {statusOptions.map((option) => (
                 <option key={option.value} value={option.value}>
                   {option.label}
                 </option>
               ))}
             </Select>
-            <Select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)} borderRadius="16px" borderColor={borderColor} bg={inputBg}>
+            <Select size="sm" value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)} borderRadius="10px" borderColor={borderColor} bg={inputBg} h="34px" fontSize="xs">
               {accountTypeOptions.map((option) => (
                 <option key={option.value} value={option.value}>
                   {option.label}
@@ -258,34 +260,35 @@ export default function SocialMediaActivationsManager() {
             </HStack>
           ) : filteredAccounts.length ? (
             <>
-              <VStack display={{ base: "flex", md: "none" }} align="stretch" spacing={3}>
+              <VStack display={{ base: "flex", md: "none" }} align="stretch" spacing={2.5}>
                 {filteredAccounts.map((account) => {
                   const isActive = account.active !== false;
                   return (
-                    <Box key={account._id} p={4} borderWidth="1px" borderColor={borderColor} borderRadius="18px" bg={tableRowBg}>
+                    <Box key={account._id} p={3} borderWidth="1px" borderColor={borderColor} borderRadius="14px" bg={tableRowBg}>
                       <HStack justify="space-between" align="start" spacing={3}>
                         <Box minW={0}>
-                          <Text fontWeight="800" noOfLines={1}>
+                          <Text fontSize="sm" fontWeight="700" noOfLines={1}>
                             {account.platform || "Other"}
                           </Text>
-                          <Text fontSize="sm" color={muted} noOfLines={1}>
+                          <Text fontSize="xs" color={muted} noOfLines={1}>
                             {account.accountName}
                           </Text>
                         </Box>
                         {renderStatusBadge(isActive)}
                       </HStack>
-                      <VStack align="stretch" spacing={2} mt={4}>
-                        <Text fontSize="sm" color={muted}>
-                          Assigned to: <Text as="span" color="inherit" fontWeight="700">{account.employeeFullName || "-"}</Text>
+                      <VStack align="stretch" spacing={2} mt={3}>
+                        <Text fontSize="xs" color={muted}>
+                          Assigned to: <Text as="span" color="inherit" fontWeight="600">{account.employeeFullName || "-"}</Text>
                         </Text>
-                        <Text fontSize="sm" color={muted}>
-                          Email: <Text as="span" color="inherit" fontWeight="700">{account.email || "-"}</Text>
+                        <Text fontSize="xs" color={muted}>
+                          Email: <Text as="span" color="inherit" fontWeight="600">{account.email || "-"}</Text>
                         </Text>
-                        <HStack justify="space-between">
-                          <Text fontSize="sm" fontWeight="700">
+                        <HStack justify="space-between" pt={1}>
+                          <Text fontSize="xs" fontWeight="700">
                             {isActive ? "Activated" : "Deactivated"}
                           </Text>
                           <Switch
+                            size="sm"
                             colorScheme="green"
                             isChecked={isActive}
                             isDisabled={updatingId === account._id}
@@ -299,23 +302,23 @@ export default function SocialMediaActivationsManager() {
               </VStack>
 
               <Box display={{ base: "none", md: "block" }} overflowX="auto">
-                <Table variant="unstyled" sx={{ borderCollapse: "separate", borderSpacing: "0 10px" }}>
+                <Table variant="unstyled" sx={{ borderCollapse: "separate", borderSpacing: "0 6px" }}>
                   <Thead>
                     <Tr>
                       {["Platform", "Account", "Assigned User", "Email", "Phone", "Status", "Activation"].map((heading) => (
                         <Th
                           key={heading}
                           px={4}
-                          py={3}
-                          fontSize="11px"
+                          py={2}
+                          fontSize="10px"
                           textTransform="uppercase"
                           letterSpacing="0.12em"
                           color={muted}
                           bg={tableHeaderBg}
-                          borderYWidth="1px"
+                          borderY="1px"
                           borderColor={borderColor}
-                          _first={{ borderLeftWidth: "1px", borderLeftRadius: "16px" }}
-                          _last={{ borderRightWidth: "1px", borderRightRadius: "16px" }}
+                          _first={{ borderLeftWidth: "1px", borderLeftRadius: "12px" }}
+                          _last={{ borderRightWidth: "1px", borderRightRadius: "12px" }}
                         >
                           {heading}
                         </Th>
@@ -326,48 +329,51 @@ export default function SocialMediaActivationsManager() {
                     {filteredAccounts.map((account) => {
                       const isActive = account.active !== false;
                       return (
-                        <Tr key={account._id} bg={tableRowBg} transition="all 0.2s ease" _hover={{ bg: tableHover, transform: "translateY(-1px)" }}>
-                          <Td px={4} py={4} borderYWidth="1px" borderColor={borderColor} _first={{ borderLeftWidth: "1px", borderLeftRadius: "18px" }}>
+                        <Tr key={account._id} bg={tableRowBg} transition="all 0.15s ease" _hover={{ bg: tableHover, transform: "translateY(-0.5px)", boxShadow: "0 6px 18px rgba(15,23,42,0.02)" }}>
+                          <Td px={4} py={2} borderY="1px" borderColor={borderColor} _first={{ borderLeftWidth: "1px", borderLeftRadius: "14px" }}>
                             <HStack spacing={2}>
-                              <Icon as={getAccountType(account.platform) === "email" ? FiMail : FiGlobe} color={muted} />
-                              <Text fontWeight="800">{account.platform || "Other"}</Text>
+                              <Icon as={getAccountType(account.platform) === "email" ? FiMail : FiGlobe} color={muted} boxSize={3.5} />
+                              <Text fontSize="sm" fontWeight="700">{account.platform || "Other"}</Text>
                             </HStack>
                           </Td>
-                          <Td px={4} py={4} borderYWidth="1px" borderColor={borderColor}>
-                            <Text fontWeight="700">{account.accountName}</Text>
-                            {account.notes ? <Text mt={1} fontSize="sm" color={muted}>{account.notes}</Text> : null}
+                          <Td px={4} py={2} borderY="1px" borderColor={borderColor}>
+                            <Text fontSize="sm" fontWeight="600">{account.accountName}</Text>
+                            {account.notes ? <Text mt={0.5} fontSize="xs" color={muted}>{account.notes}</Text> : null}
                           </Td>
-                          <Td px={4} py={4} borderYWidth="1px" borderColor={borderColor}>
-                            <Text fontWeight="700">{account.employeeFullName || "-"}</Text>
+                          <Td px={4} py={2} borderY="1px" borderColor={borderColor}>
+                            <Text fontSize="sm" fontWeight="600">{account.employeeFullName || "-"}</Text>
                           </Td>
-                          <Td px={4} py={4} borderYWidth="1px" borderColor={borderColor}>
-                            <Text>{account.email || "-"}</Text>
+                          <Td px={4} py={2} borderY="1px" borderColor={borderColor}>
+                            <Text fontSize="xs" color={muted}>{account.email || "-"}</Text>
                           </Td>
-                          <Td px={4} py={4} borderYWidth="1px" borderColor={borderColor}>
+                          <Td px={4} py={2} borderY="1px" borderColor={borderColor}>
                             <HStack spacing={2}>
-                              <Icon as={FiPhone} color={muted} />
-                              <Text>{account.phoneNumber || "-"}</Text>
+                              <Icon as={FiPhone} color={muted} boxSize={3.5} />
+                              <Text fontSize="xs" color={muted}>{account.phoneNumber || "-"}</Text>
                             </HStack>
                           </Td>
-                          <Td px={4} py={4} borderYWidth="1px" borderColor={borderColor}>
+                          <Td px={4} py={2} borderY="1px" borderColor={borderColor}>
                             {renderStatusBadge(isActive)}
                           </Td>
-                          <Td px={4} py={4} borderYWidth="1px" borderColor={borderColor} _last={{ borderRightWidth: "1px", borderRightRadius: "18px" }}>
+                          <Td px={4} py={2} borderY="1px" borderColor={borderColor} _last={{ borderRightWidth: "1px", borderRightRadius: "14px" }}>
                             <HStack spacing={3}>
                               <Switch
+                                size="sm"
                                 colorScheme="green"
                                 isChecked={isActive}
                                 isDisabled={updatingId === account._id}
                                 onChange={(event) => handleActivationChange(account, event.target.checked)}
                               />
                               <Button
-                                size="sm"
-                                borderRadius="14px"
-                                leftIcon={<Icon as={FiPower} />}
+                                size="xs"
+                                borderRadius="10px"
+                                leftIcon={<Icon as={FiPower} boxSize={3} />}
                                 colorScheme={isActive ? "gray" : "green"}
                                 variant={isActive ? "outline" : "solid"}
                                 isLoading={updatingId === account._id}
                                 onClick={() => handleActivationChange(account, !isActive)}
+                                px={2.5}
+                                h="28px"
                               >
                                 {isActive ? "Deactivate" : "Activate"}
                               </Button>

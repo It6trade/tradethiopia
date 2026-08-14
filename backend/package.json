@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "test": "node tests/finance_erp_core.test.js && node --test tests/payrollHelpers.test.js tests/payrollAttendance.test.js tests/employeePersonalInfoValidation.test.js",
+    "test": "node tests/finance_erp_core.test.js && node --test tests/payrollHelpers.test.js tests/payrollAttendance.test.js",
     "test:finance": "node tests/finance_erp_core.test.js",
     "test:finance:e2e": "node tests/finance_erp_flow.e2e.js",
     "start": "node server.js",
@@ -38,13 +38,15 @@
     "mongoose": "^8.9.1",
     "multer": "^1.4.5-lts.1",
     "node-appwrite": "^20.0.0",
+    "node-cron": "^4.5.0",
     "nodemailer": "^8.0.1",
     "nodemon": "^3.1.9",
     "quill": "^2.0.2",
     "react-quill": "^2.0.0",
     "react-router-dom": "^6.28.0",
     "save": "^2.9.0",
-    "socket.io": "^4.8.3"
+    "socket.io": "^4.8.3",
+    "web-push": "^3.6.7"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"

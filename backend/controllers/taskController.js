@@ -3,6 +3,7 @@ const User = require('../models/user.model');
 const Notification = require('../models/Notification');
 const asyncHandler = require('express-async-handler');
 const mongoose = require('mongoose');
+const { sendPushToUser } = require('./pushController');
 
 // @desc    Create a new task
 // @route   POST /api/tasks
@@ -88,6 +89,21 @@ const createTask = asyncHandler(async (req, res) => {
     });
   }
 
+  // Send Web Push Notification
+  try {
+    const pushPayload = JSON.stringify({
+      title: "📋 New Task Assigned",
+      body: `You have been assigned a new task: "${title}" by ${req.user.username || 'Manager'}.`,
+      icon: "/logo.png",
+      badge: "/logo.png",
+      tag: `task-${createdTask._id}`,
+      data: { url: "/sales/agent/tasks" }
+    });
+    await sendPushToUser(assignedTo, pushPayload);
+  } catch (err) {
+    console.error('[Push] Failed to send push notification:', err.message);
+  }
+
   res.status(201).json(createdTask);
 });
 
@@ -171,6 +187,8 @@ const updateTask = asyncHandler(async (req, res) => {
     }
   }
 
+  const originalStatus = task.status;
+  
   if (title) task.title = title;
   if (description) task.description = description;
   if (status) {
@@ -187,6 +205,61 @@ const updateTask = asyncHandler(async (req, res) => {
   // Populate assignedTo and assignedBy fields
   await updatedTask.populate('assignedTo', 'username email');
   await updatedTask.populate('assignedBy', 'username email');
+
+  // Trigger real-time notifications on update
+  try {
+    const statusChanged = status && originalStatus !== status;
+    const isManager = req.user._id.toString() === task.assignedBy.toString();
+    const recipient = isManager ? task.assignedTo._id : task.assignedBy._id;
+    const updaterName = req.user.username || 'Manager';
+    
+    let notificationText = '';
+    if (statusChanged) {
+      notificationText = `Task "${task.title}" status updated to "${status}" by ${updaterName}`;
+    } else if (isManager) {
+      notificationText = `Task "${task.title}" details updated by your manager, ${updaterName}`;
+    }
+
+    if (notificationText) {
+      const notification = new Notification({
+        user: recipient,
+        text: notificationText,
+        type: 'task',
+        taskId: updatedTask._id
+      });
+      await notification.save();
+
+      // Emit Socket.IO
+      const io = req.app.get('io');
+      const connectedUsers = req.app.get('connectedUsers');
+      if (connectedUsers) {
+        const userSocketId = connectedUsers.get(recipient.toString());
+        if (userSocketId) {
+          io.to(userSocketId).emit('newNotification', {
+            id: notification._id,
+            text: notification.text,
+            read: notification.read,
+            type: notification.type,
+            taskId: notification.taskId,
+            createdAt: notification.createdAt
+          });
+        }
+      }
+
+      // Send Web Push Notification
+      const pushPayload = JSON.stringify({
+        title: statusChanged ? "🔄 Task Status Changed" : "🔄 Task Updated",
+        body: notificationText,
+        icon: "/logo.png",
+        badge: "/logo.png",
+        tag: `task-update-${updatedTask._id}`,
+        data: { url: isManager ? "/sales/agent/tasks" : "/sales/manager/tasks" }
+      });
+      await sendPushToUser(recipient, pushPayload);
+    }
+  } catch (err) {
+    console.error('[Push] Failed to process update notifications:', err.message);
+  }
 
   res.json(updatedTask);
 });

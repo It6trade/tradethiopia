@@ -14,9 +14,9 @@ import ThirdPage from "./pages/ThirdPage";
 import FourthPage from "./pages/FourthPage";
 import FifthPage from "./pages/FifthPage.jsx";
 import QuizPage from "./pages/quizPage.jsx";
-import Sdashboard from "./pages/sales/Sdashboard.jsx";
-import Srequest from "./pages/sales/Srequest.jsx";
-import FinanceLayout from "./pages/sales/FinanceLayout.jsx";
+import Sdashboard from "./pages/sales/agent/SalesAgentDashboard.jsx";
+import Srequest from "./pages/sales/agent/Srequest.jsx";
+import FinanceLayout from "./pages/finance/FinanceLayout.jsx";
 import PDFList from './components/PDFList';
 import InfoForm from './pages/InfoForm';
 import EmployeeInfoPage from './pages/EmployeeInfoPage';
@@ -41,6 +41,7 @@ import ComingSoonPage from "./pages/ComingSoonPage";
 import AdminTrainingUpload from "./pages/AdminTrainingUpload";
 import AdminCustomerReport from './components/AdminCSReport.jsx';
 import CustomerSettings from "./components/customer/CustomerSettings";
+import CustomerUserManagement from "./components/customer/CustomerUserManagement";
 import ReceptionDashboard from './pages/ReceptionDashboard';
 import HRTrainingPage from './pages/HRTrainingPage.jsx';
 import ENISRALayout from "./components/ENSRA/ENSRALayout";
@@ -50,18 +51,17 @@ import ENISRANoticeBoard from "./components/ENSRA/ENSRANoticeBoard";
 import ENISRARequestEmbedded from "./components/ENSRA/ENISRARequestEmbedded";
 import ENISRAFollowUp from "./components/ENSRA/ENISRAFollowUp";
 import ProtectedRoute from "./routes/ProtectedRoute";
-import ApprovedOnboardingRoute from "./routes/ApprovedOnboardingRoute";
 import RoleProtectedRoute from "./components/RoleProtectedRoute";
 import InstructorLayout from "./components/instructor/InstructorLayout";
 import InstructorDashboard from "./pages/instructor/Dashboard";
 import InstructorRequest from "./pages/instructor/Request";
 import InstructorNoticeBoard from "./pages/instructor/NoticeBoard";
-import SalesManagerLayout from "./components/salesmanager/Layout";
-import SalesManagerDashboard from "./components/salesmanager/SalesManagerDashboard";
-import SalesManagerProtectedRoute from "./components/salesmanager/SalesManagerProtectedRoute";
+import SalesManagerLayout from "./pages/sales/manager/SalesManagerLayout.jsx";
+import SalesManagerDashboard from "./pages/sales/manager/components/SalesManagerDashboard.jsx";
+import SalesManagerProtectedRoute from "./pages/sales/manager/components/SalesManagerProtectedRoute.jsx";
 import CustomerMessagesPage from "./pages/CustomerMessagesPage.jsx";
 import EmployeePayrollView from "./components/Payroll/EmployeePayrollView";
-import KPIScorecardPage from "./pages/sales/KPIScorecardPage";
+import KPIScorecardPage from "./pages/finance/KPIScorecardPage";
 import CustomerKPIPage from "./pages/customer/CustomerKPIPage";
 
 import MessagesPage from "./pages/MessagesPage";
@@ -70,46 +70,41 @@ import FinanceMessagesPage from "./pages/FinanceMessagesPage";
 // import ITMessagesPage from "./pages/ITMessagesPage";
 import RedirectMessagesPage from "./pages/RedirectMessagesPage";
 import RequestPage from "./pages/RequestPage";
-import TeamRequestsPage from "./pages/sales/TeamRequestsPage.jsx";
-import EmployeeRequestsPage from "./pages/EmployeeRequestsPage.jsx";
-import EmployeeWarningsPage from "./pages/EmployeeWarningsPage.jsx";
-import AttendancePage from "./pages/AttendancePage.jsx";
-import LeaveManagementPage from "./pages/LeaveManagementPage.jsx";
+import TeamRequestsPage from "./pages/finance/TeamRequestsPage.jsx";
 import AppLayout from "./components/AppLayout"; // Import the new AppLayout component
 import SupervisorLayout from "./pages/supervisor/SupervisorLayout.jsx";
 import SupervisorDashboardPage from "./pages/supervisor/SupervisorDashboardPage.jsx";
 import SupervisorAccountPage from "./pages/supervisor/SupervisorAccountPage.jsx";
 
-const CandidatePoolPage = lazy(() => import('./pages/CandidatePoolPage.jsx'));
-const FinanceERPPage = lazy(() => import("./pages/sales/FinanceERPPage.jsx"));
-const FinanceDashboardPage = lazy(() => import("./pages/sales/FinanceDashboardPage.jsx"));
-const FinanceReportsPage = lazy(() => import("./pages/sales/FinanceReportsPage.jsx"));
-const InventoryPage = lazy(() => import("./pages/sales/InventoryPage.jsx"));
-const OrdersPage = lazy(() => import("./pages/sales/OrdersPage.jsx"));
+const FinanceERPPage = lazy(() => import("./pages/finance/FinanceERPPage.jsx"));
+const FinanceDashboardPage = lazy(() => import("./pages/finance/FinanceDashboardPage.jsx"));
+const FinanceReportsPage = lazy(() => import("./pages/finance/FinanceReportsPage.jsx"));
+const InventoryPage = lazy(() => import("./pages/finance/InventoryPage.jsx"));
+const OrdersPage = lazy(() => import("./pages/finance/OrdersPage.jsx"));
 const FinanceDemandsPage = lazy(() => import("./components/finance/DemandsPage.jsx"));
 const FinancePaymentsPage = lazy(() => import("./components/finance/PaymentsPage.jsx"));
-const PricingPage = lazy(() => import("./pages/sales/PricingPage.jsx"));
-const RevenuePage = lazy(() => import("./pages/sales/RevenuePage.jsx"));
-const PurchasePage = lazy(() => import("./pages/sales/PurchasePage.jsx"));
-const CostManagementPage = lazy(() => import("./pages/sales/CostManagementPage.jsx"));
-const FinancePayrollPage = lazy(() => import("./pages/sales/FinancePayrollPage.jsx"));
-const CommissionApprovalPage = lazy(() => import("./pages/sales/CommissionApprovalPage.jsx"));
+const PricingPage = lazy(() => import("./pages/finance/PricingPage.jsx"));
+const RevenuePage = lazy(() => import("./pages/finance/RevenuePage.jsx"));
+const PurchasePage = lazy(() => import("./pages/finance/PurchasePage.jsx"));
+const CostManagementPage = lazy(() => import("./pages/finance/CostManagementPage.jsx"));
+const FinancePayrollPage = lazy(() => import("./pages/finance/FinancePayrollPage.jsx"));
+const CommissionApprovalPage = lazy(() => import("./pages/finance/CommissionApprovalPage.jsx"));
 const B2BDashboard = lazy(() => import("./pages/B2BDashboard"));
 const COODashboard = lazy(() => import("./pages/COODashboard"));
-const TradexTVDashboard = lazy(() => import("./pages/TradexTVDashboard"));
-const ITDashboard = lazy(() => import("./pages/ITDashboard"));
+const TradexTVDashboard = lazy(() => import("./pages/tradextv/TradexTVDashboard"));
+const ITDashboard = lazy(() => import("./pages/it/ITDashboard"));
 const SocialMediaDashboardPage = lazy(() => import("./pages/socialmedia/SocialMediaDashboardPage"));
 const ChatPage = lazy(() => import("./pages/ChatPage.jsx"));
 const PayrollPage = lazy(() => import("./components/Payroll/PayrollPage"));
-const AllSalesPage = lazy(() => import("./components/salesmanager/AllSalesPage"));
-const PerformancePage = lazy(() => import("./components/salesmanager/PerformancePage"));
-const TeamManagementPage = lazy(() => import("./components/salesmanager/TeamManagementPage"));
-const TaskManagementPage = lazy(() => import("./components/salesmanager/TaskManagementPage"));
-const ReportsPage = lazy(() => import("./components/salesmanager/ReportsPage"));
-const CalendarPage = lazy(() => import("./components/salesmanager/CalendarPage"));
-const SettingsPage = lazy(() => import("./components/salesmanager/SettingsPage"));
-const ContentTrackerReport = lazy(() => import("./components/salesmanager/ContentTrackerReport"));
-const CourseManagerPage = lazy(() => import("./components/salesmanager/CourseManagerPage"));
+const AllSalesPage = lazy(() => import("./pages/sales/manager/components/AllSalesPage"));
+const PerformancePage = lazy(() => import("./pages/sales/manager/components/PerformancePage"));
+const TeamManagementPage = lazy(() => import("./pages/sales/manager/components/TeamManagementPage"));
+const TaskManagementPage = lazy(() => import("./pages/sales/manager/components/TaskManagementPage"));
+const ReportsPage = lazy(() => import("./pages/sales/manager/components/ReportsPage"));
+const CalendarPage = lazy(() => import("./pages/sales/manager/components/CalendarPage"));
+const SettingsPage = lazy(() => import("./pages/sales/manager/components/SettingsPage"));
+const ContentTrackerReport = lazy(() => import("./pages/sales/manager/components/ContentTrackerReport"));
+const CourseManagerPage = lazy(() => import("./pages/sales/manager/components/CourseManagerPage"));
 
 const IT_ALLOWED_ROLES = [
   "admin",
@@ -120,6 +115,10 @@ const IT_ALLOWED_ROLES = [
   "itleader",
   "itstaff",
   "itofficer",
+];
+
+const CUSTOMER_SUCCESS_MANAGER_ROLES = [
+  "customersuccessmanager",
 ];
 
 function App() {
@@ -133,7 +132,7 @@ function App() {
     "/finance/messages", "/finance/team-requests", "/finance/demands", "/finance/payments", "/finance/inventory", "/finance/orders",
     "/addcustomer", "/resource", "/videolist", "/uploadpage", "/my-payroll",
     "/cdashboard", "/waitingforapproval", "/training","/comingsoonpage", "/customerreport", "/followup-report", "/customerfollowup", "/b2b-dashboard",
-    "/coo-dashboard", "/ceo-dashboard", "/tradextv-dashboard", "/customer-settings", "/it", "/salesmanager", "/social-media", "/requests", "/finance-dashboard/payroll", "/finance-dashboard/commission-approval", "/supervisor", "/supervisor/account", "/finance/requests", "/reception-dashboard"
+    "/coo-dashboard", "/ceo-dashboard", "/tradextv-dashboard", "/customer-settings", "/customer-user-management", "/it", "/salesmanager", "/social-media", "/requests", "/finance-dashboard/payroll", "/finance-dashboard/commission-approval", "/supervisor", "/supervisor/account", "/finance/requests", "/reception-dashboard"
   ].map((path) => path.toLowerCase());
 
   // Hide the navbar and sidebar for legacy/fullscreen pages; root should only match exactly
@@ -159,7 +158,7 @@ return (
       <Route path="/" element={<WelcomePage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/InfoForm" element={<InfoForm />} />
-      <Route path="/secondpage" element={<ApprovedOnboardingRoute><SecondPage /></ApprovedOnboardingRoute>} />
+      <Route path="/secondpage" element={<SecondPage />} />
       <Route path="/thirdpage" element={<ThirdPage />} />
       <Route path="/fourthpage" element={<FourthPage />} />
       <Route path="/fifthpage" element={<FifthPage />} />
@@ -204,28 +203,12 @@ return (
         }
       />
       <Route path="/resource" element={<Navigate to="/resources" replace />} />
-      <Route path="/employee-info" element={<ProtectedRoute><EmployeeInfoPage /></ProtectedRoute>} />
-      <Route path="/employee-file-upload" element={<ProtectedRoute><EmployeeFileUploadForm /></ProtectedRoute>} />
-      <Route
-        path="/users"
-        element={
-          <RoleProtectedRoute allowedRoles={["hr", "admin"]}>
-            <LayoutWrapper><HomePage /></LayoutWrapper>
-          </RoleProtectedRoute>
-        }
-      />
-      <Route
-        path="/attendance"
-        element={
-          <RoleProtectedRoute allowedRoles={["hr", "admin"]}>
-            <LayoutWrapper><AttendancePage /></LayoutWrapper>
-          </RoleProtectedRoute>
-        }
-      />
+      <Route path="/employee-info" element={<EmployeeInfoPage />} />
+      <Route path="/employee-file-upload" element={<EmployeeFileUploadForm />} />
+      <Route path="/users" element={<LayoutWrapper><HomePage /></LayoutWrapper>} />
       <Route path="/dashboard" element={<LayoutWrapper><Dashboard /></LayoutWrapper>} />
       <Route path="/course" element={<LayoutWrapper><AdminTrainingUpload /></LayoutWrapper>} />
       <Route path="/hr-training" element={<LayoutWrapper><HRTrainingPage /></LayoutWrapper>} />
-      <Route path="/candidate-pool" element={<LayoutWrapper><CandidatePoolPage /></LayoutWrapper>} />
       <Route path="/documentupload" element={<DocumentUploadForm />} />
       <Route path="/category" element={<LayoutWrapper><Category /></LayoutWrapper>} />
       <Route path="/documentlist" element={<LayoutWrapper><DocumentList /></LayoutWrapper>} />
@@ -311,21 +294,21 @@ return (
       <Route
         path="/CustomerReport"
         element={
-          <ProtectedRoute>
+          <RoleProtectedRoute allowedRoles={CUSTOMER_SUCCESS_MANAGER_ROLES}>
             <LayoutWrapper>
               <CustomerReport />
             </LayoutWrapper>
-          </ProtectedRoute>
+          </RoleProtectedRoute>
         }
       />
       <Route
         path="/followup-report"
         element={
-          <ProtectedRoute>
+          <RoleProtectedRoute allowedRoles={CUSTOMER_SUCCESS_MANAGER_ROLES}>
             <LayoutWrapper>
               <CustomerFollowupReport />
             </LayoutWrapper>
-          </ProtectedRoute>
+          </RoleProtectedRoute>
         }
       />
       <Route
@@ -367,11 +350,19 @@ return (
       <Route
         path="/customer-settings"
         element={
-          <ProtectedRoute>
+          <RoleProtectedRoute allowedRoles={CUSTOMER_SUCCESS_MANAGER_ROLES}>
             <LayoutWrapper>
               <CustomerSettings />
             </LayoutWrapper>
-          </ProtectedRoute>
+          </RoleProtectedRoute>
+        }
+      />
+      <Route
+        path="/customer-user-management"
+        element={
+          <RoleProtectedRoute allowedRoles={CUSTOMER_SUCCESS_MANAGER_ROLES}>
+            <CustomerUserManagement />
+          </RoleProtectedRoute>
         }
       />
       <Route
@@ -385,31 +376,6 @@ return (
         }
       />
       <Route path="/requests" element={<LayoutWrapper><RequestPage /></LayoutWrapper>} />
-      <Route
-        path="/leave-management"
-        element={
-          <RoleProtectedRoute allowedRoles={["hr", "admin"]}>
-            <LayoutWrapper><LeaveManagementPage /></LayoutWrapper>
-          </RoleProtectedRoute>
-        }
-      />
-      <Route path="/employee-requests" element={<LayoutWrapper><EmployeeRequestsPage /></LayoutWrapper>} />
-      <Route
-        path="/warnings"
-        element={
-          <RoleProtectedRoute allowedRoles={["hr", "admin"]}>
-            <LayoutWrapper><EmployeeWarningsPage mode="hr" /></LayoutWrapper>
-          </RoleProtectedRoute>
-        }
-      />
-      <Route
-        path="/my-warnings"
-        element={
-          <ProtectedRoute>
-            <EmployeeWarningsPage mode="employee" />
-          </ProtectedRoute>
-        }
-      />
       <Route
         path="/chat"
         element={
@@ -461,11 +427,17 @@ return (
       <Route path="/messages" element={<RedirectMessagesPage />} />
       <Route path="/sales/messages" element={<SalesMessagesPage />} />
       <Route path="/customer/messages" element={<CustomerMessagesPage />} />
-      <Route path="/customer/kpi" element={<CustomerKPIPage />} />
+      <Route
+        path="/customer/kpi"
+        element={
+          <RoleProtectedRoute allowedRoles={CUSTOMER_SUCCESS_MANAGER_ROLES}>
+            <CustomerKPIPage />
+          </RoleProtectedRoute>
+        }
+      />
       <Route path="/supervisor" element={<SupervisorLayout />}>
         <Route index element={<SupervisorDashboardPage />} />
         <Route path="requests" element={<TeamRequestsPage />} />
-        <Route path="employee-requests" element={<EmployeeRequestsPage />} />
         <Route path="notice-board" element={<FinanceMessagesPage embedded />} />
         <Route path="revenue-expense" element={<RevenuePage />} />
       </Route>
@@ -480,7 +452,6 @@ return (
       >
         <Route index element={<SalesManagerDashboard />} />
         <Route path="dashboard" element={<SalesManagerDashboard />} />
-        <Route path="employee-requests" element={<EmployeeRequestsPage />} />
         <Route path="course" element={<CourseManagerPage />} />
         <Route path="all-sales" element={<AllSalesPage />} />
         <Route path="performance" element={<PerformancePage />} />
@@ -502,6 +473,3 @@ return (
 }
 
 export default App;
-
-
-

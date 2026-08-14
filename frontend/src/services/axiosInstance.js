@@ -1,5 +1,4 @@
 import axios from 'axios';
-import { getAuthItem, removeAuthItem } from '../utils/authStorage';
 
 const defaultApiHost = import.meta.env.VITE_API_URL;
 
@@ -20,18 +19,7 @@ const axiosInstance = axios.create({
 // Request interceptor to add auth token
 axiosInstance.interceptors.request.use(
   (config) => {
-    // The browser must generate the multipart boundary for file uploads.
-    // A forced JSON content type makes Multer receive no file.
-    if (typeof FormData !== 'undefined' && config.data instanceof FormData) {
-      if (typeof config.headers?.delete === 'function') {
-        config.headers.delete('Content-Type');
-      } else if (config.headers) {
-        delete config.headers['Content-Type'];
-        delete config.headers['content-type'];
-      }
-    }
-
-    const token = getAuthItem('userToken');
+    const token = localStorage.getItem('userToken');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -57,8 +45,8 @@ axiosInstance.interceptors.response.use(
     });
     if (error.response?.status === 401) {
       // Token expired or invalid
-      removeAuthItem('userToken');
-      removeAuthItem('userRole');
+      localStorage.removeItem('userToken');
+      localStorage.removeItem('userRole');
       window.location.href = '/login';
     }
     return Promise.reject(error);

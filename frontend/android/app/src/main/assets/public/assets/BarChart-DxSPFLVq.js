@@ -1,1 +1,0 @@
-import{e5 as a,_ as i,X as s,Y as e,e6 as t}from"./index-DNCWAWwU.js";var x=a({chartName:"BarChart",GraphicalChild:i,defaultTooltipEventType:"axis",validateTooltipEventTypes:["axis","item"],axisComponents:[{axisType:"xAxis",AxisComp:s},{axisType:"yAxis",AxisComp:e}],formatAxisMap:t});export{x as B};

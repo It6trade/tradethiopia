@@ -1,7 +1,7 @@
 const Buyer = require('../models/Buyer');
 const Seller = require('../models/Seller');
 const Order = require('../models/Order');
-const SalesCustomer = require('../models/SalesCustomer');
+const SalesCustomer = require('../sales/models/SalesCustomer');
 const Package = require('../models/Package');
 
 /**

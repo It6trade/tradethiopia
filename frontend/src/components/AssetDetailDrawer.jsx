@@ -188,14 +188,11 @@ const AssetDetailDrawer = ({ isOpen, onClose, selectedAsset, setSelectedAsset, h
                         placeholder="Select assigned person"
                       >
                         {Array.isArray(users) &&
-                          users
-                            .filter((user) => user.status && user.status.toLowerCase() === 'active' && user.username && user.username !== "." && user.username !== "..")
-                            .sort((a, b) => a.username.localeCompare(b.username))
-                            .map((user) => (
-                              <option key={user._id} value={user.username}>
-                                {user.username}
-                              </option>
-                            ))}
+                          users.map((user) => (
+                            <option key={user._id} value={user.username}>
+                              {user.username}
+                            </option>
+                          ))}
                       </Select>
                     </FormControl>
                     <FormControl>

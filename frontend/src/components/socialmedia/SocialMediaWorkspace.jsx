@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Avatar,
   Badge,
@@ -43,6 +43,7 @@ import {
   FiBarChart2,
   FiChevronLeft,
   FiChevronRight,
+  FiChevronDown,
   FiClipboard,
   FiEdit3,
   FiGrid,
@@ -56,53 +57,73 @@ import {
   FiFileText,
   FiTarget,
   FiTrendingUp,
-  FiAlertTriangle,
+  FiLayers,
 } from "react-icons/fi";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useUserStore } from "../../store/user";
+
 import AssetList from "../AssetList";
 import NotesLauncher from "../notes/NotesLauncher";
 import RequestPage from "../../pages/RequestPage";
-import ContentTrackerPage from "../sales/ContentTrackerPage";
+import ContentTrackerPage from "../../pages/sales/agent/components/ContentTrackerPage";
 import SocialMediaManager from "./SocialMediaManager";
 import SocialMediaAccountsManager from "./SocialMediaAccountsManager";
 import SocialMediaActivationsManager from "./SocialMediaActivationsManager";
 import SocialMediaAccountSummary from "./SocialMediaAccountSummary";
 import { EmptyStateBlock, SectionIntro, SurfaceCard } from "./SocialMediaPrimitives";
-import EmployeeWarningsPage from "../../pages/EmployeeWarningsPage";
 
 const navGroups = [
   {
     label: "Overview",
+    key: "overview",
+    icon: FiGrid,
+    isExpandable: false,
     items: [
       { key: "dashboard", label: "Dashboard", icon: FiGrid },
     ],
   },
   {
-    label: "Operations",
+    label: "Publishing",
+    key: "publishing",
+    icon: FiLayers,
+    isExpandable: true,
     items: [
-      { key: "targets", label: "Weekly Targets", icon: FiTarget },
-      { key: "planner", label: "Content Planner", icon: FiCalendar },
       { key: "postTracker", label: "Post Tracker", icon: FiEdit3 },
+      { key: "planner", label: "Content Planner", icon: FiCalendar },
       { key: "assets", label: "Asset Library", icon: FiPackage },
-      { key: "accounts", label: "Social Media", icon: FiShield },
-      { key: "email", label: "Email", icon: FiMail },
-      { key: "accountSummary", label: "Account", icon: FiUsers },
+      { key: "targets", label: "Weekly Targets", icon: FiTarget },
+    ],
+  },
+  {
+    label: "Accounts & Sync",
+    key: "accountsSync",
+    icon: FiShield,
+    isExpandable: true,
+    items: [
+      { key: "accounts", label: "Social Accounts", icon: FiShield },
+      { key: "integrations", label: "Integrations", icon: FiLayers },
+      { key: "email", label: "Email Accounts", icon: FiMail },
+      { key: "accountSummary", label: "Account Summary", icon: FiUsers },
       { key: "activations", label: "Activations", icon: FiPower },
     ],
   },
   {
     label: "Analytics",
+    key: "analyticsGroup",
+    icon: FiTrendingUp,
+    isExpandable: true,
     items: [
       { key: "analytics", label: "Analytics", icon: FiTrendingUp },
-      { key: "reports", label: "Reports", icon: FiFileText },
+      { key: "reports", label: "Reports Archive", icon: FiFileText },
     ],
   },
   {
     label: "Collaboration",
+    key: "collaboration",
+    icon: FiClipboard,
+    isExpandable: false,
     items: [
       { key: "requests", label: "Requests", icon: FiClipboard },
-      { key: "warnings", label: "My Warnings", icon: FiAlertTriangle },
     ],
   },
 ];
@@ -115,35 +136,39 @@ const sectionMeta = {
     title: "",
   },
   targets: {
-    eyebrow: "Operations",
+    eyebrow: "Publishing",
     title: "Weekly Targets",
   },
   planner: {
-    eyebrow: "Operations",
+    eyebrow: "Publishing",
     title: "Content Planner",
   },
   assets: {
-    eyebrow: "Operations",
+    eyebrow: "Publishing",
     title: "Asset library",
   },
   postTracker: {
-    eyebrow: "Operations",
+    eyebrow: "Publishing",
     title: "Post tracker",
   },
+  integrations: {
+    eyebrow: "Accounts & Sync",
+    title: "Social Channel Integrations",
+  },
   accounts: {
-    eyebrow: "Operations",
+    eyebrow: "Accounts & Sync",
     title: "Social media accounts",
   },
   email: {
-    eyebrow: "Operations",
+    eyebrow: "Accounts & Sync",
     title: "Email accounts",
   },
   accountSummary: {
-    eyebrow: "Operations",
+    eyebrow: "Accounts & Sync",
     title: "Account",
   },
   activations: {
-    eyebrow: "Operations",
+    eyebrow: "Accounts & Sync",
     title: "Account activations",
   },
   analytics: {
@@ -157,10 +182,6 @@ const sectionMeta = {
   requests: {
     eyebrow: "Collaboration",
     title: "Request center",
-  },
-  warnings: {
-    eyebrow: "Employee record",
-    title: "My Warnings",
   },
 };
 
@@ -215,6 +236,35 @@ function SidebarNav({
     _focusVisible: { boxShadow: "0 0 0 2px rgba(59,130,246,0.2)" },
   };
 
+  const [expandedGroups, setExpandedGroups] = useState(() => {
+    const initial = {};
+    navGroups.forEach((group) => {
+      if (group.isExpandable && group.items.some((item) => item.key === activeSection)) {
+        initial[group.key] = true;
+      }
+    });
+    return initial;
+  });
+
+  useEffect(() => {
+    const targetGroup = navGroups.find(
+      (group) => group.isExpandable && group.items.some((item) => item.key === activeSection)
+    );
+    if (targetGroup) {
+      setExpandedGroups((prev) => ({
+        ...prev,
+        [targetGroup.key]: true,
+      }));
+    }
+  }, [activeSection]);
+
+  const toggleGroup = (groupKey) => {
+    setExpandedGroups((prev) => ({
+      ...prev,
+      [groupKey]: !prev[groupKey],
+    }));
+  };
+
   return (
     <Flex
       direction="column"
@@ -227,7 +277,7 @@ function SidebarNav({
       py={4}
       boxShadow="12px 0 36px rgba(0,0,0,0.2)"
     >
-      <VStack align="stretch" spacing={4} flex="1">
+      <VStack align="stretch" spacing={4} flex="1" minH={0} overflow="hidden">
         <HStack justify="space-between">
           {!collapsed ? (
             <Box>
@@ -281,67 +331,235 @@ function SidebarNav({
           </Box>
         </Box>
 
-        <VStack as="nav" aria-label="Social dashboard navigation" align="stretch" spacing={3} flex="1">
-          {navGroups.map((group) => (
-            <Box key={group.label}>
-              {!collapsed ? (
-                <Text px={2} mb={1.5} fontSize="10px" textTransform="uppercase" letterSpacing="0.08em" fontWeight="700" color={muted}>
-                  {group.label}
-                </Text>
-              ) : null}
-              <VStack align="stretch" spacing={1}>
-                {group.items.map((item) => {
-                  const isActive = activeSection === item.key;
-                  const navButton = (
+        <VStack
+          as="nav"
+          aria-label="Social dashboard navigation"
+          align="stretch"
+          spacing={3}
+          flex="1"
+          overflowY="auto"
+          css={{
+            '&::-webkit-scrollbar': { width: '4px' },
+            '&::-webkit-scrollbar-track': { background: 'transparent' },
+            '&::-webkit-scrollbar-thumb': { background: 'rgba(255,255,255,0.1)', borderRadius: '4px' },
+            '&::-webkit-scrollbar-thumb:hover': { background: 'rgba(255,255,255,0.2)' }
+          }}
+        >
+          {navGroups.map((group) => {
+            const isAnyChildActive = group.items.some((item) => item.key === activeSection);
+            const isExpanded = !!expandedGroups[group.key];
+
+            if (collapsed) {
+              if (!group.isExpandable) {
+                return (
+                  <Box key={group.key}>
+                    <VStack align="stretch" spacing={1}>
+                      {group.items.map((item) => {
+                        const isActive = activeSection === item.key;
+                        return (
+                          <Tooltip key={item.key} label={item.label} placement="right" hasArrow>
+                            <IconButton
+                              aria-label={item.label}
+                              icon={<Icon as={item.icon} boxSize={4} />}
+                              variant="ghost"
+                              h="38px"
+                              w="38px"
+                              borderRadius="10px"
+                              bg={isActive ? activeBg : "transparent"}
+                              color={isActive ? activeText : "rgba(255,255,255,0.78)"}
+                              borderWidth="1px"
+                              borderColor={isActive ? "rgba(147,197,253,0.2)" : "transparent"}
+                              boxShadow={isActive ? "0 4px 12px rgba(37,99,235,0.18)" : "none"}
+                              _hover={{ bg: isActive ? activeBg : hoverBg, color: "white" }}
+                              _focusVisible={{ boxShadow: "0 0 0 2px rgba(59,130,246,0.2)" }}
+                              transition="all 0.15s ease"
+                              onClick={() => onSelect(item.key)}
+                            />
+                          </Tooltip>
+                        );
+                      })}
+                    </VStack>
+                  </Box>
+                );
+              } else {
+                return (
+                  <Box key={group.key} align="center">
+                    <Tooltip label={group.label} placement="right" hasArrow>
+                      <Box>
+                        <Menu placement="right-start" offset={[0, 12]}>
+                          <MenuButton
+                            as={IconButton}
+                            icon={<Icon as={group.icon} boxSize={4} />}
+                            variant="ghost"
+                            h="38px"
+                            w="38px"
+                            borderRadius="10px"
+                            bg={isAnyChildActive ? activeBg : "transparent"}
+                            color={isAnyChildActive ? activeText : "rgba(255,255,255,0.78)"}
+                            borderWidth="1px"
+                            borderColor={isAnyChildActive ? "rgba(147,197,253,0.2)" : "transparent"}
+                            boxShadow={isAnyChildActive ? "0 4px 12px rgba(37,99,235,0.18)" : "none"}
+                            _hover={{ bg: isAnyChildActive ? activeBg : hoverBg, color: "white" }}
+                            _focusVisible={{ boxShadow: "0 0 0 2px rgba(59,130,246,0.2)" }}
+                            transition="all 0.15s ease"
+                            aria-label={group.label}
+                          />
+                          <Portal>
+                            <MenuList
+                              bg="#0F172A"
+                              borderColor="rgba(255,255,255,0.08)"
+                              boxShadow="0 10px 30px rgba(0,0,0,0.5)"
+                              py={1.5}
+                            >
+                              <Text px={3} py={1} fontSize="10px" textTransform="uppercase" letterSpacing="0.08em" fontWeight="800" color="rgba(255,255,255,0.4)">
+                                {group.label}
+                              </Text>
+                              {group.items.map((item) => {
+                                const isActive = activeSection === item.key;
+                                return (
+                                  <MenuItem
+                                    key={item.key}
+                                    onClick={() => onSelect(item.key)}
+                                    bg={isActive ? "rgba(37,99,235,0.15)" : "transparent"}
+                                    color={isActive ? "#60A5FA" : "rgba(255,255,255,0.8)"}
+                                    _hover={{ bg: "rgba(255,255,255,0.06)", color: "white" }}
+                                    fontSize="xs"
+                                    fontWeight="600"
+                                    icon={<Icon as={item.icon} boxSize={3.5} />}
+                                  >
+                                    {item.label}
+                                  </MenuItem>
+                                );
+                              })}
+                            </MenuList>
+                          </Portal>
+                        </Menu>
+                      </Box>
+                    </Tooltip>
+                  </Box>
+                );
+              }
+            } else {
+              if (!group.isExpandable) {
+                return (
+                  <Box key={group.key}>
+                    <Text px={2} mb={1.5} fontSize="10px" textTransform="uppercase" letterSpacing="0.08em" fontWeight="700" color={muted}>
+                      {group.label}
+                    </Text>
+                    <VStack align="stretch" spacing={1}>
+                      {group.items.map((item) => {
+                        const isActive = activeSection === item.key;
+                        return (
+                          <Button
+                            key={item.key}
+                            justifyContent="space-between"
+                            leftIcon={<Icon as={item.icon} boxSize={4} />}
+                            variant="ghost"
+                            h="38px"
+                            px={2.5}
+                            borderRadius="10px"
+                            bg={isActive ? activeBg : "transparent"}
+                            color={isActive ? activeText : "rgba(255,255,255,0.82)"}
+                            borderWidth="1px"
+                            borderColor={isActive ? "rgba(147,197,253,0.2)" : "transparent"}
+                            boxShadow={isActive ? "0 4px 12px rgba(37,99,235,0.18)" : "none"}
+                            _hover={{ bg: isActive ? activeBg : hoverBg, color: "white" }}
+                            _focusVisible={{ boxShadow: "0 0 0 2px rgba(59,130,246,0.2)" }}
+                            transition="all 0.15s ease"
+                            onClick={() => onSelect(item.key)}
+                            aria-current={isActive ? "page" : undefined}
+                          >
+                            <Flex align="center" flex="1" minW={0}>
+                              <Text fontSize="xs" fontWeight="600" noOfLines={1}>
+                                {item.label}
+                              </Text>
+                            </Flex>
+                            {item.key === "requests" ? (
+                              <Badge colorScheme="blue" variant="subtle" borderRadius="full" px={1.5} fontSize="9px">
+                                1
+                              </Badge>
+                            ) : null}
+                          </Button>
+                        );
+                      })}
+                    </VStack>
+                  </Box>
+                );
+              } else {
+                return (
+                  <Box key={group.key}>
                     <Button
-                      key={item.key}
-                      justifyContent={collapsed ? "center" : "space-between"}
-                      leftIcon={collapsed ? undefined : <Icon as={item.icon} boxSize={4} />}
+                      justifyContent="space-between"
+                      leftIcon={<Icon as={group.icon} boxSize={4} />}
+                      rightIcon={<Icon as={isExpanded ? FiChevronDown : FiChevronRight} boxSize={3.5} />}
                       variant="ghost"
                       h="38px"
-                      px={collapsed ? 0 : 2.5}
+                      px={2.5}
                       borderRadius="10px"
-                      bg={isActive ? activeBg : "transparent"}
-                      color={isActive ? activeText : "rgba(255,255,255,0.78)"}
+                      bg="transparent"
+                      color={isAnyChildActive ? "white" : "rgba(255,255,255,0.78)"}
                       borderWidth="1px"
-                      borderColor={isActive ? "rgba(147,197,253,0.2)" : "transparent"}
-                      boxShadow={isActive ? "0 4px 12px rgba(37,99,235,0.18)" : "none"}
-                      _hover={{ bg: isActive ? activeBg : hoverBg, color: "white" }}
+                      borderColor={isAnyChildActive ? "rgba(59,130,246,0.2)" : "transparent"}
+                      _hover={{ bg: hoverBg, color: "white" }}
                       _focusVisible={{ boxShadow: "0 0 0 2px rgba(59,130,246,0.2)" }}
                       transition="all 0.15s ease"
-                      onClick={() => onSelect(item.key)}
-                      aria-current={isActive ? "page" : undefined}
+                      onClick={() => toggleGroup(group.key)}
+                      w="100%"
                     >
-                      {collapsed ? (
-                        <Icon as={item.icon} boxSize={4} />
-                      ) : (
-                        <>
-                          <Flex align="center" flex="1" minW={0}>
-                            <Text fontSize="xs" fontWeight="600" noOfLines={1}>
-                              {item.label}
-                            </Text>
-                          </Flex>
-                          {item.key === "requests" ? (
-                            <Badge colorScheme="blue" variant="subtle" borderRadius="full" px={1.5} fontSize="9px">
-                              1
-                            </Badge>
-                          ) : null}
-                        </>
-                      )}
+                      <Flex align="center" flex="1" minW={0}>
+                        <Text fontSize="xs" fontWeight="700" noOfLines={1}>
+                          {group.label}
+                        </Text>
+                      </Flex>
                     </Button>
-                  );
-
-                  return collapsed ? (
-                    <Tooltip key={item.key} label={item.label} placement="right">
-                      {navButton}
-                    </Tooltip>
-                  ) : (
-                    navButton
-                  );
-                })}
-              </VStack>
-            </Box>
-          ))}
+                    {isExpanded && (
+                      <VStack
+                        align="stretch"
+                        spacing={1}
+                        mt={1}
+                        ml={3.5}
+                        pl={3.5}
+                        borderLeft="1px solid"
+                        borderColor={isAnyChildActive ? "rgba(59,130,246,0.3)" : "rgba(255,255,255,0.08)"}
+                        transition="border-color 0.2s ease"
+                      >
+                        {group.items.map((item) => {
+                          const isActive = activeSection === item.key;
+                          return (
+                            <Button
+                              key={item.key}
+                              justifyContent="space-between"
+                              leftIcon={<Icon as={item.icon} boxSize={3.5} />}
+                              variant="ghost"
+                              h="34px"
+                              px={2.5}
+                              borderRadius="8px"
+                              bg={isActive ? activeBg : "transparent"}
+                              color={isActive ? activeText : "rgba(255,255,255,0.68)"}
+                              borderWidth="1px"
+                              borderColor={isActive ? "rgba(147,197,253,0.15)" : "transparent"}
+                              boxShadow={isActive ? "0 3px 8px rgba(37,99,235,0.14)" : "none"}
+                              _hover={{ bg: isActive ? activeBg : hoverBg, color: "white" }}
+                              _focusVisible={{ boxShadow: "0 0 0 2px rgba(59,130,246,0.2)" }}
+                              transition="all 0.15s ease"
+                              onClick={() => onSelect(item.key)}
+                              aria-current={isActive ? "page" : undefined}
+                            >
+                              <Flex align="center" flex="1" minW={0}>
+                                <Text fontSize="xs" fontWeight="500" noOfLines={1}>
+                                  {item.label}
+                                </Text>
+                              </Flex>
+                            </Button>
+                          );
+                        })}
+                      </VStack>
+                    )}
+                  </Box>
+                );
+              }
+            }
+          })}
         </VStack>
       </VStack>
 
@@ -399,8 +617,28 @@ function SidebarNav({
 }
 
 export default function SocialMediaWorkspace() {
-  const [activeSection, setActiveSection] = useState("dashboard");
+  const [activeSection, setActiveSection] = useState(() => {
+    return localStorage.getItem("sm_active_section") || "dashboard";
+  });
   const [collapsed, setCollapsed] = useState(false);
+  const [searchParams] = useSearchParams();
+
+  useEffect(() => {
+    const fbSuccess = searchParams.get("fb_success");
+    const fbError = searchParams.get("fb_error");
+    if (fbSuccess || fbError) {
+      setActiveSection("integrations");
+    }
+    const tab = searchParams.get("tab");
+    if (tab) {
+      setActiveSection(tab);
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
+    localStorage.setItem("sm_active_section", activeSection);
+  }, [activeSection]);
+
   const { colorMode, toggleColorMode } = useColorMode();
   const { isOpen, onOpen, onClose } = useDisclosure();
   const navigate = useNavigate();
@@ -461,17 +699,12 @@ export default function SocialMediaWorkspace() {
       );
     }
 
-    if (activeSection === "warnings") {
-      return <EmployeeWarningsPage mode="employee" />;
-    }
-
     if (activeSection === "postTracker") {
       return (
-        <VStack align="stretch" spacing={6}>
-          <SectionIntro eyebrow={currentMeta.eyebrow} title={currentMeta.title} />
+        <VStack align="stretch" spacing={4}>
           <SurfaceCard>
             <Box p={{ base: 4, md: 5 }}>
-              <ContentTrackerPage title="Post Tracker" addButtonLabel="Add post" platformOptions={socialPostPlatforms} />
+              <ContentTrackerPage title="" addButtonLabel="Add post" platformOptions={socialPostPlatforms} />
             </Box>
           </SurfaceCard>
         </VStack>
@@ -481,15 +714,22 @@ export default function SocialMediaWorkspace() {
     if (activeSection === "accounts") {
       return (
         <VStack align="stretch" spacing={4}>
-          <SocialMediaAccountsManager />
+          <SocialMediaAccountsManager key="accounts-tab" />
+        </VStack>
+      );
+    }
+
+    if (activeSection === "integrations") {
+      return (
+        <VStack align="stretch" spacing={4}>
+          <SocialMediaAccountsManager key="integrations-tab" showIntegrationsOnly={true} />
         </VStack>
       );
     }
 
     if (activeSection === "email") {
       return (
-        <VStack align="stretch" spacing={6}>
-          <SectionIntro eyebrow={currentMeta.eyebrow} title={currentMeta.title} />
+        <VStack align="stretch" spacing={4}>
           <SocialMediaAccountsManager
             emailOnly
             onSocialAccountsCreated={(_syncedAccounts, options = {}) => {
@@ -502,12 +742,7 @@ export default function SocialMediaWorkspace() {
 
     if (activeSection === "accountSummary") {
       return (
-        <VStack align="stretch" spacing={6}>
-          <SectionIntro
-            eyebrow={currentMeta.eyebrow}
-            title={currentMeta.title}
-            description="Review employee emails and the social media accounts created from the selected media checkboxes."
-          />
+        <VStack align="stretch" spacing={4}>
           <SocialMediaAccountSummary />
         </VStack>
       );
@@ -515,12 +750,7 @@ export default function SocialMediaWorkspace() {
 
     if (activeSection === "activations") {
       return (
-        <VStack align="stretch" spacing={6}>
-          <SectionIntro
-            eyebrow={currentMeta.eyebrow}
-            title={currentMeta.title}
-            description="Filter all media and other accounts, then activate or deactivate each account."
-          />
+        <VStack align="stretch" spacing={4}>
           <SocialMediaActivationsManager />
         </VStack>
       );
@@ -528,14 +758,22 @@ export default function SocialMediaWorkspace() {
 
     return (
       <VStack align="stretch" spacing={4}>
-        <SocialMediaManager activeSection={activeSection} />
+        <SocialMediaManager activeSection={activeSection} setActiveSection={setActiveSection} />
       </VStack>
     );
   };
 
   return (
     <Flex minH="100vh" bg={contentBg}>
-      <Box display={{ base: "none", lg: "block" }} w={collapsed ? "76px" : "230px"} transition="width 0.2s ease">
+      <Box
+        position="sticky"
+        top="0"
+        h="100vh"
+        display={{ base: "none", lg: "block" }}
+        w={collapsed ? "76px" : "230px"}
+        transition="width 0.2s ease"
+        flexShrink={0}
+      >
         <SidebarNav
           activeSection={activeSection}
           onSelect={setActiveSection}

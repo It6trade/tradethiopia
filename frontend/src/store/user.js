@@ -2,7 +2,6 @@
 import { create } from "zustand";
 import { getDepartmentFromRole, getUserDepartment } from "../utils/department";
 import axiosInstance from "../services/axiosInstance";
-import { clearAuthSession, getAuthItem, removeAuthItem, setAuthItem } from "../utils/authStorage";
 
 export const normalizeRole = (value = "") => {
     const text = value ? value.toString() : "";
@@ -11,19 +10,18 @@ export const normalizeRole = (value = "") => {
 };
 
 const loadCurrentUser = () => {
-    const token = getAuthItem("userToken");
-    const storedRole = getAuthItem("userRole");
+    const token = localStorage.getItem("userToken");
+    const storedRole = localStorage.getItem("userRole");
     const normalizedRole = normalizeRole(storedRole);
-    const displayRole = getAuthItem("userRoleRaw") || storedRole || normalizedRole;
-    const status = getAuthItem("userStatus");
-    const infoStatus = getAuthItem("infoStatus");
-    const trainingStatus = getAuthItem("trainingStatus");
-    const username = getAuthItem("userName");
-    const fullName = getAuthItem("userFullName");
-    const jobTitle = getAuthItem("userJobTitle");
-    const userId = getAuthItem("userId");
-    const email = getAuthItem("userEmail");
-    const departmentFromCache = getAuthItem("userDepartment") || getDepartmentFromRole(storedRole);
+    const displayRole = localStorage.getItem("userRoleRaw") || storedRole || normalizedRole;
+    const status = localStorage.getItem("userStatus");
+    const infoStatus = localStorage.getItem("infoStatus");
+    const username = localStorage.getItem("userName");
+    const fullName = localStorage.getItem("userFullName");
+    const jobTitle = localStorage.getItem("userJobTitle");
+    const userId = localStorage.getItem("userId"); // Retrieve user ID
+    const email = localStorage.getItem("userEmail");
+    const departmentFromCache = localStorage.getItem("userDepartment") || getDepartmentFromRole(storedRole);
 
     return token
         ? {
@@ -35,7 +33,6 @@ const loadCurrentUser = () => {
               displayRole,
               status,
               infoStatus,
-              trainingStatus,
               token,
               _id: userId,
               email,
@@ -54,22 +51,16 @@ export const useUserStore = create((set) => ({
 
     setUsers: (users) => set({ users }),
 
-    fetchUsers: async (silent = false) => {
-        if (!silent) {
-            set({ loading: true, error: null });
-        }
+    fetchUsers: async () => {
+        set({ loading: true, error: null });
         try {
             const { data } = await axiosInstance.get("/users");
             set({ users: data.data });
         } catch (error) {
             console.error("Failed to fetch users:", error);
-            if (!silent) {
-                set({ error: "Failed to load users. Please try again later." });
-            }
+            set({ error: "Failed to load users. Please try again later." });
         } finally {
-            if (!silent) {
-                set({ loading: false });
-            }
+            set({ loading: false });
         }
     },
 
@@ -90,32 +81,50 @@ export const useUserStore = create((set) => ({
                 department: computedDepartment || "",
             };
             set({ currentUser: sanitizedUser });
-            setAuthItem("userToken", user.token);
-            setAuthItem("userRole", normalizedRole);
-            setAuthItem("userRoleRaw", displayRole);
-            setAuthItem("userName", user.username);
-            setAuthItem("userFullName", user.fullName);
-            setAuthItem("userJobTitle", user.jobTitle);
-            setAuthItem("userStatus", user.status);
-            setAuthItem("infoStatus", user.infoStatus);
-            setAuthItem("trainingStatus", user.trainingStatus);
-            setAuthItem("userId", user._id);
+            localStorage.setItem("userToken", user.token);
+            localStorage.setItem("userRole", normalizedRole);
+            localStorage.setItem("userRoleRaw", displayRole);
+            localStorage.setItem("userName", user.username);
+            if (user.fullName) localStorage.setItem("userFullName", user.fullName);
+            if (user.jobTitle) localStorage.setItem("userJobTitle", user.jobTitle);
+            localStorage.setItem("userStatus", user.status);
+            localStorage.setItem("infoStatus", user.infoStatus);
+            localStorage.setItem("userId", user._id); // Store user ID
             if (user.email) {
-                setAuthItem("userEmail", user.email);
+                localStorage.setItem("userEmail", user.email);
             } else {
-                removeAuthItem("userEmail");
+                localStorage.removeItem("userEmail");
             }
-            setAuthItem("userDepartment", sanitizedUser.department || "");
+            localStorage.setItem("userDepartment", sanitizedUser.department || "");
         } else {
             set({ currentUser: null });
-            clearAuthSession();
+            localStorage.removeItem("userToken");
+            localStorage.removeItem("userRole");
+            localStorage.removeItem("userRoleRaw");
+            localStorage.removeItem("userName");
+            localStorage.removeItem("userFullName");
+            localStorage.removeItem("userJobTitle");
+            localStorage.removeItem("userStatus");
+            localStorage.removeItem("infoStatus");
+            localStorage.removeItem("userDepartment");
+            localStorage.removeItem("userId"); // Remove user ID
         }
     },
 
     // Function to clear the current user
     clearUser: () => {
         set({ currentUser: null }); // Clear user state
-        clearAuthSession();
+        localStorage.removeItem("userToken");
+        localStorage.removeItem("userRole");
+        localStorage.removeItem("userRoleRaw");
+        localStorage.removeItem("userName");
+        localStorage.removeItem("userFullName");
+        localStorage.removeItem("userJobTitle");
+        localStorage.removeItem("userStatus");
+        localStorage.removeItem("infoStatus");
+        localStorage.removeItem("userDepartment");
+        localStorage.removeItem("userId"); // Remove user ID
+        localStorage.removeItem("userEmail");
     },
 
     deleteUser: async (uid) => {
@@ -144,13 +153,10 @@ export const useUserStore = create((set) => ({
             set((state) => ({
                 users: state.users.map((user) => (user._id === uid ? data.data : user)),
             }));
-            return { success: true, message: "User updated successfully!", data: data.data };
+            return { success: true, message: "User updated successfully!" };
         } catch (error) {
             console.error("Error updating user:", error);
-            return {
-                success: false,
-                message: error.response?.data?.message || "Failed to update user. Please try again later.",
-            };
+            return { success: false, message: "Failed to update user. Please try again later." };
         }
     },
 

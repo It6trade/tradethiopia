@@ -14,6 +14,10 @@ const SocialAccountCredentialSchema = new mongoose.Schema(
     pageId: { type: String, trim: true, default: '' },
     accessToken: { type: String, trim: true, default: '' },
     isConnected: { type: Boolean, default: false },
+    instagramBusinessAccountId: { type: String, trim: true, default: '' },
+    whatsappPhoneNumberId: { type: String, trim: true, default: '' },
+    whatsappBusinessAccountId: { type: String, trim: true, default: '' },
+    linkedinUrn: { type: String, trim: true, default: '' },
   },
   { timestamps: true }
 );

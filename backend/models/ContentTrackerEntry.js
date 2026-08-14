@@ -22,6 +22,11 @@ const ContentTrackerEntrySchema = new mongoose.Schema(
     trim: true,
     default: '',
   },
+  imageUrl: {
+    type: String,
+    trim: true,
+    default: '',
+  },
   platform: {
     type: String,
     trim: true,

@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
-import axios from "axios";
+import { useSearchParams } from "react-router-dom";
+import axiosInstance from "../../services/axiosInstance";
+import { verifyWhatsAppConnection, sendWhatsAppBroadcast } from "../../services/whatsappService";
+import { verifyLinkedInConnection } from "../../services/linkedinService";
 import {
   Alert,
   AlertDescription,
@@ -9,8 +12,10 @@ import {
   Box,
   Button,
   Checkbox,
+  Divider,
   FormControl,
   FormLabel,
+  Flex,
   HStack,
   Icon,
   IconButton,
@@ -54,9 +59,10 @@ import {
   Tooltip,
 } from "@chakra-ui/react";
 import { AddIcon, DeleteIcon, EditIcon } from "@chakra-ui/icons";
-import { FiGlobe, FiLock, FiMail, FiPhone, FiEye, FiEyeOff, FiCopy, FiCheck, FiSearch, FiInfo, FiShield } from "react-icons/fi";
+import { FiGlobe, FiLock, FiMail, FiPhone, FiEye, FiEyeOff, FiCopy, FiCheck, FiSearch, FiInfo, FiShield, FiLayers } from "react-icons/fi";
 import { FaFacebookF, FaInstagram, FaLinkedinIn, FaTelegramPlane, FaTiktok, FaTwitter, FaWhatsapp, FaYoutube } from "react-icons/fa";
 import { EmptyStateBlock, SectionIntro, SurfaceCard, ResponsiveDataView, PlatformBadge } from "./SocialMediaPrimitives";
+import { useUserStore } from "../../store/user";
 
 const initialForm = {
   platform: "",
@@ -86,16 +92,25 @@ const platformVisuals = {
   Telegram: { icon: FaTelegramPlane, color: "#26A5E4", bg: "rgba(38,165,228,0.1)" },
   X: { icon: FaTwitter, color: "#111827", bg: "rgba(17,24,39,0.08)" },
   Email: { icon: FiMail, color: "#2563EB", bg: "rgba(37,99,235,0.1)" },
+  Integrations: { icon: FiLayers, color: "#10B981", bg: "rgba(16,185,129,0.1)" },
   Other: { icon: FiGlobe, color: "#64748B", bg: "rgba(100,116,139,0.1)" },
 };
 
 const getPlatformVisual = (platform) => platformVisuals[platform] || platformVisuals.Other;
 
-export default function SocialMediaAccountsManager({ emailOnly = false, onSocialAccountsCreated }) {
+export default function SocialMediaAccountsManager({
+  emailOnly = false,
+  onSocialAccountsCreated,
+  initialTab = "All",
+  showIntegrationsOnly = false,
+}) {
   const toast = useToast();
   const { isOpen, onOpen, onClose } = useDisclosure();
   const { isOpen: isDrawerOpen, onOpen: onDrawerOpen, onClose: onDrawerClose } = useDisclosure();
   
+  const users = useUserStore((state) => state.users);
+  const fetchUsers = useUserStore((state) => state.fetchUsers);
+
   const [accounts, setAccounts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -103,7 +118,7 @@ export default function SocialMediaAccountsManager({ emailOnly = false, onSocial
   const [editingAccount, setEditingAccount] = useState(null);
   const [selectedAccount, setSelectedAccount] = useState(null);
   const [form, setForm] = useState(initialForm);
-  const [activePlatformTab, setActivePlatformTab] = useState("All");
+  const [activePlatformTab, setActivePlatformTab] = useState(initialTab);
   const [hrAssets, setHrAssets] = useState([]);
   const [assetsLoading, setAssetsLoading] = useState(false);
   const [assetsError, setAssetsError] = useState("");
@@ -112,6 +127,33 @@ export default function SocialMediaAccountsManager({ emailOnly = false, onSocial
   const [showModalPassword, setShowModalPassword] = useState(false);
   const [copiedField, setCopiedField] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [oauthPages, setOauthPages] = useState([]);
+  const [showOauthModal, setShowOauthModal] = useState(false);
+  const [showManualModal, setShowManualModal] = useState(false);
+  const [manualPageId, setManualPageId] = useState("");
+  const [manualAccessToken, setManualAccessToken] = useState("");
+  const [manualEmployeeName, setManualEmployeeName] = useState("");
+  const [oauthEmployeeName, setOauthEmployeeName] = useState("");
+  const [isVerifying, setIsVerifying] = useState(false);
+
+  // --- WhatsApp Integration State ---
+  const [showWhatsappModal, setShowWhatsappModal] = useState(false);
+  const [whatsappPhoneId, setWhatsappPhoneId] = useState("");
+  const [whatsappAccountId, setWhatsappAccountId] = useState("");
+  const [whatsappToken, setWhatsappToken] = useState("");
+  const [whatsappEmployeeName, setWhatsappEmployeeName] = useState("");
+  const [isVerifyingWhatsapp, setIsVerifyingWhatsapp] = useState(false);
+  const [whatsappTestRecipient, setWhatsappTestRecipient] = useState("");
+  const [whatsappTestMessage, setWhatsappTestMessage] = useState("");
+  const [isSendingWhatsapp, setIsSendingWhatsapp] = useState(false);
+
+  // --- LinkedIn Integration State ---
+  const [showLinkedinModal, setShowLinkedinModal] = useState(false);
+  const [linkedinUrn, setLinkedinUrn] = useState("");
+  const [linkedinToken, setLinkedinToken] = useState("");
+  const [linkedinEmployeeName, setLinkedinEmployeeName] = useState("");
+  const [isVerifyingLinkedin, setIsVerifyingLinkedin] = useState(false);
 
   const borderColor = useColorModeValue("rgba(226,232,240,0.9)", "rgba(148,163,184,0.16)");
   const muted = useColorModeValue("#64748B", "gray.400");
@@ -163,10 +205,31 @@ export default function SocialMediaAccountsManager({ emailOnly = false, onSocial
     [assetAssignees, form.employeeFullName],
   );
 
+  const employeesList = useMemo(() => {
+    if (!users || !users.length) return [];
+    const list = users
+      .map((u) => (u.fullName || u.username || "").trim())
+      .filter((name) => name && name !== ".." && name !== ".");
+    return Array.from(new Set(list)).sort((a, b) => a.localeCompare(b));
+  }, [users]);
+
+  const facebookIntegration = useMemo(() => {
+    return accounts.find(a => a.platform === "Facebook" && a.isConnected && a.active !== false);
+  }, [accounts]);
+
+  const whatsappIntegration = useMemo(() => {
+    return accounts.find(a => a.platform === "WhatsApp" && a.isConnected && a.active !== false);
+  }, [accounts]);
+
+  const linkedinIntegration = useMemo(() => {
+    return accounts.find(a => a.platform === "LinkedIn" && a.isConnected && a.active !== false);
+  }, [accounts]);
+
+
   const fetchAccounts = async () => {
     try {
       setLoading(true);
-      const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/social-account-credentials`);
+      const response = await axiosInstance.get("/social-account-credentials");
       setAccounts(Array.isArray(response.data) ? response.data : response.data?.data || []);
       setError("");
     } catch (fetchError) {
@@ -179,13 +242,14 @@ export default function SocialMediaAccountsManager({ emailOnly = false, onSocial
 
   useEffect(() => {
     fetchAccounts();
-  }, []);
+    fetchUsers();
+  }, [fetchUsers]);
 
   useEffect(() => {
     const fetchHrAssets = async () => {
       try {
         setAssetsLoading(true);
-        const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/assets`);
+        const response = await axiosInstance.get("/assets");
         setHrAssets(Array.isArray(response.data) ? response.data : response.data?.data || []);
         setAssetsError("");
       } catch (fetchError) {
@@ -205,6 +269,99 @@ export default function SocialMediaAccountsManager({ emailOnly = false, onSocial
       setActivePlatformTab("All");
     }
   }, [activePlatformTab, platformTabs]);
+
+  useEffect(() => {
+    const fbSuccess = searchParams.get("fb_success");
+    const fbError = searchParams.get("fb_error");
+    const pagesData = searchParams.get("pages");
+
+    if (fbSuccess && pagesData) {
+      try {
+        const parsedPages = JSON.parse(decodeURIComponent(pagesData));
+        setOauthPages(parsedPages);
+        setShowOauthModal(true);
+        setActivePlatformTab("Integrations");
+      } catch (e) {
+        console.error("Pages parse error:", e);
+        toast({
+          title: "Pages parsing failed",
+          description: "Failed to parse the pages list returned from Facebook.",
+          status: "error",
+          duration: 4500,
+          isClosable: true,
+        });
+      }
+      // Clear query parameters
+      setSearchParams({}, { replace: true });
+    } else if (fbError) {
+      toast({
+        title: "Facebook Integration Error",
+        description: decodeURIComponent(fbError),
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+      });
+      setSearchParams({}, { replace: true });
+      setActivePlatformTab("Integrations");
+    }
+  }, [searchParams, setSearchParams, toast]);
+
+  useEffect(() => {
+    const handleOAuthMessage = (event) => {
+      if (event.data && event.data.source === "facebook-oauth") {
+        const { success, pages, error: oauthError } = event.data;
+        if (success && pages) {
+          setOauthPages(pages);
+          setShowOauthModal(true);
+          toast({
+            title: "OAuth Success",
+            description: "Successfully fetched managed Facebook Pages.",
+            status: "success",
+            duration: 4000,
+            isClosable: true,
+          });
+        } else if (oauthError) {
+          toast({
+            title: "Facebook Integration Error",
+            description: oauthError,
+            status: "error",
+            duration: 5000,
+            isClosable: true,
+          });
+        }
+      }
+
+      if (event.data && event.data.source === "linkedin-oauth") {
+        const { success, urn, name, token, error: oauthError } = event.data;
+        if (success && urn && token) {
+          setLinkedinUrn(urn);
+          setLinkedinToken(token);
+          setShowLinkedinModal(true);
+          toast({
+            title: "LinkedIn Connected!",
+            description: `Authenticated as "${name}". Please select an assigned manager to link.`,
+            status: "success",
+            duration: 6000,
+            isClosable: true,
+          });
+        } else if (oauthError) {
+          toast({
+            title: "LinkedIn Integration Error",
+            description: oauthError,
+            status: "error",
+            duration: 5000,
+            isClosable: true,
+          });
+        }
+      }
+    };
+
+    window.addEventListener("message", handleOAuthMessage);
+    return () => {
+      window.removeEventListener("message", handleOAuthMessage);
+    };
+  }, [toast]);
+
 
   const openCreateModal = () => {
     setEditingAccount(null);
@@ -275,7 +432,7 @@ export default function SocialMediaAccountsManager({ emailOnly = false, onSocial
 
     try {
       setSyncingPlatforms((prev) => [...prev, platform]);
-      const response = await axios.post(`${import.meta.env.VITE_API_URL}/api/social-account-credentials/sync-email-social-account`, {
+      const response = await axiosInstance.post("/social-account-credentials/sync-email-social-account", {
         ...form,
         socialPlatforms: [platform],
       });
@@ -344,13 +501,13 @@ export default function SocialMediaAccountsManager({ emailOnly = false, onSocial
       setSaving(true);
       let response;
       if (editingAccount?._id) {
-        response = await axios.put(`${import.meta.env.VITE_API_URL}/api/social-account-credentials/${editingAccount._id}`, form);
+        response = await axiosInstance.put(`/social-account-credentials/${editingAccount._id}`, form);
         toast({ title: "Account updated", status: "success", duration: 3000, isClosable: true });
         if (selectedAccount?._id === editingAccount._id) {
           setSelectedAccount({ ...selectedAccount, ...form });
         }
       } else {
-        response = await axios.post(`${import.meta.env.VITE_API_URL}/api/social-account-credentials`, form);
+        response = await axiosInstance.post("/social-account-credentials", form);
         toast({ title: "Account created", status: "success", duration: 3000, isClosable: true });
       }
       closeModal();
@@ -376,7 +533,7 @@ export default function SocialMediaAccountsManager({ emailOnly = false, onSocial
 
   const handleDelete = async (accountId) => {
     try {
-      await axios.delete(`${import.meta.env.VITE_API_URL}/api/social-account-credentials/${accountId}`);
+      await axiosInstance.delete(`/social-account-credentials/${accountId}`);
       setAccounts((prev) => prev.map((item) => (item._id === accountId ? { ...item, active: false } : item)));
       toast({ title: "Account deactivated", status: "success", duration: 3000, isClosable: true });
       if (selectedAccount?._id === accountId) {
@@ -414,12 +571,715 @@ export default function SocialMediaAccountsManager({ emailOnly = false, onSocial
     }, 2000);
   };
 
+  const handleConnectPage = async (page, employeeName) => {
+    if (!employeeName) {
+      toast({
+        title: "Manager required",
+        description: "Please select an assigned manager for this Page integration.",
+        status: "warning",
+        duration: 3500,
+        isClosable: true,
+      });
+      return;
+    }
+    try {
+      setSaving(true);
+      const payload = {
+        platform: "Facebook",
+        employeeFullName: employeeName,
+        accountName: page.name,
+        pageId: page.id,
+        accessToken: page.access_token,
+        isConnected: true,
+        active: true,
+      };
+      await axiosInstance.post("/social-account-credentials", payload);
+      toast({
+        title: "Facebook Page Connected!",
+        description: `Successfully integrated with page "${page.name}".`,
+        status: "success",
+        duration: 3000,
+        isClosable: true,
+      });
+      setShowOauthModal(false);
+      setOauthEmployeeName("");
+      await fetchAccounts();
+    } catch (err) {
+      console.error("Failed to connect page", err);
+      toast({
+        title: "Connection Failed",
+        description: err.response?.data?.message || "Failed to save the connected page.",
+        status: "error",
+        duration: 4000,
+        isClosable: true,
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleManualVerifyAndLink = async () => {
+    if (!manualPageId.trim() || !manualAccessToken.trim() || !manualEmployeeName.trim()) {
+      toast({
+        title: "Missing Fields",
+        description: "Please enter Page ID, Access Token, and choose an assigned manager.",
+        status: "warning",
+        duration: 3000,
+        isClosable: true,
+      });
+      return;
+    }
+
+    setIsVerifying(true);
+    try {
+      // 1. Verify with backend
+      const verifyRes = await axiosInstance.post("/facebook/verify-connection", {
+        pageId: manualPageId.trim(),
+        accessToken: manualAccessToken.trim(),
+      });
+
+      const pageName = verifyRes.data?.pageName || "Manual Page";
+
+      // 2. Save
+      const payload = {
+        platform: "Facebook",
+        employeeFullName: manualEmployeeName,
+        accountName: pageName,
+        pageId: manualPageId.trim(),
+        accessToken: manualAccessToken.trim(),
+        isConnected: true,
+        active: true,
+      };
+
+      await axiosInstance.post("/social-account-credentials", payload);
+
+      toast({
+        title: "Linked Successfully!",
+        description: `Verified and connected to Facebook Page "${pageName}".`,
+        status: "success",
+        duration: 3000,
+        isClosable: true,
+      });
+
+      setManualPageId("");
+      setManualAccessToken("");
+      setManualEmployeeName("");
+      setShowManualModal(false);
+      await fetchAccounts();
+    } catch (err) {
+      console.error("Manual connection failed:", err);
+      toast({
+        title: "Verification Failed",
+        description: err.response?.data?.message || "Verify your Page ID and Token and try again.",
+        status: "error",
+        duration: 4000,
+        isClosable: true,
+      });
+    } finally {
+      setIsVerifying(false);
+    }
+  };
+
+  const handleWhatsAppVerifyAndLink = async () => {
+    if (!whatsappPhoneId.trim() || !whatsappAccountId.trim() || !whatsappToken.trim() || !whatsappEmployeeName.trim()) {
+      toast({
+        title: "Missing Fields",
+        description: "Please enter Phone Number ID, Business Account ID, Access Token, and choose an assigned manager.",
+        status: "warning",
+        duration: 3000,
+        isClosable: true,
+      });
+      return;
+    }
+
+    setIsVerifyingWhatsapp(true);
+    try {
+      await verifyWhatsAppConnection({
+        phoneNumberId: whatsappPhoneId.trim(),
+        whatsappBusinessAccountId: whatsappAccountId.trim(),
+        accessToken: whatsappToken.trim(),
+        employeeFullName: whatsappEmployeeName.trim(),
+      });
+
+      toast({
+        title: "Linked Successfully!",
+        description: "WhatsApp Business API verified and connected successfully.",
+        status: "success",
+        duration: 3000,
+        isClosable: true,
+      });
+
+      setWhatsappPhoneId("");
+      setWhatsappAccountId("");
+      setWhatsappToken("");
+      setWhatsappEmployeeName("");
+      setShowWhatsappModal(false);
+      await fetchAccounts();
+    } catch (err) {
+      console.error("WhatsApp connection failed:", err);
+      toast({
+        title: "Verification Failed",
+        description: err.response?.data?.message || err.message || "Failed to verify WhatsApp credentials.",
+        status: "error",
+        duration: 4000,
+        isClosable: true,
+      });
+    } finally {
+      setIsVerifyingWhatsapp(false);
+    }
+  };
+
+  const handleLinkedInVerifyAndLink = async () => {
+    if (!linkedinUrn.trim() || !linkedinToken.trim() || !linkedinEmployeeName.trim()) {
+      toast({
+        title: "Missing Fields",
+        description: "Please enter LinkedIn Member/Organization URN, Access Token, and choose an assigned manager.",
+        status: "warning",
+        duration: 3000,
+        isClosable: true,
+      });
+      return;
+    }
+
+    setIsVerifyingLinkedin(true);
+    try {
+      await verifyLinkedInConnection({
+        linkedinUrn: linkedinUrn.trim(),
+        accessToken: linkedinToken.trim(),
+        employeeFullName: linkedinEmployeeName.trim(),
+      });
+
+      toast({
+        title: "Linked Successfully!",
+        description: "LinkedIn verified and connected successfully.",
+        status: "success",
+        duration: 3000,
+        isClosable: true,
+      });
+
+      setLinkedinUrn("");
+      setLinkedinToken("");
+      setLinkedinEmployeeName("");
+      setShowLinkedinModal(false);
+      await fetchAccounts();
+    } catch (err) {
+      console.error("LinkedIn connection failed:", err);
+      toast({
+        title: "Verification Failed",
+        description: err.response?.data?.message || err.message || "Failed to verify LinkedIn credentials.",
+        status: "error",
+        duration: 4000,
+        isClosable: true,
+      });
+    } finally {
+      setIsVerifyingLinkedin(false);
+    }
+  };
+
+  const handleWhatsAppSendBroadcast = async () => {
+    if (!whatsappTestRecipient.trim()) {
+      toast({
+        title: "Recipient Required",
+        description: "Please enter a recipient phone number with country code.",
+        status: "warning",
+        duration: 3000,
+        isClosable: true,
+      });
+      return;
+    }
+
+    setIsSendingWhatsapp(true);
+    try {
+      const isTemplate = !whatsappTestMessage.trim();
+      const payload = {
+        recipientPhone: whatsappTestRecipient.trim(),
+      };
+      if (isTemplate) {
+        payload.templateName = "hello_world";
+        payload.templateLanguage = "en_US";
+      } else {
+        payload.messageText = whatsappTestMessage.trim();
+      }
+
+      await sendWhatsAppBroadcast(payload);
+
+      toast({
+        title: "Broadcast Sent!",
+        description: `Successfully sent message to ${whatsappTestRecipient}.`,
+        status: "success",
+        duration: 3500,
+        isClosable: true,
+      });
+      setWhatsappTestMessage("");
+    } catch (err) {
+      console.error("WhatsApp broadcast failed:", err);
+      toast({
+        title: "Send Failed",
+        description: err.response?.data?.message || err.message || "Failed to send WhatsApp message.",
+        status: "error",
+        duration: 4500,
+        isClosable: true,
+      });
+    } finally {
+      setIsSendingWhatsapp(false);
+    }
+  };
+
+  const renderIntegrationsPanel = () => {
+    const isInstagramLinked = facebookIntegration && facebookIntegration.instagramBusinessAccountId;
+
+    return (
+      <Box p={{ base: 4, md: 6 }} borderRadius="16px" bg={tableRowBg} border="1px solid" borderColor={borderColor}>
+        <SimpleGrid columns={{ base: 1, md: 2, xl: 4 }} spacing={6}>
+          {/* Facebook Integration Card */}
+          <Flex
+            direction="column"
+            justify="space-between"
+            p={5}
+            borderWidth="1px"
+            borderColor={borderColor}
+            borderRadius="14px"
+            bg={useColorModeValue("white", "whiteAlpha.50")}
+            boxShadow="0 4px 20px rgba(0,0,0,0.015)"
+            position="relative"
+            transition="all 0.25s ease"
+            _hover={{ boxShadow: "0 10px 30px rgba(0,0,0,0.04)", borderColor: "blue.200" }}
+            minH="380px"
+          >
+            <Box>
+              <HStack justify="space-between" align="flex-start" mb={4}>
+                <HStack spacing={3}>
+                  <Box p={3} borderRadius="12px" bg="rgba(24,119,242,0.1)" color="#1877F2">
+                    <Icon as={FaFacebookF} boxSize={6} />
+                  </Box>
+                  <Box>
+                    <Text fontSize="md" fontWeight="800">Facebook Page</Text>
+                    <Text fontSize="xs" color={muted}>Direct API publishing</Text>
+                  </Box>
+                </HStack>
+                <Badge colorScheme={facebookIntegration ? "green" : "gray"} borderRadius="full" px={2.5} py={0.5}>
+                  {facebookIntegration ? "Connected" : "Not Linked"}
+                </Badge>
+              </HStack>
+
+              {facebookIntegration ? (
+                <VStack align="stretch" spacing={4} mt={6}>
+                  <Box p={3.5} bg={useColorModeValue("gray.50", "whiteAlpha.50")} borderRadius="10px" fontSize="xs">
+                    <VStack align="stretch" spacing={2.5}>
+                      <Flex justify="space-between" pb={2} borderBottom="1px solid" borderColor={borderColor}>
+                        <Text fontWeight="600" color={muted}>Connected Page Name</Text>
+                        <Text fontWeight="800">{facebookIntegration.accountName}</Text>
+                      </Flex>
+                      <Flex justify="space-between" pb={2} borderBottom="1px solid" borderColor={borderColor}>
+                        <Text fontWeight="600" color={muted}>Page ID</Text>
+                        <Text fontWeight="700" fontFamily="mono">{facebookIntegration.pageId}</Text>
+                      </Flex>
+                      <Flex justify="space-between">
+                        <Text fontWeight="600" color={muted}>Assigned Manager</Text>
+                        <Text fontWeight="700">{facebookIntegration.employeeFullName || "-"}</Text>
+                      </Flex>
+                    </VStack>
+                  </Box>
+
+                  <Alert status="success" borderRadius="10px" py={2.5}>
+                    <AlertIcon boxSize={4} />
+                    <AlertDescription fontSize="11px">
+                      The platform is linked and ready to publish directly to this Facebook Page.
+                    </AlertDescription>
+                  </Alert>
+                </VStack>
+              ) : (
+                <Text fontSize="xs" color={muted} lineHeight="tall" mt={4}>
+                  Connect your Facebook Page so that the platform can auto-publish scheduled posts. This flow will securely fetch your managed pages and allow you to select which one to connect.
+                </Text>
+              )}
+            </Box>
+
+            {facebookIntegration ? (
+              <HStack spacing={2} justify="flex-end" width="100%" mt={4}>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  colorScheme="red"
+                  width="100%"
+                  leftIcon={<DeleteIcon />}
+                  onClick={async () => {
+                    await handleDelete(facebookIntegration._id);
+                    await fetchAccounts();
+                  }}
+                >
+                  Disconnect Integration
+                </Button>
+              </HStack>
+            ) : (
+              <VStack spacing={2.5} width="100%" mt={4}>
+                <Button
+                  colorScheme="blue"
+                  leftIcon={<Icon as={FaFacebookF} />}
+                  size="sm"
+                  width="100%"
+                  borderRadius="10px"
+                  onClick={() => {
+                    const loginUrl = `${import.meta.env.VITE_API_URL}/api/facebook/login`;
+                    const width = 600;
+                    const height = 650;
+                    const left = window.screen.width / 2 - width / 2;
+                    const top = window.screen.height / 2 - height / 2;
+                    window.open(
+                      loginUrl,
+                      "Facebook Login",
+                      `width=${width},height=${height},left=${left},top=${top},status=no,resizable=yes,scrollbars=yes`
+                    );
+                  }}
+                >
+                  Connect Automatically
+                </Button>
+                <Button size="sm" variant="outline" width="100%" borderRadius="10px" onClick={() => setShowManualModal(true)}>
+                  Configure Manually
+                </Button>
+              </VStack>
+            )}
+          </Flex>
+
+          {/* Instagram Integration Card */}
+          <Flex
+            direction="column"
+            justify="space-between"
+            p={5}
+            borderWidth="1px"
+            borderColor={borderColor}
+            borderRadius="14px"
+            bg={useColorModeValue("white", "whiteAlpha.50")}
+            boxShadow="0 4px 20px rgba(0,0,0,0.015)"
+            position="relative"
+            transition="all 0.25s ease"
+            _hover={{ boxShadow: "0 10px 30px rgba(0,0,0,0.04)", borderColor: "pink.200" }}
+            minH="380px"
+          >
+            <Box>
+              <HStack justify="space-between" align="flex-start" mb={4}>
+                <HStack spacing={3}>
+                  <Box p={3} borderRadius="12px" bg="rgba(228,64,95,0.1)" color="#E4405F">
+                    <Icon as={FaInstagram} boxSize={6} />
+                  </Box>
+                  <Box>
+                    <Text fontSize="md" fontWeight="800">Instagram Business</Text>
+                    <Text fontSize="xs" color={muted}>Direct API publishing</Text>
+                  </Box>
+                </HStack>
+                <Badge colorScheme={isInstagramLinked ? "green" : "gray"} borderRadius="full" px={2.5} py={0.5}>
+                  {isInstagramLinked ? "Connected" : "Not Linked"}
+                </Badge>
+              </HStack>
+
+              {isInstagramLinked ? (
+                <VStack align="stretch" spacing={4} mt={6}>
+                  <Box p={3.5} bg={useColorModeValue("gray.50", "whiteAlpha.50")} borderRadius="10px" fontSize="xs">
+                    <VStack align="stretch" spacing={2.5}>
+                      <Flex justify="space-between" pb={2} borderBottom="1px solid" borderColor={borderColor}>
+                        <Text fontWeight="600" color={muted}>Instagram ID</Text>
+                        <Text fontWeight="800" fontFamily="mono">{facebookIntegration.instagramBusinessAccountId}</Text>
+                      </Flex>
+                      <Flex justify="space-between" pb={2} borderBottom="1px solid" borderColor={borderColor}>
+                        <Text fontWeight="600" color={muted}>Linked FB Page</Text>
+                        <Text fontWeight="700">{facebookIntegration.accountName}</Text>
+                      </Flex>
+                      <Flex justify="space-between">
+                        <Text fontWeight="600" color={muted}>Assigned Manager</Text>
+                        <Text fontWeight="700">{facebookIntegration.employeeFullName || "-"}</Text>
+                      </Flex>
+                    </VStack>
+                  </Box>
+
+                  <Alert status="success" borderRadius="10px" py={2.5}>
+                    <AlertIcon boxSize={4} />
+                    <AlertDescription fontSize="11px">
+                      Instagram is connected via Facebook and ready to publish posts with image + caption.
+                    </AlertDescription>
+                  </Alert>
+                </VStack>
+              ) : (
+                <Text fontSize="xs" color={muted} lineHeight="tall" mt={4}>
+                  {facebookIntegration
+                    ? "Your connected Facebook Page is not linked to an Instagram Business account. Please link an Instagram Business profile to your Facebook Page in Settings, then reconnect."
+                    : "Connect your Facebook Page integration first. The system will automatically detect the linked Instagram Business account during authentication."}
+                </Text>
+              )}
+            </Box>
+
+            {!isInstagramLinked && (
+              <Box p={3} bg={useColorModeValue("gray.50", "whiteAlpha.50")} borderRadius="10px" fontSize="10px" color={muted} mt={4}>
+                <Text fontWeight="700" mb={1}>Requirements:</Text>
+                <Text>• Instagram Business or Creator account</Text>
+                <Text>• Linked to a managed Facebook Page</Text>
+              </Box>
+            )}
+          </Flex>
+
+          {/* WhatsApp Integration Card */}
+          <Flex
+            direction="column"
+            justify="space-between"
+            p={5}
+            borderWidth="1px"
+            borderColor={borderColor}
+            borderRadius="14px"
+            bg={useColorModeValue("white", "whiteAlpha.50")}
+            boxShadow="0 4px 20px rgba(0,0,0,0.015)"
+            position="relative"
+            transition="all 0.25s ease"
+            _hover={{ boxShadow: "0 10px 30px rgba(0,0,0,0.04)", borderColor: "green.200" }}
+            minH="380px"
+          >
+            <Box>
+              <HStack justify="space-between" align="flex-start" mb={4}>
+                <HStack spacing={3}>
+                  <Box p={3} borderRadius="12px" bg="rgba(37,211,102,0.1)" color="#25D366">
+                    <Icon as={FaWhatsapp} boxSize={6} />
+                  </Box>
+                  <Box>
+                    <Text fontSize="md" fontWeight="800">WhatsApp Business</Text>
+                    <Text fontSize="xs" color={muted}>Automated messaging & broadcasts</Text>
+                  </Box>
+                </HStack>
+                <Badge colorScheme={whatsappIntegration ? "green" : "gray"} borderRadius="full" px={2.5} py={0.5}>
+                  {whatsappIntegration ? "Connected" : "Not Linked"}
+                </Badge>
+              </HStack>
+
+              {whatsappIntegration ? (
+                <VStack align="stretch" spacing={4} mt={6}>
+                  <Box p={3.5} bg={useColorModeValue("gray.50", "whiteAlpha.50")} borderRadius="10px" fontSize="xs">
+                    <VStack align="stretch" spacing={2.5}>
+                      <Flex justify="space-between" pb={2} borderBottom="1px solid" borderColor={borderColor}>
+                        <Text fontWeight="600" color={muted}>Phone Number ID</Text>
+                        <Text fontWeight="800" fontFamily="mono">{whatsappIntegration.whatsappPhoneNumberId}</Text>
+                      </Flex>
+                      <Flex justify="space-between" pb={2} borderBottom="1px solid" borderColor={borderColor}>
+                        <Text fontWeight="600" color={muted}>Business Account ID</Text>
+                        <Text fontWeight="700" fontFamily="mono">{whatsappIntegration.whatsappBusinessAccountId}</Text>
+                      </Flex>
+                      <Flex justify="space-between">
+                        <Text fontWeight="600" color={muted}>Assigned Manager</Text>
+                        <Text fontWeight="700">{whatsappIntegration.employeeFullName || "-"}</Text>
+                      </Flex>
+                    </VStack>
+                  </Box>
+
+                  <Alert status="success" borderRadius="10px" py={2.5}>
+                    <AlertIcon boxSize={4} />
+                    <AlertDescription fontSize="11px">
+                      WhatsApp Cloud API client is verified and ready to send broadcasts.
+                    </AlertDescription>
+                  </Alert>
+                </VStack>
+              ) : (
+                <Text fontSize="xs" color={muted} lineHeight="tall" mt={4}>
+                  Link your WhatsApp Business phone number using Meta Cloud API credentials to start sending automated broadcasts.
+                </Text>
+              )}
+            </Box>
+
+            {whatsappIntegration ? (
+              <HStack spacing={2} justify="flex-end" width="100%" mt={4}>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  colorScheme="red"
+                  width="100%"
+                  leftIcon={<DeleteIcon />}
+                  onClick={async () => {
+                    await handleDelete(whatsappIntegration._id);
+                    await fetchAccounts();
+                  }}
+                >
+                  Disconnect Integration
+                </Button>
+              </HStack>
+            ) : (
+              <VStack spacing={2.5} width="100%" mt={4}>
+                <Button size="sm" variant="outline" width="100%" borderRadius="10px" onClick={() => setShowWhatsappModal(true)} colorScheme="green">
+                  Connect API Client
+                </Button>
+              </VStack>
+            )}
+          </Flex>
+
+          {/* LinkedIn Integration Card */}
+          <Flex
+            direction="column"
+            justify="space-between"
+            p={5}
+            borderWidth="1px"
+            borderColor={borderColor}
+            borderRadius="14px"
+            bg={useColorModeValue("white", "whiteAlpha.50")}
+            boxShadow="0 4px 20px rgba(0,0,0,0.015)"
+            position="relative"
+            transition="all 0.25s ease"
+            _hover={{ boxShadow: "0 10px 30px rgba(0,0,0,0.04)", borderColor: "linkedin.200" }}
+            minH="380px"
+          >
+            <Box>
+              <HStack justify="space-between" align="flex-start" mb={4}>
+                <HStack spacing={3}>
+                  <Box p={3} borderRadius="12px" bg="rgba(10,102,194,0.1)" color="#0A66C2">
+                    <Icon as={FaLinkedinIn} boxSize={6} />
+                  </Box>
+                  <Box>
+                    <Text fontSize="md" fontWeight="800">LinkedIn Feed</Text>
+                    <Text fontSize="xs" color={muted}>Direct API feed integration</Text>
+                  </Box>
+                </HStack>
+                <Badge colorScheme={linkedinIntegration ? "green" : "gray"} borderRadius="full" px={2.5} py={0.5}>
+                  {linkedinIntegration ? "Connected" : "Not Linked"}
+                </Badge>
+              </HStack>
+
+              {linkedinIntegration ? (
+                <VStack align="stretch" spacing={4} mt={6}>
+                  <Box p={3.5} bg={useColorModeValue("gray.50", "whiteAlpha.50")} borderRadius="10px" fontSize="xs">
+                    <VStack align="stretch" spacing={2.5}>
+                      <Flex justify="space-between" pb={2} borderBottom="1px solid" borderColor={borderColor}>
+                        <Text fontWeight="600" color={muted}>LinkedIn URN</Text>
+                        <Text fontWeight="800" fontFamily="mono" noOfLines={1} maxW="160px">{linkedinIntegration.linkedinUrn}</Text>
+                      </Flex>
+                      <Flex justify="space-between" pb={2} borderBottom="1px solid" borderColor={borderColor}>
+                        <Text fontWeight="600" color={muted}>Account Name</Text>
+                        <Text fontWeight="700">{linkedinIntegration.accountName}</Text>
+                      </Flex>
+                      <Flex justify="space-between">
+                        <Text fontWeight="600" color={muted}>Assigned Manager</Text>
+                        <Text fontWeight="700">{linkedinIntegration.employeeFullName || "-"}</Text>
+                      </Flex>
+                    </VStack>
+                  </Box>
+
+                  <Alert status="success" borderRadius="10px" py={2.5}>
+                    <AlertIcon boxSize={4} />
+                    <AlertDescription fontSize="11px">
+                      LinkedIn is linked and ready to publish posts directly.
+                    </AlertDescription>
+                  </Alert>
+                </VStack>
+              ) : (
+                <Text fontSize="xs" color={muted} lineHeight="tall" mt={4}>
+                  Connect your LinkedIn account to publish shares, updates, and articles to your personal profile or company organization page.
+                </Text>
+              )}
+            </Box>
+
+            {linkedinIntegration ? (
+              <HStack spacing={2} justify="flex-end" width="100%" mt={4}>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  colorScheme="red"
+                  width="100%"
+                  leftIcon={<DeleteIcon />}
+                  onClick={async () => {
+                    await handleDelete(linkedinIntegration._id);
+                    await fetchAccounts();
+                  }}
+                >
+                  Disconnect Integration
+                </Button>
+              </HStack>
+            ) : (
+              <VStack spacing={2.5} width="100%" mt={4}>
+                <Button
+                  colorScheme="linkedin"
+                  leftIcon={<Icon as={FaLinkedinIn} />}
+                  size="sm"
+                  width="100%"
+                  borderRadius="10px"
+                  onClick={() => {
+                    const loginUrl = `${import.meta.env.VITE_API_URL}/api/linkedin/login`;
+                    const width = 600;
+                    const height = 650;
+                    const left = window.screen.width / 2 - width / 2;
+                    const top = window.screen.height / 2 - height / 2;
+                    window.open(
+                      loginUrl,
+                      "LinkedIn Login",
+                      `width=${width},height=${height},left=${left},top=${top},status=no,resizable=yes,scrollbars=yes`
+                    );
+                  }}
+                >
+                  Connect Automatically
+                </Button>
+                <Button size="sm" variant="outline" width="100%" borderRadius="10px" onClick={() => setShowLinkedinModal(true)}>
+                  Configure Manually
+                </Button>
+              </VStack>
+            )}
+          </Flex>
+        </SimpleGrid>
+
+        {/* WhatsApp Broadcast Tester Panel */}
+        {whatsappIntegration && (
+          <Box mt={8} borderTop="1px solid" borderColor={borderColor} pt={6}>
+            <Text fontSize="lg" fontWeight="800" mb={4}>WhatsApp Broadcast Tester</Text>
+            <Box p={5} borderRadius="12px" border="1px solid" borderColor="blue.100" bg="blue.50" _dark={{ bg: "rgba(59,130,246,0.02)", borderColor: "blue.900" }}>
+              <VStack align="stretch" spacing={4}>
+                <Text fontSize="xs" color={muted}>
+                  Send a direct notification or test message. Standard text messaging is subject to Meta's 24-hour response window. If the recipient hasn't messaged your business in 24 hours, leave the message field blank to send the official Meta <strong>hello_world</strong> template instead.
+                </Text>
+                <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}>
+                  <FormControl isRequired>
+                    <FormLabel fontSize="xs">Recipient Phone Number</FormLabel>
+                    <Input
+                      placeholder="E.g. +251911123456 (with country code)"
+                      value={whatsappTestRecipient}
+                      onChange={(e) => setWhatsappTestRecipient(e.target.value)}
+                      borderRadius="10px"
+                      size="sm"
+                      bg={useColorModeValue("white", "whiteAlpha.50")}
+                      borderColor={borderColor}
+                    />
+                  </FormControl>
+                  <FormControl>
+                    <FormLabel fontSize="xs">Custom Message Text (Optional)</FormLabel>
+                    <Input
+                      placeholder="Leave blank to send default hello_world template"
+                      value={whatsappTestMessage}
+                      onChange={(e) => setWhatsappTestMessage(e.target.value)}
+                      borderRadius="10px"
+                      size="sm"
+                      bg={useColorModeValue("white", "whiteAlpha.50")}
+                      borderColor={borderColor}
+                    />
+                  </FormControl>
+                </SimpleGrid>
+                <HStack justify="flex-end">
+                  <Button
+                    colorScheme="whatsapp"
+                    leftIcon={<Icon as={FaWhatsapp} />}
+                    size="sm"
+                    borderRadius="10px"
+                    isLoading={isSendingWhatsapp}
+                    onClick={handleWhatsAppSendBroadcast}
+                  >
+                    Send Broadcast
+                  </Button>
+                </HStack>
+              </VStack>
+            </Box>
+          </Box>
+        )}
+      </Box>
+    );
+  };
+
   const handleRowClick = (account) => {
     setSelectedAccount(account);
     onDrawerOpen();
   };
 
   const getFilteredRowsForTab = (platform) => {
+    if (platform === "Integrations") {
+      return accounts.filter((account) => account.isConnected);
+    }
     let list = accounts;
     if (platform !== "All") {
       list = list.filter((account) => account.platform === platform);
@@ -736,15 +1596,17 @@ export default function SocialMediaAccountsManager({ emailOnly = false, onSocial
 
   return (
     <VStack align="stretch" spacing={6}>
-      <SectionIntro
-        eyebrow={emailOnly ? "Email Accounts" : "Social Accounts"}
-        title={emailOnly ? "Manage email credentials" : "Manage social media credentials"}
-        actions={[
-          <Button key="create" leftIcon={<AddIcon />} borderRadius="14px" onClick={openCreateModal} colorScheme="blue" size="sm">
-            {emailOnly ? "Add email" : "Add account"}
-          </Button>,
-        ]}
-      />
+      {!showIntegrationsOnly && (
+        <SectionIntro
+          eyebrow={emailOnly ? "Email Accounts" : "Social Accounts"}
+          title={emailOnly ? "Manage email credentials" : "Manage social media credentials"}
+          actions={[
+            <Button key="create" leftIcon={<AddIcon />} borderRadius="14px" onClick={openCreateModal} colorScheme="blue" size="sm">
+              {emailOnly ? "Add email" : "Add account"}
+            </Button>,
+          ]}
+        />
+      )}
 
       {error ? (
         <Alert status="error" borderRadius="12px" borderWidth="1px" borderColor={borderColor}>
@@ -771,10 +1633,12 @@ export default function SocialMediaAccountsManager({ emailOnly = false, onSocial
           <Box p={6}>
             <HStack spacing={3}>
               <Spinner size="sm" />
-              <Text color={muted}>Loading credentials...</Text>
+              <Text color={muted}>{showIntegrationsOnly ? "Loading integration state..." : "Loading credentials..."}</Text>
             </HStack>
           </Box>
         </SurfaceCard>
+      ) : showIntegrationsOnly ? (
+        renderIntegrationsPanel()
       ) : (
         <SurfaceCard>
           <Box p={{ base: 3.5, md: 4 }}>
@@ -859,28 +1723,32 @@ export default function SocialMediaAccountsManager({ emailOnly = false, onSocial
                     const platformRows = getFilteredRowsForTab(platform);
                     return (
                       <TabPanel key={platform} p={0}>
-                        <ResponsiveDataView
-                          columns={["Platform", "Assigned User", "Username", "Email", "Password", "Phone Number", "Status", "Actions"]}
-                          data={platformRows}
-                          renderRow={renderRow}
-                          renderCard={renderCard}
-                          emptyState={
-                            <EmptyStateBlock
-                              title={platform === "All" ? "No account records found" : `No ${platform} accounts matching filters`}
-                              description={
-                                searchQuery.trim()
-                                  ? "Try adjusting your search keywords or checking other tab filters."
-                                  : `Add ${platform} credentials here to manage account access, passwords, and assignments.`
-                              }
-                              badge={platform === "All" ? "Accounts Empty" : "No Records"}
-                              action={
-                                <Button size="xs" borderRadius="10px" onClick={openCreateModal} colorScheme="blue">
-                                  {emailOnly ? "Add email" : platform === "All" ? "Add first account" : "Add account"}
-                                </Button>
-                              }
-                            />
-                          }
-                        />
+                        {platform === "Integrations" ? (
+                          renderIntegrationsPanel()
+                        ) : (
+                          <ResponsiveDataView
+                            columns={["Platform", "Assigned User", "Username", "Email", "Password", "Phone Number", "Status", "Actions"]}
+                            data={platformRows}
+                            renderRow={renderRow}
+                            renderCard={renderCard}
+                            emptyState={
+                              <EmptyStateBlock
+                                title={platform === "All" ? "No account records found" : `No ${platform} accounts matching filters`}
+                                description={
+                                  searchQuery.trim()
+                                    ? "Try adjusting your search keywords or checking other tab filters."
+                                    : `Add ${platform} credentials here to manage account access, passwords, and assignments.`
+                                }
+                                badge={platform === "All" ? "Accounts Empty" : "No Records"}
+                                action={
+                                  <Button size="xs" borderRadius="10px" onClick={openCreateModal} colorScheme="blue">
+                                    {emailOnly ? "Add email" : platform === "All" ? "Add first account" : "Add account"}
+                                  </Button>
+                                }
+                              />
+                            }
+                          />
+                        )}
                       </TabPanel>
                     );
                   })}
@@ -1078,28 +1946,23 @@ export default function SocialMediaAccountsManager({ emailOnly = false, onSocial
                 </Select>
               </FormControl>
               <FormControl isRequired>
-                <FormLabel fontSize="xs">Assign HR Asset User</FormLabel>
+                <FormLabel fontSize="xs">Assign Employee</FormLabel>
                 <Select
-                  placeholder={assetsLoading ? "Loading HR asset users..." : "Select HR asset user"}
+                  placeholder={loading ? "Loading employees..." : "Select employee"}
                   value={form.employeeFullName}
                   onChange={(event) => handleChange("employeeFullName", event.target.value)}
                   borderRadius="10px"
                   size="sm"
                   borderColor={borderColor}
-                  isDisabled={assetsLoading || assetAssignees.length === 0}
+                  isDisabled={loading || employeesList.length === 0}
                 >
-                  {assetAssignees.map((assignee) => (
-                    <option key={assignee.name} value={assignee.name}>
-                      {assignee.count ? `${assignee.name} (${assignee.count} asset${assignee.count === 1 ? "" : "s"})` : assignee.name}
+                  {employeesList.map((empName) => (
+                    <option key={empName} value={empName}>
+                      {empName}
                     </option>
                   ))}
                 </Select>
-                {selectedAssignee?.assets?.length ? (
-                  <Text mt={1} fontSize="10px" color={muted} noOfLines={1}>
-                    Assets: {selectedAssignee.assets.slice(0, 3).join(", ")}
-                    {selectedAssignee.assets.length > 3 ? ` +${selectedAssignee.assets.length - 3} more` : ""}
-                  </Text>
-                ) : null}
+
               </FormControl>
               <FormControl isRequired>
                 <FormLabel fontSize="xs">Username</FormLabel>
@@ -1179,6 +2042,307 @@ export default function SocialMediaAccountsManager({ emailOnly = false, onSocial
               {editingAccount ? "Save changes" : "Create account"}
             </Button>
             <Button variant="ghost" borderRadius="10px" size="sm" onClick={closeModal}>
+              Cancel
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+
+      {/* --- Facebook OAuth Callback Modal --- */}
+      <Modal isOpen={showOauthModal} onClose={() => setShowOauthModal(false)} size="lg">
+        <ModalOverlay />
+        <ModalContent borderRadius="18px" boxShadow="0 24px 70px rgba(15,23,42,0.24)">
+          <ModalHeader>Connect Facebook Page</ModalHeader>
+          <ModalCloseButton />
+          <ModalBody>
+            <VStack align="stretch" spacing={4}>
+              <Text fontSize="xs" color={muted}>
+                Select an assigned manager to oversee operations for this page, then choose the Facebook page you want to connect:
+              </Text>
+              <FormControl isRequired>
+                <FormLabel fontSize="xs">Assigned Manager</FormLabel>
+                <Select
+                  placeholder="Select assigned manager"
+                  value={oauthEmployeeName}
+                  onChange={(e) => setOauthEmployeeName(e.target.value)}
+                  borderRadius="10px"
+                  size="sm"
+                  borderColor={borderColor}
+                >
+                  {employeesList.map((empName) => (
+                    <option key={empName} value={empName}>
+                      {empName}
+                    </option>
+                  ))}
+                </Select>
+              </FormControl>
+              <Divider />
+              <VStack align="stretch" spacing={2.5} maxH="280px" overflowY="auto">
+                {oauthPages.length === 0 ? (
+                  <Text fontSize="xs" color={muted} textAlign="center" py={4}>No Facebook Pages found for this account.</Text>
+                ) : (
+                  oauthPages.map((page) => (
+                    <HStack key={page.id} justify="space-between" p={3} borderWidth="1px" borderColor={borderColor} borderRadius="10px" _hover={{ bg: useColorModeValue("gray.50", "whiteAlpha.50") }}>
+                      <VStack align="start" spacing={0.5}>
+                        <Text fontSize="xs" fontWeight="700">{page.name}</Text>
+                        <Text fontSize="10px" color={muted}>ID: {page.id} • {page.category || "General"}</Text>
+                      </VStack>
+                      <Button
+                        size="xs"
+                        colorScheme="blue"
+                        borderRadius="8px"
+                        isLoading={saving}
+                        onClick={() => handleConnectPage(page, oauthEmployeeName)}
+                      >
+                        Connect Page
+                      </Button>
+                    </HStack>
+                  ))
+                )}
+              </VStack>
+            </VStack>
+          </ModalBody>
+          <ModalFooter py={3}>
+            <Button size="sm" variant="ghost" borderRadius="10px" onClick={() => setShowOauthModal(false)}>
+              Cancel
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+
+      {/* --- Facebook Manual Setup Modal --- */}
+      <Modal isOpen={showManualModal} onClose={() => setShowManualModal(false)} size="md">
+        <ModalOverlay />
+        <ModalContent borderRadius="18px" boxShadow="0 24px 70px rgba(15,23,42,0.24)">
+          <ModalHeader>Configure Facebook Manually</ModalHeader>
+          <ModalCloseButton />
+          <ModalBody>
+            <VStack align="stretch" spacing={3.5}>
+              <FormControl isRequired>
+                <FormLabel fontSize="xs">Assigned Manager</FormLabel>
+                <Select
+                  placeholder="Select assigned manager"
+                  value={manualEmployeeName}
+                  onChange={(e) => setManualEmployeeName(e.target.value)}
+                  borderRadius="10px"
+                  size="sm"
+                  borderColor={borderColor}
+                >
+                  {employeesList.map((empName) => (
+                    <option key={empName} value={empName}>
+                      {empName}
+                    </option>
+                  ))}
+                </Select>
+              </FormControl>
+              <FormControl isRequired>
+                <FormLabel fontSize="xs">Facebook Page ID</FormLabel>
+                <Input
+                  placeholder="Enter Page ID (e.g., 1084293812345)"
+                  value={manualPageId}
+                  onChange={(e) => setManualPageId(e.target.value)}
+                  borderRadius="10px"
+                  size="sm"
+                  borderColor={borderColor}
+                />
+              </FormControl>
+              <FormControl isRequired>
+                <FormLabel fontSize="xs">Never-Expiring Page Access Token</FormLabel>
+                <Textarea
+                  placeholder="Paste Page Access Token"
+                  value={manualAccessToken}
+                  onChange={(e) => setManualAccessToken(e.target.value)}
+                  borderRadius="10px"
+                  size="sm"
+                  borderColor={borderColor}
+                  rows={3}
+                />
+                 <Box mt={2} p={2.5} bg="blue.50" borderRadius="8px" borderWidth="1px" borderColor="blue.100" fontSize="10px" color="blue.700" _dark={{ bg: "rgba(59,130,246,0.06)", color: "blue.300" }}>
+                  <HStack spacing={1.5} align="flex-start">
+                    <Icon as={FiInfo} mt={0.5} />
+                    <Text lineHeight="tall">
+                      Use Meta Graph API Explorer or your System User access token settings to get a never-expiring token. Ensure the token has <strong>pages_manage_posts</strong> and <strong>pages_read_engagement</strong> permissions.
+                    </Text>
+                  </HStack>
+                </Box>
+              </FormControl>
+            </VStack>
+          </ModalBody>
+          <ModalFooter py={3}>
+            <Button
+              size="sm"
+              colorScheme="blue"
+              borderRadius="10px"
+              mr={2}
+              isLoading={isVerifying}
+              onClick={handleManualVerifyAndLink}
+            >
+              Verify & Link Page
+            </Button>
+            <Button size="sm" variant="ghost" borderRadius="10px" onClick={() => setShowManualModal(false)}>
+              Cancel
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+
+      {/* --- WhatsApp API Setup Modal --- */}
+      <Modal isOpen={showWhatsappModal} onClose={() => setShowWhatsappModal(false)} size="md">
+        <ModalOverlay />
+        <ModalContent borderRadius="18px" boxShadow="0 24px 70px rgba(15,23,42,0.24)">
+          <ModalHeader>Configure WhatsApp Business API</ModalHeader>
+          <ModalCloseButton />
+          <ModalBody>
+            <VStack align="stretch" spacing={3.5}>
+              <FormControl isRequired>
+                <FormLabel fontSize="xs">Assigned Manager</FormLabel>
+                <Select
+                  placeholder="Select assigned manager"
+                  value={whatsappEmployeeName}
+                  onChange={(e) => setWhatsappEmployeeName(e.target.value)}
+                  borderRadius="10px"
+                  size="sm"
+                  borderColor={borderColor}
+                >
+                  {employeesList.map((empName) => (
+                    <option key={empName} value={empName}>
+                      {empName}
+                    </option>
+                  ))}
+                </Select>
+              </FormControl>
+              <FormControl isRequired>
+                <FormLabel fontSize="xs">WhatsApp Phone Number ID</FormLabel>
+                <Input
+                  placeholder="Enter Phone Number ID (e.g., 1056294723910)"
+                  value={whatsappPhoneId}
+                  onChange={(e) => setWhatsappPhoneId(e.target.value)}
+                  borderRadius="10px"
+                  size="sm"
+                  borderColor={borderColor}
+                />
+              </FormControl>
+              <FormControl isRequired>
+                <FormLabel fontSize="xs">WhatsApp Business Account ID</FormLabel>
+                <Input
+                  placeholder="Enter Business Account ID"
+                  value={whatsappAccountId}
+                  onChange={(e) => setWhatsappAccountId(e.target.value)}
+                  borderRadius="10px"
+                  size="sm"
+                  borderColor={borderColor}
+                />
+              </FormControl>
+              <FormControl isRequired>
+                <FormLabel fontSize="xs">System User Access Token</FormLabel>
+                <Textarea
+                  placeholder="Paste WhatsApp Cloud API Access Token"
+                  value={whatsappToken}
+                  onChange={(e) => setWhatsappToken(e.target.value)}
+                  borderRadius="10px"
+                  size="sm"
+                  borderColor={borderColor}
+                  rows={3}
+                />
+                <Box mt={2} p={2.5} bg="green.50" borderRadius="8px" borderWidth="1px" borderColor="green.100" fontSize="10px" color="green.700" _dark={{ bg: "rgba(37,211,102,0.06)", color: "green.300" }}>
+                  <HStack spacing={1.5} align="flex-start">
+                    <Icon as={FiInfo} mt={0.5} />
+                    <Text lineHeight="tall">
+                      Obtain your credentials from the Meta App Dashboard under WhatsApp &gt; API Setup. Ensure your System User token has <strong>whatsapp_business_messaging</strong> and <strong>whatsapp_business_management</strong> scopes.
+                    </Text>
+                  </HStack>
+                </Box>
+              </FormControl>
+            </VStack>
+          </ModalBody>
+          <ModalFooter py={3}>
+            <Button
+              size="sm"
+              colorScheme="green"
+              borderRadius="10px"
+              mr={2}
+              isLoading={isVerifyingWhatsapp}
+              onClick={handleWhatsAppVerifyAndLink}
+            >
+              Verify & Link WhatsApp
+            </Button>
+            <Button size="sm" variant="ghost" borderRadius="10px" onClick={() => setShowWhatsappModal(false)}>
+              Cancel
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+
+      {/* --- LinkedIn API Setup Modal --- */}
+      <Modal isOpen={showLinkedinModal} onClose={() => setShowLinkedinModal(false)} size="md">
+        <ModalOverlay />
+        <ModalContent borderRadius="18px" boxShadow="0 24px 70px rgba(15,23,42,0.24)">
+          <ModalHeader>Configure LinkedIn Integration</ModalHeader>
+          <ModalCloseButton />
+          <ModalBody>
+            <VStack align="stretch" spacing={3.5}>
+              <FormControl isRequired>
+                <FormLabel fontSize="xs">Assigned Manager</FormLabel>
+                <Select
+                  placeholder="Select assigned manager"
+                  value={linkedinEmployeeName}
+                  onChange={(e) => setLinkedinEmployeeName(e.target.value)}
+                  borderRadius="10px"
+                  size="sm"
+                  borderColor={borderColor}
+                >
+                  {employeesList.map((empName) => (
+                    <option key={empName} value={empName}>
+                      {empName}
+                    </option>
+                  ))}
+                </Select>
+              </FormControl>
+              <FormControl isRequired>
+                <FormLabel fontSize="xs">LinkedIn Member or Org URN</FormLabel>
+                <Input
+                  placeholder="urn:li:person:XXXXX or urn:li:organization:XXXXX"
+                  value={linkedinUrn}
+                  onChange={(e) => setLinkedinUrn(e.target.value)}
+                  borderRadius="10px"
+                  size="sm"
+                  borderColor={borderColor}
+                />
+              </FormControl>
+              <FormControl isRequired>
+                <FormLabel fontSize="xs">LinkedIn Developer Access Token</FormLabel>
+                <Textarea
+                  placeholder="Paste LinkedIn Access Token"
+                  value={linkedinToken}
+                  onChange={(e) => setLinkedinToken(e.target.value)}
+                  borderRadius="10px"
+                  size="sm"
+                  borderColor={borderColor}
+                  rows={3}
+                />
+                <Box mt={2} p={2.5} bg="blue.50" borderRadius="8px" borderWidth="1px" borderColor="blue.100" fontSize="10px" color="blue.700" _dark={{ bg: "rgba(10,102,194,0.06)", color: "blue.300" }}>
+                  <HStack spacing={1.5} align="flex-start">
+                    <Icon as={FiInfo} mt={0.5} />
+                    <Text lineHeight="tall">
+                      Register your app in the LinkedIn Developer Portal. Ensure your OAuth token has <strong>w_member_social</strong> and/or <strong>w_organization_social</strong> permissions.
+                    </Text>
+                  </HStack>
+                </Box>
+              </FormControl>
+            </VStack>
+          </ModalBody>
+          <ModalFooter py={3}>
+            <Button
+              size="sm"
+              colorScheme="linkedin"
+              borderRadius="10px"
+              mr={2}
+              isLoading={isVerifyingLinkedin}
+              onClick={handleLinkedInVerifyAndLink}
+            >
+              Verify & Link LinkedIn
+            </Button>
+            <Button size="sm" variant="ghost" borderRadius="10px" onClick={() => setShowLinkedinModal(false)}>
               Cancel
             </Button>
           </ModalFooter>

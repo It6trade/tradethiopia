@@ -127,15 +127,37 @@ export default function SocialMediaAccountSummary() {
   }, [accounts]);
 
   const renderPlatformBadges = (platforms, iconOnly = false) => (
-    <HStack spacing={2} flexWrap="wrap">
+    <HStack spacing={1.5} flexWrap="wrap">
       {platforms.map((platform) => {
         const platformVisual = getPlatformVisual(platform);
+        if (iconOnly) {
+          return (
+            <Flex
+              key={platform}
+              w="26px"
+              h="26px"
+              borderRadius="full"
+              align="center"
+              justify="center"
+              borderWidth="1px"
+              borderColor={borderColor}
+              bg={platformVisual.bg}
+              color={platformVisual.color}
+              title={platform}
+              aria-label={platform}
+              transition="transform 0.15s ease"
+              _hover={{ transform: "scale(1.15)" }}
+            >
+              <Icon as={platformVisual.icon} boxSize={3} />
+            </Flex>
+          );
+        }
         return (
           <HStack
             key={platform}
-            spacing={2}
-            px={2.5}
-            py={1.5}
+            spacing={1.5}
+            px={2}
+            py={0.5}
             borderRadius="full"
             borderWidth="1px"
             borderColor={borderColor}
@@ -144,12 +166,10 @@ export default function SocialMediaAccountSummary() {
             aria-label={platform}
             title={platform}
           >
-            <Icon as={platformVisual.icon} boxSize={3.5} />
-            {iconOnly ? null : (
-              <Text fontSize="xs" fontWeight="800" color="inherit">
-                {platform}
-              </Text>
-            )}
+            <Icon as={platformVisual.icon} boxSize={3} />
+            <Text fontSize="10px" fontWeight="800" color="inherit">
+              {platform}
+            </Text>
           </HStack>
         );
       })}
@@ -199,26 +219,26 @@ export default function SocialMediaAccountSummary() {
 
           {rows.length ? (
             <>
-              <VStack display={{ base: "flex", md: "none" }} align="stretch" spacing={3}>
+              <VStack display={{ base: "flex", md: "none" }} align="stretch" spacing={2.5}>
                 {rows.map((row) => (
-                  <Box key={row.id} p={4} borderWidth="1px" borderColor={borderColor} borderRadius="18px" bg={rowBg}>
-                    <VStack align="stretch" spacing={3}>
-                      <HStack spacing={3}>
-                        <Box p={2.5} borderRadius="14px" bg={iconPanelBg} color="#2563EB">
-                          <Icon as={FiUser} />
+                  <Box key={row.id} p={3} borderWidth="1px" borderColor={borderColor} borderRadius="14px" bg={rowBg}>
+                    <VStack align="stretch" spacing={2.5}>
+                      <HStack spacing={2.5}>
+                        <Box p={2} borderRadius="10px" bg={iconPanelBg} color="#2563EB">
+                          <Icon as={FiUser} boxSize={3.5} />
                         </Box>
                         <Box minW={0}>
-                          <Text fontWeight="800" noOfLines={1}>
+                          <Text fontSize="sm" fontWeight="700" noOfLines={1}>
                             {row.employeeFullName}
                           </Text>
-                          <Text fontSize="sm" color={muted} noOfLines={1}>
+                          <Text fontSize="xs" color={muted} noOfLines={1}>
                             {row.email}
                           </Text>
                         </Box>
                       </HStack>
                       <HStack spacing={2}>
-                        <Icon as={FiMail} color={muted} />
-                        <Text fontSize="sm" noOfLines={1}>
+                        <Icon as={FiMail} color={muted} boxSize={3.5} />
+                        <Text fontSize="xs" color={muted} noOfLines={1}>
                           {row.email}
                         </Text>
                       </HStack>
@@ -229,23 +249,23 @@ export default function SocialMediaAccountSummary() {
               </VStack>
 
               <Box display={{ base: "none", md: "block" }} overflowX="auto">
-                <Table variant="unstyled" sx={{ borderCollapse: "separate", borderSpacing: "0 10px" }}>
+                <Table variant="unstyled" sx={{ borderCollapse: "separate", borderSpacing: "0 6px" }}>
                   <Thead>
                     <Tr>
                       {["Employee", "Email", "Social Media Account"].map((heading) => (
                         <Th
                           key={heading}
                           px={4}
-                          py={3}
-                          fontSize="11px"
+                          py={2}
+                          fontSize="10px"
                           textTransform="uppercase"
                           letterSpacing="0.12em"
                           color={muted}
                           bg={tableHeaderBg}
-                          borderYWidth="1px"
+                          borderY="1px"
                           borderColor={borderColor}
-                          _first={{ borderLeftWidth: "1px", borderLeftRadius: "16px" }}
-                          _last={{ borderRightWidth: "1px", borderRightRadius: "16px" }}
+                          _first={{ borderLeftWidth: "1px", borderLeftRadius: "12px" }}
+                          _last={{ borderRightWidth: "1px", borderRightRadius: "12px" }}
                         >
                           {heading}
                         </Th>
@@ -257,25 +277,25 @@ export default function SocialMediaAccountSummary() {
                       <Tr
                         key={row.id}
                         bg={rowBg}
-                        boxShadow="0 2px 10px rgba(15,23,42,0.035)"
-                        transition="all 0.2s ease"
-                        _hover={{ bg: rowHover, transform: "translateY(-1px)", boxShadow: "0 14px 34px rgba(15,23,42,0.08)" }}
+                        boxShadow="0 1px 4px rgba(15,23,42,0.02)"
+                        transition="all 0.15s ease"
+                        _hover={{ bg: rowHover, transform: "translateY(-0.5px)", boxShadow: "0 6px 18px rgba(15,23,42,0.05)" }}
                       >
-                        <Td px={4} py={4} borderYWidth="1px" borderColor={borderColor} _first={{ borderLeftWidth: "1px", borderLeftRadius: "18px" }}>
-                          <HStack spacing={3}>
-                            <Box p={2.5} borderRadius="14px" bg={iconPanelBg} color="#2563EB">
-                              <Icon as={FiUser} />
+                        <Td px={4} py={2} borderY="1px" borderColor={borderColor} _first={{ borderLeftWidth: "1px", borderLeftRadius: "14px" }}>
+                          <HStack spacing={2.5}>
+                            <Box p={2} borderRadius="10px" bg={iconPanelBg} color="#2563EB">
+                              <Icon as={FiUser} boxSize={3.5} />
                             </Box>
-                            <Text fontWeight="800">{row.employeeFullName}</Text>
+                            <Text fontSize="sm" fontWeight="700">{row.employeeFullName}</Text>
                           </HStack>
                         </Td>
-                        <Td px={4} py={4} borderYWidth="1px" borderColor={borderColor}>
+                        <Td px={4} py={2} borderY="1px" borderColor={borderColor}>
                           <HStack spacing={2}>
-                            <Icon as={FiMail} color={muted} />
-                            <Text>{row.email}</Text>
+                            <Icon as={FiMail} color={muted} boxSize={3.5} />
+                            <Text fontSize="xs" color={muted}>{row.email}</Text>
                           </HStack>
                         </Td>
-                        <Td px={4} py={4} borderYWidth="1px" borderColor={borderColor} _last={{ borderRightWidth: "1px", borderRightRadius: "18px" }}>
+                        <Td px={4} py={2} borderY="1px" borderColor={borderColor} _last={{ borderRightWidth: "1px", borderRightRadius: "14px" }}>
                           {renderPlatformBadges(row.platforms, true)}
                         </Td>
                       </Tr>

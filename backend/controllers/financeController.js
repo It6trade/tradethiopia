@@ -1,5 +1,5 @@
 const InventoryItem = require('../models/InventoryItem');
-const SalesCustomer = require('../models/SalesCustomer');
+const SalesCustomer = require('../sales/models/SalesCustomer');
 const User = require('../models/user.model');
 const Purchase = require('../models/Purchase');
 const Cost = require('../models/Cost');
@@ -127,10 +127,6 @@ const buildExpenseSummary = async () => {
     expenseSources
   };
 };
-
-// Shared with the COO dashboard so both dashboards calculate finance KPIs from
-// the same persisted Cost and Payroll records.
-exports.buildExpenseSummary = buildExpenseSummary;
 
 exports.getMetrics = async (req, res) => {
   try {

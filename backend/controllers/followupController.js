@@ -576,7 +576,6 @@ const getFollowupStats = async (req, res) => {
     const now = new Date();
     const stats = {
       total: followups.length,
-      new: 0,
       completed: 0,
       pending: 0,
       active: 0,
@@ -587,12 +586,7 @@ const getFollowupStats = async (req, res) => {
     };
 
     followups.forEach((f) => {
-      const createdAt = f.createdAt ? new Date(f.createdAt) : null;
-      if (createdAt && createdAt.getUTCFullYear() === now.getUTCFullYear()
-        && createdAt.getUTCMonth() === now.getUTCMonth()) {
-        stats.new += 1;
-      }
-      const status = (f.followupStatus || f.status || "").toLowerCase();
+      const status = (f.status || "").toLowerCase();
       if (status === "completed") {
         stats.completed += 1;
       } else if (status === "pending") {

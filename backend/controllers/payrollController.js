@@ -1,11 +1,11 @@
 // Import required modules
 const Payroll = require('../models/Payroll');
 const Attendance = require('../models/Attendance');
-const Commission = require('../models/Commission');
+const Commission = require('../sales/models/Commission');
 const PayrollHistory = require('../models/PayrollHistory');
 const User = require('../models/user.model');
-const SalesCustomer = require('../models/SalesCustomer');
-const PackageSale = require('../models/PackageSale');
+const SalesCustomer = require('../sales/models/SalesCustomer');
+const PackageSale = require('../sales/models/PackageSale');
 const { resolveSaleCommission } = require('../utils/commission');
 const asyncHandler = require('express-async-handler');
 

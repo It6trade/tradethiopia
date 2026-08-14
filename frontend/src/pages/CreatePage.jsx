@@ -3,7 +3,7 @@ import { Input, VStack, Box, Container, Heading, Button, useColorModeValue, useT
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 
-const CreateOrUpdatePage = ({ userId, onClose, onCreated }) => {
+const CreateOrUpdatePage = ({ userId }) => {
     const [newUser, setNewUser] = useState({
         name: "",
         email: "",
@@ -77,10 +77,6 @@ const CreateOrUpdatePage = ({ userId, onClose, onCreated }) => {
                     isClosable: true,
                 });
                 setNewUser({ name: "", email: "", password: "", role: "", salary: "" });
-                if (!userId) {
-                    await onCreated?.();
-                    onClose?.();
-                }
             }
         } catch (error) {
             toast({
@@ -140,6 +136,7 @@ return (
                             <option value="customerservice">Customer Service</option>
                             <option value="CustomerSuccessManager">Customer Success Manager</option>
                             <option value="SocialmediaManager">Socialmedia Manager</option>
+                            <option value="socialmedia">Social Media</option>
                             <option value="supervisor">Supervisor</option>
                             <option value="tradextv">tradextv</option>
                             <option value="IT">IT</option>
