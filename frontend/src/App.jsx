@@ -94,6 +94,7 @@ const PurchasePage = lazy(() => import("./pages/sales/PurchasePage.jsx"));
 const CostManagementPage = lazy(() => import("./pages/sales/CostManagementPage.jsx"));
 const FinancePayrollPage = lazy(() => import("./pages/sales/FinancePayrollPage.jsx"));
 const CommissionApprovalPage = lazy(() => import("./pages/sales/CommissionApprovalPage.jsx"));
+const FinanceFormsPage = lazy(() => import("./pages/sales/FinanceFormsPage.jsx"));
 const B2BDashboard = lazy(() => import("./pages/B2BDashboard"));
 const COODashboard = lazy(() => import("./pages/COODashboard"));
 const TradexTVDashboard = lazy(() => import("./pages/TradexTVDashboard"));
@@ -133,7 +134,7 @@ function App() {
     "/finance/messages", "/finance/team-requests", "/finance/demands", "/finance/payments", "/finance/inventory", "/finance/orders",
     "/addcustomer", "/resource", "/videolist", "/uploadpage", "/my-payroll",
     "/cdashboard", "/waitingforapproval", "/training","/comingsoonpage", "/customerreport", "/followup-report", "/customerfollowup", "/b2b-dashboard",
-    "/coo-dashboard", "/ceo-dashboard", "/tradextv-dashboard", "/customer-settings", "/it", "/salesmanager", "/social-media", "/requests", "/finance-dashboard/payroll", "/finance-dashboard/commission-approval", "/supervisor", "/supervisor/account", "/finance/requests", "/reception-dashboard"
+    "/coo-dashboard", "/ceo-dashboard", "/tradextv-dashboard", "/customer-settings", "/it", "/salesmanager", "/social-media", "/requests", "/finance-dashboard/payroll", "/finance-dashboard/commission-approval", "/finance-dashboard/forms", "/supervisor", "/supervisor/account", "/finance/requests", "/reception-dashboard"
   ].map((path) => path.toLowerCase());
 
   // Hide the navbar and sidebar for legacy/fullscreen pages; root should only match exactly
@@ -190,6 +191,7 @@ return (
       <Route path="/finance-dashboard/costs" element={<FinanceLayout><CostManagementPage /></FinanceLayout>} />
       <Route path="/finance-dashboard/payroll" element={<FinanceLayout><FinancePayrollPage /></FinanceLayout>} />
       <Route path="/finance-dashboard/commission-approval" element={<FinanceLayout><CommissionApprovalPage /></FinanceLayout>} />
+      <Route path="/finance-dashboard/forms" element={<FinanceLayout><FinanceFormsPage /></FinanceLayout>} />
       <Route path="/finance/inventory" element={<Navigate to="/finance-dashboard/inventory" replace />} />
       <Route path="/finance/orders" element={<Navigate to="/finance-dashboard/orders" replace />} />
       <Route path="/finance/demands" element={<Navigate to="/finance-dashboard/demands" replace />} />
