@@ -70,6 +70,19 @@ const getDefaultColumnPrefs = () => ({
   widths: DEFAULT_COLUMNS.reduce((acc, column) => ({ ...acc, [column.key]: column.width }), {})
 });
 
+const createEmptyCustomer = () => ({
+  customerName: '',
+  contactTitle: '',
+  phone: '',
+  callStatus: 'Not Called',
+  followupStatus: 'Pending',
+  schedulePreference: 'Regular',
+  email: '',
+  note: '',
+  supervisorComment: '',
+  packageScope: 'Local'
+});
+
 const readColumnPrefs = () => {
   const defaults = getDefaultColumnPrefs();
 
@@ -102,17 +115,7 @@ const FollowupCustomerTable = ({ customers, courses, onDelete, onUpdate, onAdd }
   const [isStatusWarningOpen, setIsStatusWarningOpen] = useState(false);
   const [pendingStatusChange, setPendingStatusChange] = useState(null);
   const [addingRow, setAddingRow] = useState(false);
-  const [newCustomer, setNewCustomer] = useState({
-    customerName: '',
-    contactTitle: '',
-    phone: '',
-    callStatus: 'Not Called',
-    followupStatus: 'Pending',
-    email: '',
-    note: '',
-    supervisorComment: '',
-    packageScope: 'Local'
-  });
+  const newCustomerRef = useRef(createEmptyCustomer());
   const [updatedCustomers, setUpdatedCustomers] = useState(new Set());
   const [drawerCustomer, setDrawerCustomer] = useState(null);
   const [columnPrefs, setColumnPrefs] = useState(readColumnPrefs);
@@ -295,6 +298,7 @@ const FollowupCustomerTable = ({ customers, courses, onDelete, onUpdate, onAdd }
   }, []);
 
   const handleCellClick = (customer, field) => {
+    if (customer._saving) return;
     if (field === 'followupStatus' && (customer.followupStatus || '').toLowerCase() === 'completed') {
       return;
     }
@@ -380,7 +384,18 @@ const FollowupCustomerTable = ({ customers, courses, onDelete, onUpdate, onAdd }
 
   const handleNewCustomerChange = (e) => {
     const { name, value } = e.target;
-    setNewCustomer(prev => ({ ...prev, [name]: value }));
+    newCustomerRef.current[name] = value;
+  };
+
+  const closeNewCustomerRow = () => {
+    newCustomerRef.current = createEmptyCustomer();
+    setAddingRow(false);
+  };
+
+  const openNewCustomerRow = () => {
+    newCustomerRef.current = createEmptyCustomer();
+    setViewMode('list');
+    setAddingRow(true);
   };
 
   const handleKeyDown = (e, customer) => {
@@ -397,22 +412,12 @@ const FollowupCustomerTable = ({ customers, courses, onDelete, onUpdate, onAdd }
       e.preventDefault();
       handleAddNewCustomer();
     } else if (e.key === 'Escape') {
-      setAddingRow(false);
-      setNewCustomer({
-        customerName: '',
-        contactTitle: '',
-        phone: '',
-        callStatus: 'Not Called',
-        followupStatus: 'Pending',
-        email: '',
-        note: '',
-        supervisorComment: '',
-        packageScope: 'Local'
-      });
+      closeNewCustomerRow();
     }
   };
 
   const handleAddNewCustomer = () => {
+    const newCustomer = newCustomerRef.current;
     // If the new customer has a "Completed" status, calculate commission
     let customerToAdd = { ...newCustomer };
     
@@ -429,18 +434,7 @@ const FollowupCustomerTable = ({ customers, courses, onDelete, onUpdate, onAdd }
     }
     
     onAdd(customerToAdd);
-    setAddingRow(false);
-    setNewCustomer({
-      customerName: '',
-      contactTitle: '',
-      phone: '',
-      callStatus: 'Not Called',
-      followupStatus: 'Pending',
-      email: '',
-      note: '',
-      supervisorComment: '',
-      packageScope: 'Local'
-    });
+    closeNewCustomerRow();
   };
 
   const renderEditableCell = (customer, field, value, type = 'text') => {
@@ -566,7 +560,7 @@ const FollowupCustomerTable = ({ customers, courses, onDelete, onUpdate, onAdd }
           {field === 'contactTitle' ? (
             <Select
               name={field}
-              value={value}
+              defaultValue={value}
               onChange={handleNewCustomerChange}
               onKeyDown={handleNewCustomerKeyDown}
               {...compactSelectProps}
@@ -581,7 +575,7 @@ const FollowupCustomerTable = ({ customers, courses, onDelete, onUpdate, onAdd }
           ) : (
             <Select
               name={field}
-              value={value}
+              defaultValue={value}
               onChange={handleNewCustomerChange}
               onKeyDown={handleNewCustomerKeyDown}
               {...compactSelectProps}
@@ -628,7 +622,7 @@ const FollowupCustomerTable = ({ customers, courses, onDelete, onUpdate, onAdd }
         <Td key={field} p={1}>
           <Textarea
             name={field}
-            value={value}
+            defaultValue={value}
             onChange={handleNewCustomerChange}
             onKeyDown={handleNewCustomerKeyDown}
             size="xs"
@@ -645,7 +639,7 @@ const FollowupCustomerTable = ({ customers, courses, onDelete, onUpdate, onAdd }
         <Input
           type={type}
           name={field}
-          value={value}
+          defaultValue={value}
           onChange={handleNewCustomerChange}
           onKeyDown={handleNewCustomerKeyDown}
           size="xs"
@@ -700,6 +694,7 @@ const FollowupCustomerTable = ({ customers, courses, onDelete, onUpdate, onAdd }
   });
 
   const renderNewCustomerColumnCell = (column) => {
+    const newCustomer = newCustomerRef.current;
     switch (column.key) {
       case 'customerName':
         return renderNewCustomerCell('customerName', newCustomer.customerName);
@@ -736,7 +731,7 @@ const FollowupCustomerTable = ({ customers, courses, onDelete, onUpdate, onAdd }
               icon={<CloseIcon />}
               colorScheme="red"
               size="xs"
-              onClick={() => setAddingRow(false)}
+              onClick={closeNewCustomerRow}
               aria-label="Cancel"
             />
           </Td>
@@ -822,6 +817,13 @@ const FollowupCustomerTable = ({ customers, courses, onDelete, onUpdate, onAdd }
       case 'note':
         return renderDisplayCell(customer, 'note', customer.note);
       case 'actions':
+        if (customer._saving) {
+          return (
+            <Td key="actions" p={1.5}>
+              <Badge colorScheme="teal" variant="subtle" fontSize="2xs">Saving…</Badge>
+            </Td>
+          );
+        }
         return (
           <Td key="actions" p={1.5} position="relative">
             {updatedCustomers.has(customer._id) && (
@@ -990,7 +992,7 @@ const FollowupCustomerTable = ({ customers, courses, onDelete, onUpdate, onAdd }
       <Box textAlign="center" py={10} px={6}>
         <Text fontSize="xl" fontWeight="bold" mb={2}>No customers found</Text>
         <Text mb={6}>Get started by adding a new customer.</Text>
-        <Button leftIcon={<AddIcon />} colorScheme="teal" onClick={() => setAddingRow(true)}>
+        <Button leftIcon={<AddIcon />} colorScheme="teal" onClick={openNewCustomerRow}>
           Add New Customer
         </Button>
       </Box>
@@ -1029,10 +1031,7 @@ const FollowupCustomerTable = ({ customers, courses, onDelete, onUpdate, onAdd }
           colorScheme="teal" 
           size="sm"
           minW={{ base: '100%', sm: 'auto' }}
-          onClick={() => {
-            setViewMode('list');
-            setAddingRow(true);
-          }}
+          onClick={openNewCustomerRow}
           disabled={addingRow}
         >
           Add New Customer Row
