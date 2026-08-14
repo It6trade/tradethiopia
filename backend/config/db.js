@@ -1,5 +1,9 @@
 const mongoose = require('mongoose');
+const dns = require('dns');
 const Package = require('../models/Package');
+
+// Use public DNS resolvers so MongoDB SRV lookups succeed on local networks
+try { dns.setServers(['8.8.8.8', '1.1.1.1', '9.9.9.9']); } catch (_) {}
 
 let isConnected = false;
 
