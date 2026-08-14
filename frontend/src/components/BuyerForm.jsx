@@ -11,8 +11,6 @@ import {
   Tag,
   TagLabel,
   TagCloseButton,
-  InputGroup,
-  InputRightElement,
   IconButton,
   Flex,
   Select,
@@ -21,7 +19,21 @@ import {
 import { AddIcon } from '@chakra-ui/icons';
 import axios from 'axios';
 
+const normalizeRole = (value = '') =>
+  value
+    .toString()
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '');
+
+const getCurrentUser = () => ({
+  id: localStorage.getItem('userId') || '',
+  name: localStorage.getItem('userFullName') || localStorage.getItem('userName') || localStorage.getItem('userEmail') || 'Current employee',
+  role: normalizeRole(localStorage.getItem('userRoleRaw') || localStorage.getItem('userRole') || ''),
+});
+
 const BuyerForm = ({ onSuccess, initialData }) => {
+  const currentUser = getCurrentUser();
+  const shouldAutoCreditCurrentUser = !initialData && currentUser.role === 'customerservice' && currentUser.id;
   const [formData, setFormData] = useState({
     companyName: initialData?.companyName || '',
     contactPerson: initialData?.contactPerson || '',
@@ -32,12 +44,15 @@ const BuyerForm = ({ onSuccess, initialData }) => {
     products: initialData?.products && Array.isArray(initialData.products) ? initialData.products : [],
     requirements: initialData?.requirements || '',
     packageType: initialData?.packageType || '',
-    packageScope: initialData?.packageScope || 'Local'
+    packageScope: initialData?.packageScope || 'Local',
+    agentId: initialData?.agentId?._id || initialData?.agentId || (shouldAutoCreditCurrentUser ? currentUser.id : ''),
+    kpiPoint: initialData?.kpiPoint ?? 1,
   });
   
   const [productInput, setProductInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [packages, setPackages] = useState([]);
+  const [employees, setEmployees] = useState([]);
   const toast = useToast();
 
   // Update form data when initialData changes
@@ -53,7 +68,9 @@ const BuyerForm = ({ onSuccess, initialData }) => {
         products: initialData.products && Array.isArray(initialData.products) ? initialData.products : [],
         requirements: initialData.requirements || '',
         packageType: initialData.packageType || '',
-        packageScope: initialData.packageScope || 'Local'
+        packageScope: initialData.packageScope || 'Local',
+        agentId: initialData.agentId?._id || initialData.agentId || '',
+        kpiPoint: initialData.kpiPoint ?? 1,
       });
     }
   }, [initialData]);
@@ -69,18 +86,35 @@ const BuyerForm = ({ onSuccess, initialData }) => {
 
   useEffect(() => {
     let isMounted = true;
-    const fetchPackages = async () => {
+    const fetchFormOptions = async () => {
       try {
-        const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/packages`);
+        const [packagesResponse, usersResponse] = await Promise.all([
+          axios.get(`${import.meta.env.VITE_API_URL}/api/packages`),
+          axios.get(`${import.meta.env.VITE_API_URL}/api/users`).catch(() => ({ data: [] })),
+        ]);
         if (isMounted) {
-          setPackages(Array.isArray(response.data) ? response.data : []);
+          setPackages(Array.isArray(packagesResponse.data) ? packagesResponse.data : []);
+          const usersPayload = usersResponse.data;
+          const users = Array.isArray(usersPayload)
+            ? usersPayload
+            : Array.isArray(usersPayload?.users)
+              ? usersPayload.users
+              : Array.isArray(usersPayload?.data)
+                ? usersPayload.data
+                : [];
+          setEmployees(
+            users.filter((user) => {
+              const role = normalizeRole(user.role || user.userRole || '');
+              return role === 'customerservice';
+            })
+          );
         }
       } catch (error) {
-        console.error("Failed to load packages", error);
+        console.error("Failed to load buyer form options", error);
         if (isMounted) {
           toast({
-            title: "Could not load packages",
-            description: "Unable to fetch package options. Try refreshing the page.",
+            title: "Could not load form options",
+            description: "Unable to fetch package or employee options. Try refreshing the page.",
             status: "warning",
             duration: 4000,
             isClosable: true,
@@ -90,7 +124,7 @@ const BuyerForm = ({ onSuccess, initialData }) => {
       }
     };
 
-    fetchPackages();
+    fetchFormOptions();
     return () => {
       isMounted = false;
     };
@@ -138,7 +172,9 @@ const BuyerForm = ({ onSuccess, initialData }) => {
       const dataToSubmit = {
         ...formData,
         products: Array.isArray(formData.products) ? formData.products : [],
-        packageScope: formData.packageScope || 'Local'
+        packageScope: formData.packageScope || 'Local',
+        agentId: formData.agentId || (shouldAutoCreditCurrentUser ? currentUser.id : ''),
+        kpiPoint: Number.isFinite(Number(formData.kpiPoint)) ? Number(formData.kpiPoint) : 1,
       };
       
       if (initialData) {
@@ -239,6 +275,46 @@ const BuyerForm = ({ onSuccess, initialData }) => {
             onChange={handleChange}
             placeholder="Enter industry"
           />
+        </FormControl>
+
+        <FormControl>
+          <FormLabel>Credited Customer Service Employee</FormLabel>
+          {shouldAutoCreditCurrentUser ? (
+            <Input value={currentUser.name} isReadOnly bg="gray.50" />
+          ) : (
+            <Select
+              name="agentId"
+              value={formData.agentId}
+              onChange={handleChange}
+              placeholder="Select employee for KPI point"
+            >
+              {employees.map((employee) => (
+                <option key={employee._id || employee.id} value={employee._id || employee.id}>
+                  {employee.fullName || employee.username || employee.email}
+                </option>
+              ))}
+            </Select>
+          )}
+          <Text fontSize="sm" color="gray.500" mt={1}>
+            This employee receives the buyer creation point in Automated Customer Service KPI Ranking.
+          </Text>
+        </FormControl>
+
+        <FormControl>
+          <FormLabel>Employee KPI Point</FormLabel>
+          <Input
+            name="kpiPoint"
+            type="number"
+            min="0"
+            value={formData.kpiPoint}
+            onChange={handleChange}
+            isReadOnly={shouldAutoCreditCurrentUser}
+            bg={shouldAutoCreditCurrentUser ? 'gray.50' : undefined}
+            placeholder="Point earned for this buyer"
+          />
+          <Text fontSize="sm" color="gray.500" mt={1}>
+            New buyer creation adds this point to the credited employee's automated KPI rank.
+          </Text>
         </FormControl>
 
         <FormControl>

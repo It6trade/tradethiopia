@@ -3409,7 +3409,7 @@ useEffect(() => {
   );
 
   const followupPage = (
-    <Box maxW="1400px" w="100%" mx="auto" px={{ base: 3, md: 6 }}>
+    <Box w="100%" maxW="none" mx="0" px={{ base: 3, md: 4, xl: 6 }}>
       <VStack spacing={6} align="stretch" w="100%">
         <Heading 
           as="h1" 
@@ -3437,11 +3437,11 @@ useEffect(() => {
         </Flex>
         
         {ensraOnly ? (
-          <Box overflowX="auto" maxW="100%">
+          <Box overflowX="auto" maxW="100%" w="100%">
             {ensraModule}
           </Box>
         ) : (
-          <Box overflowX="auto" maxW="100%">
+          <Box overflowX="auto" maxW="100%" w="100%">
             <Tabs variant="enclosed" colorScheme="blue" isFitted={!isMobile}>
             <TabList mb={2} flexWrap={isMobile ? "wrap" : "nowrap"} gap={isMobile ? 1 : 2}>
               <Tab>

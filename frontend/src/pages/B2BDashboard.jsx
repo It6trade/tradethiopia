@@ -27,8 +27,6 @@ import {
   StatLabel,
   StatNumber,
   StatHelpText,
-  StatArrow,
-  StatGroup,
   Badge,
   IconButton,
   Tooltip,
@@ -53,13 +51,14 @@ import {
   Textarea,
   HStack,
   VStack,
+  SimpleGrid,
   Menu,
   MenuButton,
   MenuList,
   MenuItem,
   Checkbox
 } from '@chakra-ui/react';
-import { AddIcon, SearchIcon, RepeatIcon, ViewIcon, EditIcon, DeleteIcon, StarIcon, CloseIcon } from '@chakra-ui/icons';
+import { AddIcon, RepeatIcon, ViewIcon, EditIcon, DeleteIcon, StarIcon } from '@chakra-ui/icons';
 import axios from 'axios';
 import Layout from '../components/customer/Layout';
 import BuyerForm from '../components/BuyerForm';
@@ -1175,16 +1174,32 @@ const B2BDashboard = () => {
 
   return (
     <Layout>
-      <Box p={6}>
-        <Flex justifyContent="space-between" alignItems="center" mb={6}>
-          <Heading as="h1" size="xl">B2B International Marketplace</Heading>
-          <HStack spacing={3}>
+      <Box p={{ base: 4, md: 5, xl: 6 }} w="100%" maxW="none" mx="0">
+        <Card
+          mb={6}
+          borderRadius="xl"
+          border="1px solid"
+          borderColor="teal.100"
+          bg="linear-gradient(135deg, #f8fcff 0%, #edfdf7 100%)"
+          boxShadow="lg"
+        >
+          <CardBody>
+            <Flex justifyContent="space-between" alignItems={{ base: "flex-start", lg: "center" }} gap={5} flexWrap="wrap">
+              <Box maxW="760px">
+                <Badge colorScheme="teal" mb={2}>Marketplace intelligence</Badge>
+                <Heading as="h1" size="xl" color="gray.800">B2B International Marketplace</Heading>
+                <Text color="gray.600" mt={2}>
+                  Manage buyers, sellers, matches, saved leads, and imported local or international marketplace records from one workspace.
+                </Text>
+              </Box>
+              <HStack spacing={3} flexWrap="wrap" justify={{ base: "flex-start", lg: "flex-end" }}>
             <Select
               size="sm"
               value={matchScope}
               onChange={(e) => setMatchScope(e.target.value)}
-              width="150px"
+              width="170px"
               aria-label="Match scope"
+              bg="white"
             >
               <option value="All">All scopes</option>
               <option value="Local">Local only</option>
@@ -1207,39 +1222,54 @@ const B2BDashboard = () => {
               }}
               tooltipLabel="Notes"
             />
-          </HStack>
-        </Flex>
+              </HStack>
+            </Flex>
+          </CardBody>
+        </Card>
 
-        <Card mb={6}>
+        <Card mb={6} borderRadius="xl" boxShadow="md" border="1px solid" borderColor="gray.200">
           <CardBody>
-            <StatGroup>
-              <Stat>
+            <SimpleGrid columns={{ base: 1, sm: 2, lg: 5 }} spacing={4}>
+              <Stat p={4} borderRadius="lg" bg="blue.50">
                 <StatLabel>Buyers</StatLabel>
                 <StatNumber>{buyers.length}</StatNumber>
                 <StatHelpText>Registered companies</StatHelpText>
               </Stat>
 
-              <Stat>
+              <Stat p={4} borderRadius="lg" bg="green.50">
                 <StatLabel>Sellers</StatLabel>
                 <StatNumber>{sellers.length}</StatNumber>
                 <StatHelpText>Registered companies</StatHelpText>
               </Stat>
 
-              <Stat>
+              <Stat p={4} borderRadius="lg" bg="purple.50">
                 <StatLabel>Matches</StatLabel>
                 <StatNumber>{matches.length}</StatNumber>
                 <StatHelpText>Potential connections</StatHelpText>
               </Stat>
-            </StatGroup>
+
+              <Stat p={4} borderRadius="lg" bg="orange.50">
+                <StatLabel>International Leads</StatLabel>
+                <StatNumber>{leadInternationalCount}</StatNumber>
+                <StatHelpText>Imported or captured rows</StatHelpText>
+              </Stat>
+
+              <Stat p={4} borderRadius="lg" bg="cyan.50">
+                <StatLabel>Local Leads</StatLabel>
+                <StatNumber>{leadLocalCount}</StatNumber>
+                <StatHelpText>Domestic marketplace rows</StatHelpText>
+              </Stat>
+            </SimpleGrid>
           </CardBody>
         </Card>
 
-        <Flex mb={4} gap={3} alignItems="center">
+        <Flex mb={4} gap={3} alignItems="center" flexWrap="wrap">
           <Input
             placeholder="Search buyers, sellers, or products..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            width="300px"
+            width={{ base: "100%", md: "360px" }}
+            bg="white"
           />
           <Tooltip label="Refresh data">
             <IconButton
