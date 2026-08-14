@@ -589,7 +589,7 @@ const COOKpiDashboard = () => {
               KPI actuals over time against targets, with score-band status and previous-period comparison.
             </Text>
           </Box>
-          <VStack align={{ base: 'stretch', xl: 'flex-end' }} spacing={2.5} pt={{ base: 10, md: 0 }}>
+          <VStack align={{ base: 'stretch', xl: 'flex-end' }} spacing={2.5} pt={{ base: 10, md: 12 }}>
             <Button
               position="absolute"
               top={{ base: 3, md: 4 }}
@@ -655,14 +655,14 @@ const COOKpiDashboard = () => {
           </VStack>
         </Flex>
 
-        <Flex direction={{ base: 'column', xl: 'row' }} align="stretch" gap={4} mb={6}>
-          <Box flex="1" minW={0}>
+        <Flex direction={{ base: 'column', xl: 'row' }} align="stretch" gap={3} mb={6}>
+          <Box flex={{ xl: '0 1 40%' }} minW={0} overflow="hidden">
             <Text fontSize="12px" fontWeight="800" color={muted} mb={3}>Department</Text>
             <Flex
-              gap={1.5}
+              gap={1}
               flexWrap="nowrap"
-              overflowX={{ base: 'auto', xl: 'visible' }}
-              pb={{ base: 2, md: 0 }}
+              overflowX="auto"
+              pb={2}
               sx={{
                 scrollbarWidth: 'thin',
                 WebkitOverflowScrolling: 'touch',
@@ -674,9 +674,9 @@ const COOKpiDashboard = () => {
                   size="sm"
                   flex="0 0 auto"
                   borderRadius="999px"
-                  px={{ base: 3, '2xl': 4 }}
-                  h="32px"
-                  fontSize={{ base: '12px', '2xl': '13px' }}
+                  px={{ base: 2.5, '2xl': 3 }}
+                  h="30px"
+                  fontSize={{ base: '11px', '2xl': '12px' }}
                   bg={department === item ? PRIMARY : surface}
                   color={department === item ? 'white' : text}
                   border="1px solid"
@@ -697,7 +697,7 @@ const COOKpiDashboard = () => {
               ))}
             </Flex>
           </Box>
-          <SimpleGrid columns={{ base: 1, sm: 2, lg: 4 }} spacing={4} flex={{ xl: '0 1 66%' }} minW={{ xl: '760px' }}>
+          <SimpleGrid columns={{ base: 1, sm: 2, lg: 4 }} spacing={3} flex={{ xl: '1 1 60%' }} minW={{ xl: '720px' }}>
             <FilterControl label="Start Month" border={border}>
               <MonthYearPicker
                 value={startMonth}
@@ -753,7 +753,19 @@ const COOKpiDashboard = () => {
             ].map(([label, value]) => (
               <Box key={label} border="1px solid" borderColor={border} bg={panel} borderRadius="8px" px={4} py={4} minH="86px">
                 <Text fontSize="11px" fontWeight="800" textTransform="uppercase" color={muted}>{label}</Text>
-                <Text fontSize="24px" lineHeight="1.2" mt={2} fontWeight="800" color={text}>{value}</Text>
+                <Text
+                  fontSize={{ base: '20px', xl: '21px' }}
+                  lineHeight="1.2"
+                  mt={2}
+                  fontWeight="800"
+                  color={text}
+                  whiteSpace="nowrap"
+                  overflow="hidden"
+                  textOverflow="ellipsis"
+                  title={String(value)}
+                >
+                  {value}
+                </Text>
               </Box>
             ))}
           </SimpleGrid>
@@ -1125,9 +1137,11 @@ const MonthYearPicker = ({ value, onChange, compact = false }) => {
     : YEAR_OPTIONS;
 
   return (
-    <HStack spacing={1.5}>
+    <HStack spacing={1.5} w="100%" minW={0}>
       <Select
         aria-label="Month"
+        flex="1 1 0"
+        minW={0}
         size={compact ? 'xs' : 'sm'}
         h={compact ? '28px' : undefined}
         value={month}
@@ -1138,6 +1152,8 @@ const MonthYearPicker = ({ value, onChange, compact = false }) => {
       </Select>
       <Select
         aria-label="Year"
+        flex="1 1 0"
+        minW={0}
         size={compact ? 'xs' : 'sm'}
         h={compact ? '28px' : undefined}
         value={year}
