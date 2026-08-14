@@ -128,6 +128,10 @@ const buildExpenseSummary = async () => {
   };
 };
 
+// Shared with the COO dashboard so both dashboards calculate finance KPIs from
+// the same persisted Cost and Payroll records.
+exports.buildExpenseSummary = buildExpenseSummary;
+
 exports.getMetrics = async (req, res) => {
   try {
     // Compute stock value: sum(price * quantity)

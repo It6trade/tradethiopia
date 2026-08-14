@@ -6,6 +6,13 @@ const SalesKpiSnapshot = require('../models/SalesKpiSnapshot');
 const SalesCustomer = require('../models/SalesCustomer');
 const SalesTarget = require('../models/SalesTarget');
 const User = require('../models/user.model');
+const Followup = require('../models/Followup');
+const Buyer = require('../models/Buyer');
+const Seller = require('../models/Seller');
+const TrainingFollowup = require('../models/TrainingFollowup');
+const InventoryItem = require('../models/InventoryItem');
+const { calculateRevenueSummary } = require('../utils/revenue');
+const { buildExpenseSummary } = require('./financeController');
 
 const MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
 const periodKey = (month, year) => {
@@ -54,7 +61,30 @@ const addMetric = (store, definition, key, actual, target, metadata = {}) => {
   if (!key) return;
   const id = slug(`${definition.department}-${definition.name}`);
   if (!store.definitions.has(id)) store.definitions.set(id, { ...definition, id });
-  store.rows.push({ kpiId: id, key, actual: numeric(actual), target: numeric(target), granularity: 'month', ...metadata });
+  store.rows.push({
+    kpiId: id,
+    key,
+    actual: numeric(actual),
+    target: target === null || target === undefined ? null : numeric(target),
+    granularity: 'month',
+    ...metadata,
+  });
+};
+
+const currentPeriodKey = () => {
+  const now = new Date();
+  return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`;
+};
+
+const addDashboardMetric = (store, department, pillar, name, actual, options = {}) => {
+  addMetric(store, {
+    department,
+    pillar,
+    name,
+    unit: options.unit || '',
+    format: options.format || 'number',
+    aggregate: options.aggregate || 'avg',
+  }, currentPeriodKey(), actual, null, { source: options.source || 'live-dashboard' });
 };
 
 const weekMonthKey = (periodValue) => {
@@ -80,7 +110,11 @@ const isoWeekKey = (value) => {
 
 exports.getKpis = async (req, res) => {
   try {
-    const [performances, revenue, social, weekly, salesKpis, completedSales, salesTargets, salesAgents] = await Promise.all([
+    const [
+      performances, revenue, social, weekly, salesKpis, completedSales, salesTargets, salesAgents,
+      customerFollowups, buyerCount, sellerCount, incompleteTrainingCount,
+      financeRevenue, financeExpenses, inventoryItems,
+    ] = await Promise.all([
       MonthlyPerformance.find({}).populate('employeeId', 'fullName username').lean(),
       RevenueActual.find({ active: { $ne: false } }).lean(),
       SocialActual.find({ active: { $ne: false } }).lean(),
@@ -89,8 +123,40 @@ exports.getKpis = async (req, res) => {
       SalesCustomer.find({ followupStatus: 'Completed', agentId: { $ne: null } }).select('agentId date updatedAt createdAt coursePrice').lean(),
       SalesTarget.find({}).lean(),
       User.find({ role: 'sales' }).select('fullName username').lean(),
+      Followup.find({}).select('followupStatus status createdAt').lean(),
+      Buyer.countDocuments(),
+      Seller.countDocuments(),
+      TrainingFollowup.countDocuments({ progress: { $ne: 'Completed' } }),
+      calculateRevenueSummary(),
+      buildExpenseSummary(),
+      InventoryItem.find({}).select('price quantity').lean(),
     ]);
     const store = { definitions: new Map(), rows: [] };
+
+    const completedCustomerCount = customerFollowups.filter((item) => (
+      String(item.followupStatus || item.status || '').toLowerCase() === 'completed'
+    )).length;
+    const monthStart = new Date();
+    monthStart.setUTCDate(1);
+    monthStart.setUTCHours(0, 0, 0, 0);
+    const newCustomerCount = customerFollowups.filter((item) => (
+      item.createdAt && new Date(item.createdAt) >= monthStart
+    )).length;
+    addDashboardMetric(store, 'Customer Success', 'Customer Success', 'Total Customers', customerFollowups.length);
+    addDashboardMetric(store, 'Customer Success', 'Customer Success', 'New Customers', newCustomerCount, { aggregate: 'sum' });
+    addDashboardMetric(store, 'Customer Success', 'Customer Success', 'Active Customers', customerFollowups.length - completedCustomerCount);
+    addDashboardMetric(store, 'Customer Success', 'B2B Marketplace', 'B2B Marketplace Customers', buyerCount + sellerCount);
+    addDashboardMetric(store, 'Customer Success', 'Training', 'Incomplete Training', incompleteTrainingCount);
+
+    const totalRevenue = numeric(financeRevenue.totalRevenue);
+    const totalExpenses = numeric(financeExpenses.totalExpenses);
+    const stockValue = inventoryItems.reduce((sum, item) => sum + (numeric(item.price) * numeric(item.quantity)), 0);
+    addDashboardMetric(store, 'Finance', 'Finance', 'Total Revenue', totalRevenue, { unit: 'ETB', format: 'currency' });
+    addDashboardMetric(store, 'Finance', 'Finance', 'Total Expenses', totalExpenses, { unit: 'ETB', format: 'currency' });
+    addDashboardMetric(store, 'Finance', 'Finance', 'Net Profit', totalRevenue - totalExpenses, { unit: 'ETB', format: 'currency' });
+    addDashboardMetric(store, 'Finance', 'Payroll', 'Payroll Cost', financeExpenses.payrollCost, { unit: 'ETB', format: 'currency' });
+    addDashboardMetric(store, 'Finance', 'Revenue', 'Package Revenue', financeRevenue.packageRevenue, { unit: 'ETB', format: 'currency' });
+    addDashboardMetric(store, 'Finance', 'Inventory', 'Stock Value', stockValue, { unit: 'ETB', format: 'currency' });
     revenue.forEach((item) => addMetric(store, {
       department: 'Tradex TV', pillar: 'Finance', name: item.metric,
       unit: 'ETB', format: 'currency', aggregate: 'sum',
@@ -189,6 +255,9 @@ exports.getKpis = async (req, res) => {
     });
     performances.forEach((item) => {
       const department = normalizeDepartment(item.department);
+      // Customer Success and Finance are sourced from their live dashboards
+      // above. MonthlyPerformance is seeded/manual and must not override them.
+      if (department === 'Customer Success' || department === 'Finance') return;
       const values = performanceValues(item, department);
       const actual = values.actual;
       const target = values.target;
@@ -201,14 +270,28 @@ exports.getKpis = async (req, res) => {
     });
     const requestedDepartment = String(req.query.department || '').trim().toLowerCase();
     const requestedPillar = String(req.query.pillar || '').trim().toLowerCase();
+    const requestedKpiId = String(req.query.kpiId || '').trim().toLowerCase();
     const definitions = [...store.definitions.values()].filter((definition) => (
       (!requestedDepartment || definition.department.toLowerCase() === requestedDepartment)
       && (!requestedPillar || definition.pillar.toLowerCase() === requestedPillar)
+      && (!requestedKpiId || definition.id.toLowerCase() === requestedKpiId)
     ));
     const allowedIds = new Set(definitions.map((definition) => definition.id));
-    const rows = store.rows.filter((row) => allowedIds.has(row.kpiId)).sort((a, b) => a.key.localeCompare(b.key));
-    const periods = [...new Set(rows.map((row) => row.key).filter(Boolean))].sort();
-    res.json({ definitions, rows, periods });
+    const allRows = store.rows.filter((row) => allowedIds.has(row.kpiId)).sort((a, b) => a.key.localeCompare(b.key));
+    const periods = [...new Set(allRows.map((row) => row.key).filter(Boolean))].sort();
+    const requestedStart = /^\d{4}-\d{2}$/.test(String(req.query.startMonth || ''))
+      ? String(req.query.startMonth)
+      : null;
+    const requestedEnd = /^\d{4}-\d{2}$/.test(String(req.query.endMonth || ''))
+      ? String(req.query.endMonth)
+      : null;
+    const firstPeriod = requestedStart && requestedEnd && requestedStart > requestedEnd ? requestedEnd : requestedStart;
+    const lastPeriod = requestedStart && requestedEnd && requestedStart > requestedEnd ? requestedStart : requestedEnd;
+    const rows = allRows.filter((row) => (
+      (!firstPeriod || row.key >= firstPeriod)
+      && (!lastPeriod || row.key <= lastPeriod)
+    ));
+    res.json({ definitions, rows, periods, requestedRange: { startMonth: firstPeriod, endMonth: lastPeriod } });
   } catch (error) {
     res.status(500).json({ message: 'Failed to load COO KPI data', error: error.message });
   }
