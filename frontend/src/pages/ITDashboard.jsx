@@ -357,7 +357,7 @@ export default function ITDashboard() {
                     </Badge>
                   </HStack>
                   <Heading size={{ base: 'md', md: 'lg', xl: 'xl' }} letterSpacing="0" lineHeight="1.08">
-                    IT Department Dashboard
+                    IT Department Dashboardd
                   </Heading>
                   <Text color={softText} mt={2} fontSize="sm">
                     {persona.description}
