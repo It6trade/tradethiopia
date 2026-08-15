@@ -57,6 +57,11 @@ const FourthPage = () => {
     try {
       const { data } = await axiosInstance.get('/users/me');
       const refreshedUser = data?.data;
+      if (refreshedUser?.examBypass) {
+        setCurrentUser({ ...currentUser, ...refreshedUser, token: currentUser?.token });
+        navigate('/sdashboard');
+        return;
+      }
       if (!isTrainingEnabled(refreshedUser?.trainingStatus)) {
         toast({
           title: 'Training access is awaiting HR approval',
