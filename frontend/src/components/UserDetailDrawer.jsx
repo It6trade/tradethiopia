@@ -1284,7 +1284,6 @@ const UserDetailDrawer = ({ isOpen, onClose, user: summaryUser, initialTab = 0, 
                           </HStack>
                           <HStack spacing={2}>
                             <Select
-<<<<<<< HEAD
                               size="xs"
                               w="110px"
                               bg="white"
@@ -1293,23 +1292,10 @@ const UserDetailDrawer = ({ isOpen, onClose, user: summaryUser, initialTab = 0, 
                               borderRadius="md"
                               value={employee.status === 'active' ? 'active' : 'inactive'}
                               onChange={(e) => handleDirectStatusChange(e.target.value)}
-=======
-                              size="sm"
-                              value={employee.status || 'inactive'}
-                              onChange={(e) => handleStatusChange(e.target.value)}
-                              isDisabled={isUpdatingStatus}
-                              bg="white"
-                              color="gray.800"
-                              borderRadius="lg"
-                              fontWeight="700"
-                              fontSize="xs"
-                              w="115px"
->>>>>>> course-update
                             >
                               <option value="active">Active</option>
                               <option value="inactive">Inactive</option>
                             </Select>
-<<<<<<< HEAD
                             <Button
                               size="xs"
                               colorScheme="teal"
@@ -1320,8 +1306,6 @@ const UserDetailDrawer = ({ isOpen, onClose, user: summaryUser, initialTab = 0, 
                             >
                               Edit Account
                             </Button>
-=======
->>>>>>> course-update
                           </HStack>
                         </Flex>
                         <Text mt={4} fontSize="xs" color="whiteAlpha.800">
