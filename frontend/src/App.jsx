@@ -41,6 +41,7 @@ import ComingSoonPage from "./pages/ComingSoonPage";
 import AdminTrainingUpload from "./pages/AdminTrainingUpload";
 import AdminCustomerReport from './components/AdminCSReport.jsx';
 import CustomerSettings from "./components/customer/CustomerSettings";
+import CustomerUserManagement from "./components/customer/CustomerUserManagement";
 import ReceptionDashboard from './pages/ReceptionDashboard';
 import HRTrainingPage from './pages/HRTrainingPage.jsx';
 import ENISRALayout from "./components/ENSRA/ENSRALayout";
@@ -99,7 +100,7 @@ const FinanceFormsPage = lazy(() => import("./pages/sales/FinanceFormsPage.jsx")
 const B2BDashboard = lazy(() => import("./pages/B2BDashboard"));
 const COODashboard = lazy(() => import("./pages/COODashboard"));
 const TradexTVDashboard = lazy(() => import("./pages/TradexTVDashboard"));
-const ITDashboard = lazy(() => import("./pages/ITDashboard"));
+const ITDashboard = lazy(() => import("./pages/it/ITDashboard"));
 const SocialMediaDashboardPage = lazy(() => import("./pages/socialmedia/SocialMediaDashboardPage"));
 const ChatPage = lazy(() => import("./pages/ChatPage.jsx"));
 const PayrollPage = lazy(() => import("./components/Payroll/PayrollPage"));
@@ -382,6 +383,14 @@ return (
             <LayoutWrapper>
               <CustomerSettings />
             </LayoutWrapper>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/customer-user-management"
+        element={
+          <ProtectedRoute>
+            <CustomerUserManagement />
           </ProtectedRoute>
         }
       />

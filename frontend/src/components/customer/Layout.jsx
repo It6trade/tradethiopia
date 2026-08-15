@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Box,
   Drawer,
@@ -13,11 +13,25 @@ import Cnavbar from "./customNavbar";
 
 const Layout = ({ children, hideSidebar = false, activeSection, onSelectSection }) => {
   const { isOpen, onOpen, onClose } = useDisclosure();
-  const [isSidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [isSidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem("customerSidebarCollapsed") === "true";
+    } catch (error) {
+      return false;
+    }
+  });
 
   const pageBg = useColorModeValue("#f2f6ff", "#0b1224");
 
   const sidebarWidth = isSidebarCollapsed ? "78px" : "260px";
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("customerSidebarCollapsed", String(isSidebarCollapsed));
+    } catch (error) {
+      // Ignore storage errors; the sidebar still works during the session.
+    }
+  }, [isSidebarCollapsed]);
 
   return (
     <Box height="100vh" overflow="hidden">
@@ -39,6 +53,7 @@ const Layout = ({ children, hideSidebar = false, activeSection, onSelectSection 
             transition="width .25s ease"
             display={{ base: "none", md: "block" }}
             zIndex="1000"
+            overflow="visible"
           >
             <Sidebar
               isCollapsed={isSidebarCollapsed}

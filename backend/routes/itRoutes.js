@@ -39,6 +39,7 @@ router.post('/', itController.createTask);
 router.post('/:id/comments', itController.addTaskComment);
 router.post('/:id/approve', itController.approveTask);
 router.post('/:id/workflow', itController.updateWorkflow);
+router.post('/:id/feedback', itController.submitFeedback);
 router.post('/:id/reassign', itController.reassignTask);
 router.post('/:id/reminders', itController.addReminder);
 router.patch('/:id/reminders/:reminderId', itController.updateReminder);

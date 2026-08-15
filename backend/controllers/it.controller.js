@@ -46,6 +46,7 @@ const collectTaskParticipantAliases = (task) => (
 );
 
 const isItManagerRole = (role) => ['admin', 'itmanager', 'itadmin'].includes(normalizeRole(role));
+const isCsRole = (role) => ['customerservice', 'customersuccessmanager', 'cs', 'csmanager'].includes(normalizeRole(role));
 const escapeRegex = (value = '') => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const getTaskLocation = (task) => `${task.projectType || 'IT'} / ${task.platform || task.category || task.client || 'Project Workspace'}`;
 
@@ -58,12 +59,26 @@ const buildTaskAccessFilter = (req, baseFilter = {}) => {
   if (!aliases.length) return { ...baseFilter, _id: null };
   const aliasPatterns = aliases.map((alias) => new RegExp(`^${escapeRegex(alias)}$`, 'i'));
 
+  const orConditions = [
+    { taskLeader: { $in: aliasPatterns } },
+    { assignedTo: { $in: aliasPatterns } },
+    { requestedBy: { $in: aliasPatterns } },
+    { createdBy: req.user?._id || req.user?.id },
+    { submittedBy: req.user?._id || req.user?.id },
+  ];
+
+  if (isCsRole(role)) {
+    orConditions.push(
+      { requestedDepartment: { $regex: /customer/i } },
+      { category: { $regex: /customer/i } },
+      { actionType: { $regex: /external.*cs|cs.*external/i } },
+      { projectType: 'external' }
+    );
+  }
+
   return {
     ...baseFilter,
-    $or: [
-      { taskLeader: { $in: aliasPatterns } },
-      { assignedTo: { $in: aliasPatterns } },
-    ],
+    $or: orConditions,
   };
 };
 
@@ -72,8 +87,21 @@ const canAccessTask = (task, req) => {
   const role = normalizeRole(req.user?.role);
   if (isItManagerRole(role)) return true;
   const aliases = getUserAliases(req.user);
-  const participants = collectTaskParticipantAliases(task);
-  return aliases.some((alias) => participants.includes(alias));
+  const participants = [
+    ...collectTaskParticipantAliases(task),
+    String(task.requestedBy || '').trim().toLowerCase(),
+    String(task.createdBy || '').trim().toLowerCase(),
+    String(task.submittedBy || '').trim().toLowerCase(),
+  ].filter(Boolean);
+  if (aliases.some((alias) => participants.includes(alias))) return true;
+  if (isCsRole(role) && (
+    String(task.requestedDepartment || '').toLowerCase().includes('customer') ||
+    String(task.category || '').toLowerCase().includes('customer') ||
+    task.projectType === 'external'
+  )) {
+    return true;
+  }
+  return false;
 };
 
 const emitNotification = (notification) => {
@@ -933,6 +961,32 @@ const createReport = async (req, res) => {
   }
 };
 
+const submitFeedback = async (req, res) => {
+  try {
+    const { rating, comment, submittedBy } = req.body;
+    const task = await ITTask.findById(req.params.id);
+    if (!task) return res.status(404).json({ success: false, message: 'Task not found' });
+
+    task.requesterFeedback = {
+      rating: Number(rating) || 5,
+      comment: comment || '',
+      submittedBy: submittedBy || getUserDisplayName(req.user),
+      submittedAt: new Date(),
+    };
+
+    appendAudit(task, req, 'feedback_submitted', {
+      rating,
+      note: comment,
+    });
+
+    await task.save();
+    res.json({ success: true, data: task });
+  } catch (error) {
+    console.error('submitFeedback error', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 module.exports = {
   createTask,
   getTasks,
@@ -949,5 +1003,6 @@ module.exports = {
   getReports,
   getReportById,
   updateReport,
-  createReport
+  createReport,
+  submitFeedback
 };
