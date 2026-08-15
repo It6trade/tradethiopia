@@ -135,6 +135,7 @@ const HomePage = () => {
   // Toggle Switches state
   const [accountAccess, setAccountAccess] = useState(true);
   const [trainingAccess, setTrainingAccess] = useState(true);
+  const [examBypass, setExamBypass] = useState(false);
   const [twoFactorAuth, setTwoFactorAuth] = useState(false);
 
   // Modals / Drawers controllers
@@ -178,6 +179,7 @@ const HomePage = () => {
       setAccountAccess(selectedUser.status === 'active');
       const normalizedTrainingStatus = String(selectedUser.trainingStatus || '').trim().toLowerCase();
       setTrainingAccess(['on', 'active', 'approved', 'enabled', 'true'].includes(normalizedTrainingStatus));
+      setExamBypass(Boolean(selectedUser.examBypass));
       setTwoFactorAuth(selectedUser.twoFactorAuth === true);
     }
   }, [selectedUser]);
@@ -307,6 +309,7 @@ const HomePage = () => {
         role: editRole,
         status: accountAccess ? 'active' : 'inactive',
         trainingStatus: trainingAccess ? 'on' : 'off',
+        examBypass: Boolean(examBypass),
         twoFactorAuth
       };
       
@@ -1019,6 +1022,13 @@ const HomePage = () => {
                             <Switch size="sm" isChecked={trainingAccess} onChange={(e) => setTrainingAccess(e.target.checked)} colorScheme="teal" />
                           </Flex>
                           <Flex justify="space-between" align="center">
+                            <Box>
+                              <Text color="gray.500" fontWeight="600">Pass Exam & Tutorial</Text>
+                              <Text fontSize="9px" color="gray.400">Permit direct dashboard access</Text>
+                            </Box>
+                            <Switch size="sm" isChecked={examBypass} onChange={(e) => setExamBypass(e.target.checked)} colorScheme="purple" />
+                          </Flex>
+                          <Flex justify="space-between" align="center">
                             <Text color="gray.500" fontWeight="600">Two-factor authentication</Text>
                             <Switch size="sm" isChecked={twoFactorAuth} onChange={(e) => setTwoFactorAuth(e.target.checked)} colorScheme="teal" />
                           </Flex>
@@ -1187,6 +1197,7 @@ const HomePage = () => {
         onClose={() => setSelectedUser(null)}
         user={selectedUser}
         initialTab={activeTabIdx}
+        onUserUpdated={() => fetchUsers(true)}
       />
 
       {/* Add Employee Drawer Modal */}

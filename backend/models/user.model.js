@@ -118,6 +118,10 @@ const userSchema = new mongoose.Schema({
         type: String,
         required: false, // Optional
     },
+    examBypass: {
+        type: Boolean,
+        default: false,
+    },
     hireDate: {
         type: Date,
         required: false, // Optional
