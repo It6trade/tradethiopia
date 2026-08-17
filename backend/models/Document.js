@@ -19,6 +19,8 @@ const documentSchema = new mongoose.Schema({
     },
     department: { type: String, required: true, default: 'none' },
     section: { type: String, required: true },
+    documentDate: { type: Date, default: Date.now },
+    documentYear: { type: Number, default: () => new Date().getFullYear() },
     licenseSchedule: {
         startDateEthiopian: {
             year: { type: Number, default: null },
