@@ -145,7 +145,7 @@ const buildTicketTimeline = (task = {}) => ([
     actorName: record.staffName || 'IT staff',
     createdAt: record.createdAt || record.completedAt,
   }))),
-  ...((task.comments || []).map((comment) => ({
+  ...((task.comments || []).filter((c) => c.audience !== 'cs_manager').map((comment) => ({
     type: 'comment',
     title: 'Comment added',
     note: comment.body,
@@ -1308,9 +1308,9 @@ export default function TicketManagementTab({ tasks = [], users = [], currentUse
                   <Heading size="sm">Comment Thread Per Ticket</Heading>
                 </HStack>
                 <VStack align="stretch" spacing={3}>
-                  {(selectedDetailTask.comments || []).length === 0 ? (
+                  {(selectedDetailTask.comments || []).filter((c) => permissions.canManage || c.audience !== 'cs_manager').length === 0 ? (
                     <Box bg={panelBg} p={4} borderRadius="xl" color={muted}>No comments have been added to this ticket.</Box>
-                  ) : selectedDetailTask.comments.map((comment) => (
+                  ) : (selectedDetailTask.comments || []).filter((c) => permissions.canManage || c.audience !== 'cs_manager').map((comment) => (
                     <Box key={comment._id || comment.createdAt} bg={panelBg} p={3} borderRadius="xl">
                       <Text fontWeight="700">{comment.authorName || 'IT user'}</Text>
                       <Text>{comment.body}</Text>

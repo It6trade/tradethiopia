@@ -56,6 +56,7 @@ const ITTaskSchema = new mongoose.Schema({
     authorName: { type: String, default: '' },
     authorRole: { type: String, default: '' },
     body: { type: String, required: true },
+    audience: { type: String, enum: ['general', 'cs_manager', 'staff_manager', 'internal_staff'], default: 'general' },
     createdAt: { type: Date, default: Date.now }
   }],
   reminders: [{
