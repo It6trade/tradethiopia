@@ -81,6 +81,7 @@ const loginUser = async (req, res) => {
                 _id: user._id,
                 username: user.username,
                 role: user.role,
+                department: user.department || (/tessbin/i.test(user.role) ? 'Tessbin' : ''),
                 status: user.status,
                 fullName: user.fullName,
                 altEmail: user.altEmail,

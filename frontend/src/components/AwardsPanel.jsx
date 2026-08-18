@@ -28,7 +28,7 @@ const rankInfo = [
   { label: 'Bronze', emoji: '🥉', color: 'orange' },
 ];
 
-const knownDepartments = ['TradeXTV', 'IT', 'SocialMedia', 'Sales', 'CustomerSuccess'];
+const knownDepartments = ['TradeXTV', 'IT', 'SocialMedia', 'Sales', 'CustomerSuccess', 'Tessbin'];
 
 const RankBadge = ({ rank }) => {
   if (typeof rank !== 'number' || rank < 0 || rank >= rankInfo.length) {

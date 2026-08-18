@@ -20,6 +20,8 @@ const ROLE_DEPARTMENT_MAP = {
   coo: "Operations",
   instructor: "Training",
   eventmanager: "Events",
+  tessbinadmin: "Tessbin",
+  tessbin: "Tessbin",
 };
 
 const ROLE_DEPARTMENT_PATTERNS = [
@@ -32,6 +34,7 @@ const ROLE_DEPARTMENT_PATTERNS = [
   { regex: /success/, department: "Customer Success" },
   { regex: /it/, department: "IT" },
   { regex: /hr/, department: "HR" },
+  { regex: /tessbin/, department: "Tessbin" },
 ];
 
 const ROLE_EXEMPTIONS = new Set(["finance", "admin"]);

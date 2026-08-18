@@ -53,15 +53,20 @@ const handleLogin = async (event) => {
             // Save token and user information in local storage
             setCurrentUser({ username, role, status, infoStatus, trainingStatus, token, _id, email, fullName, jobTitle });
 
+            const normalizedRole = normalizeRole(role);
+
+            // Roles like Tessbin Admin bypass HR employee onboarding info checks
+            const bypassHrApprovalRoles = ['tessbinadmin', 'tessbin', 'tessbin_admin', 'admin', 'coo', 'ceo', 'it', 'itadmin'];
+            const isBypassRole = bypassHrApprovalRoles.includes(normalizedRole);
+
             // Check user and info statuses
-            if (status === 'inactive' && infoStatus === 'active') {
+            if (!isBypassRole && status === 'inactive' && infoStatus === 'active') {
                 console.log('LoginPage - redirecting to /secondpage (inactive status, active infoStatus)');
                 redirectAfterLogin('/secondpage');
-            } else if ((status === 'inactive' || status === 'active') && infoStatus !== 'active')  {
+            } else if (!isBypassRole && (status === 'inactive' || status === 'active') && infoStatus !== 'active')  {
                 console.log('LoginPage - redirecting to /employee-info (infoStatus is not active:', infoStatus, ')');
                 redirectAfterLogin('/employee-info');
             } else {
-                const normalizedRole = normalizeRole(role);
                 const returnPath = consumeReturnPath({ _id, role: normalizedRole });
                 console.log('LoginPage - redirecting based on normalized role:', normalizedRole);
                 if (returnPath) {
@@ -122,6 +127,11 @@ const handleLogin = async (event) => {
                         break;
                     case 'instructor':
                         redirectAfterLogin('/instructor');
+                        break;
+                    case 'tessbinadmin':
+                    case 'tessbin':
+                    case 'tessbin_admin':
+                        redirectAfterLogin('/tessbin-dashboard');
                         break;
                     default:
                         redirectAfterLogin('/ComingSoonPage'); // Optional: handle unknown roles

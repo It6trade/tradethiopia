@@ -28,7 +28,7 @@ const userSchema = new mongoose.Schema({
     },
     role: {
         type: String,
-        enum: ['admin', 'HR', 'Enisra', 'Enisra', 'sales', 'salesmanager', 'tradextv', 'customerservice', 'SocialmediaManager', 'socialmedia', 'Socialmedia', 'CustomerSuccessManager', 'TETV', 'IT', 'ITAdmin', 'ITManager', 'ITTeamLeader', 'ITLeader', 'ITStaff', 'ITOfficer', 'IT Team Leader', 'IT Staff', 'IT Manager', 'itadmin', 'itmanager', 'itteamleader', 'itleader', 'itstaff', 'itofficer', 'HR', 'supervisor', 'Instructor', 'EventManager', 'COO', 'CEO', 'TradeXTV', 'finance', 'reception'],
+        enum: ['admin', 'HR', 'Enisra', 'Enisra', 'sales', 'salesmanager', 'tradextv', 'customerservice', 'SocialmediaManager', 'socialmedia', 'Socialmedia', 'CustomerSuccessManager', 'TETV', 'IT', 'ITAdmin', 'ITManager', 'ITTeamLeader', 'ITLeader', 'ITStaff', 'ITOfficer', 'IT Team Leader', 'IT Staff', 'IT Manager', 'itadmin', 'itmanager', 'itteamleader', 'itleader', 'itstaff', 'itofficer', 'HR', 'supervisor', 'Instructor', 'EventManager', 'COO', 'CEO', 'TradeXTV', 'finance', 'reception', 'TessbinAdmin', 'tessbinadmin', 'Tessbin', 'tessbin', 'Tessbin Admin'],
         default: 'sales',
         index: true, // Add index for faster queries
     },
@@ -61,6 +61,10 @@ const userSchema = new mongoose.Schema({
         required: false, // Optional
     },
 
+    department: {
+        type: String,
+        default: '',
+    },
     jobTitle: {
         type: String,
         required: false, // Optional
@@ -211,6 +215,9 @@ const userSchema = new mongoose.Schema({
 userSchema.index({ punchId: 1 }, { unique: true, sparse: true });
 
 userSchema.pre('save', async function (next) {
+    if (this.role && /tessbin/i.test(this.role) && !this.department) {
+        this.department = 'Tessbin';
+    }
     if (!this.isModified('password')) {
         return next();
     }

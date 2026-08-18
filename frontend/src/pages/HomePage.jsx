@@ -90,6 +90,7 @@ import {
 } from 'react-icons/fi';
 import { useUserStore } from '../store/user.js';
 import { normalizeRole } from '../store/user.js';
+import { getUserDepartment } from '../utils/department.js';
 import CreatePage from './CreatePage';
 import UserDetailDrawer from '../components/UserDetailDrawer.jsx';
 
@@ -337,7 +338,8 @@ const HomePage = () => {
         (user.digitalId || '').toLowerCase().includes(term) ||
         (user._id || '').toLowerCase().includes(term);
       
-      const matchesDept = deptFilter === 'All' || user.jobTitle === deptFilter;
+      const userDept = getUserDepartment(user) || user.department || user.jobTitle;
+      const matchesDept = deptFilter === 'All' || userDept === deptFilter;
       const matchesRole = roleFilter === 'All' || user.role === roleFilter;
       
       let matchesStatus = true;
@@ -351,7 +353,7 @@ const HomePage = () => {
 
   // Unique select options
   const departments = useMemo(() => {
-    const list = new Set(users.map(u => u.jobTitle).filter(Boolean));
+    const list = new Set(users.map(u => getUserDepartment(u) || u.department || u.jobTitle).filter(Boolean));
     return ['All', ...Array.from(list)];
   }, [users]);
 
@@ -1162,6 +1164,7 @@ const HomePage = () => {
                           <option value="it">IT Staff</option>
                           <option value="finance">Finance</option>
                           <option value="supervisor">Supervisor</option>
+                          <option value="tessbinadmin">Tessbin Admin</option>
                           <option value="IT">IT</option>
                           <option value="HR">HR</option>
                         </Select>
@@ -1423,6 +1426,7 @@ const HomePage = () => {
                     <option value="it">IT Staff</option>
                     <option value="finance">Finance</option>
                     <option value="supervisor">Supervisor</option>
+                    <option value="tessbinadmin">Tessbin Admin</option>
                   </Select>
                 </FormControl>
 

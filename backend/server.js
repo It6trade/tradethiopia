@@ -64,6 +64,7 @@ const paymentRoutes = require('./routes/paymentRoutes.js');
 const awardRoutes = require('./routes/awardRoutes.js');
 const contentTrackerRoutes = require('./routes/contentTrackerRoutes');
 const candidatePoolRoutes = require('./routes/candidatePoolRoutes.js');
+const hrKpiRoutes = require('./routes/hrKpiRoutes.js');
 
 const consultancyRoutes = require('./routes/consultancyRoutes.js');
 
@@ -349,12 +350,14 @@ app.use('/api/social-account-credentials', socialAccountCredentialRoutes);
 app.use('/api/action-items', actionItemRoutes);
 app.use('/api/content-tracker', contentTrackerRoutes);
 app.use('/api/candidate-pool', candidatePoolRoutes);
+app.use('/api/hr-kpi', hrKpiRoutes);
 // Awards
 app.use('/api/awards', awardRoutes);
 
 // Commission Approval
 app.use('/api/commissions', commissionApprovalRoutes);
 app.use('/api/sales-onboarding-course', salesOnboardingCourseRoutes);
+app.use('/api/tessbin', require('./routes/tessbinRoutes'));
 
 // Global error handler
 app.use((err, req, res, next) => {
