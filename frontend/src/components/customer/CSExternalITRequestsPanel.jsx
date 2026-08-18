@@ -117,10 +117,12 @@ const getLatestWorkRecord = (task = {}) => (
   [...(task.ticketRecords || [])].sort((a, b) => new Date(b.createdAt || b.completedAt || 0) - new Date(a.createdAt || a.completedAt || 0))[0]
 );
 
-const canCurrentUserGiveFeedback = (task = {}, aliases = []) => (
-  aliases.includes(String(task.requestedBy || "").trim().toLowerCase())
-  || aliases.includes(String(task.createdBy || "").trim().toLowerCase())
-);
+const canCurrentUserGiveFeedback = (task = {}, aliases = []) => {
+  if (!task || !aliases || !Array.isArray(aliases)) return false;
+  const req = String(task.requestedBy || "").trim().toLowerCase();
+  const created = String(task.createdBy?._id || task.createdBy || "").trim().toLowerCase();
+  return Boolean((req && aliases.includes(req)) || (created && aliases.includes(created)));
+};
 
 const isFeedbackOpen = (task = {}) => (
   ["approved", "completed"].includes(task.workflowStatus)
@@ -165,6 +167,13 @@ export default function CSExternalITRequestsPanel({ focusedTaskId = "", focusedC
 
   const userAliases = useMemo(() => getUserTaskAliases(currentUser || {}), [currentUser]);
 
+  const isManager = useMemo(() => {
+    const role = String(currentUser?.role || currentUser?.displayRole || "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, "");
+    return ["customersuccessmanager", "csmanager", "admin", "itmanager", "itadmin"].includes(role);
+  }, [currentUser]);
+
   useEffect(() => {
     setForm((prev) => ({
       ...prev,
@@ -178,9 +187,6 @@ export default function CSExternalITRequestsPanel({ focusedTaskId = "", focusedC
     try {
       const response = await axiosInstance.get("/it?projectType=external");
       const data = Array.isArray(response.data?.data) ? response.data.data : [];
-      const isManager = ["customersuccessmanager", "csmanager", "admin", "itmanager"].includes(
-        String(currentUser?.role || "").toLowerCase().replace(/[^a-z0-9]/g, "")
-      );
       const visibleProjects = data
         .filter(isCSExternalProjectRequest)
         .filter((task) => (
@@ -197,7 +203,7 @@ export default function CSExternalITRequestsPanel({ focusedTaskId = "", focusedC
     } finally {
       setLoadingProjects(false);
     }
-  }, [userAliases, currentUser]);
+  }, [userAliases, isManager]);
 
   useEffect(() => {
     fetchExternalProjects();
@@ -738,7 +744,7 @@ export default function CSExternalITRequestsPanel({ focusedTaskId = "", focusedC
                           <Text fontSize="sm" color={muted}>{String(task.description || "").replace("[CS External IT Request]", "").trim()}</Text>
                           <SimpleGrid columns={{ base: 1, md: 2 }} spacing={2} mt={3} fontSize="sm">
                             <HStack><Icon as={FiClock} color="blue.500" /><Text>Submitted: {task.createdAt ? new Date(task.createdAt).toLocaleString() : "Recently"}</Text></HStack>
-                            <HStack><Icon as={FiUserCheck} color="teal.500" /><Text>Assigned: {(task.assignedTo || []).join(", ") || "Waiting manager assignment"}</Text></HStack>
+                            <HStack><Icon as={FiUserCheck} color="teal.500" /><Text>Assigned: {(Array.isArray(task.assignedTo) ? task.assignedTo : [task.assignedTo].filter(Boolean)).join(", ") || "Waiting manager assignment"}</Text></HStack>
                             <Text color={muted}>Leader: {task.taskLeader || "Waiting assignment"}</Text>
                             <Text color={muted}>Project type: External</Text>
                             <Text color={muted}>Priority: {task.priority || "normal"}</Text>
@@ -762,53 +768,77 @@ export default function CSExternalITRequestsPanel({ focusedTaskId = "", focusedC
                           )}
 
                           <Box mt={3} p={3} borderRadius="lg" bg={panelBg}>
-                            <HStack mb={2}>
-                              <Icon as={FiMessageSquare} color="blue.500" />
-                              <Text fontWeight="700">Project Discussion</Text>
+                            <HStack justify="space-between" mb={2}>
+                              <HStack>
+                                <Icon as={FiMessageSquare} color="purple.500" />
+                                <Text fontWeight="700">Project Discussion</Text>
+                              </HStack>
+                              <Badge colorScheme="purple" fontSize="xs">
+                                Sender Exclusive Channel
+                              </Badge>
                             </HStack>
-                            <VStack align="stretch" spacing={2} mb={3} maxH="220px" overflowY="auto">
-                              {(task.comments || []).length === 0 ? (
-                                <Text fontSize="sm" color={muted}>No discussion yet. Start a conversation with IT about this external request.</Text>
-                              ) : (task.comments || []).map((comment) => {
-                                const isFocusedComment = String(comment._id || "") === String(focusedCommentId);
-                                return (
-                                <Box
-                                  key={comment._id || comment.createdAt || comment.body}
-                                  bg={isFocusedComment ? "yellow.50" : cardBg}
-                                  border="1px solid"
-                                  borderColor={isFocusedComment ? "yellow.300" : borderColor}
-                                  borderRadius="lg"
-                                  p={3}
-                                >
-                                  <HStack justify="space-between" align="start">
-                                    <Box>
-                                      <Text fontSize="sm" fontWeight="800">{comment.authorName || "Contributor"}</Text>
-                                      <Text fontSize="xs" color={muted}>{comment.authorRole || "Project discussion"}</Text>
+                            {canCurrentUserGiveFeedback(task, userAliases) ? (
+                              <>
+                                <VStack align="stretch" spacing={2} mb={3} maxH="240px" overflowY="auto">
+                                  {(task.comments || []).filter((c) => (c.audience || 'general') !== 'staff_manager').length === 0 ? (
+                                    <Text fontSize="sm" color={muted}>No discussion yet. Add notes or comments about this external request.</Text>
+                                  ) : (task.comments || []).filter((c) => (c.audience || 'general') !== 'staff_manager').map((comment) => {
+                                    const isFocusedComment = String(comment._id || "") === String(focusedCommentId);
+                                    const isManagerAuthor = ["admin", "itmanager", "itadmin", "manager"].includes(
+                                      String(comment.authorRole || "").toLowerCase().replace(/[^a-z0-9]/g, "")
+                                    );
+                                    return (
+                                    <Box
+                                      key={comment._id || comment.createdAt || comment.body}
+                                      bg={isFocusedComment ? "yellow.50" : cardBg}
+                                      border="1px solid"
+                                      borderColor={isFocusedComment ? "yellow.300" : borderColor}
+                                      borderRadius="lg"
+                                      p={3}
+                                    >
+                                      <HStack justify="space-between" align="start">
+                                        <HStack spacing={2} wrap="wrap">
+                                          <Text fontSize="sm" fontWeight="800">{comment.authorName || "User"}</Text>
+                                          <Badge size="sm" colorScheme={isManagerAuthor ? "purple" : "blue"} variant="subtle">
+                                            {isManagerAuthor ? "IT Manager" : (comment.authorRole || "CS Sender")}
+                                          </Badge>
+                                        </HStack>
+                                        <Text fontSize="xs" color={muted}>{comment.createdAt ? new Date(comment.createdAt).toLocaleString() : ""}</Text>
+                                      </HStack>
+                                      <Text fontSize="sm" mt={2}>{comment.body}</Text>
                                     </Box>
-                                    <Text fontSize="xs" color={muted}>{comment.createdAt ? new Date(comment.createdAt).toLocaleString() : ""}</Text>
-                                  </HStack>
-                                  <Text fontSize="sm" mt={2}>{comment.body}</Text>
-                                </Box>
-                                );
-                              })}
-                            </VStack>
-                            <Textarea
-                              size="sm"
-                              placeholder="Message the IT manager or assigned IT staff about this external project..."
-                              value={commentDrafts[taskId] || ""}
-                              onChange={(event) => setCommentDrafts({ ...commentDrafts, [taskId]: event.target.value })}
-                            />
-                            <Button
-                              mt={2}
-                              size="sm"
-                              colorScheme="blue"
-                              leftIcon={<FiMessageSquare />}
-                              onClick={() => submitProjectComment(task)}
-                              isLoading={commentSavingId === taskId}
-                              isDisabled={!String(commentDrafts[taskId] || "").trim()}
-                            >
-                              Send Comment
-                            </Button>
+                                    );
+                                  })}
+                                </VStack>
+                                <Textarea
+                                  size="sm"
+                                  placeholder="Message the IT Manager about this external project..."
+                                  value={commentDrafts[taskId] || ""}
+                                  onChange={(event) => setCommentDrafts({ ...commentDrafts, [taskId]: event.target.value })}
+                                />
+                                <Button
+                                  mt={2}
+                                  size="sm"
+                                  colorScheme="purple"
+                                  leftIcon={<FiMessageSquare />}
+                                  onClick={() => submitProjectComment(task)}
+                                  isLoading={commentSavingId === taskId}
+                                  isDisabled={!String(commentDrafts[taskId] || "").trim()}
+                                >
+                                  Send Comment
+                                </Button>
+                              </>
+                            ) : (
+                              <Box p={3} bg={cardBg} borderRadius="md" border="1px dashed" borderColor={borderColor}>
+                                <HStack mb={1}>
+                                  <Icon as={FiShield} color="purple.400" />
+                                  <Text fontSize="sm" fontWeight="700">Sender Private Discussion</Text>
+                                </HStack>
+                                <Text fontSize="xs" color={muted}>
+                                  Comments and discussion on this external project are exclusive to the task sender ({task.requestedBy || "Task Sender"}). Other participants and managers cannot view or post comments.
+                                </Text>
+                              </Box>
+                            )}
                           </Box>
 
                           {latestRecord ? (
