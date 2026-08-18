@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
   Avatar,
-  AvatarGroup,
   Badge,
   Box,
   Button,
@@ -11,6 +10,7 @@ import {
   Flex,
   FormControl,
   FormLabel,
+  Grid,
   Heading,
   HStack,
   Icon,
@@ -22,7 +22,6 @@ import {
   Progress,
   Select,
   SimpleGrid,
-  Skeleton,
   Spinner,
   Tab,
   TabList,
@@ -48,7 +47,6 @@ import {
   FiCheckCircle,
   FiChevronLeft,
   FiChevronRight,
-  FiClock,
   FiEdit3,
   FiExternalLink,
   FiFileText,
@@ -60,7 +58,8 @@ import {
   FiSave,
   FiTrash2,
   FiUploadCloud,
-  FiUsers
+  FiUsers,
+  FiZoomIn
 } from "react-icons/fi";
 import UploadTrainingMaterial from "../components/customer/UploadTrainingMaterial";
 import AdminTrainingMaterialList from "../components/customer/AdminTrainingMaterialList";
@@ -71,83 +70,97 @@ import {
   uploadCourseSlideImage
 } from "../services/api";
 
-const createSlide = (index = 0) => ({
-  title: `Chapter ${index + 1}`,
-  body: "",
-  imageUrl: "",
-  imageUrls: [],
-  materialUrl: ""
-});
+const isPersistedCourse = (course) => course?._id && !String(course._id).startsWith("seed-");
 
-const createQuestion = (index = 0) => ({
-  question: `Question ${index + 1}`,
-  options: ["Option 1", "Option 2"],
-  correctAnswer: 0,
-  explanation: ""
-});
+const isHrOwnedCourse = (course = {}) => {
+  const department = String(course?.department || "").trim().toLowerCase();
+  const category = String(course?.category || "").trim().toLowerCase();
+  const name = String(course?.name || course?.title || "").trim().toLowerCase();
 
-const defaultCourse = {
-  name: "",
-  overview: "",
-  passPercentage: 75,
-  slides: [createSlide(0)],
-  quizQuestions: [createQuestion(0)],
-  status: "draft",
-  publishedAt: null
+  return (
+    department === "human resources" ||
+    department === "hr" ||
+    category === "human resources" ||
+    category === "hr" ||
+    name.includes("human resources") ||
+    name.includes("hr ") ||
+    name.includes("onboarding") ||
+    name.includes("handbook")
+  );
 };
 
-const isPersistedCourse = (course) => course?._id && !String(course._id).startsWith("seed-");
-const asArray = (value, fallback = []) => (Array.isArray(value) ? value : fallback);
+const defaultCourse = {
+  name: "Human Resources Handbook",
+  overview: "Welcome to the TradeEthiopia central employee development repository. Explore guided chapters, verify company guidelines, and master essential workflows.",
+  passPercentage: 75,
+  slides: [
+    {
+      title: "Organization Overview",
+      body: "Overview of company history, vision, executive leadership, and workplace standards.",
+      imageUrl: "",
+      imageUrls: [],
+      materialUrl: "",
+      slideNumber: 1
+    }
+  ],
+  quizQuestions: [
+    {
+      question: "What is the primary requirement for all HR onboarding candidates?",
+      options: [
+        "Complete all 13 chapters and score at least 75%",
+        "Skip straight to production",
+        "Only read Chapter 1",
+        "Submit without review"
+      ],
+      correctAnswer: 0,
+      explanation: "All employees must complete every chapter and pass the quiz with at least 75%."
+    }
+  ],
+  status: "published"
+};
 
 const asText = (value, fallback = "") => {
   if (value === null || value === undefined) return fallback;
   return String(value).trim();
 };
 
-const hrKeywordPattern = /\bhr\b|human resources|handbook/i;
-
-const hasHrKeyword = (...values) =>
-  hrKeywordPattern.test(
-    values
-      .map((value) => asText(value, ""))
-      .filter(Boolean)
-      .join(" ")
-  );
-
-const hasHrTag = (tags = []) =>
-  (Array.isArray(tags) ? tags : []).some((tag) => hrKeywordPattern.test(asText(tag, "")));
-
-const isHrOwnedCourse = (course = {}) =>
-  hasHrKeyword(course?.name, course?.title, course?.overview, course?.description, course?.category) ||
-  hasHrTag(course?.tags);
-
-const normalizeSlideImageUrls = (slide = {}) => {
-  const values = [asText(slide?.imageUrl, ""), ...asArray(slide?.imageUrls, [])]
-    .map((value) => asText(value, ""))
-    .filter(Boolean);
-
-  return values.filter((value, index) => values.indexOf(value) === index);
+const asArray = (value, fallback = []) => {
+  return Array.isArray(value) ? value : fallback;
 };
 
-const sanitizeImageUrls = (imageUrls = []) => {
-  const values = asArray(imageUrls, [])
-    .map((value) => asText(value, ""))
-    .filter(Boolean);
+const createSlide = (index = 0) => ({
+  title: `Chapter ${index + 1}`,
+  body: "",
+  imageUrl: "",
+  imageUrls: [],
+  materialUrl: "",
+  slideNumber: index + 1
+});
 
-  return values.filter((value, index) => values.indexOf(value) === index);
-};
-
-const getPrimaryImageUrl = (imageUrls = [], fallback = "") =>
-  sanitizeImageUrls(imageUrls)[0] || asText(fallback, "");
+const createQuestion = (index = 0) => ({
+  question: `Question ${index + 1}`,
+  options: ["Option A", "Option B", "Option C", "Option D"],
+  correctAnswer: 0,
+  explanation: ""
+});
 
 const normalizeForEditor = (course = {}) => {
-  const slides = asArray(course.slides, []).map((slide, index) => ({
-    title: slide?.title || `Chapter ${index + 1}`,
-    body: slide?.body || "",
-    imageUrl: getPrimaryImageUrl(normalizeSlideImageUrls(slide), ""),
-    imageUrls: normalizeSlideImageUrls(slide),
-    materialUrl: slide?.materialUrl || ""
-  }));
+  const slides = asArray(course.slides, []).map((slide, index) => {
+    const rawList = [slide?.imageUrl, ...asArray(slide?.imageUrls, [])];
+    const cleanList = rawList
+      .map((item) => asText(item, ""))
+      .filter(Boolean)
+      .filter((val, i, self) => self.indexOf(val) === i);
+
+    return {
+      title: slide?.title || `Chapter ${index + 1}`,
+      body: slide?.body || "",
+      imageUrl: cleanList[0] || "",
+      imageUrls: cleanList,
+      materialUrl: slide?.materialUrl || "",
+      slideNumber: Number(slide?.slideNumber) || index + 1
+    };
+  });
 
   const quizQuestions = asArray(course.quizQuestions, []).map((question, index) => {
     const options = asArray(question?.options, []).filter(Boolean);
@@ -196,7 +209,10 @@ const AdminTrainingUpload = () => {
   const [saving, setSaving] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [uploadingSlideIndex, setUploadingSlideIndex] = useState(null);
-  const [activeMainTab, setActiveMainTab] = useState(0);
+  const [activeMainTab, setActiveMainTab] = useState(1);
+  const [selectedEditorChapter, setSelectedEditorChapter] = useState(0);
+  const [selectedEditorQuestion, setSelectedEditorQuestion] = useState(0);
+  const [newImageUrlInput, setNewImageUrlInput] = useState("");
 
   const summary = useMemo(
     () => ({
@@ -249,94 +265,242 @@ const AdminTrainingUpload = () => {
     loadCourses();
   }, []);
 
-  const handleCreateNewCourse = () => {
-    setSelectedCourseId("");
-    setCourse(defaultCourse);
-    setActiveMainTab(1);
-  };
-
   const updateCourseField = (field, value) => {
-    setCourse((prev) => ({ ...prev, [field]: value }));
-  };
-
-  const updateSlideField = (slideIndex, field, value) => {
     setCourse((prev) => ({
       ...prev,
-      slides: prev.slides.map((slide, index) =>
-        index === slideIndex ? { ...slide, [field]: value } : slide
-      )
+      [field]: value
     }));
   };
 
-  const updateSlideImages = (slideIndex, updater) => {
-    setCourse((prev) => ({
-      ...prev,
-      slides: prev.slides.map((slide, index) => {
-        if (index !== slideIndex) return slide;
+  const updateSlideField = (index, field, value) => {
+    setCourse((prev) => {
+      const nextSlides = [...prev.slides];
+      nextSlides[index] = {
+        ...nextSlides[index],
+        [field]: value
+      };
+      return {
+        ...prev,
+        slides: nextSlides
+      };
+    });
+  };
 
-        const nextImageUrls =
-          typeof updater === "function" ? updater(asArray(slide.imageUrls, [])) : updater;
+  const addSlideImageUrl = (slideIndex, urlToAdd) => {
+    const cleanUrl = asText(urlToAdd, "");
+    if (!cleanUrl) return;
 
-        return {
-          ...slide,
-          imageUrls: asArray(nextImageUrls, []),
-          imageUrl: getPrimaryImageUrl(asArray(nextImageUrls, []), "")
+    setCourse((prev) => {
+      const nextSlides = [...prev.slides];
+      const currentList = asArray(nextSlides[slideIndex]?.imageUrls, []);
+      if (!currentList.includes(cleanUrl)) {
+        nextSlides[slideIndex] = {
+          ...nextSlides[slideIndex],
+          imageUrls: [...currentList, cleanUrl],
+          imageUrl: nextSlides[slideIndex]?.imageUrl || cleanUrl
         };
-      })
-    }));
-  };
-
-  const addSlideImageUrlField = (slideIndex) => {
-    updateSlideImages(slideIndex, (imageUrls) => [...imageUrls, ""]);
-  };
-
-  const updateSlideImageUrl = (slideIndex, imageIndex, value) => {
-    updateSlideImages(slideIndex, (imageUrls) =>
-      imageUrls.map((imageUrl, index) => (index === imageIndex ? value : imageUrl))
-    );
+      }
+      return {
+        ...prev,
+        slides: nextSlides
+      };
+    });
+    setNewImageUrlInput("");
   };
 
   const removeSlideImage = (slideIndex, imageIndex) => {
-    updateSlideImages(slideIndex, (imageUrls) =>
-      imageUrls.filter((_, index) => index !== imageIndex)
-    );
+    setCourse((prev) => {
+      const nextSlides = [...prev.slides];
+      const currentList = asArray(nextSlides[slideIndex]?.imageUrls, []);
+      const updatedList = currentList.filter((_, idx) => idx !== imageIndex);
+
+      nextSlides[slideIndex] = {
+        ...nextSlides[slideIndex],
+        imageUrls: updatedList,
+        imageUrl: updatedList[0] || ""
+      };
+
+      return {
+        ...prev,
+        slides: nextSlides
+      };
+    });
+  };
+
+  const addSlide = () => {
+    setCourse((prev) => {
+      const newSlideIdx = prev.slides.length;
+      setSelectedEditorChapter(newSlideIdx);
+      return {
+        ...prev,
+        slides: [...prev.slides, createSlide(newSlideIdx)]
+      };
+    });
+  };
+
+  const removeSlide = (index) => {
+    if (course.slides.length <= 1) {
+      toast({
+        title: "Course must have at least one chapter",
+        status: "warning",
+        duration: 3000,
+        isClosable: true
+      });
+      return;
+    }
+
+    setCourse((prev) => {
+      const filtered = prev.slides.filter((_, i) => i !== index);
+      const reindexed = filtered.map((slide, i) => ({
+        ...slide,
+        slideNumber: i + 1
+      }));
+      return {
+        ...prev,
+        slides: reindexed
+      };
+    });
+    setSelectedEditorChapter((prev) => Math.max(0, Math.min(prev, course.slides.length - 2)));
+  };
+
+  const updateQuestionField = (index, field, value) => {
+    setCourse((prev) => {
+      const nextQuestions = [...prev.quizQuestions];
+      nextQuestions[index] = {
+        ...nextQuestions[index],
+        [field]: value
+      };
+      return {
+        ...prev,
+        quizQuestions: nextQuestions
+      };
+    });
+  };
+
+  const updateQuestionOption = (questionIndex, optionIndex, value) => {
+    setCourse((prev) => {
+      const nextQuestions = [...prev.quizQuestions];
+      const nextOptions = [...nextQuestions[questionIndex].options];
+      nextOptions[optionIndex] = value;
+      nextQuestions[questionIndex] = {
+        ...nextQuestions[questionIndex],
+        options: nextOptions
+      };
+      return {
+        ...prev,
+        quizQuestions: nextQuestions
+      };
+    });
+  };
+
+  const addOption = (questionIndex) => {
+    setCourse((prev) => {
+      const nextQuestions = [...prev.quizQuestions];
+      nextQuestions[questionIndex] = {
+        ...nextQuestions[questionIndex],
+        options: [
+          ...nextQuestions[questionIndex].options,
+          `Option ${String.fromCharCode(65 + nextQuestions[questionIndex].options.length)}`
+        ]
+      };
+      return {
+        ...prev,
+        quizQuestions: nextQuestions
+      };
+    });
+  };
+
+  const removeOption = (questionIndex, optionIndex) => {
+    setCourse((prev) => {
+      const nextQuestions = [...prev.quizQuestions];
+      const nextOptions = nextQuestions[questionIndex].options.filter((_, i) => i !== optionIndex);
+      if (nextOptions.length < 2) return prev;
+
+      nextQuestions[questionIndex] = {
+        ...nextQuestions[questionIndex],
+        options: nextOptions,
+        correctAnswer: Math.min(nextQuestions[questionIndex].correctAnswer, nextOptions.length - 1)
+      };
+      return {
+        ...prev,
+        quizQuestions: nextQuestions
+      };
+    });
+  };
+
+  const addQuestion = () => {
+    setCourse((prev) => {
+      const nextIndex = prev.quizQuestions.length;
+      setSelectedEditorQuestion(nextIndex);
+      return {
+        ...prev,
+        quizQuestions: [...prev.quizQuestions, createQuestion(nextIndex)]
+      };
+    });
+  };
+
+  const removeQuestion = (index) => {
+    if (course.quizQuestions.length <= 1) {
+      toast({
+        title: "Course must have at least one quiz question",
+        status: "warning",
+        duration: 3000,
+        isClosable: true
+      });
+      return;
+    }
+    setCourse((prev) => ({
+      ...prev,
+      quizQuestions: prev.quizQuestions.filter((_, i) => i !== index)
+    }));
+    setSelectedEditorQuestion((prev) => Math.max(0, Math.min(prev, course.quizQuestions.length - 2)));
   };
 
   const handleSlideImageUpload = async (slideIndex, files) => {
-    const uploads = Array.from(files || []).filter(Boolean);
-    if (!uploads.length) return;
-
+    if (!files || files.length === 0) return;
     setUploadingSlideIndex(slideIndex);
-    try {
-      const uploadResponses = [];
 
-      for (const file of uploads) {
+    try {
+      const uploads = Array.from(files).map((file) => {
         const formData = new FormData();
         formData.append("image", file);
-        const response = await uploadCourseSlideImage(formData);
-        const fileUrl = response?.imageUrl || "";
+        return uploadCourseSlideImage(formData);
+      });
+      const results = await Promise.all(uploads);
+      const newUrls = results.map((res) => res?.imageUrl || res?.url).filter(Boolean);
 
-        if (!fileUrl) {
-          throw new Error("Upload succeeded but no image URL was returned.");
-        }
+      if (newUrls.length === 0) throw new Error("No image URLs returned from upload.");
 
-        uploadResponses.push(fileUrl);
-      }
+      setCourse((prev) => {
+        const nextSlides = [...prev.slides];
+        const existingUrls = asArray(nextSlides[slideIndex]?.imageUrls, []);
+        const combined = [...existingUrls, ...newUrls].filter((v, i, self) => self.indexOf(v) === i);
 
-      updateSlideImages(slideIndex, (imageUrls) => [...imageUrls, ...uploadResponses]);
+        nextSlides[slideIndex] = {
+          ...nextSlides[slideIndex],
+          imageUrls: combined,
+          imageUrl: nextSlides[slideIndex]?.imageUrl || combined[0] || ""
+        };
+
+        return {
+          ...prev,
+          slides: nextSlides
+        };
+      });
+
       toast({
-        title: uploads.length > 1 ? "Images uploaded" : "Image uploaded",
-        description: "Chapter images uploaded and linked.",
+        title: "Slide images uploaded",
+        description: `Added ${newUrls.length} image(s) to Chapter ${slideIndex + 1}.`,
         status: "success",
-        duration: 2500,
+        duration: 3000,
         isClosable: true
       });
-    } catch (error) {
+    } catch (err) {
       toast({
         title: "Image upload failed",
-        description: error?.response?.data?.message || error.message || "",
+        description: err?.response?.data?.message || err.message || "",
         status: "error",
-        duration: 4500,
+        duration: 4000,
         isClosable: true
       });
     } finally {
@@ -344,183 +508,63 @@ const AdminTrainingUpload = () => {
     }
   };
 
-  const addSlide = () => {
-    setCourse((prev) => ({
-      ...prev,
-      slides: [...prev.slides, createSlide(prev.slides.length)]
-    }));
-  };
-
-  const removeSlide = (slideIndex) => {
-    setCourse((prev) => {
-      if (prev.slides.length <= 1) return prev;
-      return {
-        ...prev,
-        slides: prev.slides.filter((_, index) => index !== slideIndex)
-      };
+  const handleCreateNewCourse = () => {
+    setSelectedCourseId("");
+    setCourse({
+      name: "New Human Resources Course",
+      overview: "Enter course overview, target audience, and training outcomes.",
+      passPercentage: 75,
+      slides: [createSlide(0)],
+      quizQuestions: [createQuestion(0)],
+      status: "draft"
     });
-  };
-
-  const updateQuestionField = (questionIndex, field, value) => {
-    setCourse((prev) => ({
-      ...prev,
-      quizQuestions: prev.quizQuestions.map((question, index) =>
-        index === questionIndex ? { ...question, [field]: value } : question
-      )
-    }));
-  };
-
-  const updateQuestionOption = (questionIndex, optionIndex, value) => {
-    setCourse((prev) => ({
-      ...prev,
-      quizQuestions: prev.quizQuestions.map((question, index) => {
-        if (index !== questionIndex) return question;
-        return {
-          ...question,
-          options: question.options.map((option, idx) => (idx === optionIndex ? value : option))
-        };
-      })
-    }));
-  };
-
-  const addQuestion = () => {
-    setCourse((prev) => ({
-      ...prev,
-      quizQuestions: [...prev.quizQuestions, createQuestion(prev.quizQuestions.length)]
-    }));
-  };
-
-  const removeQuestion = (questionIndex) => {
-    setCourse((prev) => {
-      if (prev.quizQuestions.length <= 1) return prev;
-      return {
-        ...prev,
-        quizQuestions: prev.quizQuestions.filter((_, index) => index !== questionIndex)
-      };
+    setSelectedEditorChapter(0);
+    setSelectedEditorQuestion(0);
+    setActiveMainTab(1);
+    toast({
+      title: "New course template ready",
+      description: "Customize your chapters and quizzes, then click Publish.",
+      status: "info",
+      duration: 3000,
+      isClosable: true
     });
-  };
-
-  const addOption = (questionIndex) => {
-    setCourse((prev) => ({
-      ...prev,
-      quizQuestions: prev.quizQuestions.map((question, index) =>
-        index === questionIndex
-          ? {
-              ...question,
-              options: [...question.options, `Option ${question.options.length + 1}`]
-            }
-          : question
-      )
-    }));
-  };
-
-  const removeOption = (questionIndex, optionIndex) => {
-    setCourse((prev) => ({
-      ...prev,
-      quizQuestions: prev.quizQuestions.map((question, index) => {
-        if (index !== questionIndex) return question;
-        if (question.options.length <= 2) return question;
-
-        const nextOptions = question.options.filter((_, idx) => idx !== optionIndex);
-        let nextCorrect = question.correctAnswer;
-        if (optionIndex === question.correctAnswer) {
-          nextCorrect = 0;
-        } else if (optionIndex < question.correctAnswer) {
-          nextCorrect -= 1;
-        }
-
-        return {
-          ...question,
-          options: nextOptions,
-          correctAnswer: Math.max(0, Math.min(nextOptions.length - 1, nextCorrect))
-        };
-      })
-    }));
-  };
-
-  const createPayload = (status) => ({
-    name: asText(course.name, "HR Employee Handbook & Course"),
-    description: asText(course.overview, ""),
-    overview: asText(course.overview, ""),
-    category: "Human Resources",
-    level: "Internal",
-    tags: ["hr", "human-resources", "internal", "handbook"],
-    passPercentage: Number.isFinite(Number(course.passPercentage))
-      ? Number(course.passPercentage)
-      : 75,
-    status,
-    draftSavedAt: status === "draft" ? new Date().toISOString() : undefined,
-    publishedAt: status === "published" ? new Date().toISOString() : undefined,
-    isActive: true,
-    slides: course.slides.map((slide, index) => {
-      const imageUrls = sanitizeImageUrls(slide.imageUrls);
-
-      return {
-        title: asText(slide.title, `Chapter ${index + 1}`),
-        body: asText(slide.body, ""),
-        imageUrl: imageUrls[0] || "",
-        imageUrls,
-        materialUrl: asText(slide.materialUrl, "")
-      };
-    }),
-    quizQuestions: course.quizQuestions.map((question, index) => {
-      const options = asArray(question.options, [])
-        .map((option) => asText(option, ""))
-        .filter(Boolean);
-      const safeOptions = options.length >= 2 ? options : ["Option 1", "Option 2"];
-
-      return {
-        question: asText(question.question, `Question ${index + 1}`),
-        options: safeOptions,
-        correctAnswer: Number.isFinite(Number(question.correctAnswer))
-          ? Math.max(0, Math.min(safeOptions.length - 1, Number(question.correctAnswer)))
-          : 0,
-        explanation: asText(question.explanation, "")
-      };
-    })
-  });
-
-  const saveSelectedCourse = async (status) => {
-    if (!course.name.trim()) {
-      toast({
-        title: "Course title is required",
-        description: "Please enter a course or handbook title before saving.",
-        status: "warning",
-        duration: 3000,
-        isClosable: true
-      });
-      throw new Error("Course title is required");
-    }
-
-    const payload = createPayload(status);
-
-    if (selectedCourseId) {
-      const response = await updateCourse(selectedCourseId, payload);
-      const updatedCourse = response?.data || response;
-      await loadCourses(selectedCourseId || updatedCourse?._id);
-      return updatedCourse;
-    }
-
-    const response = await createCourse(payload);
-    const createdCourse = response?.data || response;
-    await loadCourses(createdCourse?._id);
-    return createdCourse;
   };
 
   const handleSaveDraft = async () => {
     setSaving(true);
     try {
-      await saveSelectedCourse("draft");
-      toast({
-        title: "Course draft saved",
-        description: "Your course chapters and questions were safely updated.",
-        status: "success",
-        duration: 3000,
-        isClosable: true
-      });
+      const payload = {
+        name: course.name,
+        overview: course.overview,
+        passPercentage: course.passPercentage,
+        department: "Human Resources",
+        slides: course.slides,
+        quizQuestions: course.quizQuestions,
+        status: "draft"
+      };
+
+      if (selectedCourseId) {
+        await updateCourse(selectedCourseId, payload);
+        toast({
+          title: "Draft saved successfully",
+          status: "success",
+          duration: 3000,
+          isClosable: true
+        });
+        await loadCourses(selectedCourseId);
+      } else {
+        const created = await createCourse(payload);
+        toast({
+          title: "New course draft created",
+          status: "success",
+          duration: 3000,
+          isClosable: true
+        });
+        await loadCourses(created._id);
+      }
     } catch (error) {
       toast({
-        title: "Save failed",
+        title: "Failed to save draft",
         description: error?.response?.data?.message || error.message || "",
         status: "error",
         duration: 4000,
@@ -534,17 +578,35 @@ const AdminTrainingUpload = () => {
   const handlePublish = async () => {
     setPublishing(true);
     try {
-      await saveSelectedCourse("published");
+      const payload = {
+        name: course.name,
+        overview: course.overview,
+        passPercentage: course.passPercentage,
+        department: "Human Resources",
+        slides: course.slides,
+        quizQuestions: course.quizQuestions,
+        status: "published"
+      };
+
+      if (selectedCourseId) {
+        await updateCourse(selectedCourseId, payload);
+      } else {
+        const created = await createCourse(payload);
+        setSelectedCourseId(created._id);
+      }
+
       toast({
-        title: "Course published",
-        description: "HR training is now live for all employees to read.",
+        title: "Course Published to Onboarding Portal!",
+        description: "Trainees can now view and take exams on this handbook.",
         status: "success",
-        duration: 3000,
+        duration: 4500,
         isClosable: true
       });
+
+      await loadCourses(selectedCourseId);
     } catch (error) {
       toast({
-        title: "Publish failed",
+        title: "Failed to publish course",
         description: error?.response?.data?.message || error.message || "",
         status: "error",
         duration: 4500,
@@ -565,8 +627,12 @@ const AdminTrainingUpload = () => {
     { day: "Sat", date: "17", active: false }
   ];
 
+  const currentChapter = course.slides[selectedEditorChapter] || course.slides[0];
+  const currentQuestion = course.quizQuestions[selectedEditorQuestion] || course.quizQuestions[0];
+
   return (
     <Box maxW="1500px" mx="auto" pb={12}>
+      {/* TOP HEADER */}
       <Flex
         justify="space-between"
         align={{ base: "flex-start", lg: "center" }}
@@ -595,7 +661,7 @@ const AdminTrainingUpload = () => {
               Training & Publication Studio
             </Heading>
             <Text fontSize="xs" color="gray.500">
-              Organize company books, onboarding chapters, and multimedia training materials.
+              Create, organize, and publish official company onboarding handbooks & exams.
             </Text>
           </Box>
         </HStack>
@@ -646,6 +712,8 @@ const AdminTrainingUpload = () => {
           </Button>
           <Button
             colorScheme="teal"
+            bg="#004D40"
+            _hover={{ bg: "#00796B" }}
             size="sm"
             borderRadius="xl"
             leftIcon={<Icon as={FiCheckCircle} />}
@@ -658,6 +726,7 @@ const AdminTrainingUpload = () => {
         </HStack>
       </Flex>
 
+      {/* TOP HERO BANNER */}
       <Box
         borderRadius="3xl"
         p={{ base: 6, md: 8 }}
@@ -684,13 +753,13 @@ const AdminTrainingUpload = () => {
               HR KNOWLEDGE BASE
             </Badge>
             <Heading size="xl" fontWeight="900" color="gray.800" lineHeight="1.2" mb={3}>
-              Happy reading, <br />
+              Training Studio & <br />
               <Text as="span" color="teal.600">
-                Team Member
+                Course Manager
               </Text>
             </Heading>
             <Text fontSize="sm" color="gray.600" mb={6} lineHeight="1.6">
-              Welcome to the central employee development repository. Explore guided chapters, verify company guidelines, and master essential workflows.
+              Organize company training handbooks, manage chapter slide decks, and set pass thresholds for team onboarding.
             </Text>
 
             <HStack spacing={3} justify={{ base: "center", lg: "flex-start" }} mb={5}>
@@ -705,7 +774,7 @@ const AdminTrainingUpload = () => {
                 fontWeight="700"
                 isDisabled={!publishedCourse}
               >
-                Start reading ↗
+                Open Trainee Reader ↗
               </Button>
               <Button
                 size="md"
@@ -713,7 +782,7 @@ const AdminTrainingUpload = () => {
                 borderRadius="xl"
                 onClick={() => setActiveMainTab(1)}
               >
-                Edit Chapters
+                Edit Chapters ({course.slides.length})
               </Button>
             </HStack>
 
@@ -750,7 +819,7 @@ const AdminTrainingUpload = () => {
               bg={openBookBg}
               overflow="hidden"
               border="2px solid rgba(0,0,0,0.06)"
-              transform="perspective(1000px) rotateX(4deg)"
+              transform="perspective(1000px) rotateX(3deg)"
               transition="transform 0.3s ease"
               _hover={{ transform: "perspective(1000px) rotateX(0deg) scale(1.02)" }}
             >
@@ -768,7 +837,7 @@ const AdminTrainingUpload = () => {
                     CHAPTER 01 · OVERVIEW
                   </Text>
                   <Text fontSize="xs" fontWeight="800" color="gray.800" mt={1} noOfLines={2}>
-                    {course.slides?.[0]?.title || "Company Mission & Culture"}
+                    {course.slides?.[0]?.title || "Organization Overview"}
                   </Text>
                   <Text fontSize="10px" color="gray.600" mt={2} lineHeight="1.4" noOfLines={4}>
                     {course.slides?.[0]?.body ||
@@ -817,7 +886,7 @@ const AdminTrainingUpload = () => {
               >
                 <Box>
                   <Text fontSize="9px" fontWeight="800" color="teal.700" textTransform="uppercase" letterSpacing="wider">
-                    PUBLISHED BOOK
+                    ACTIVE COURSE BOOK
                   </Text>
                   <Box
                     mt={1.5}
@@ -835,16 +904,16 @@ const AdminTrainingUpload = () => {
                   >
                     <Icon as={FiAward} boxSize={5} color="teal.300" mb={1} />
                     <Text fontSize="11px" fontWeight="800" noOfLines={2}>
-                      {course.name || "Employee Handbook"}
+                      {course.name || "Human Resources Handbook"}
                     </Text>
                     <Text fontSize="9px" opacity={0.8}>
-                      Passing Score: {course.passPercentage}%
+                      Pass Score: {course.passPercentage}%
                     </Text>
                   </Box>
                 </Box>
                 <HStack justify="space-between" fontSize="9px" color="gray.400" pt={2} borderTop="1px solid rgba(0,0,0,0.06)">
-                  <Text>Page 02</Text>
-                  <Text>{course.status === "published" ? "Live Edition" : "Draft Edition"}</Text>
+                  <Text>Live Edition</Text>
+                  <Text>{course.status === "published" ? "✓ Live" : "Draft"}</Text>
                 </HStack>
               </Box>
             </Box>
@@ -889,19 +958,19 @@ const AdminTrainingUpload = () => {
         </SimpleGrid>
       </Box>
 
+      {/* MAIN WORKSPACE TABS */}
       <Tabs
         index={activeMainTab}
-        onChange={(idx) => setActiveMainTab(idx)}
-        colorScheme="teal"
+        onChange={(index) => setActiveMainTab(index)}
         variant="soft-rounded"
-        mb={6}
+        colorScheme="teal"
       >
         <Flex
           justify="space-between"
           align={{ base: "flex-start", md: "center" }}
           direction={{ base: "column", md: "row" }}
           gap={4}
-          mb={4}
+          mb={6}
         >
           <TabList bg={useColorModeValue("gray.100", "gray.800")} p={1.5} borderRadius="2xl">
             <Tab borderRadius="xl" fontSize="xs" fontWeight="700" px={4} py={2}>
@@ -947,6 +1016,7 @@ const AdminTrainingUpload = () => {
         </Flex>
 
         <TabPanels>
+          {/* TAB 1: LIBRARY & SCHEDULE */}
           <TabPanel px={0} pt={2}>
             <SimpleGrid columns={{ base: 1, xl: 12 }} spacing={8}>
               <Box gridColumn={{ base: "span 1", xl: "span 8" }}>
@@ -1066,12 +1136,18 @@ const AdminTrainingUpload = () => {
             </SimpleGrid>
           </TabPanel>
 
+          {/* TAB 2: CLEAN, PROFESSIONAL MASTER-DETAIL CHAPTER STUDIO */}
           <TabPanel px={0} pt={2}>
             <Card bg={cardBg} borderRadius="2xl" border="1px solid" borderColor={borderColor} mb={6} boxShadow="sm">
               <CardBody p={6}>
-                <Heading size="xs" fontWeight="800" textTransform="uppercase" color="teal.600" letterSpacing="wider" mb={4}>
-                  Course Book Overview & Settings
-                </Heading>
+                <Flex justify="space-between" align="center" mb={4}>
+                  <Heading size="xs" fontWeight="800" textTransform="uppercase" color="teal.600" letterSpacing="wider">
+                    Course Book Overview & Settings
+                  </Heading>
+                  <Badge colorScheme={course.status === "published" ? "green" : "orange"} px={2} py={0.5} borderRadius="full">
+                    {course.status.toUpperCase()}
+                  </Badge>
+                </Flex>
                 <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4} mb={4}>
                   <FormControl isRequired>
                     <FormLabel fontSize="xs" fontWeight="700">
@@ -1116,357 +1192,597 @@ const AdminTrainingUpload = () => {
                     placeholder="Describe the target audience, purpose, and key takeaways..."
                     borderRadius="xl"
                     fontSize="sm"
-                    rows={3}
+                    rows={2}
                     focusBorderColor="teal.500"
                   />
                 </FormControl>
               </CardBody>
             </Card>
 
-            <VStack align="stretch" spacing={5}>
-              {course.slides.map((slide, slideIndex) => (
-                <Card
-                  key={`slide-${slideIndex}`}
-                  bg={cardBg}
-                  borderRadius="2xl"
-                  border="1px solid"
-                  borderColor={borderColor}
-                  boxShadow="sm"
-                  transition="all 0.2s"
-                >
-                  <CardBody p={6}>
-                    <Flex justify="space-between" align="center" mb={4} pb={3} borderBottom="1px solid" borderColor={borderColor}>
-                      <HStack spacing={3}>
-                        <Flex
-                          w="32px"
-                          h="32px"
-                          borderRadius="lg"
-                          bg="teal.50"
-                          color="teal.700"
-                          align="center"
-                          justify="center"
-                          fontWeight="800"
-                          fontSize="xs"
-                        >
-                          {slideIndex + 1}
-                        </Flex>
-                        <Heading size="sm" color="gray.800">
-                          Chapter {slideIndex + 1}: {slide.title || "Untitled Chapter"}
-                        </Heading>
-                      </HStack>
+            {/* MASTER-DETAIL CHAPTER MANAGER */}
+            <Grid templateColumns={{ base: "1fr", lg: "340px 1fr" }} gap={6} align="start">
+              {/* Left Column: Chapters Navigation List */}
+              <Card bg={cardBg} borderRadius="2xl" border="1px solid" borderColor={borderColor} p={4} boxShadow="sm">
+                <Flex justify="space-between" align="center" mb={4} pb={2} borderBottom="1px solid" borderColor={borderColor}>
+                  <VStack align="start" spacing={0}>
+                    <Heading size="xs" textTransform="uppercase" color="gray.500" letterSpacing="wider">
+                      Chapters List
+                    </Heading>
+                    <Text fontSize="2xs" color="teal.600" fontWeight="bold">
+                      {course.slides.length} Total Chapters
+                    </Text>
+                  </VStack>
+                  <Button
+                    size="xs"
+                    colorScheme="teal"
+                    leftIcon={<FiPlus />}
+                    borderRadius="lg"
+                    onClick={addSlide}
+                  >
+                    Add Chapter
+                  </Button>
+                </Flex>
 
-                      <IconButton
-                        aria-label={`Remove chapter ${slideIndex + 1}`}
-                        icon={<FiTrash2 />}
-                        size="sm"
-                        colorScheme="red"
-                        variant="ghost"
-                        borderRadius="lg"
-                        onClick={() => removeSlide(slideIndex)}
-                      />
-                    </Flex>
+                <VStack spacing={1.5} align="stretch" maxH="680px" overflowY="auto" pr={1}>
+                  {course.slides.map((slide, sIdx) => {
+                    const isSelected = sIdx === selectedEditorChapter;
+                    const imgCount = asArray(slide.imageUrls, []).length;
 
-                    <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4} mb={4}>
-                      <FormControl isRequired>
-                        <FormLabel fontSize="xs" fontWeight="700">
-                          Chapter Title
-                        </FormLabel>
-                        <Input
-                          value={slide.title}
-                          onChange={(event) => updateSlideField(slideIndex, "title", event.target.value)}
-                          placeholder="e.g. Workplace Ethics & Values"
-                          borderRadius="xl"
-                          fontSize="sm"
-                          focusBorderColor="teal.500"
-                        />
-                      </FormControl>
-
-                      <FormControl>
-                        <FormLabel fontSize="xs" fontWeight="700">
-                          Upload Chapter Illustrations & Slides
-                        </FormLabel>
-                        <HStack mt={1}>
-                          <Input
-                            type="file"
-                            accept="image/*"
-                            multiple
-                            p={1}
-                            borderRadius="xl"
-                            fontSize="xs"
-                            onChange={(event) => {
-                              handleSlideImageUpload(slideIndex, event.target.files);
-                              event.target.value = "";
-                            }}
-                          />
-                          {uploadingSlideIndex === slideIndex && <Spinner size="sm" color="teal.500" />}
-                        </HStack>
-                        <Text fontSize="10px" color="gray.400" mt={1}>
-                          Upload graphics, infographics, or slide screenshots.
-                        </Text>
-                      </FormControl>
-                    </SimpleGrid>
-
-                    <FormControl mb={4}>
-                      <FormLabel fontSize="xs" fontWeight="700">
-                        Chapter Reading Content & Guidelines
-                      </FormLabel>
-                      <Textarea
-                        value={slide.body}
-                        minH="130px"
-                        onChange={(event) => updateSlideField(slideIndex, "body", event.target.value)}
-                        placeholder="Write detailed reading material for this chapter..."
+                    return (
+                      <Flex
+                        key={`chapter-item-${sIdx}`}
+                        p={3}
                         borderRadius="xl"
-                        fontSize="sm"
-                        focusBorderColor="teal.500"
-                      />
-                    </FormControl>
+                        cursor="pointer"
+                        bg={isSelected ? "teal.50" : "transparent"}
+                        borderWidth="1px"
+                        borderColor={isSelected ? "teal.300" : "transparent"}
+                        _hover={{ bg: isSelected ? "teal.50" : "gray.50" }}
+                        transition="all 0.2s"
+                        align="center"
+                        justify="space-between"
+                        onClick={() => setSelectedEditorChapter(sIdx)}
+                      >
+                        <HStack spacing={3} overflow="hidden">
+                          <Flex
+                            w="28px"
+                            h="28px"
+                            borderRadius="lg"
+                            bg={isSelected ? "teal.600" : "gray.100"}
+                            color={isSelected ? "white" : "gray.700"}
+                            fontSize="xs"
+                            fontWeight="bold"
+                            align="center"
+                            justify="center"
+                            flexShrink={0}
+                          >
+                            {sIdx + 1}
+                          </Flex>
+                          <VStack align="start" spacing={0} overflow="hidden">
+                            <Text
+                              fontSize="xs"
+                              fontWeight={isSelected ? "bold" : "medium"}
+                              color={isSelected ? "teal.900" : "gray.800"}
+                              noOfLines={1}
+                            >
+                              {slide.title || `Chapter ${sIdx + 1}`}
+                            </Text>
+                            <Text fontSize="2xs" color="gray.400">
+                              {imgCount} slide image{imgCount === 1 ? "" : "s"}
+                            </Text>
+                          </VStack>
+                        </HStack>
 
-                    <Box mt={3} p={4} bg={useColorModeValue("gray.50", "gray.900")} borderRadius="xl">
-                      <Flex justify="space-between" align="center" mb={2}>
-                        <Text fontSize="xs" fontWeight="700" color="gray.600">
-                          Associated Chapter Images ({slide.imageUrls.length})
-                        </Text>
-                        <Button
+                        <IconButton
+                          aria-label={`Remove chapter ${sIdx + 1}`}
+                          icon={<FiTrash2 />}
                           size="xs"
-                          leftIcon={<Icon as={FiPlus} />}
-                          variant="outline"
-                          colorScheme="teal"
-                          borderRadius="lg"
-                          onClick={() => addSlideImageUrlField(slideIndex)}
-                        >
-                          Add Image URL
-                        </Button>
+                          colorScheme="red"
+                          variant="ghost"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            removeSlide(sIdx);
+                          }}
+                        />
                       </Flex>
+                    );
+                  })}
+                </VStack>
+              </Card>
 
-                      <VStack align="stretch" spacing={2} mb={3}>
-                        {slide.imageUrls.map((imageUrl, imageIndex) => (
-                          <HStack key={`slide-${slideIndex}-image-${imageIndex}`} align="center">
-                            <Input
-                              size="sm"
-                              borderRadius="lg"
-                              value={imageUrl}
-                              placeholder={`Image URL ${imageIndex + 1}`}
-                              onChange={(event) => updateSlideImageUrl(slideIndex, imageIndex, event.target.value)}
-                            />
-                            <IconButton
-                              aria-label={`Remove image ${imageIndex + 1}`}
-                              icon={<FiTrash2 />}
-                              size="xs"
-                              colorScheme="red"
-                              variant="ghost"
-                              onClick={() => removeSlideImage(slideIndex, imageIndex)}
-                            />
-                          </HStack>
-                        ))}
-                      </VStack>
+              {/* Right Column: Active Chapter Editor */}
+              {currentChapter && (
+                <Card bg={cardBg} borderRadius="2xl" border="1px solid" borderColor={borderColor} p={6} boxShadow="sm">
+                  <Flex justify="space-between" align="center" pb={4} mb={5} borderBottom="1px solid" borderColor={borderColor}>
+                    <HStack spacing={3}>
+                      <Badge colorScheme="teal" px={2.5} py={1} borderRadius="lg" fontSize="xs" fontWeight="bold">
+                        CHAPTER {selectedEditorChapter + 1} OF {course.slides.length}
+                      </Badge>
+                      <Heading size="sm" color="gray.800">
+                        {currentChapter.title || `Chapter ${selectedEditorChapter + 1}`}
+                      </Heading>
+                    </HStack>
 
-                      {slide.imageUrls.some((url) => asText(url, "")) && (
-                        <SimpleGrid columns={{ base: 2, sm: 3, md: 4 }} spacing={3} mt={2}>
-                          {slide.imageUrls
-                            .filter((url) => asText(url, ""))
-                            .map((url, imgIdx) => (
-                              <Box
-                                key={`img-prev-${imgIdx}`}
-                                borderRadius="lg"
-                                overflow="hidden"
-                                border="1px solid"
-                                borderColor={borderColor}
-                                h="110px"
-                                bg="gray.200"
-                              >
-                                <Image src={url} alt={`Slide image ${imgIdx + 1}`} w="full" h="full" objectFit="cover" />
-                              </Box>
-                            ))}
-                        </SimpleGrid>
-                      )}
-                    </Box>
+                    <HStack spacing={2}>
+                      <IconButton
+                        aria-label="Previous chapter"
+                        icon={<FiChevronLeft />}
+                        size="sm"
+                        isDisabled={selectedEditorChapter === 0}
+                        onClick={() => setSelectedEditorChapter((p) => p - 1)}
+                      />
+                      <IconButton
+                        aria-label="Next chapter"
+                        icon={<FiChevronRight />}
+                        size="sm"
+                        colorScheme="teal"
+                        isDisabled={selectedEditorChapter === course.slides.length - 1}
+                        onClick={() => setSelectedEditorChapter((p) => p + 1)}
+                      />
+                    </HStack>
+                  </Flex>
 
-                    <FormControl mt={4}>
+                  <VStack spacing={5} align="stretch">
+                    <FormControl isRequired>
                       <FormLabel fontSize="xs" fontWeight="700">
-                        External Reference / Video URL (Optional)
+                        Chapter Title
                       </FormLabel>
                       <Input
-                        value={slide.materialUrl}
-                        onChange={(event) => updateSlideField(slideIndex, "materialUrl", event.target.value)}
-                        placeholder="https://..."
+                        value={currentChapter.title}
+                        onChange={(e) => updateSlideField(selectedEditorChapter, "title", e.target.value)}
+                        placeholder="e.g. Workplace Health & Safety Standards"
+                        borderRadius="xl"
+                        fontSize="sm"
+                        fontWeight="semibold"
+                        focusBorderColor="teal.500"
+                      />
+                    </FormControl>
+
+                    <Box p={5} bg={useColorModeValue("gray.50", "gray.900")} borderRadius="xl" borderWidth="1px" borderColor={borderColor}>
+                      <Flex justify="space-between" align="center" mb={3} wrap="wrap" gap={2}>
+                        <VStack align="start" spacing={0}>
+                          <HStack spacing={2}>
+                            <Icon as={FiImage} color="teal.600" />
+                            <Text fontSize="xs" fontWeight="bold" color="gray.700" textTransform="uppercase">
+                              Chapter Slide Pages ({asArray(currentChapter.imageUrls, []).length})
+                            </Text>
+                          </HStack>
+                          <Text fontSize="2xs" color="gray.400">
+                            Upload document pages, slide deck screenshots, or handbook illustrations.
+                          </Text>
+                        </VStack>
+
+                        <HStack spacing={2}>
+                          <Button
+                            as="label"
+                            htmlFor={`slide-upload-input-${selectedEditorChapter}`}
+                            size="xs"
+                            colorScheme="teal"
+                            leftIcon={<FiUploadCloud />}
+                            cursor="pointer"
+                            isLoading={uploadingSlideIndex === selectedEditorChapter}
+                          >
+                            Upload Files
+                            <input
+                              id={`slide-upload-input-${selectedEditorChapter}`}
+                              type="file"
+                              accept="image/*"
+                              multiple
+                              style={{ display: "none" }}
+                              onChange={(e) => {
+                                handleSlideImageUpload(selectedEditorChapter, e.target.files);
+                                e.target.value = "";
+                              }}
+                            />
+                          </Button>
+                        </HStack>
+                      </Flex>
+
+                      {asArray(currentChapter.imageUrls, []).length > 0 ? (
+                        <SimpleGrid columns={{ base: 2, sm: 3, md: 4 }} spacing={3} mb={4}>
+                          {asArray(currentChapter.imageUrls, []).map((url, imgIdx) => (
+                            <Box
+                              key={`img-card-${imgIdx}`}
+                              borderRadius="lg"
+                              overflow="hidden"
+                              border="1px solid"
+                              borderColor="gray.200"
+                              bg="white"
+                              position="relative"
+                              h="140px"
+                              boxShadow="sm"
+                              _hover={{ shadow: "md" }}
+                            >
+                              <Image src={url} alt={`Slide ${imgIdx + 1}`} w="full" h="full" objectFit="contain" bg="gray.100" />
+                              <Badge
+                                position="absolute"
+                                top={1.5}
+                                left={1.5}
+                                bg="blackAlpha.700"
+                                color="white"
+                                fontSize="2xs"
+                                px={1.5}
+                                py={0.5}
+                                borderRadius="md"
+                              >
+                                Page {imgIdx + 1}
+                              </Badge>
+
+                              <IconButton
+                                aria-label={`Delete page ${imgIdx + 1}`}
+                                icon={<FiTrash2 />}
+                                size="xs"
+                                colorScheme="red"
+                                variant="solid"
+                                position="absolute"
+                                top={1.5}
+                                right={1.5}
+                                onClick={() => removeSlideImage(selectedEditorChapter, imgIdx)}
+                              />
+                            </Box>
+                          ))}
+                        </SimpleGrid>
+                      ) : (
+                        <Box
+                          p={6}
+                          borderRadius="lg"
+                          border="2px dashed"
+                          borderColor="gray.300"
+                          textAlign="center"
+                          mb={4}
+                          bg="white"
+                        >
+                          <Icon as={FiImage} boxSize={8} color="gray.300" mb={2} />
+                          <Text fontSize="xs" color="gray.500" fontWeight="medium">
+                            No slide images uploaded for this chapter yet.
+                          </Text>
+                          <Text fontSize="2xs" color="gray.400">
+                            Click 'Upload Files' above or add an image URL below.
+                          </Text>
+                        </Box>
+                      )}
+
+                      <HStack spacing={2}>
+                        <Input
+                          size="sm"
+                          bg="white"
+                          borderRadius="lg"
+                          placeholder="Paste image URL (e.g. https://...)"
+                          value={newImageUrlInput}
+                          onChange={(e) => setNewImageUrlInput(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              addSlideImageUrl(selectedEditorChapter, newImageUrlInput);
+                            }
+                          }}
+                        />
+                        <Button
+                          size="sm"
+                          colorScheme="teal"
+                          variant="outline"
+                          onClick={() => addSlideImageUrl(selectedEditorChapter, newImageUrlInput)}
+                          isDisabled={!newImageUrlInput.trim()}
+                        >
+                          Add URL
+                        </Button>
+                      </HStack>
+                    </Box>
+
+                    <FormControl>
+                      <FormLabel fontSize="xs" fontWeight="700">
+                        Chapter Reading Content & Policy Guidelines
+                      </FormLabel>
+                      <Textarea
+                        value={currentChapter.body}
+                        minH="120px"
+                        onChange={(e) => updateSlideField(selectedEditorChapter, "body", e.target.value)}
+                        placeholder="Write detailed reading material, key instructions, and policies for this chapter..."
                         borderRadius="xl"
                         fontSize="sm"
                         focusBorderColor="teal.500"
                       />
                     </FormControl>
-                  </CardBody>
-                </Card>
-              ))}
 
-              <Button
-                leftIcon={<Icon as={FiPlus} />}
-                colorScheme="teal"
-                variant="outline"
-                size="md"
-                borderRadius="xl"
-                py={6}
-                borderStyle="dashed"
-                borderWidth="2px"
-                onClick={addSlide}
-                _hover={{ bg: "teal.50" }}
-              >
-                Add New Chapter
-              </Button>
-            </VStack>
+                    <FormControl>
+                      <FormLabel fontSize="xs" fontWeight="700">
+                        External Reference / Resource URL (Optional)
+                      </FormLabel>
+                      <Input
+                        value={currentChapter.materialUrl}
+                        onChange={(e) => updateSlideField(selectedEditorChapter, "materialUrl", e.target.value)}
+                        placeholder="https://tradethiopia.com/docs/handbook-reference.pdf"
+                        borderRadius="xl"
+                        fontSize="sm"
+                        focusBorderColor="teal.500"
+                      />
+                    </FormControl>
+
+                    <Divider my={2} />
+                    <Flex justify="space-between" align="center">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        leftIcon={<FiChevronLeft />}
+                        isDisabled={selectedEditorChapter === 0}
+                        onClick={() => setSelectedEditorChapter((p) => p - 1)}
+                      >
+                        Previous Chapter
+                      </Button>
+
+                      {selectedEditorChapter < course.slides.length - 1 ? (
+                        <Button
+                          size="sm"
+                          colorScheme="teal"
+                          rightIcon={<FiChevronRight />}
+                          onClick={() => setSelectedEditorChapter((p) => p + 1)}
+                        >
+                          Next Chapter
+                        </Button>
+                      ) : (
+                        <Button
+                          size="sm"
+                          colorScheme="teal"
+                          bg="#004D40"
+                          _hover={{ bg: "#00796B" }}
+                          leftIcon={<FiPlus />}
+                          onClick={addSlide}
+                        >
+                          Add Another Chapter
+                        </Button>
+                      )}
+                    </Flex>
+                  </VStack>
+                </Card>
+              )}
+            </Grid>
           </TabPanel>
 
+          {/* TAB 3: CLEAN, PROFESSIONAL MASTER-DETAIL QUIZ & ASSESSMENT STUDIO */}
           <TabPanel px={0} pt={2}>
-            <VStack align="stretch" spacing={5}>
-              {course.quizQuestions.map((quiz, questionIndex) => (
-                <Card
-                  key={`quiz-${questionIndex}`}
-                  bg={cardBg}
-                  borderRadius="2xl"
-                  border="1px solid"
-                  borderColor={borderColor}
-                  boxShadow="sm"
-                >
-                  <CardBody p={6}>
-                    <Flex justify="space-between" align="center" mb={4} pb={3} borderBottom="1px solid" borderColor={borderColor}>
-                      <HStack spacing={3}>
-                        <Flex
-                          w="32px"
-                          h="32px"
-                          borderRadius="lg"
-                          bg="blue.50"
-                          color="blue.700"
-                          align="center"
-                          justify="center"
-                          fontWeight="800"
-                          fontSize="xs"
-                        >
-                          Q{questionIndex + 1}
-                        </Flex>
-                        <Heading size="sm" color="gray.800">
-                          Question {questionIndex + 1}
-                        </Heading>
-                      </HStack>
+            <VStack spacing={6} align="stretch">
+              {/* Question Navigator Ribbon */}
+              <Card bg={cardBg} borderRadius="2xl" p={3} border="1px solid" borderColor={borderColor} boxShadow="sm">
+                <Flex align="center" gap={2} overflowX="auto" py={1} px={1} css={{ "&::-webkit-scrollbar": { height: "4px" } }}>
+                  <HStack spacing={2} flexShrink={0} mr={2}>
+                    <Icon as={FiHelpCircle} color="teal.600" />
+                    <Text fontSize="xs" fontWeight="bold" color="gray.600" textTransform="uppercase">
+                      Questions ({course.quizQuestions.length}):
+                    </Text>
+                  </HStack>
+                  {course.quizQuestions.map((quiz, qIdx) => {
+                    const isSelected = qIdx === selectedEditorQuestion;
+                    const isConfigured = quiz.question && quiz.options.length >= 2;
+
+                    return (
+                      <Button
+                        key={`q-nav-${qIdx}`}
+                        size="sm"
+                        variant={isSelected ? "solid" : "outline"}
+                        colorScheme={isSelected ? "teal" : isConfigured ? "gray" : "orange"}
+                        onClick={() => setSelectedEditorQuestion(qIdx)}
+                        borderRadius="full"
+                        px={3.5}
+                        py={1.5}
+                        flexShrink={0}
+                        fontSize="xs"
+                        fontWeight={isSelected ? "bold" : "medium"}
+                      >
+                        Q{qIdx + 1}
+                      </Button>
+                    );
+                  })}
+                  <Button
+                    size="sm"
+                    colorScheme="teal"
+                    variant="ghost"
+                    borderRadius="full"
+                    leftIcon={<FiPlus />}
+                    onClick={addQuestion}
+                    flexShrink={0}
+                    fontSize="xs"
+                  >
+                    Add Question
+                  </Button>
+                </Flex>
+              </Card>
+
+              {/* Active Question Editor Card */}
+              {currentQuestion && (
+                <Card bg={cardBg} borderRadius="2xl" border="1px solid" borderColor={borderColor} p={6} boxShadow="sm">
+                  <Flex justify="space-between" align="center" pb={4} mb={5} borderBottom="1px solid" borderColor={borderColor}>
+                    <HStack spacing={3}>
+                      <Badge colorScheme="purple" px={3} py={1} borderRadius="lg" fontSize="xs" fontWeight="bold">
+                        QUESTION {selectedEditorQuestion + 1} OF {course.quizQuestions.length}
+                      </Badge>
+                      <Heading size="sm" color="gray.800">
+                        Question Configuration & Key
+                      </Heading>
+                    </HStack>
+
+                    <HStack spacing={2}>
                       <IconButton
-                        aria-label={`Remove question ${questionIndex + 1}`}
+                        aria-label="Previous question"
+                        icon={<FiChevronLeft />}
+                        size="sm"
+                        isDisabled={selectedEditorQuestion === 0}
+                        onClick={() => setSelectedEditorQuestion((p) => p - 1)}
+                      />
+                      <IconButton
+                        aria-label="Next question"
+                        icon={<FiChevronRight />}
+                        size="sm"
+                        colorScheme="teal"
+                        isDisabled={selectedEditorQuestion === course.quizQuestions.length - 1}
+                        onClick={() => setSelectedEditorQuestion((p) => p + 1)}
+                      />
+                      <IconButton
+                        aria-label="Delete question"
                         icon={<FiTrash2 />}
                         size="sm"
                         colorScheme="red"
                         variant="ghost"
-                        onClick={() => removeQuestion(questionIndex)}
+                        onClick={() => removeQuestion(selectedEditorQuestion)}
                       />
-                    </Flex>
+                    </HStack>
+                  </Flex>
 
-                    <FormControl mb={4} isRequired>
+                  <VStack spacing={5} align="stretch">
+                    {/* Question Statement */}
+                    <FormControl isRequired>
                       <FormLabel fontSize="xs" fontWeight="700">
                         Question Statement
                       </FormLabel>
                       <Input
-                        value={quiz.question}
-                        onChange={(event) => updateQuestionField(questionIndex, "question", event.target.value)}
-                        placeholder="e.g. What is the standard protocol for handling confidential client records?"
+                        value={currentQuestion.question}
+                        onChange={(e) => updateQuestionField(selectedEditorQuestion, "question", e.target.value)}
+                        placeholder="e.g. What is the primary objective of TradeEthiopia Group?"
+                        borderRadius="xl"
+                        fontSize="sm"
+                        fontWeight="semibold"
+                        focusBorderColor="teal.500"
+                      />
+                    </FormControl>
+
+                    {/* Options with direct 1-click correct key selection */}
+                    <Box p={5} bg={useColorModeValue("gray.50", "gray.900")} borderRadius="xl" borderWidth="1px" borderColor={borderColor}>
+                      <Flex justify="space-between" align="center" mb={3}>
+                        <VStack align="start" spacing={0}>
+                          <Text fontSize="xs" fontWeight="bold" color="gray.700" textTransform="uppercase">
+                            Multiple Choice Options ({currentQuestion.options.length})
+                          </Text>
+                          <Text fontSize="2xs" color="gray.500">
+                            Click 'Correct Key' on any option to designate the correct answer.
+                          </Text>
+                        </VStack>
+
+                        <Button
+                          size="xs"
+                          colorScheme="teal"
+                          variant="outline"
+                          leftIcon={<FiPlus />}
+                          onClick={() => addOption(selectedEditorQuestion)}
+                        >
+                          Add Option
+                        </Button>
+                      </Flex>
+
+                      <VStack spacing={3} align="stretch">
+                        {currentQuestion.options.map((option, optIdx) => {
+                          const isCorrect = currentQuestion.correctAnswer === optIdx;
+
+                          return (
+                            <Flex
+                              key={`q-${selectedEditorQuestion}-opt-${optIdx}`}
+                              p={2.5}
+                              borderRadius="xl"
+                              bg={isCorrect ? "green.50" : "white"}
+                              borderWidth="2px"
+                              borderColor={isCorrect ? "green.400" : "gray.200"}
+                              align="center"
+                              gap={3}
+                              transition="all 0.2s"
+                            >
+                              <Tooltip label={isCorrect ? "Currently selected as correct answer" : "Click to mark this option as correct"}>
+                                <Button
+                                  size="xs"
+                                  colorScheme={isCorrect ? "green" : "gray"}
+                                  variant={isCorrect ? "solid" : "outline"}
+                                  borderRadius="lg"
+                                  minW="80px"
+                                  onClick={() => updateQuestionField(selectedEditorQuestion, "correctAnswer", optIdx)}
+                                  leftIcon={isCorrect ? <FiCheck /> : undefined}
+                                >
+                                  {isCorrect ? "Correct" : `Key (${String.fromCharCode(65 + optIdx)})`}
+                                </Button>
+                              </Tooltip>
+
+                              <Input
+                                size="sm"
+                                borderRadius="lg"
+                                bg="transparent"
+                                border="none"
+                                fontWeight={isCorrect ? "bold" : "normal"}
+                                color={isCorrect ? "green.900" : "gray.800"}
+                                value={option}
+                                onChange={(e) => updateQuestionOption(selectedEditorQuestion, optIdx, e.target.value)}
+                                placeholder={`Option ${String.fromCharCode(65 + optIdx)} text...`}
+                                _focus={{ bg: "white", border: "1px solid teal" }}
+                              />
+
+                              {currentQuestion.options.length > 2 && (
+                                <IconButton
+                                  aria-label="Remove option"
+                                  icon={<FiTrash2 />}
+                                  size="xs"
+                                  colorScheme="red"
+                                  variant="ghost"
+                                  onClick={() => removeOption(selectedEditorQuestion, optIdx)}
+                                />
+                              )}
+                            </Flex>
+                          );
+                        })}
+                      </VStack>
+                    </Box>
+
+                    {/* Answer Explanation */}
+                    <FormControl>
+                      <FormLabel fontSize="xs" fontWeight="700">
+                        Answer Explanation (Displayed to trainee upon completion)
+                      </FormLabel>
+                      <Input
+                        value={currentQuestion.explanation}
+                        onChange={(e) => updateQuestionField(selectedEditorQuestion, "explanation", e.target.value)}
+                        placeholder="Explain why this answer is correct and provide handbook references..."
                         borderRadius="xl"
                         fontSize="sm"
                         focusBorderColor="teal.500"
                       />
                     </FormControl>
 
-                    <Text fontSize="xs" fontWeight="700" color="gray.600" mb={2}>
-                      Multiple Choice Options
-                    </Text>
-                    <VStack align="stretch" spacing={2.5} mb={3}>
-                      {quiz.options.map((option, optionIndex) => (
-                        <HStack key={`question-${questionIndex}-option-${optionIndex}`}>
-                          <Badge
-                            colorScheme={quiz.correctAnswer === optionIndex ? "green" : "gray"}
-                            borderRadius="lg"
-                            px={2}
-                            py={1}
-                            fontSize="xs"
-                            minW="32px"
-                            textAlign="center"
-                          >
-                            {String.fromCharCode(65 + optionIndex)}
-                          </Badge>
-                          <Input
-                            size="sm"
-                            borderRadius="xl"
-                            value={option}
-                            onChange={(event) => updateQuestionOption(questionIndex, optionIndex, event.target.value)}
-                          />
-                          <IconButton
-                            aria-label={`Remove option ${optionIndex + 1}`}
-                            icon={<FiTrash2 />}
-                            size="xs"
-                            colorScheme="red"
-                            variant="ghost"
-                            onClick={() => removeOption(questionIndex, optionIndex)}
-                          />
-                        </HStack>
-                      ))}
-                    </VStack>
+                    {/* Bottom Question Controls */}
+                    <Divider my={2} />
+                    <Flex justify="space-between" align="center">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        leftIcon={<FiChevronLeft />}
+                        isDisabled={selectedEditorQuestion === 0}
+                        onClick={() => setSelectedEditorQuestion((p) => p - 1)}
+                      >
+                        Previous Question
+                      </Button>
 
-                    <Button
-                      size="xs"
-                      leftIcon={<Icon as={FiPlus} />}
-                      variant="outline"
-                      colorScheme="teal"
-                      borderRadius="lg"
-                      mb={4}
-                      onClick={() => addOption(questionIndex)}
-                    >
-                      Add Option
-                    </Button>
+                      <Text fontSize="xs" fontWeight="bold" color="gray.500">
+                        Question {selectedEditorQuestion + 1} of {course.quizQuestions.length}
+                      </Text>
 
-                    <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4} p={4} bg={useColorModeValue("gray.50", "gray.900")} borderRadius="xl">
-                      <FormControl isRequired>
-                        <FormLabel fontSize="xs" fontWeight="700">
-                          Correct Answer
-                        </FormLabel>
-                        <Select
+                      {selectedEditorQuestion < course.quizQuestions.length - 1 ? (
+                        <Button
                           size="sm"
-                          borderRadius="lg"
-                          value={String(quiz.correctAnswer)}
-                          onChange={(event) => updateQuestionField(questionIndex, "correctAnswer", Number(event.target.value))}
+                          colorScheme="teal"
+                          rightIcon={<FiChevronRight />}
+                          onClick={() => setSelectedEditorQuestion((p) => p + 1)}
                         >
-                          {quiz.options.map((_, optionIndex) => (
-                            <option key={`correct-option-${optionIndex}`} value={optionIndex}>
-                              Option {String.fromCharCode(65 + optionIndex)} ({quiz.options[optionIndex] || `Option ${optionIndex + 1}`})
-                            </option>
-                          ))}
-                        </Select>
-                      </FormControl>
-
-                      <FormControl>
-                        <FormLabel fontSize="xs" fontWeight="700">
-                          Explanation (Shown after answering)
-                        </FormLabel>
-                        <Input
+                          Next Question
+                        </Button>
+                      ) : (
+                        <Button
                           size="sm"
-                          borderRadius="lg"
-                          value={quiz.explanation}
-                          onChange={(event) => updateQuestionField(questionIndex, "explanation", event.target.value)}
-                          placeholder="Why this answer is correct..."
-                        />
-                      </FormControl>
-                    </SimpleGrid>
-                  </CardBody>
+                          colorScheme="teal"
+                          bg="#004D40"
+                          _hover={{ bg: "#00796B" }}
+                          leftIcon={<FiPlus />}
+                          onClick={addQuestion}
+                        >
+                          Add Another Question
+                        </Button>
+                      )}
+                    </Flex>
+                  </VStack>
                 </Card>
-              ))}
-
-              <Button
-                leftIcon={<Icon as={FiPlus} />}
-                colorScheme="teal"
-                variant="outline"
-                size="md"
-                borderRadius="xl"
-                py={6}
-                borderStyle="dashed"
-                borderWidth="2px"
-                onClick={addQuestion}
-                _hover={{ bg: "teal.50" }}
-              >
-                Add New Question
-              </Button>
+              )}
             </VStack>
           </TabPanel>
         </TabPanels>

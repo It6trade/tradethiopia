@@ -384,22 +384,10 @@ const Sidebar = ({ isCollapsed: controlledIsCollapsed, onToggleCollapse }) => {
             isActive={isActive("/candidate-pool")}
           />
           <SidebarSubItem
-            to="/hr-training"
-            label="Onboarding & Training"
-            isCollapsed={effectiveIsCollapsed}
-            isActive={isActive("/hr-training")}
-          />
-          <SidebarSubItem
             to="/course"
-            label="Courses"
+            label="Onboarding"
             isCollapsed={effectiveIsCollapsed}
-            isActive={isActive("/course")}
-          />
-          <SidebarSubItem
-            to="/quiz"
-            label="Quizzes"
-            isCollapsed={effectiveIsCollapsed}
-            isActive={isActive("/quiz")}
+            isActive={isActive("/course") || isActive("/courses") || isActive("/hr-training") || isActive("/quiz")}
           />
           <SidebarSubItem
             to="/awards"
