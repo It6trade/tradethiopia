@@ -25,7 +25,7 @@ import {
 import { BsBell, BsChat } from "react-icons/bs";
 import { IoMoon } from "react-icons/io5";
 import { SunIcon } from "@chakra-ui/icons";
-import { FiSearch } from "react-icons/fi";
+import { FiSearch, FiUser, FiLogOut } from "react-icons/fi";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useUserStore } from "../store/user";
 import { useEffect, useState } from "react";
@@ -35,6 +35,7 @@ import NotificationBall from "./notifications/NotificationBall";
 /* ─── route → breadcrumb name map ─── */
 const routeNameMap = {
     "/dashboard": "Overview",
+    "/profile": "HR Profile",
     "/users": "Account Management",
     "/assets": "Asset Management",
     "/attendance": "Attendance",
@@ -179,10 +180,10 @@ const NavbarPage = ({ sidebarWidth = "0px" }) => {
                     <Menu>
                         <MenuButton cursor="pointer">
                             <HStack spacing={2}>
-                                <Avatar size="sm" name={currentUser?.username} src={currentUser?.photoURL} />
+                                <Avatar size="sm" name={currentUser?.fullName || currentUser?.username} src={currentUser?.photoUrl || currentUser?.photo || currentUser?.photoURL} />
                                 <Box display={{ base: "none", lg: "block" }}>
                                     <Text fontSize="xs" fontWeight="700" lineHeight="short" color={useColorModeValue("gray.800", "white")}>
-                                        {currentUser?.username}
+                                        {currentUser?.fullName || currentUser?.username}
                                     </Text>
                                     <Badge fontSize="9px" colorScheme="green" variant="subtle" borderRadius="full" px={1.5} textTransform="capitalize">
                                         {currentUser?.role}
@@ -192,12 +193,31 @@ const NavbarPage = ({ sidebarWidth = "0px" }) => {
                         </MenuButton>
                         <MenuList borderRadius="xl" boxShadow="lg" border="1px solid" borderColor={useColorModeValue("gray.100", "gray.700")} p={2}>
                             <Box p={3} textAlign="center">
-                                <Avatar size="lg" name={currentUser?.username} src={currentUser?.photoURL} mb={2} />
-                                <Text fontSize="sm" fontWeight="bold">{currentUser?.username}</Text>
-                                <Text fontSize="xs" color="gray.500">{currentUser?.role}</Text>
+                                <Avatar size="lg" name={currentUser?.fullName || currentUser?.username} src={currentUser?.photoUrl || currentUser?.photo || currentUser?.photoURL} mb={2} />
+                                <Text fontSize="sm" fontWeight="bold">{currentUser?.fullName || currentUser?.username}</Text>
+                                <Text fontSize="xs" color="gray.500">{currentUser?.jobTitle || currentUser?.role}</Text>
                             </Box>
                             <Divider />
-                            <MenuItem borderRadius="lg" fontSize="sm" mt={1} onClick={handleLogout}>Logout</MenuItem>
+                            <MenuItem 
+                                icon={<Icon as={FiUser} boxSize={4} />} 
+                                borderRadius="lg" 
+                                fontSize="sm" 
+                                mt={1} 
+                                onClick={() => navigate("/profile")}
+                            >
+                                My Profile
+                            </MenuItem>
+                            <MenuItem 
+                                icon={<Icon as={FiLogOut} boxSize={4} />} 
+                                borderRadius="lg" 
+                                fontSize="sm" 
+                                mt={1} 
+                                color="red.500" 
+                                _hover={{ bg: useColorModeValue("red.50", "red.900") }}
+                                onClick={handleLogout}
+                            >
+                                Logout
+                            </MenuItem>
                         </MenuList>
                     </Menu>
 

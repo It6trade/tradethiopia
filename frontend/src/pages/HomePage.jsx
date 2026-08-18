@@ -61,7 +61,11 @@ import {
   ModalCloseButton,
   FormControl,
   FormLabel,
-  InputRightElement
+  InputRightElement,
+  Tag,
+  TagLabel,
+  TagCloseButton,
+  Collapse,
 } from '@chakra-ui/react';
 import {
   FiUsers,
@@ -86,7 +90,13 @@ import {
   FiActivity,
   FiFile,
   FiMoreVertical,
-  FiLock
+  FiLock,
+  FiFilter,
+  FiX,
+  FiRefreshCw,
+  FiSliders,
+  FiCheckCircle,
+  FiXCircle,
 } from 'react-icons/fi';
 import { useUserStore } from '../store/user.js';
 import { normalizeRole } from '../store/user.js';
@@ -127,9 +137,18 @@ const HomePage = () => {
 
   // Filters & Page options
   const [searchTerm, setSearchTerm] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('all'); // 'all' | 'active' | 'incomplete' | 'suspended' | 'missing-docs' | 'missing-photo'
   const [deptFilter, setDeptFilter] = useState('All');
   const [roleFilter, setRoleFilter] = useState('All');
   const [statusFilter, setStatusFilter] = useState('All');
+  const [completenessFilter, setCompletenessFilter] = useState('All');
+  const [employmentTypeFilter, setEmploymentTypeFilter] = useState('All');
+  const [genderFilter, setGenderFilter] = useState('All');
+  const [trainingFilter, setTrainingFilter] = useState('All');
+  const [examBypassFilter, setExamBypassFilter] = useState('All');
+  const [documentFilter, setDocumentFilter] = useState('All');
+  const [sortBy, setSortBy] = useState('name-asc');
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [viewMode, setViewMode] = useState('list'); // 'list' | 'grid'
   
   // Pagination
@@ -257,6 +276,24 @@ const HomePage = () => {
     fetchUsers();
   }, [fetchUsers]);
 
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [
+    searchTerm,
+    categoryFilter,
+    deptFilter,
+    roleFilter,
+    statusFilter,
+    completenessFilter,
+    employmentTypeFilter,
+    genderFilter,
+    trainingFilter,
+    examBypassFilter,
+    documentFilter,
+    sortBy,
+  ]);
+
   // Load selected user parameters into details panel input states
   useEffect(() => {
     if (selectedUser) {
@@ -327,55 +364,240 @@ const HomePage = () => {
     }
   };
 
-  // Filtered accounts calculations
+  // Count active filters
+  const activeFiltersCount = useMemo(() => {
+    let count = 0;
+    if (searchTerm.trim()) count++;
+    if (categoryFilter !== 'all') count++;
+    if (deptFilter !== 'All') count++;
+    if (roleFilter !== 'All') count++;
+    if (statusFilter !== 'All') count++;
+    if (completenessFilter !== 'All') count++;
+    if (employmentTypeFilter !== 'All') count++;
+    if (genderFilter !== 'All') count++;
+    if (trainingFilter !== 'All') count++;
+    if (examBypassFilter !== 'All') count++;
+    if (documentFilter !== 'All') count++;
+    return count;
+  }, [
+    searchTerm,
+    categoryFilter,
+    deptFilter,
+    roleFilter,
+    statusFilter,
+    completenessFilter,
+    employmentTypeFilter,
+    genderFilter,
+    trainingFilter,
+    examBypassFilter,
+    documentFilter,
+  ]);
+
+  const handleResetFilters = () => {
+    setSearchTerm('');
+    setCategoryFilter('all');
+    setDeptFilter('All');
+    setRoleFilter('All');
+    setStatusFilter('All');
+    setCompletenessFilter('All');
+    setEmploymentTypeFilter('All');
+    setGenderFilter('All');
+    setTrainingFilter('All');
+    setExamBypassFilter('All');
+    setDocumentFilter('All');
+    setSortBy('name-asc');
+    setCurrentPage(1);
+  };
+
+  // Filtered accounts calculations with multi-parameter engine
   const filteredUsers = useMemo(() => {
-    return users.filter(user => {
+    let result = users.filter(user => {
       if (user.username === "." || user.username === "..") return false;
-      const term = searchTerm.toLowerCase();
-      const matchesSearch = 
-        (user.fullName || '').toLowerCase().includes(term) ||
-        (user.email || '').toLowerCase().includes(term) ||
-        (user.username || '').toLowerCase().includes(term) ||
-        (user.digitalId || '').toLowerCase().includes(term) ||
-        (user._id || '').toLowerCase().includes(term);
       
-      const matchesDept = deptFilter === 'All' || user.jobTitle === deptFilter;
-      const matchesRole = roleFilter === 'All' || user.role === roleFilter;
-      
-      let matchesStatus = true;
-      if (statusFilter !== 'All') {
-        matchesStatus = user.status === statusFilter;
+      // 1. Text Search matching across multiple fields
+      const term = searchTerm.trim().toLowerCase();
+      if (term) {
+        const matchesSearch = 
+          (user.fullName || '').toLowerCase().includes(term) ||
+          (user.email || '').toLowerCase().includes(term) ||
+          (user.username || '').toLowerCase().includes(term) ||
+          (user.digitalId || '').toLowerCase().includes(term) ||
+          (user.phone || '').toLowerCase().includes(term) ||
+          (user.jobTitle || '').toLowerCase().includes(term) ||
+          (user.department || '').toLowerCase().includes(term) ||
+          (user.role || '').toLowerCase().includes(term) ||
+          (user.address || '').toLowerCase().includes(term) ||
+          (user._id || '').toLowerCase().includes(term);
+        if (!matchesSearch) return false;
       }
       
-      return matchesSearch && matchesDept && matchesRole && matchesStatus;
+      // 2. Department matching
+      if (deptFilter !== 'All') {
+        const userDept = (user.jobTitle || user.department || '').toLowerCase();
+        const targetDept = deptFilter.toLowerCase();
+        if (userDept !== targetDept && user.jobTitle !== deptFilter && user.department !== deptFilter) {
+          return false;
+        }
+      }
+      
+      // 3. Role matching
+      if (roleFilter !== 'All') {
+        const userRole = (user.role || '').toLowerCase();
+        const userDisplayRole = (user.displayRole || '').toLowerCase();
+        const targetRole = roleFilter.toLowerCase();
+        if (userRole !== targetRole && userDisplayRole !== targetRole && user.role !== roleFilter) {
+          return false;
+        }
+      }
+      
+      // 4. Status matching
+      if (statusFilter !== 'All') {
+        if (user.status !== statusFilter) return false;
+      }
+
+      // 5. Category Quick Preset filter
+      if (categoryFilter === 'active' && user.status !== 'active') return false;
+      if (categoryFilter === 'suspended' && user.status !== 'inactive') return false;
+      if (categoryFilter === 'incomplete') {
+        const comp = calculateCompleteness(user);
+        if (comp !== null && comp >= 80) return false;
+      }
+      if (categoryFilter === 'missing-docs') {
+        const missing = getMissingItems(user);
+        if (missing.length === 0) return false;
+      }
+      if (categoryFilter === 'missing-photo') {
+        if (user.photo || user.photoUrl) return false;
+      }
+
+      // 6. Record Completeness filter
+      if (completenessFilter !== 'All') {
+        const comp = calculateCompleteness(user);
+        if (completenessFilter === 'complete' && (comp === null || comp < 80)) return false;
+        if (completenessFilter === 'incomplete' && (comp !== null && comp >= 80)) return false;
+        if (completenessFilter === 'very-low' && (comp !== null && comp >= 40)) return false;
+      }
+
+      // 7. Employment Type filter
+      if (employmentTypeFilter !== 'All') {
+        const empType = (user.employmentType || 'full-time').toLowerCase();
+        if (empType !== employmentTypeFilter.toLowerCase()) return false;
+      }
+
+      // 8. Gender filter
+      if (genderFilter !== 'All') {
+        const gender = (user.gender || 'male').toLowerCase();
+        if (gender !== genderFilter.toLowerCase()) return false;
+      }
+
+      // 9. Training Access filter
+      if (trainingFilter !== 'All') {
+        const normalizedTrainingStatus = String(user.trainingStatus || '').trim().toLowerCase();
+        const isTrainingOn = ['on', 'active', 'approved', 'enabled', 'true'].includes(normalizedTrainingStatus);
+        if (trainingFilter === 'enabled' && !isTrainingOn) return false;
+        if (trainingFilter === 'disabled' && isTrainingOn) return false;
+      }
+
+      // 10. Exam Bypass filter
+      if (examBypassFilter !== 'All') {
+        const isBypassed = Boolean(user.examBypass);
+        if (examBypassFilter === 'bypassed' && !isBypassed) return false;
+        if (examBypassFilter === 'standard' && isBypassed) return false;
+      }
+
+      // 11. Document filter
+      if (documentFilter !== 'All') {
+        const hasPhoto = Boolean(user.photo || user.photoUrl);
+        const hasGuarantor = Boolean(user.guarantorFile || user.guarantorFileUrl);
+        if (documentFilter === 'has-photo' && !hasPhoto) return false;
+        if (documentFilter === 'missing-photo' && hasPhoto) return false;
+        if (documentFilter === 'has-guarantor' && !hasGuarantor) return false;
+        if (documentFilter === 'missing-guarantor' && hasGuarantor) return false;
+      }
+
+      return true;
     });
-  }, [users, searchTerm, deptFilter, roleFilter, statusFilter]);
+
+    // Sort Results
+    result.sort((a, b) => {
+      if (sortBy === 'name-asc') {
+        return (a.fullName || a.username || '').localeCompare(b.fullName || b.username || '');
+      }
+      if (sortBy === 'name-desc') {
+        return (b.fullName || b.username || '').localeCompare(a.fullName || a.username || '');
+      }
+      if (sortBy === 'completeness-desc') {
+        return (calculateCompleteness(b) || 0) - (calculateCompleteness(a) || 0);
+      }
+      if (sortBy === 'completeness-asc') {
+        return (calculateCompleteness(a) || 0) - (calculateCompleteness(b) || 0);
+      }
+      if (sortBy === 'newest') {
+        return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+      }
+      if (sortBy === 'oldest') {
+        return new Date(a.createdAt || 0) - new Date(b.createdAt || 0);
+      }
+      return 0;
+    });
+
+    return result;
+  }, [
+    users,
+    searchTerm,
+    categoryFilter,
+    deptFilter,
+    roleFilter,
+    statusFilter,
+    completenessFilter,
+    employmentTypeFilter,
+    genderFilter,
+    trainingFilter,
+    examBypassFilter,
+    documentFilter,
+    sortBy,
+  ]);
 
   // Unique select options
   const departments = useMemo(() => {
-    const list = new Set(users.map(u => u.jobTitle).filter(Boolean));
-    return ['All', ...Array.from(list)];
+    const list = new Set();
+    users.forEach(u => {
+      if (u.jobTitle && u.jobTitle.trim() && u.jobTitle !== '.' && u.jobTitle !== '..') {
+        list.add(u.jobTitle.trim());
+      }
+      if (u.department && u.department.trim()) {
+        list.add(u.department.trim());
+      }
+    });
+    return ['All', ...Array.from(list).sort()];
   }, [users]);
 
   const roles = useMemo(() => {
-    const list = new Set(users.map(u => u.role).filter(Boolean));
-    return ['All', ...Array.from(list)];
+    const list = new Set();
+    users.forEach(u => {
+      if (u.role && u.role.trim() && u.role !== '.' && u.role !== '..') {
+        list.add(u.role.trim());
+      }
+    });
+    return ['All', ...Array.from(list).sort()];
   }, [users]);
 
   // Stats summaries
   const stats = useMemo(() => {
-    const total = filteredUsers.length;
-    const active = filteredUsers.filter(u => u.status === 'active').length;
-    const incomplete = filteredUsers.filter(u => {
+    const validUsers = users.filter(u => u.username !== "." && u.username !== "..");
+    const total = validUsers.length;
+    const active = validUsers.filter(u => u.status === 'active').length;
+    const incomplete = validUsers.filter(u => {
       const completeness = calculateCompleteness(u);
       return completeness === null || completeness < 80;
     }).length;
-    const suspended = filteredUsers.filter(u => u.status === 'inactive').length;
+    const suspended = validUsers.filter(u => u.status === 'inactive').length;
+    const missingDocs = validUsers.filter(u => getMissingItems(u).length > 0).length;
     const activePercent = total > 0 ? Math.round((active / total) * 100) : 0;
     const suspendedPercent = total > 0 ? Math.round((suspended / total) * 100) : 0;
 
-    return { total, active, incomplete, suspended, activePercent, suspendedPercent };
-  }, [filteredUsers]);
+    return { total, active, incomplete, suspended, missingDocs, activePercent, suspendedPercent };
+  }, [users]);
 
   // Paginated user accounts
   const paginatedUsers = useMemo(() => {
@@ -510,9 +732,24 @@ const HomePage = () => {
         </HStack>
       </Flex>
 
-      {/* Aggregate Counts Statistics Panel */}
+      {/* Aggregate Counts Statistics Panel (Clickable for Instant Filtering) */}
       <SimpleGrid columns={{ base: 1, sm: 2, lg: 4 }} spacing={4} mb={6}>
-        <Box p={4} bg="white" border="1px solid" borderColor="gray.100" borderRadius="2xl" shadow="sm">
+        <Box 
+          p={4} 
+          bg="white" 
+          border="2px solid" 
+          borderColor={categoryFilter === 'all' && activeFiltersCount === 0 ? "teal.400" : "gray.100"} 
+          borderRadius="2xl" 
+          shadow={categoryFilter === 'all' && activeFiltersCount === 0 ? "md" : "sm"}
+          cursor="pointer"
+          transition="all 0.2s ease"
+          _hover={{ transform: 'translateY(-2px)', shadow: 'md', borderColor: 'teal.300' }}
+          onClick={() => {
+            setCategoryFilter('all');
+            setStatusFilter('All');
+            setCompletenessFilter('All');
+          }}
+        >
           <HStack spacing={4}>
             <Flex w="44px" h="44px" align="center" justify="center" bg="teal.50" color="teal.500" borderRadius="full">
               <Icon as={FiUsers} boxSize={5} />
@@ -524,7 +761,22 @@ const HomePage = () => {
           </HStack>
         </Box>
 
-        <Box p={4} bg="white" border="1px solid" borderColor="gray.100" borderRadius="2xl" shadow="sm">
+        <Box 
+          p={4} 
+          bg="white" 
+          border="2px solid" 
+          borderColor={categoryFilter === 'active' || statusFilter === 'active' ? "green.400" : "gray.100"} 
+          borderRadius="2xl" 
+          shadow={categoryFilter === 'active' || statusFilter === 'active' ? "md" : "sm"}
+          cursor="pointer"
+          transition="all 0.2s ease"
+          _hover={{ transform: 'translateY(-2px)', shadow: 'md', borderColor: 'green.300' }}
+          onClick={() => {
+            setCategoryFilter('active');
+            setStatusFilter('active');
+            setCompletenessFilter('All');
+          }}
+        >
           <HStack spacing={4}>
             <Flex w="44px" h="44px" align="center" justify="center" bg="green.50" color="green.500" borderRadius="full">
               <Icon as={FiUserCheck} boxSize={5} />
@@ -536,7 +788,21 @@ const HomePage = () => {
           </HStack>
         </Box>
 
-        <Box p={4} bg="white" border="1px solid" borderColor="gray.100" borderRadius="2xl" shadow="sm">
+        <Box 
+          p={4} 
+          bg="white" 
+          border="2px solid" 
+          borderColor={categoryFilter === 'incomplete' || completenessFilter === 'incomplete' ? "orange.400" : "gray.100"} 
+          borderRadius="2xl" 
+          shadow={categoryFilter === 'incomplete' || completenessFilter === 'incomplete' ? "md" : "sm"}
+          cursor="pointer"
+          transition="all 0.2s ease"
+          _hover={{ transform: 'translateY(-2px)', shadow: 'md', borderColor: 'orange.300' }}
+          onClick={() => {
+            setCategoryFilter('incomplete');
+            setCompletenessFilter('incomplete');
+          }}
+        >
           <HStack spacing={4}>
             <Flex w="44px" h="44px" align="center" justify="center" bg="orange.50" color="orange.500" borderRadius="full">
               <Icon as={FiAlertCircle} boxSize={5} />
@@ -548,7 +814,21 @@ const HomePage = () => {
           </HStack>
         </Box>
 
-        <Box p={4} bg="white" border="1px solid" borderColor="gray.100" borderRadius="2xl" shadow="sm">
+        <Box 
+          p={4} 
+          bg="white" 
+          border="2px solid" 
+          borderColor={categoryFilter === 'suspended' || statusFilter === 'inactive' ? "red.400" : "gray.100"} 
+          borderRadius="2xl" 
+          shadow={categoryFilter === 'suspended' || statusFilter === 'inactive' ? "md" : "sm"}
+          cursor="pointer"
+          transition="all 0.2s ease"
+          _hover={{ transform: 'translateY(-2px)', shadow: 'md', borderColor: 'red.300' }}
+          onClick={() => {
+            setCategoryFilter('suspended');
+            setStatusFilter('inactive');
+          }}
+        >
           <HStack spacing={4}>
             <Flex w="44px" h="44px" align="center" justify="center" bg="red.50" color="red.500" borderRadius="full">
               <Icon as={FiAlertCircle} boxSize={5} />
@@ -564,7 +844,7 @@ const HomePage = () => {
       {/* Main Content Pane Split (Directory list table on Left / Profile Drawer details on Right) */}
       <Flex gap={6} align="start" flexDir={{ base: "column", lg: "row" }} w="full">
         
-        {/* Left Side: Directory Table with Filters */}
+        {/* Left Side: Directory Table with Comprehensive Filter Suite */}
         <Box 
           flex={1}
           w="full"
@@ -575,19 +855,86 @@ const HomePage = () => {
           p={5} 
           shadow="sm"
         >
-          {/* Filtering Tools Panel */}
-          <Flex justify="space-between" align="center" mb={5} flexWrap="wrap" gap={3}>
-            <HStack spacing={3} flexWrap="wrap" flex={1}>
-              <InputGroup size="sm" maxW="280px">
+          {/* 1. Quick Category Presets Bar */}
+          <Flex align="center" justify="space-between" mb={4} wrap="wrap" gap={2} pb={3} borderBottom="1px solid" borderColor="gray.100">
+            <HStack spacing={2} wrap="wrap">
+              {[
+                { id: 'all', label: 'All Accounts', count: stats.total, color: 'teal' },
+                { id: 'active', label: 'Active', count: stats.active, color: 'green' },
+                { id: 'incomplete', label: 'Incomplete (<80%)', count: stats.incomplete, color: 'orange' },
+                { id: 'suspended', label: 'Suspended', count: stats.suspended, color: 'red' },
+                { id: 'missing-docs', label: 'Missing Documents', count: stats.missingDocs, color: 'purple' },
+              ].map(cat => {
+                const isActive = categoryFilter === cat.id;
+                return (
+                  <Button
+                    key={cat.id}
+                    size="xs"
+                    borderRadius="full"
+                    px={3}
+                    py={1.5}
+                    fontWeight="700"
+                    variant={isActive ? "solid" : "outline"}
+                    colorScheme={cat.color}
+                    onClick={() => {
+                      if (isActive && cat.id !== 'all') {
+                        setCategoryFilter('all');
+                      } else {
+                        setCategoryFilter(cat.id);
+                        if (cat.id === 'active') setStatusFilter('active');
+                        else if (cat.id === 'suspended') setStatusFilter('inactive');
+                        else if (cat.id === 'incomplete') setCompletenessFilter('incomplete');
+                        else if (cat.id === 'all') {
+                          setStatusFilter('All');
+                          setCompletenessFilter('All');
+                        }
+                      }
+                    }}
+                  >
+                    {cat.label} ({cat.count})
+                  </Button>
+                );
+              })}
+            </HStack>
+
+            {activeFiltersCount > 0 && (
+              <Button
+                size="xs"
+                variant="ghost"
+                colorScheme="red"
+                leftIcon={<FiRefreshCw />}
+                onClick={handleResetFilters}
+                fontWeight="700"
+              >
+                Reset Filters ({activeFiltersCount})
+              </Button>
+            )}
+          </Flex>
+
+          {/* 2. Primary Filter Controls Row */}
+          <Flex justify="space-between" align="center" mb={4} flexWrap="wrap" gap={3}>
+            <HStack spacing={2.5} flexWrap="wrap" flex={1}>
+              <InputGroup size="sm" maxW={{ base: "full", md: "260px" }}>
                 <InputLeftElement pointerEvents="none">
                   <Icon as={FiSearch} color="gray.400" />
                 </InputLeftElement>
                 <Input 
-                  placeholder="Search name, email or employee ID..." 
+                  placeholder="Search name, ID, email, role..." 
                   borderRadius="xl"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
+                {searchTerm && (
+                  <InputRightElement>
+                    <IconButton
+                      size="xs"
+                      variant="ghost"
+                      icon={<FiX />}
+                      onClick={() => setSearchTerm('')}
+                      aria-label="Clear search"
+                    />
+                  </InputRightElement>
+                )}
               </InputGroup>
 
               <Select 
@@ -627,6 +974,19 @@ const HomePage = () => {
                 <option value="active">Active</option>
                 <option value="inactive">Inactive</option>
               </Select>
+
+              <Button
+                size="sm"
+                variant={showAdvancedFilters ? "solid" : "outline"}
+                colorScheme="teal"
+                borderRadius="xl"
+                leftIcon={<FiSliders />}
+                onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+                fontSize="xs"
+                fontWeight="700"
+              >
+                More Filters {activeFiltersCount > 0 && `(${activeFiltersCount})`}
+              </Button>
             </HStack>
 
             {/* Layout Toggles & Counts Display */}
@@ -650,7 +1010,7 @@ const HomePage = () => {
                   <option value="deactivate">Deactivate</option>
                 </Select>
               )}
-              <Text fontSize="xs" fontWeight="700" color="gray.400">
+              <Text fontSize="xs" fontWeight="700" color="gray.500">
                 {filteredUsers.length} accounts
               </Text>
               <HStack spacing={1}>
@@ -675,6 +1035,234 @@ const HomePage = () => {
               </HStack>
             </HStack>
           </Flex>
+
+          {/* 3. Advanced Expandable Filter Suite */}
+          <Collapse in={showAdvancedFilters} animateOpacity>
+            <Box 
+              p={4} 
+              mb={4} 
+              bg="gray.50" 
+              borderRadius="xl" 
+              border="1px solid" 
+              borderColor="gray.200"
+            >
+              <Flex justify="space-between" align="center" mb={3}>
+                <HStack spacing={2}>
+                  <Icon as={FiFilter} color="teal.600" />
+                  <Text fontSize="xs" fontWeight="800" color="gray.700" textTransform="uppercase" letterSpacing="wider">
+                    Advanced Employer Parameters
+                  </Text>
+                </HStack>
+                <Button size="xs" variant="link" color="teal.600" onClick={handleResetFilters}>
+                  Clear all parameters
+                </Button>
+              </Flex>
+
+              <SimpleGrid columns={{ base: 1, sm: 2, md: 3, lg: 6 }} spacing={3}>
+                <Box>
+                  <Text fontSize="10px" fontWeight="700" color="gray.500" mb={1} textTransform="uppercase">
+                    Completeness
+                  </Text>
+                  <Select
+                    size="xs"
+                    borderRadius="lg"
+                    bg="white"
+                    value={completenessFilter}
+                    onChange={(e) => setCompletenessFilter(e.target.value)}
+                  >
+                    <option value="All">All Profiles</option>
+                    <option value="complete">Complete (≥80%)</option>
+                    <option value="incomplete">Incomplete (&lt;80%)</option>
+                    <option value="very-low">Very Low (&lt;40%)</option>
+                  </Select>
+                </Box>
+
+                <Box>
+                  <Text fontSize="10px" fontWeight="700" color="gray.500" mb={1} textTransform="uppercase">
+                    Employment Type
+                  </Text>
+                  <Select
+                    size="xs"
+                    borderRadius="lg"
+                    bg="white"
+                    value={employmentTypeFilter}
+                    onChange={(e) => setEmploymentTypeFilter(e.target.value)}
+                  >
+                    <option value="All">All Types</option>
+                    <option value="full-time">Full-Time</option>
+                    <option value="part-time">Part-Time</option>
+                    <option value="remote">Remote</option>
+                    <option value="contract">Contract</option>
+                    <option value="intern">Internship</option>
+                  </Select>
+                </Box>
+
+                <Box>
+                  <Text fontSize="10px" fontWeight="700" color="gray.500" mb={1} textTransform="uppercase">
+                    Gender
+                  </Text>
+                  <Select
+                    size="xs"
+                    borderRadius="lg"
+                    bg="white"
+                    value={genderFilter}
+                    onChange={(e) => setGenderFilter(e.target.value)}
+                  >
+                    <option value="All">All Genders</option>
+                    <option value="male">Male</option>
+                    <option value="female">Female</option>
+                  </Select>
+                </Box>
+
+                <Box>
+                  <Text fontSize="10px" fontWeight="700" color="gray.500" mb={1} textTransform="uppercase">
+                    Training Access
+                  </Text>
+                  <Select
+                    size="xs"
+                    borderRadius="lg"
+                    bg="white"
+                    value={trainingFilter}
+                    onChange={(e) => setTrainingFilter(e.target.value)}
+                  >
+                    <option value="All">All Statuses</option>
+                    <option value="enabled">Training Enabled</option>
+                    <option value="disabled">Training Disabled</option>
+                  </Select>
+                </Box>
+
+                <Box>
+                  <Text fontSize="10px" fontWeight="700" color="gray.500" mb={1} textTransform="uppercase">
+                    Documents Attached
+                  </Text>
+                  <Select
+                    size="xs"
+                    borderRadius="lg"
+                    bg="white"
+                    value={documentFilter}
+                    onChange={(e) => setDocumentFilter(e.target.value)}
+                  >
+                    <option value="All">All Accounts</option>
+                    <option value="has-photo">Has Profile Photo</option>
+                    <option value="missing-photo">Missing Photo</option>
+                    <option value="has-guarantor">Has Guarantor Doc</option>
+                    <option value="missing-guarantor">Missing Guarantor</option>
+                  </Select>
+                </Box>
+
+                <Box>
+                  <Text fontSize="10px" fontWeight="700" color="gray.500" mb={1} textTransform="uppercase">
+                    Sort Accounts By
+                  </Text>
+                  <Select
+                    size="xs"
+                    borderRadius="lg"
+                    bg="white"
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value)}
+                  >
+                    <option value="name-asc">Name (A → Z)</option>
+                    <option value="name-desc">Name (Z → A)</option>
+                    <option value="completeness-desc">Completeness (High → Low)</option>
+                    <option value="completeness-asc">Completeness (Low → High)</option>
+                    <option value="newest">Newest Added</option>
+                    <option value="oldest">Oldest Added</option>
+                  </Select>
+                </Box>
+              </SimpleGrid>
+            </Box>
+          </Collapse>
+
+          {/* 4. Active Filter Tags Badges Bar */}
+          {activeFiltersCount > 0 && (
+            <Flex align="center" wrap="wrap" gap={2} mb={4} p={2.5} bg="teal.50" borderRadius="xl" border="1px solid" borderColor="teal.100">
+              <Text fontSize="11px" fontWeight="800" color="teal.800" mr={1}>
+                Active Filters:
+              </Text>
+
+              {searchTerm && (
+                <Tag size="sm" colorScheme="teal" borderRadius="full">
+                  <TagLabel>Search: "{searchTerm}"</TagLabel>
+                  <TagCloseButton onClick={() => setSearchTerm('')} />
+                </Tag>
+              )}
+
+              {categoryFilter !== 'all' && (
+                <Tag size="sm" colorScheme="teal" borderRadius="full">
+                  <TagLabel>Category: {categoryFilter}</TagLabel>
+                  <TagCloseButton onClick={() => setCategoryFilter('all')} />
+                </Tag>
+              )}
+
+              {deptFilter !== 'All' && (
+                <Tag size="sm" colorScheme="teal" borderRadius="full">
+                  <TagLabel>Dept: {deptFilter}</TagLabel>
+                  <TagCloseButton onClick={() => setDeptFilter('All')} />
+                </Tag>
+              )}
+
+              {roleFilter !== 'All' && (
+                <Tag size="sm" colorScheme="teal" borderRadius="full">
+                  <TagLabel>Role: {roleFilter}</TagLabel>
+                  <TagCloseButton onClick={() => setRoleFilter('All')} />
+                </Tag>
+              )}
+
+              {statusFilter !== 'All' && (
+                <Tag size="sm" colorScheme="teal" borderRadius="full">
+                  <TagLabel>Status: {statusFilter}</TagLabel>
+                  <TagCloseButton onClick={() => setStatusFilter('All')} />
+                </Tag>
+              )}
+
+              {completenessFilter !== 'All' && (
+                <Tag size="sm" colorScheme="teal" borderRadius="full">
+                  <TagLabel>Completeness: {completenessFilter}</TagLabel>
+                  <TagCloseButton onClick={() => setCompletenessFilter('All')} />
+                </Tag>
+              )}
+
+              {employmentTypeFilter !== 'All' && (
+                <Tag size="sm" colorScheme="teal" borderRadius="full">
+                  <TagLabel>Type: {employmentTypeFilter}</TagLabel>
+                  <TagCloseButton onClick={() => setEmploymentTypeFilter('All')} />
+                </Tag>
+              )}
+
+              {genderFilter !== 'All' && (
+                <Tag size="sm" colorScheme="teal" borderRadius="full">
+                  <TagLabel>Gender: {genderFilter}</TagLabel>
+                  <TagCloseButton onClick={() => setGenderFilter('All')} />
+                </Tag>
+              )}
+
+              {trainingFilter !== 'All' && (
+                <Tag size="sm" colorScheme="teal" borderRadius="full">
+                  <TagLabel>Training: {trainingFilter}</TagLabel>
+                  <TagCloseButton onClick={() => setTrainingFilter('All')} />
+                </Tag>
+              )}
+
+              {documentFilter !== 'All' && (
+                <Tag size="sm" colorScheme="teal" borderRadius="full">
+                  <TagLabel>Docs: {documentFilter}</TagLabel>
+                  <TagCloseButton onClick={() => setDocumentFilter('All')} />
+                </Tag>
+              )}
+
+              <Button
+                size="xs"
+                variant="link"
+                colorScheme="red"
+                onClick={handleResetFilters}
+                fontSize="10px"
+                fontWeight="800"
+                ml="auto"
+              >
+                Clear All
+              </Button>
+            </Flex>
+          )}
 
           {/* Directory Accounts Layout */}
           {loading ? (

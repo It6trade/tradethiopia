@@ -14,6 +14,7 @@ import {
 } from "@chakra-ui/react";
 import {
   FiHome,
+  FiUser,
   FiUsers,
   FiBriefcase,
   FiClock,
@@ -38,6 +39,7 @@ import {
   FiChevronRight,
 } from "react-icons/fi";
 import { Link as RouterLink, useLocation } from "react-router-dom";
+import { useUserStore } from "../store/user";
 
 /* ─── colour tokens ─── */
 const SIDEBAR_BG       = "#1a2e22";
@@ -161,6 +163,7 @@ const SectionLabel = ({ label, isCollapsed }) => {
 
 /* ─── main component ─── */
 const Sidebar = ({ isCollapsed: controlledIsCollapsed, onToggleCollapse }) => {
+  const currentUser = useUserStore((state) => state.currentUser);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const breakpointValue = useBreakpointValue({ base: true, md: false });
   const location = useLocation();
@@ -232,20 +235,36 @@ const Sidebar = ({ isCollapsed: controlledIsCollapsed, onToggleCollapse }) => {
         borderBottom="1px solid rgba(255,255,255,0.06)"
         gap={2}
       >
-        <HStack spacing={3} minW={0}>
-          <Flex
-            w="36px" h="36px"
-            align="center" justify="center"
+        <HStack
+          as={RouterLink}
+          to="/profile"
+          _hover={{ textDecoration: "none", opacity: 0.9 }}
+          spacing={3}
+          minW={0}
+          cursor="pointer"
+        >
+          <Avatar
+            w="36px"
+            h="36px"
+            size="sm"
+            name={currentUser?.fullName || currentUser?.username || "Trade Ethiopia"}
+            src={currentUser?.photoUrl || currentUser?.photo}
             bg={LOGO_BADGE_BG}
+            color="white"
             borderRadius="lg"
+            fontWeight="900"
+            fontSize="xs"
+            border="1.5px solid rgba(255,255,255,0.2)"
             flexShrink={0}
-          >
-            <Text fontSize="sm" fontWeight="900" color="white">TE</Text>
-          </Flex>
+          />
           {!effectiveIsCollapsed && (
             <Box minW={0}>
-              <Text fontSize="sm" fontWeight="800" color="white" lineHeight="short" noOfLines={1}>Trade Ethiopia</Text>
-              <Text fontSize="10px" color={SECTION_LABEL} fontWeight="600" noOfLines={1}>HR Workspace</Text>
+              <Text fontSize="sm" fontWeight="800" color="white" lineHeight="short" noOfLines={1}>
+                {currentUser?.fullName || "Trade Ethiopia"}
+              </Text>
+              <Text fontSize="10px" color={SECTION_LABEL} fontWeight="600" noOfLines={1}>
+                {currentUser?.jobTitle || "HR Workspace"}
+              </Text>
             </Box>
           )}
         </HStack>
@@ -285,6 +304,7 @@ const Sidebar = ({ isCollapsed: controlledIsCollapsed, onToggleCollapse }) => {
       <VStack align="stretch" spacing={0.5} flex="1">
         <SectionLabel label="Overview" isCollapsed={effectiveIsCollapsed} />
         <SidebarItem to="/dashboard" icon={FiHome} label="Dashboard" isCollapsed={effectiveIsCollapsed} isActive={isActive("/dashboard")} />
+        <SidebarItem to="/profile" icon={FiUser} label="HR Profile" isCollapsed={effectiveIsCollapsed} isActive={isActive("/profile")} />
         
         {/* Document Management Category */}
         <SidebarExpandableItem

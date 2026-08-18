@@ -91,6 +91,30 @@ const userSchema = new mongoose.Schema({
         type: String,
         default: '',
     },
+    bio: {
+        type: String,
+        default: '',
+    },
+    website: {
+        type: String,
+        default: '',
+    },
+    twitter: {
+        type: String,
+        default: '',
+    },
+    linkedin: {
+        type: String,
+        default: '',
+    },
+    facebook: {
+        type: String,
+        default: '',
+    },
+    telegram: {
+        type: String,
+        default: '',
+    },
     digitalId: {
         type: String, // Assuming this is a string identifier
         required: false, // Optional
