@@ -103,6 +103,7 @@ const loginUser = async (req, res) => {
                     null,
                 infoStatus: user.infoStatus,
                 trainingStatus: user.trainingStatus,
+                examBypass: user.examBypass || false,
                 guarantorFile: user.guarantorFile,
                 guarantorFileUrl: user.guarantorFile ? 
                     `https://cloud.appwrite.io/v1/storage/buckets/${process.env.APPWRITE_BUCKET_ID}/files/${user.guarantorFile}/view?project=${process.env.APPWRITE_PROJECT_ID}` : 
@@ -122,7 +123,7 @@ const createuser = async (req, res) => {
         fullName, altEmail, altPhone, gender, 
         jobTitle, hireDate, employmentType, 
         education, location, phone, additionalLanguages, 
-        notes,digitalId,photo,infoStatus,trainingStatus,guarantorFile,
+        notes,digitalId,photo,infoStatus,trainingStatus,examBypass,guarantorFile,
         salary, managerId
     } = req.body;
 
@@ -177,6 +178,7 @@ const createuser = async (req, res) => {
             photo,
             infoStatus,
             trainingStatus,
+            examBypass: Boolean(examBypass),
             guarantorFile,
             managerId: managerId || null,
             salary: salary !== undefined && salary !== null ? Number(salary) : undefined
@@ -209,7 +211,7 @@ const getuser = async (req, res) => {
         // Directory consumers receive summary data only. Sensitive HR fields
         // are available through the protected /:id/details endpoint.
         const users = await User.find({}).select(
-            '_id username email role status fullName jobTitle photo guarantorFile phone gender education location digitalId managerId employmentType hireDate salary infoStatus trainingStatus createdAt updatedAt'
+            '_id username email role status fullName jobTitle photo guarantorFile phone gender education location digitalId managerId employmentType hireDate salary infoStatus trainingStatus examBypass createdAt updatedAt'
         );
         const Document = mongoose.models.Document || require('../models/Document');
         const documents = await Document.find({}).select('userId employeeName').lean();
@@ -294,6 +296,7 @@ const getuser = async (req, res) => {
                 managerId: userObj.managerId,
                 infoStatus: userObj.infoStatus,
                 trainingStatus: userObj.trainingStatus,
+                examBypass: Boolean(userObj.examBypass),
                 createdAt: userObj.createdAt,
                 updatedAt: userObj.updatedAt,
                 profileCompleteness: coreProfileCompleteness,

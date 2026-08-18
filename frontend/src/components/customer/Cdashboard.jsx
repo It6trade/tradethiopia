@@ -1,11 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import Layout from './Layout';
 import axios from 'axios';
 import { 
   Box, 
   Flex, 
   Grid, 
-  GridItem, 
   Card, 
   CardBody, 
   Heading, 
@@ -14,7 +13,6 @@ import {
   StatLabel, 
   StatNumber,
   Icon, 
-  Spinner, 
   Alert, 
   AlertIcon, 
   AlertTitle, 
@@ -23,8 +21,8 @@ import {
   useBreakpointValue,
   SimpleGrid,
   Skeleton,
-  SkeletonText,
-  SkeletonCircle
+  SkeletonCircle,
+  VStack
 } from '@chakra-ui/react';
 import { 
   FaUsers, 
@@ -46,9 +44,12 @@ import {
   Tooltip as ChartTooltip, 
   Legend
 } from 'chart.js';
-import { Link } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import CustomerMessagesPage from '../../pages/CustomerMessagesPage';
+import RequestPage from '../../pages/RequestPage';
 import CompletedSalesTable from '../salesmanager/CompletedSalesTable';
+import CustomerSupportRequestPanel from './CustomerSupportRequestPanel';
+import CSExternalITRequestsPanel from './CSExternalITRequestsPanel';
 
 // Register Chart.js components
 ChartJS.register(
@@ -61,6 +62,7 @@ ChartJS.register(
 );
 
 const CDashboard = ({ initialTab = 'dashboard' }) => {
+  const location = useLocation();
   const [customerData, setCustomerData] = useState({
     total: 0,
     new: 0,
@@ -84,7 +86,6 @@ const CDashboard = ({ initialTab = 'dashboard' }) => {
 
   // Responsive breakpoints
   const isMobile = useBreakpointValue({ base: true, md: false });
-  const cardMinHeight = useBreakpointValue({ base: '120px', md: '140px' });
   const chartHeight = useBreakpointValue({ base: "200px", md: "250px" });
   
   // Color mode values
@@ -94,6 +95,12 @@ const CDashboard = ({ initialTab = 'dashboard' }) => {
   const textColor = useColorModeValue('gray.700', 'gray.200');
   const borderColor = useColorModeValue('gray.200', 'gray.700');
   const chartTextColor = useColorModeValue('gray.700', 'gray.200');
+  const pageBgGradient = useColorModeValue(
+    "linear-gradient(135deg, #eef7ff 0%, #f7fbff 45%, #f0fdf4 100%)",
+    "linear-gradient(135deg, #08111f 0%, #0b1224 55%, #10251f 100%)"
+  );
+  const headerMetricBg = useColorModeValue("teal.50", "whiteAlpha.100");
+  const helperTextColor = useColorModeValue("gray.500", "gray.400");
 
   // Fetch customer data from the backend
   useEffect(() => {
@@ -235,6 +242,28 @@ const CDashboard = ({ initialTab = 'dashboard' }) => {
     setActiveTab(initialTab);
   }, [initialTab]);
 
+  const urlFocus = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    return {
+      section: params.get('section') || '',
+      taskId: params.get('task') || '',
+      commentId: params.get('comment') || '',
+      notificationId: params.get('notification') || '',
+      noticeType: params.get('noticeType') || '',
+      noticeTitle: params.get('noticeTitle') || '',
+      noticeText: params.get('noticeText') || '',
+      noticeDetail: params.get('noticeDetail') || '',
+      noticePreview: params.get('noticePreview') || '',
+      noticeTime: params.get('noticeTime') || '',
+    };
+  }, [location.search]);
+
+  useEffect(() => {
+    if (urlFocus.section === 'it-requests') {
+      setActiveTab('it-requests');
+    }
+  }, [urlFocus.section, urlFocus.taskId, urlFocus.commentId]);
+
   // Package distribution data with validation (packages 1-8)
   const packageChartData = {
     labels: Array.isArray(analyticsData.packageDistribution) ? analyticsData.packageDistribution.map(item => item?.package || '') : [],
@@ -360,7 +389,9 @@ const CDashboard = ({ initialTab = 'dashboard' }) => {
     onSelectSection: setActiveTab,
   };
 
-  if (loading && activeTab !== 'notice-board') {
+  const canRenderWithoutDashboardData = ['notice-board', 'requests', 'it-requests'].includes(activeTab);
+
+  if (loading && !canRenderWithoutDashboardData) {
     return (
       <Layout {...layoutProps}>
         <Box p={{ base: 4, md: 6 }} bg={bgColor} minHeight="100vh">
@@ -396,7 +427,7 @@ const CDashboard = ({ initialTab = 'dashboard' }) => {
     );
   }
 
-  if (error && activeTab !== 'notice-board') {
+  if (error && !canRenderWithoutDashboardData) {
     return (
       <Layout {...layoutProps}>
         <Box p={6} bg={bgColor} minHeight="100vh">
@@ -427,19 +458,54 @@ const CDashboard = ({ initialTab = 'dashboard' }) => {
     <Layout {...layoutProps}>
       {activeTab === 'notice-board' ? (
         <CustomerMessagesPage embedded />
-      ) : (
+      ) : activeTab === 'it-requests' ? (
         <Box p={{ base: 4, md: 6 }} bg={bgColor} minHeight="100vh">
-          <Flex justify="space-between" align="center" wrap="wrap" gap={4} mb={6}>
-            <Heading 
-              as="h1" 
-              size={{ base: "lg", md: "xl" }} 
-              color={headerColor}
-              textAlign={{ base: "center", md: "left" }}
-              fontWeight="bold"
-            >
-              Customer Dashboard
-            </Heading>
-          </Flex>
+          <CSExternalITRequestsPanel
+            focusedTaskId={urlFocus.taskId}
+            focusedCommentId={urlFocus.commentId}
+            focusedNotification={urlFocus}
+          />
+        </Box>
+      ) : activeTab === 'requests' ? (
+        <Box p={{ base: 4, md: 6 }} bg={bgColor} minHeight="100vh">
+          <VStack spacing={6} align="stretch">
+            <RequestPage embedded hideBackButton />
+            <CustomerSupportRequestPanel />
+          </VStack>
+        </Box>
+      ) : (
+        <Box
+          p={{ base: 4, md: 6 }}
+          bg={pageBgGradient}
+          minHeight="100vh"
+        >
+          <Card bg={cardBg} borderRadius="2xl" boxShadow="lg" mb={6} border="1px solid" borderColor={borderColor}>
+            <CardBody>
+              <Flex justify="space-between" align={{ base: "stretch", md: "center" }} wrap="wrap" gap={4}>
+                <Box>
+                  <Text color="teal.500" fontSize="xs" fontWeight="900" textTransform="uppercase" letterSpacing="0.08em">
+                    Customer Service Workspace
+                  </Text>
+                  <Heading
+                    as="h1"
+                    size={{ base: "lg", md: "xl" }}
+                    color={headerColor}
+                    textAlign={{ base: "left", md: "left" }}
+                    fontWeight="bold"
+                  >
+                    Customer Service Dashboard
+                  </Heading>
+                  <Text color={textColor} mt={2} maxW="760px">
+                    Monitor customers, follow-ups, B2B activity, training progress, package revenue, and completed sales work from one service console.
+                  </Text>
+                </Box>
+                <Box px={4} py={3} borderRadius="xl" bg={headerMetricBg}>
+                  <Text fontSize="xs" color={helperTextColor}>Active Customers</Text>
+                  <Text fontSize="2xl" fontWeight="900" color="teal.500">{customerData.active}</Text>
+                </Box>
+              </Flex>
+            </CardBody>
+          </Card>
 
           {/* Stats Cards */}
           <SimpleGrid columns={{ base: 2, md: 5 }} spacing={4} mb={6}>
@@ -583,7 +649,14 @@ const CDashboard = ({ initialTab = 'dashboard' }) => {
           </Grid>
 
           <Box mt={6}>
-            <CompletedSalesTable title="Completed Sales Follow-ups" />
+            <CompletedSalesTable
+              title="Completed Sales Follow-ups"
+              compact
+              collapsible
+              defaultExpanded={false}
+              pageSizeOptions={[5, 10]}
+              initialPageSize={5}
+            />
           </Box>
         </Box>
       )}

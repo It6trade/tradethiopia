@@ -40,10 +40,65 @@ const formatTimeAgo = (value) => {
   return `${Math.floor(hours / 24)}d ago`;
 };
 
-const buildNotificationLink = (item) => (
-  item.link ||
-  (item.itTaskId ? `/it?tab=projects&task=${item.itTaskId}${item.commentId ? `&comment=${item.commentId}` : ''}` : '')
-);
+const buildNotificationLink = (item, currentUser = null) => {
+  const role = String(currentUser?.role || currentUser?.displayRole || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  const isCS = ['customerservice', 'customersuccessmanager', 'cs', 'csmanager'].includes(role);
+  const isIT = ['admin', 'itmanager', 'itadmin', 'it', 'itstaff', 'itteamleader', 'itleader', 'itofficer'].includes(role);
+
+  // If notification has an itTaskId, route according to viewing user's active portal
+  if (item.itTaskId) {
+    if (isCS) {
+      return `/cdashboard?section=it-requests&task=${item.itTaskId}${item.commentId ? `&comment=${item.commentId}` : ''}`;
+    }
+    return `/it?tab=projects&task=${item.itTaskId}${item.commentId ? `&comment=${item.commentId}` : ''}`;
+  }
+
+  // If notification link points to /cdashboard but current user is IT manager/staff, convert to /it
+  if (item.link && item.link.startsWith('/cdashboard') && (isIT || !isCS)) {
+    try {
+      const parsed = new URL(item.link, window.location.origin);
+      const taskId = parsed.searchParams.get('task') || parsed.searchParams.get('taskId');
+      const commentId = parsed.searchParams.get('comment') || parsed.searchParams.get('commentId');
+      if (taskId) {
+        return `/it?tab=projects&task=${taskId}${commentId ? `&comment=${commentId}` : ''}`;
+      }
+    } catch (_) {}
+  }
+
+  // If notification link points to /it but current user is CS, convert to /cdashboard
+  if (item.link && item.link.startsWith('/it') && isCS) {
+    try {
+      const parsed = new URL(item.link, window.location.origin);
+      const taskId = parsed.searchParams.get('task') || parsed.searchParams.get('taskId');
+      const commentId = parsed.searchParams.get('comment') || parsed.searchParams.get('commentId');
+      if (taskId) {
+        return `/cdashboard?section=it-requests&task=${taskId}${commentId ? `&comment=${commentId}` : ''}`;
+      }
+    } catch (_) {}
+  }
+
+  return item.link || '';
+};
+
+const appendNotificationContext = (link, item) => {
+  if (!link) return '';
+  try {
+    const url = new URL(link, window.location.origin);
+    const title = getNotificationTitle(item);
+    const detail = getNotificationDetail(item);
+    const preview = getCommentPreview(item);
+    url.searchParams.set('notification', item._id || item.id || '');
+    url.searchParams.set('noticeType', item.type || 'notification');
+    if (title) url.searchParams.set('noticeTitle', title);
+    if (item.text) url.searchParams.set('noticeText', item.text);
+    if (detail) url.searchParams.set('noticeDetail', detail);
+    if (preview) url.searchParams.set('noticePreview', preview);
+    if (item.createdAt) url.searchParams.set('noticeTime', item.createdAt);
+    return `${url.pathname}${url.search}${url.hash}`;
+  } catch (error) {
+    return link;
+  }
+};
 
 const getNotificationTitle = (item) => {
   if (['comment', 'task', 'reminder'].includes(item.type)) {
@@ -168,9 +223,9 @@ export default function NotificationBall({ extraNotifications = [], iconColor = 
 
   const openNotification = async (item) => {
     await markOneRead(item);
-    const link = buildNotificationLink(item);
+    const link = buildNotificationLink(item, currentUser);
     if (link) {
-      navigate(link);
+      navigate(appendNotificationContext(link, item));
     }
   };
 
@@ -305,7 +360,7 @@ export default function NotificationBall({ extraNotifications = [], iconColor = 
                       )}
                       {item.type === 'comment' && preview && (
                         <Text fontSize="xs" color={muted} mt={1} noOfLines={2}>
-                          "{preview}"
+                          &quot;{preview}&quot;
                         </Text>
                       )}
                       <HStack mt={2} spacing={2} align="center" flexWrap="wrap">

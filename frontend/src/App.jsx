@@ -41,6 +41,7 @@ import ComingSoonPage from "./pages/ComingSoonPage";
 import AdminTrainingUpload from "./pages/AdminTrainingUpload";
 import AdminCustomerReport from './components/AdminCSReport.jsx';
 import CustomerSettings from "./components/customer/CustomerSettings";
+import CustomerUserManagement from "./components/customer/CustomerUserManagement";
 import ReceptionDashboard from './pages/ReceptionDashboard';
 import HRTrainingPage from './pages/HRTrainingPage.jsx';
 import ENISRALayout from "./components/ENSRA/ENSRALayout";
@@ -80,6 +81,7 @@ import SupervisorDashboardPage from "./pages/supervisor/SupervisorDashboardPage.
 import SupervisorAccountPage from "./pages/supervisor/SupervisorAccountPage.jsx";
 
 const CandidatePoolPage = lazy(() => import('./pages/CandidatePoolPage.jsx'));
+const AwardsPage = lazy(() => import('./pages/AwardsPage.jsx'));
 const FinanceERPPage = lazy(() => import("./pages/sales/FinanceERPPage.jsx"));
 const FinanceDashboardPage = lazy(() => import("./pages/sales/FinanceDashboardPage.jsx"));
 const FinanceReportsPage = lazy(() => import("./pages/sales/FinanceReportsPage.jsx"));
@@ -97,7 +99,7 @@ const FinanceFormsPage = lazy(() => import("./pages/sales/FinanceFormsPage.jsx")
 const B2BDashboard = lazy(() => import("./pages/B2BDashboard"));
 const COODashboard = lazy(() => import("./pages/COODashboard"));
 const TradexTVDashboard = lazy(() => import("./pages/TradexTVDashboard"));
-const ITDashboard = lazy(() => import("./pages/ITDashboard"));
+const ITDashboard = lazy(() => import("./pages/it/ITDashboard"));
 const SocialMediaDashboardPage = lazy(() => import("./pages/socialmedia/SocialMediaDashboardPage"));
 const TessbinAdminDashboard = lazy(() => import("./pages/TessbinAdminDashboard"));
 const ChatPage = lazy(() => import("./pages/ChatPage.jsx"));
@@ -227,6 +229,14 @@ function App() {
       <Route path="/course" element={<LayoutWrapper><AdminTrainingUpload /></LayoutWrapper>} />
       <Route path="/hr-training" element={<LayoutWrapper><HRTrainingPage /></LayoutWrapper>} />
       <Route path="/candidate-pool" element={<LayoutWrapper><CandidatePoolPage /></LayoutWrapper>} />
+      <Route
+        path="/awards"
+        element={
+          <RoleProtectedRoute allowedRoles={["hr", "admin", "coo"]}>
+            <LayoutWrapper><AwardsPage /></LayoutWrapper>
+          </RoleProtectedRoute>
+        }
+      />
       <Route path="/documentupload" element={<DocumentUploadForm />} />
       <Route path="/category" element={<LayoutWrapper><Category /></LayoutWrapper>} />
       <Route path="/documentlist" element={<LayoutWrapper><DocumentList /></LayoutWrapper>} />
@@ -383,6 +393,14 @@ function App() {
         }
       />
       <Route path="/tessbin" element={<Navigate to="/tessbin-dashboard" replace />} />
+      <Route
+        path="/customer-user-management"
+        element={
+          <ProtectedRoute>
+            <CustomerUserManagement />
+          </ProtectedRoute>
+        }
+      />
       <Route
         path="/social-media"
         element={
