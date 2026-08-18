@@ -14,6 +14,13 @@ import {
   HStack,
   Icon,
   Input,
+  Modal,
+  ModalBody,
+  ModalCloseButton,
+  ModalContent,
+  ModalFooter,
+  ModalHeader,
+  ModalOverlay,
   NumberInput,
   NumberInputField,
   Progress,
@@ -282,9 +289,18 @@ const buildRankings = (records = []) => {
     .map((item, index) => ({ ...item, rank: index + 1 }));
 };
 
-export default function TicketManagementTab({ tasks = [], users = [], currentUser, persona, fetchTasks }) {
+export default function TicketManagementTab({
+  tasks = [],
+  users = [],
+  currentUser,
+  persona,
+  permissions: permissionsProp,
+  focusedTaskId = '',
+  fetchTasks,
+}) {
+  const permissions = permissionsProp || persona || {};
   const toast = useToast();
-  const [selectedTaskId, setSelectedTaskId] = useState('');
+  const [selectedTaskId, setSelectedTaskId] = useState(focusedTaskId || '');
   const [recordDraft, setRecordDraft] = useState({
     workType: 'support',
     summary: '',
@@ -308,10 +324,14 @@ export default function TicketManagementTab({ tasks = [], users = [], currentUse
   const [feedbackDrafts, setFeedbackDrafts] = useState({});
   const [managerTicketFilter, setManagerTicketFilter] = useState('undone');
   const [expandedRankingKey, setExpandedRankingKey] = useState('');
-  const [selectedDetailTaskId, setSelectedDetailTaskId] = useState('');
+  const [selectedDetailTaskId, setSelectedDetailTaskId] = useState(focusedTaskId || '');
   const [isTicketManagementExpanded, setIsTicketManagementExpanded] = useState(true);
   const [isDetailExpanded, setIsDetailExpanded] = useState(true);
   const [expandedSentSupportIds, setExpandedSentSupportIds] = useState({});
+  const [rejectModalOpen, setRejectModalOpen] = useState(false);
+  const [rejectTaskId, setRejectTaskId] = useState('');
+  const [rejectReason, setRejectReason] = useState('');
+  const [rejecting, setRejecting] = useState(false);
   const [saving, setSaving] = useState(false);
   const cardBg = useColorModeValue('white', 'gray.800');
   const panelBg = useColorModeValue('gray.50', 'whiteAlpha.100');
@@ -325,7 +345,7 @@ export default function TicketManagementTab({ tasks = [], users = [], currentUse
   )), [visibleTicketTasks]);
 
   const reportableSupport = visibleTicketTasks.filter((task) => (
-    ['in_progress', 'rejected'].includes(task.supportStatus)
+    ['in_progress'].includes(task.supportStatus)
     && isAssignedStaff(task, currentUser)
     && !hasSubmittedReport(task)
   ));
@@ -343,9 +363,11 @@ export default function TicketManagementTab({ tasks = [], users = [], currentUse
   const canDeleteAcceptedTickets = Boolean(persona?.canDeleteTasks || persona?.canViewAllTasks);
   const canRecord = !canApprove && isAssignedStaff(selectedTask, currentUser);
   const pendingRecords = records.filter((record) => record.approvalStatus === 'pending_approval');
-  const supportRequests = visibleTicketTasks.filter((task) => ['requested', 'manager_accepted'].includes(task.supportStatus));
+  const supportRequests = visibleTicketTasks.filter((task) => (
+    ['requested', 'manager_accepted', 'staff_rejected'].includes(task.supportStatus)
+  ));
   const managerAcceptedTickets = useMemo(() => visibleTicketTasks
-    .filter((task) => !['requested', 'manager_accepted'].includes(task.supportStatus))
+    .filter((task) => !['requested', 'manager_accepted', 'staff_rejected'].includes(task.supportStatus))
     .map((task) => {
       const hasOutstanding = (task.ticketRecords || []).some((record) => String(record.outstandingTasks || '').trim());
       const isDone = ['approved', 'closed'].includes(task.supportStatus) && !hasOutstanding;
@@ -360,7 +382,9 @@ export default function TicketManagementTab({ tasks = [], users = [], currentUse
     aliases.includes(String(task.requestedBy || '').trim().toLowerCase())
     || aliases.includes(String(task.createdBy || '').trim().toLowerCase())
   ));
-  const assignedSupport = visibleTicketTasks.filter((task) => ['assigned', 'staff_accepted'].includes(task.supportStatus) && isAssignedStaff(task, currentUser));
+  const assignedSupport = visibleTicketTasks.filter((task) => (
+    task.supportStatus === 'assigned' && isAssignedStaff(task, currentUser)
+  ));
   const selectedDetailTask = visibleTicketTasks.find((task) => String(task._id || task.id) === String(selectedDetailTaskId))
     || managerAcceptedTickets[0]
     || sentSupportRequests[0]
@@ -441,6 +465,50 @@ export default function TicketManagementTab({ tasks = [], users = [], currentUse
     }
   };
 
+  const openRejectModal = (task) => {
+    setRejectTaskId(task._id || task.id);
+    setRejectReason('');
+    setRejectModalOpen(true);
+  };
+
+  const rejectAssignedSupport = async () => {
+    if (!rejectTaskId) return;
+    setRejecting(true);
+    try {
+      await axiosInstance.post(`/it/${rejectTaskId}/support/staff-reject`, {
+        reason: rejectReason.trim(),
+      });
+      setRejectModalOpen(false);
+      setRejectTaskId('');
+      setRejectReason('');
+      await fetchTasks?.();
+      toast({
+        title: 'Ticket rejected',
+        description: 'Manager has been notified to reassign the ticket.',
+        status: 'info',
+      });
+    } catch (error) {
+      toast({
+        title: 'Could not reject support ticket',
+        description: error.response?.data?.message || error.message,
+        status: 'error',
+      });
+    } finally {
+      setRejecting(false);
+    }
+  };
+
+  const handleViewDetails = (taskId) => {
+    setSelectedDetailTaskId(taskId);
+    setIsDetailExpanded(true);
+    setTimeout(() => {
+      const el = document.getElementById('ticket-detail-card');
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }, 50);
+  };
+
   const saveRecord = async () => {
     if (!selectedTask?._id && !selectedTask?.id) return;
     if (!recordDraft.summary.trim()) {
@@ -517,7 +585,7 @@ export default function TicketManagementTab({ tasks = [], users = [], currentUse
       return;
     }
     try {
-      await axiosInstance.post(`/it/${taskId}/comments`, { body });
+      await axiosInstance.post(`/it/${taskId}/comments`, { body, audience: 'general' });
       setCommentDrafts({ ...commentDrafts, [taskId]: '' });
       await fetchTasks?.();
       toast({ title: 'Comment added to ticket', status: 'success' });
@@ -720,21 +788,32 @@ export default function TicketManagementTab({ tasks = [], users = [], currentUse
                 const taskId = task._id || task.id;
                 const draft = assignmentDrafts[taskId] || {};
                 const slaState = getSlaState(task);
+                const isDeclined = task.supportStatus === 'staff_rejected' || task.supportStatus === 'rejected';
                 return (
-                  <Box key={taskId} bg={panelBg} borderRadius="xl" p={4}>
+                  <Box key={taskId} bg={panelBg} borderRadius="xl" p={4} border={isDeclined ? '1px solid' : undefined} borderColor={isDeclined ? 'red.300' : undefined}>
                     <HStack justify="space-between" align="start" mb={3}>
                       <Box>
-                        <Text fontWeight="800">{getTaskTitle(task)}</Text>
+                        <HStack spacing={2} mb={1} flexWrap="wrap">
+                          <Text fontWeight="800">{getTaskTitle(task)}</Text>
+                          {isDeclined && <Badge colorScheme="red">Staff Declined — Reassign</Badge>}
+                        </HStack>
                         <Text fontSize="sm" color={muted}>{task.supportRequestNote || task.description}</Text>
+                        {isDeclined && (task.staffRejectedByName || task.staffRejectedReason) && (
+                          <Box mt={2} p={2} bg={useColorModeValue('red.50', 'rgba(254, 178, 178, 0.12)')} color="red.500" borderRadius="md" fontSize="xs">
+                            <Text fontWeight="700">Declined by: {task.staffRejectedByName || 'Staff'}</Text>
+                            {task.staffRejectedReason && <Text>Reason: {task.staffRejectedReason}</Text>}
+                          </Box>
+                        )}
                         <HStack spacing={2} mt={2} flexWrap="wrap">
                           <Badge colorScheme={getPriorityColor(task.priority)}>{task.priority || 'normal'} priority</Badge>
                           <Badge colorScheme={slaState.color}>{slaState.label}</Badge>
+                          {task.requestedDepartment && <Badge colorScheme="cyan">{task.requestedDepartment}</Badge>}
                           {task.attachments?.length > 0 && <Badge colorScheme="purple">{task.attachments.length} attachments</Badge>}
                         </HStack>
                       </Box>
                       <VStack align="end" spacing={2}>
-                        <Badge colorScheme="orange">{task.supportStatus}</Badge>
-                        <Button size="xs" variant="outline" onClick={() => setSelectedDetailTaskId(taskId)}>Details</Button>
+                        <Badge colorScheme={isDeclined ? 'red' : 'orange'}>{String(task.supportStatus || 'requested').replace('_', ' ')}</Badge>
+                        <Button size="xs" variant="outline" onClick={() => handleViewDetails(taskId)}>Details</Button>
                       </VStack>
                     </HStack>
                     <SimpleGrid columns={{ base: 1, md: 3 }} spacing={2}>
@@ -744,7 +823,9 @@ export default function TicketManagementTab({ tasks = [], users = [], currentUse
                       <Select size="sm" placeholder="Assign staff" value={draft.assignedTo || ''} onChange={(event) => setAssignmentDrafts({ ...assignmentDrafts, [taskId]: { ...draft, assignedTo: event.target.value } })}>
                         {itStaffOptions.map((user) => <option key={user._id || user.email} value={user.email || user.username}>{user.fullName || user.username || user.email}</option>)}
                       </Select>
-                      <Button size="sm" colorScheme="blue" onClick={() => acceptSupportRequest(task)}>Accept & Assign</Button>
+                      <Button size="sm" colorScheme={isDeclined ? 'red' : 'blue'} onClick={() => acceptSupportRequest(task)}>
+                        {isDeclined ? 'Reassign Staff' : 'Accept & Assign'}
+                      </Button>
                     </SimpleGrid>
                   </Box>
                 );
@@ -786,7 +867,7 @@ export default function TicketManagementTab({ tasks = [], users = [], currentUse
                           <Badge colorScheme={task.supportStatus === 'requested' ? 'orange' : task.supportStatus === 'approved' ? 'green' : 'blue'}>
                             {String(task.supportStatus || 'requested').replace('_', ' ')}
                           </Badge>
-                          <Button size="xs" variant="outline" onClick={() => setSelectedDetailTaskId(taskId)}>View Details</Button>
+                          <Button size="xs" variant="outline" onClick={() => handleViewDetails(taskId)}>View Details</Button>
                         </HStack>
                       </Flex>
                       {isExpanded && (
@@ -818,12 +899,17 @@ export default function TicketManagementTab({ tasks = [], users = [], currentUse
                 <Flex key={task._id || task.id} justify="space-between" align={{ base: 'stretch', md: 'center' }} gap={3} direction={{ base: 'column', md: 'row' }} bg={panelBg} borderRadius="xl" p={3}>
                   <Box>
                     <Text fontWeight="800">{getTaskTitle(task)}</Text>
-                    <Text fontSize="sm" color={muted}>{task.description}</Text>
-                    <Badge mt={2} colorScheme={getPriorityColor(task.priority)}>{task.priority || 'normal'} priority</Badge>
+                    <Text fontSize="sm" color={muted}>{task.description || task.supportRequestNote}</Text>
+                    <HStack spacing={2} mt={2} flexWrap="wrap">
+                      <Badge colorScheme={getPriorityColor(task.priority)}>{task.priority || 'normal'} priority</Badge>
+                      <Badge colorScheme={getSlaState(task).color}>{getSlaState(task).label}</Badge>
+                      {task.requestedDepartment && <Badge colorScheme="cyan">{task.requestedDepartment}</Badge>}
+                    </HStack>
                   </Box>
-                  <HStack>
-                    <Button size="sm" variant="outline" onClick={() => setSelectedDetailTaskId(task._id || task.id)}>Details</Button>
-                    <Button colorScheme="green" size="sm" onClick={() => acceptAssignedSupport(task)}>Accept Ticket</Button>
+                  <HStack spacing={2}>
+                    <Button size="sm" variant="outline" onClick={() => handleViewDetails(task._id || task.id)}>Details</Button>
+                    <Button colorScheme="green" size="sm" onClick={() => acceptAssignedSupport(task)}>Accept</Button>
+                    <Button colorScheme="red" variant="outline" size="sm" onClick={() => openRejectModal(task)}>Reject</Button>
                   </HStack>
                 </Flex>
               ))}
@@ -1142,7 +1228,7 @@ export default function TicketManagementTab({ tasks = [], users = [], currentUse
       </SimpleGrid>
 
       {selectedDetailTask && (
-        <Card bg={cardBg} borderColor={borderColor} borderWidth="1px" borderRadius="2xl">
+        <Card id="ticket-detail-card" bg={cardBg} borderColor={borderColor} borderWidth="1px" borderRadius="2xl">
           <CardBody>
             <Flex justify="space-between" align={{ base: 'stretch', md: 'start' }} gap={4} direction={{ base: 'column', md: 'row' }} mb={4}>
               <Box>
@@ -1308,9 +1394,9 @@ export default function TicketManagementTab({ tasks = [], users = [], currentUse
                   <Heading size="sm">Comment Thread Per Ticket</Heading>
                 </HStack>
                 <VStack align="stretch" spacing={3}>
-                  {(selectedDetailTask.comments || []).filter((c) => permissions.canManage || c.audience !== 'cs_manager').length === 0 ? (
+                  {(selectedDetailTask.comments || []).length === 0 ? (
                     <Box bg={panelBg} p={4} borderRadius="xl" color={muted}>No comments have been added to this ticket.</Box>
-                  ) : (selectedDetailTask.comments || []).filter((c) => permissions.canManage || c.audience !== 'cs_manager').map((comment) => (
+                  ) : (selectedDetailTask.comments || []).map((comment) => (
                     <Box key={comment._id || comment.createdAt} bg={panelBg} p={3} borderRadius="xl">
                       <Text fontWeight="700">{comment.authorName || 'IT user'}</Text>
                       <Text>{comment.body}</Text>
@@ -1440,6 +1526,35 @@ export default function TicketManagementTab({ tasks = [], users = [], currentUse
       </Card>
         </VStack>
       </Collapse>
+
+      <Modal isOpen={rejectModalOpen} onClose={() => setRejectModalOpen(false)} isCentered>
+        <ModalOverlay />
+        <ModalContent>
+          <ModalHeader>Reject Support Ticket</ModalHeader>
+          <ModalCloseButton />
+          <ModalBody>
+            <Text mb={3} fontSize="sm">
+              Please provide an optional reason for declining this ticket. The manager will be notified to reassign it to another staff member.
+            </Text>
+            <FormControl>
+              <FormLabel>Reason / Note (optional)</FormLabel>
+              <Textarea
+                placeholder="E.g., Currently working on another urgent issue, hardware specialization needed, etc."
+                value={rejectReason}
+                onChange={(e) => setRejectReason(e.target.value)}
+              />
+            </FormControl>
+          </ModalBody>
+          <ModalFooter>
+            <Button variant="ghost" mr={3} onClick={() => setRejectModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button colorScheme="red" onClick={rejectAssignedSupport} isLoading={rejecting}>
+              Confirm Reject
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
     </VStack>
   );
 }
