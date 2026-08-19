@@ -55,8 +55,13 @@ const handleLogin = async (event) => {
 
             const normalizedRole = normalizeRole(role);
 
-            // Roles like Tessbin Admin bypass HR employee onboarding info checks
-            const bypassHrApprovalRoles = ['tessbinadmin', 'tessbin', 'tessbin_admin', 'admin', 'coo', 'ceo', 'it', 'itadmin'];
+            // Roles that bypass HR employee onboarding info checks
+            const bypassHrApprovalRoles = [
+                'tessbinadmin', 'tessbin', 'tessbin_admin', 
+                'admin', 'coo', 'ceo', 
+                'it', 'itadmin', 'itmanager',
+                'customerservice', 'customersuccessmanager', 'customer_service', 'customer_success_manager', 'cs', 'csm'
+            ];
             const isBypassRole = bypassHrApprovalRoles.includes(normalizedRole);
             const hasExamBypass = Boolean(examBypass) || String(trainingStatus || '').toLowerCase() === 'exempt';
             const shouldBypassOnboarding = isBypassRole || hasExamBypass;
