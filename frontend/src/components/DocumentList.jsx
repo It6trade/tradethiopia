@@ -742,8 +742,8 @@ const DocumentList = () => {
             if (previewDocument?._id === response.data._id) setPreviewDocument(response.data);
             setScheduleDocument(null);
             toast({
-                title: 'Renewal / Review Schedule Active!',
-                description: `HR will receive alerts ${reminderDaysBefore} days before ${formatEthiopianDate(scheduleEndDate)}.`,
+                title: 'License Renewal Schedule Active!',
+                description: `HR will receive "Risk Document" hazard notifications ${reminderDaysBefore} days before ${formatEthiopianDate(scheduleEndDate)}.`,
                 status: 'success',
                 duration: 4500,
                 isClosable: true

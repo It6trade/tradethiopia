@@ -29,6 +29,7 @@ import { FiSearch, FiUser, FiLogOut } from "react-icons/fi";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useUserStore } from "../store/user";
 import { useEffect, useState } from "react";
+import axios from "axios";
 import ChatLauncher from "./chat/ChatLauncher";
 import NotificationBall from "./notifications/NotificationBall";
 
@@ -75,7 +76,7 @@ const NavbarPage = ({ sidebarWidth = "0px" }) => {
     const navigate = useNavigate();
     const location = useLocation();
     const currentUser = useUserStore((state) => state.currentUser);
-    const users = useUserStore((state) => state.users);
+    const users = useUserStore((state) => state.users) || [];
     const [notifications, setNotifications] = useState([]);
 
     const clearUser = useUserStore((state) => state.clearUser);
@@ -89,10 +90,6 @@ const NavbarPage = ({ sidebarWidth = "0px" }) => {
         const pendingNotifications = users.filter(user => user.infoStatus === 'pending');
         setNotifications(pendingNotifications);
     }, [users]);
-
-    const navigateToUser = (userId) => {
-        navigate("/users");
-    };
 
     const extraNotifications = [
         ...notifications.map((user) => ({

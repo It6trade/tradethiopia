@@ -18,6 +18,7 @@ dotenv.config({
 });
 
 const { connectDB, disconnectDB } = require('./config/db.js');
+const { syncAllApproachingLicenses } = require('./services/documentLicenseReminderService.js');
 const userRoutes = require('./routes/user.route.js');
 const attendanceIntegrationRoutes = require('./routes/attendanceIntegrationRoutes');
 const notificationRoutes = require('./routes/notificationRoutes.js');
@@ -396,6 +397,17 @@ if (require.main === module) {
             credentials: true
           }
         });
+
+        // Sync approaching and overdue company document licenses for HR
+        syncAllApproachingLicenses(app).catch((err) =>
+          console.error('Initial license reminder sync error:', err)
+        );
+        // Recurring check every 1 hour (3600000 ms)
+        setInterval(() => {
+          syncAllApproachingLicenses(app).catch((err) =>
+            console.error('Periodic license reminder sync error:', err)
+          );
+        }, 3600000);
         
         // Handle EADDRINUSE error gracefully
         server.on('error', (e) => {

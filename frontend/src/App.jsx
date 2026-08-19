@@ -145,7 +145,7 @@ function App() {
     if (route === "/") {
       return normalizedPath === "/";
     }
-    return normalizedPath.startsWith(route);
+    return normalizedPath === route || normalizedPath.startsWith(`${route}/`);
   });
 
   const LayoutWrapper = ({ children }) => {
