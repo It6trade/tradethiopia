@@ -47,7 +47,6 @@ import HRTrainingPage from './pages/HRTrainingPage.jsx';
 import ENISRALayout from "./components/ENSRA/ENSRALayout";
 import ENISRAEnhancedDashboard from "./components/ENSRA/ENISRAEnhancedDashboard";
 import ENISRANoticeBoard from "./components/ENSRA/ENSRANoticeBoard";
-// import ENISRARequest from "./components/ENSRA/ENSRARequest";
 import ENISRARequestEmbedded from "./components/ENSRA/ENISRARequestEmbedded";
 import ENISRAFollowUp from "./components/ENSRA/ENISRAFollowUp";
 import ProtectedRoute from "./routes/ProtectedRoute";
@@ -64,11 +63,11 @@ import CustomerMessagesPage from "./pages/CustomerMessagesPage.jsx";
 import EmployeePayrollView from "./components/Payroll/EmployeePayrollView";
 import KPIScorecardPage from "./pages/sales/KPIScorecardPage";
 import CustomerKPIPage from "./pages/customer/CustomerKPIPage";
+import HrKpiPage from "./pages/HrKpiPage";
 
 import MessagesPage from "./pages/MessagesPage";
 import SalesMessagesPage from "./pages/SalesMessagesPage";
 import FinanceMessagesPage from "./pages/FinanceMessagesPage";
-// import ITMessagesPage from "./pages/ITMessagesPage";
 import RedirectMessagesPage from "./pages/RedirectMessagesPage";
 import RequestPage from "./pages/RequestPage";
 import TeamRequestsPage from "./pages/sales/TeamRequestsPage.jsx";
@@ -76,7 +75,7 @@ import EmployeeRequestsPage from "./pages/EmployeeRequestsPage.jsx";
 import EmployeeWarningsPage from "./pages/EmployeeWarningsPage.jsx";
 import AttendancePage from "./pages/AttendancePage.jsx";
 import LeaveManagementPage from "./pages/LeaveManagementPage.jsx";
-import AppLayout from "./components/AppLayout"; // Import the new AppLayout component
+import AppLayout from "./components/AppLayout";
 import SupervisorLayout from "./pages/supervisor/SupervisorLayout.jsx";
 import SupervisorDashboardPage from "./pages/supervisor/SupervisorDashboardPage.jsx";
 import SupervisorAccountPage from "./pages/supervisor/SupervisorAccountPage.jsx";
@@ -102,6 +101,7 @@ const COODashboard = lazy(() => import("./pages/COODashboard"));
 const TradexTVDashboard = lazy(() => import("./pages/TradexTVDashboard"));
 const ITDashboard = lazy(() => import("./pages/it/ITDashboard"));
 const SocialMediaDashboardPage = lazy(() => import("./pages/socialmedia/SocialMediaDashboardPage"));
+const TessbinAdminDashboard = lazy(() => import("./pages/TessbinAdminDashboard"));
 const ChatPage = lazy(() => import("./pages/ChatPage.jsx"));
 const PayrollPage = lazy(() => import("./components/Payroll/PayrollPage"));
 const AllSalesPage = lazy(() => import("./components/salesmanager/AllSalesPage"));
@@ -129,17 +129,17 @@ const IT_ALLOWED_ROLES = [
 function App() {
   const location = useLocation();
 
-  // Define the paths where Sidebar and Navbar should not appear (standalone pages with their own layout)
   const noNavSidebarRoutes = [
-    "/", "/login", "/infoform", "/secondpage", "/employee-info", "/employee-file-upload", 
-    "/thirdpage", "/ttv", "/fourthpage", "/fifthpage", "/exam", "/sdashboard", "/sales", "/sales/dashboard", "/srequest",
-    "/finance-dashboard", "/finance",
-    "/cdashboard", "/waitingforapproval", "/comingsoonpage", "/b2b-dashboard",
-    "/coo-dashboard", "/ceo-dashboard", "/tradextv-dashboard", "/it", "/instructor", "/enisra", "/salesmanager",
-    "/supervisor", "/my-payroll", "/messages", "/customer/messages", "/sales/messages", "/customer/kpi"
+    "/", "/login", "/secondpage", "/employee-info", "/employee-file-upload", 
+    "/thirdpage", "/ttv", "/fourthpage", "/fifthpage", "/exam", "/sdashboard", "/sales", "/sales/dashboard", "/finance-dashboard", "/finance-dashboard/reports",
+    "/finance-dashboard/inventory", "/finance-dashboard/orders", "/finance-dashboard/pricing", "/finance-dashboard/revenue", "/finance-dashboard/purchase",
+    "/finance/messages", "/finance/team-requests", "/finance/demands", "/finance/payments", "/finance/inventory", "/finance/orders",
+    "/addcustomer", "/resource", "/videolist", "/uploadpage", "/my-payroll",
+    "/cdashboard", "/waitingforapproval", "/training","/comingsoonpage", "/customerreport", "/followup-report", "/customerfollowup", "/b2b-dashboard",
+    "/coo-dashboard", "/ceo-dashboard", "/tradextv-dashboard", "/customer-settings", "/it", "/salesmanager", "/social-media", "/requests", "/finance-dashboard/payroll", "/finance-dashboard/commission-approval", "/finance-dashboard/forms", "/supervisor", "/supervisor/account", "/finance/requests", "/reception-dashboard",
+    "/tessbin-dashboard", "/tessbin"
   ].map((path) => path.toLowerCase());
 
-  // Hide the navbar and sidebar for legacy/fullscreen pages; root should only match exactly
   const normalizedPath = location.pathname.toLowerCase();
   const showNavAndSidebar = !noNavSidebarRoutes.some((route) => {
     if (route === "/") {
@@ -148,7 +148,6 @@ function App() {
     return normalizedPath === route || normalizedPath.startsWith(`${route}/`);
   });
 
-  // Wrapper component that conditionally applies the layout
   const LayoutWrapper = ({ children }) => {
     if (showNavAndSidebar) {
       return <AppLayout>{children}</AppLayout>;
@@ -156,7 +155,7 @@ function App() {
     return children;
   };
 
-return (
+  return (
     <Suspense fallback={<div style={{ padding: "24px" }}>Loading...</div>}>
     <Routes>
       <Route path="/" element={<WelcomePage />} />
@@ -223,6 +222,14 @@ return (
         element={
           <RoleProtectedRoute allowedRoles={["hr", "admin"]}>
             <LayoutWrapper><AttendancePage /></LayoutWrapper>
+          </RoleProtectedRoute>
+        }
+      />
+      <Route
+        path="/hr-kpi"
+        element={
+          <RoleProtectedRoute allowedRoles={["hr", "admin", "coo"]}>
+            <LayoutWrapper><HrKpiPage /></LayoutWrapper>
           </RoleProtectedRoute>
         }
       />
@@ -309,7 +316,6 @@ return (
           </ProtectedRoute>
         }
       />
-
       <Route
         path="/UploadPage"
         element={
@@ -394,6 +400,15 @@ return (
           </ProtectedRoute>
         }
       />
+      <Route
+        path="/tessbin-dashboard"
+        element={
+          <RoleProtectedRoute allowedRoles={["tessbinadmin", "tessbin", "tessbin_admin", "admin"]}>
+            <TessbinAdminDashboard />
+          </RoleProtectedRoute>
+        }
+      />
+      <Route path="/tessbin" element={<Navigate to="/tessbin-dashboard" replace />} />
       <Route
         path="/customer-user-management"
         element={
@@ -522,7 +537,6 @@ return (
         <Route path="settings" element={<SettingsPage />} />
         <Route path="messages" element={<MessagesPage />} />
         <Route path="trainings" element={<TrainingPage />} />
-        
       </Route>
     </Routes>
     </Suspense>
@@ -530,6 +544,3 @@ return (
 }
 
 export default App;
-
-
-

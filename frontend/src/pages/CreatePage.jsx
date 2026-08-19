@@ -150,6 +150,7 @@ return (
                             <option value="reception">Reception</option>
                             <option value="COO">COO</option>
                             <option value="CEO">CEO</option>
+                            <option value="tessbinadmin">Tessbin Admin</option>
                         </Select>
                         <Input
                             placeholder="Salary"

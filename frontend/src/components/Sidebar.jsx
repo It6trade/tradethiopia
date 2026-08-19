@@ -304,6 +304,7 @@ const Sidebar = ({ isCollapsed: controlledIsCollapsed, onToggleCollapse }) => {
       <VStack align="stretch" spacing={0.5} flex="1">
         <SectionLabel label="Overview" isCollapsed={effectiveIsCollapsed} />
         <SidebarItem to="/dashboard" icon={FiHome} label="Dashboard" isCollapsed={effectiveIsCollapsed} isActive={isActive("/dashboard")} />
+        <SidebarItem to="/hr-kpi" icon={FiBarChart2} label="KPI" isCollapsed={effectiveIsCollapsed} isActive={isActive("/hr-kpi")} />
         <SidebarItem to="/profile" icon={FiUser} label="HR Profile" isCollapsed={effectiveIsCollapsed} isActive={isActive("/profile")} />
         
         {/* Document Management Category */}
