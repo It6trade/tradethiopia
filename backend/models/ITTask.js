@@ -41,7 +41,20 @@ const ITTaskSchema = new mongoose.Schema({
   ticketCategory: { type: String, default: '' },
   priority: { type: String, default: 'normal' },
   supportRequestNote: { type: String, default: '' },
+  supportStatus: { type: String, default: 'requested' },
+  requestedAt: { type: Date },
   managerAcceptedAt: { type: Date },
+  managerAcceptedByName: { type: String, default: '' },
+  managerAcceptedById: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  staffAcceptedAt: { type: Date },
+  staffAcceptedByName: { type: String, default: '' },
+  staffAcceptedById: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  sla: {
+    responseDueAt: { type: Date },
+    resolutionDueAt: { type: Date },
+    escalatedAt: { type: Date },
+    escalationReason: { type: String, default: '' }
+  },
   requesterFeedback: {
     rating: { type: Number, default: 0 },
     comment: { type: String, default: '' },
