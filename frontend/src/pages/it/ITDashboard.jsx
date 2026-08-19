@@ -370,7 +370,11 @@ export default function ITDashboard() {
         transition="margin-left 0.22s ease, width 0.22s ease"
       >
         {activeSection === 'notice-board' ? (
-          <NoticeBoardPanel title="IT Notice Board" subtitle="Internal announcements and alerts" />
+          <NoticeBoardPanel
+            title="IT Notice Board"
+            subtitle="Internal technical announcements, deployment notes, system maintenance alerts, and operational policies."
+            department="IT"
+          />
         ) : (
           <>
             <Box

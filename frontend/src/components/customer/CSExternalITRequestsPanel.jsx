@@ -11,6 +11,7 @@ import {
   Heading,
   HStack,
   Icon,
+  IconButton,
   Input,
   Radio,
   RadioGroup,
@@ -18,6 +19,7 @@ import {
   SimpleGrid,
   Text,
   Textarea,
+  Tooltip,
   VStack,
   useColorModeValue,
   useToast,
@@ -33,6 +35,7 @@ import {
   FiShield,
   FiStar,
   FiTool,
+  FiTrash2,
   FiUserCheck,
 } from "react-icons/fi";
 import axiosInstance from "../../services/axiosInstance";
@@ -339,6 +342,52 @@ export default function CSExternalITRequestsPanel({ focusedTaskId = "", focusedC
       });
     } finally {
       setCommentSavingId("");
+    }
+  };
+
+  const [deletingProjectId, setDeletingProjectId] = useState("");
+
+  const canUserDeleteProject = useCallback((task = {}) => {
+    if (isManager) return true;
+    const reqBy = String(task.requestedBy || "").trim().toLowerCase();
+    const createdBy = String(task.createdBy?._id || task.createdBy || "").trim().toLowerCase();
+    const submitter = String(task.submittedBy?._id || task.submittedBy || "").trim().toLowerCase();
+    const userId = String(currentUser?._id || currentUser?.id || "").trim().toLowerCase();
+    return (
+      userAliases.includes(reqBy) ||
+      userAliases.includes(createdBy) ||
+      userAliases.includes(submitter) ||
+      (userId && (userId === createdBy || userId === submitter))
+    );
+  }, [currentUser, isManager, userAliases]);
+
+  const handleDeleteProject = async (task) => {
+    const taskId = task._id || task.id;
+    const title = getTaskTitle(task);
+    if (!window.confirm(`Are you sure you want to delete "${title}"? Only the sender and managers can delete this external project.`)) {
+      return;
+    }
+
+    setDeletingProjectId(taskId);
+    try {
+      await axiosInstance.delete(`/it/${taskId}`);
+      setProjects((prev) => prev.filter((item) => (item._id || item.id) !== taskId));
+      toast({
+        title: "External project deleted",
+        status: "success",
+        duration: 3000,
+        isClosable: true,
+      });
+    } catch (error) {
+      toast({
+        title: "Failed to delete project",
+        description: error.response?.data?.message || error.message,
+        status: "error",
+        duration: 4000,
+        isClosable: true,
+      });
+    } finally {
+      setDeletingProjectId("");
     }
   };
 
@@ -734,9 +783,27 @@ export default function CSExternalITRequestsPanel({ focusedTaskId = "", focusedC
                             <Text fontSize="xs" color={muted}>{task.client || task.category || "External project"}</Text>
                           </Box>
                         </HStack>
-                        <Badge colorScheme={getStatusColor(task)}>
-                          {String(task.workflowStatus || task.status || "pending").replace("_", " ")}
-                        </Badge>
+                        <HStack spacing={2}>
+                          <Badge colorScheme={getStatusColor(task)}>
+                            {String(task.workflowStatus || task.status || "pending").replace("_", " ")}
+                          </Badge>
+                          {canUserDeleteProject(task) && (
+                            <Tooltip label="Delete External Project (Sender & Manager only)" hasArrow>
+                              <IconButton
+                                aria-label="Delete external project"
+                                icon={<FiTrash2 />}
+                                size="xs"
+                                variant="ghost"
+                                colorScheme="red"
+                                isLoading={deletingProjectId === taskId}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteProject(task);
+                                }}
+                              />
+                            </Tooltip>
+                          )}
+                        </HStack>
                       </Flex>
 
                       {isExpanded && (

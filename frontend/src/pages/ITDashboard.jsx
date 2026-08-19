@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Alert,
@@ -322,7 +322,11 @@ export default function ITDashboard() {
 
       <Box flex="1" p={{ base: 3, md: 4, xl: 5 }} minW={0} w="100%">
         {activeSection === 'notice-board' ? (
-          <NoticeBoardPanel title="IT Notice Board" subtitle="Internal announcements and alerts" />
+          <NoticeBoardPanel
+            title="IT Notice Board"
+            subtitle="Internal technical announcements, deployment notes, system maintenance alerts, and operational policies."
+            department="IT"
+          />
         ) : (
           <>
             <Box

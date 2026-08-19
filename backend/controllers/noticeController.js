@@ -13,14 +13,48 @@ const getUserDisplayName = (user) => (
 
 const normalizeRole = (role = '') => role.toString().trim().toLowerCase().replace(/[^a-z0-9]/g, '');
 
+const escapeRegex = (value = '') => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+const buildDepartmentQuery = (department) => {
+  if (!department || department === 'All' || department === 'all') {
+    return null;
+  }
+  const norm = department.trim().toLowerCase();
+  if (norm.includes('customer') || norm === 'cs') {
+    return {
+      $or: [
+        { department: { $regex: /customer/i } },
+        { department: { $regex: /^cs$/i } },
+        { department: { $regex: /^all$/i } },
+      ],
+    };
+  }
+  if (norm === 'it' || norm.includes('information technology') || norm.includes('tech')) {
+    return {
+      $or: [
+        { department: { $regex: /^it$/i } },
+        { department: { $regex: /information technology/i } },
+        { department: { $regex: /^all$/i } },
+      ],
+    };
+  }
+  return {
+    $or: [
+      { department: new RegExp(`^${escapeRegex(department)}$`, 'i') },
+      { department: { $regex: /^all$/i } },
+    ],
+  };
+};
+
 // 1. Get All Notices with Day/Month/Year + Category + Search filters
 const getNotices = async (req, res) => {
   try {
     const { department, category, day, month, year, status = 'active', search } = req.query;
     const filter = {};
 
-    if (department && department !== 'All') {
-      filter.department = department;
+    const deptQuery = buildDepartmentQuery(department);
+    if (deptQuery) {
+      Object.assign(filter, deptQuery);
     }
 
     if (category && category !== 'all') {
@@ -56,8 +90,11 @@ const getNotices = async (req, res) => {
 
     // Search filter
     if (search && search.trim()) {
-      const searchRegex = new RegExp(search.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
-      filter.$or = [{ title: searchRegex }, { content: searchRegex }, { authorName: searchRegex }];
+      const searchRegex = new RegExp(escapeRegex(search.trim()), 'i');
+      filter.$and = filter.$and || [];
+      filter.$and.push({
+        $or: [{ title: searchRegex }, { content: searchRegex }, { authorName: searchRegex }],
+      });
     }
 
     const notices = await Notice.find(filter)
@@ -86,7 +123,8 @@ const getNotices = async (req, res) => {
 const getNoticeStats = async (req, res) => {
   try {
     const { department = 'Customer Service' } = req.query;
-    const baseFilter = department !== 'All' ? { department } : {};
+    const deptQuery = buildDepartmentQuery(department);
+    const baseFilter = deptQuery || {};
 
     const [totalNotices, activeNotices, totalViewsResult, categoryCounts] = await Promise.all([
       Notice.countDocuments(baseFilter),
@@ -163,6 +201,7 @@ const createNotice = async (req, res) => {
       priority = 'normal',
       isPinned = false,
       effectiveDate,
+      attachments = [],
     } = req.body;
 
     if (!title || !title.trim()) {
@@ -183,6 +222,7 @@ const createNotice = async (req, res) => {
       priority,
       isPinned: Boolean(isPinned),
       effectiveDate: effectiveDate ? new Date(effectiveDate) : new Date(),
+      attachments: Array.isArray(attachments) ? attachments : [],
       author: req.user?._id,
       authorName,
       authorRole,
@@ -200,15 +240,25 @@ const createNotice = async (req, res) => {
 
     await notice.save();
 
-    // Broadcast notification to all active Customer Service team members
+    // Broadcast notification to all active department team members
     try {
+      const isItDept = String(department).toLowerCase().includes('it') || String(department).toLowerCase().includes('information technology');
+      const isCsDept = String(department).toLowerCase().includes('customer') || String(department).toLowerCase() === 'cs';
       const csRoles = ['customerservice', 'customersuccessmanager', 'cs', 'csmanager'];
+      const itRoles = ['admin', 'it', 'itadmin', 'itmanager', 'itteamleader', 'itleader', 'itstaff', 'itofficer'];
+
       const users = await User.find({ status: 'active' }).select('username fullName email role department status');
       
       const targetUsers = users.filter((u) => {
         const r = normalizeRole(u.role);
         const dept = (u.department || '').toLowerCase();
-        return csRoles.includes(r) || dept.includes('customer');
+        if (isItDept) {
+          return itRoles.includes(r) || dept.includes('it') || dept.includes('information technology');
+        }
+        if (isCsDept) {
+          return csRoles.includes(r) || dept.includes('customer');
+        }
+        return dept.includes(String(department).toLowerCase()) || r.includes(String(department).toLowerCase());
       });
 
       const categoryLabels = {
@@ -217,9 +267,16 @@ const createNotice = async (req, res) => {
         update: 'Important Update 📢',
         urgent_alert: 'Urgent Alert 🚨',
         policy: 'Policy Notice 📜',
+        maintenance: 'System Maintenance ⚙️',
+        deployment: 'New Release / Deployment 🚀',
+        security: 'Security Notice 🔒',
+        bug_fix: 'Bug Fix & Patch 🐛',
         general: 'Notice 💡',
       };
       const catLabel = categoryLabels[notice.category] || 'Notice';
+      const noticeLink = isItDept
+        ? `/it?tab=notice-board&notice=${notice._id}`
+        : `/cdashboard?tab=notice-board&notice=${notice._id}`;
 
       const notifications = [];
       targetUsers.forEach((u) => {
@@ -228,7 +285,7 @@ const createNotice = async (req, res) => {
             user: u._id,
             text: `[${catLabel}] ${notice.title} - posted by ${authorName}.`,
             type: 'general',
-            link: `/cdashboard?tab=notice-board&notice=${notice._id}`,
+            link: noticeLink,
             metadata: {
               title: `New ${catLabel}`,
               noticeId: notice._id,
@@ -261,7 +318,7 @@ const createNotice = async (req, res) => {
 // 5. Update Notice
 const updateNotice = async (req, res) => {
   try {
-    const { title, content, category, priority, isPinned, status, effectiveDate } = req.body;
+    const { title, content, category, priority, isPinned, status, effectiveDate, attachments } = req.body;
     const notice = await Notice.findById(req.params.id);
     if (!notice) return res.status(404).json({ success: false, message: 'Notice not found' });
 
@@ -272,6 +329,7 @@ const updateNotice = async (req, res) => {
     if (isPinned !== undefined) notice.isPinned = Boolean(isPinned);
     if (status !== undefined) notice.status = status;
     if (effectiveDate !== undefined) notice.effectiveDate = new Date(effectiveDate);
+    if (attachments !== undefined) notice.attachments = Array.isArray(attachments) ? attachments : [];
 
     await notice.save();
     res.json({ success: true, data: notice });

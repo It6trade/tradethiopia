@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import axiosInstance from "../../services/axiosInstance";
 import {
   Box,
   Flex,
@@ -128,21 +129,12 @@ const ModernTrainingPage = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 1200));
-      
-      // Fetch resources
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/resources/`);
-      const data = await res.json();
+      const res = await axiosInstance.get('/resources');
+      const data = Array.isArray(res.data) ? res.data : Array.isArray(res.data?.data) ? res.data.data : [];
       setResources(data);
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to load training data.",
-        status: "error",
-        duration: 5000,
-        isClosable: true,
-      });
+      console.warn("Training resources fetch note:", error.message);
+      // Keep existing resources or default training curriculum
     } finally {
       setLoading(false);
     }

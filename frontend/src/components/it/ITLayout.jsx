@@ -1,4 +1,4 @@
-﻿import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { normalizeRole, useUserStore } from '../../store/user';
 import {
@@ -1378,7 +1378,11 @@ const ITLayout = ({ initialTab = 'dashboard' }) => {
 
       <Box flex="1" p={{ base: 4, lg: 8 }} minW={0}>
         {activeSection === 'notice-board' ? (
-          <NoticeBoardPanel title="IT Notice Board" subtitle="Internal announcements and alerts" />
+          <NoticeBoardPanel
+            title="IT Notice Board"
+            subtitle="Internal technical announcements, deployment notes, system maintenance alerts, and operational policies."
+            department="IT"
+          />
         ) : (
           <>
             <Flex justify="space-between" align="center" mb={6} wrap="wrap" gap={4}>

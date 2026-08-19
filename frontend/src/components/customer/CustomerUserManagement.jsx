@@ -1,5 +1,11 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
+  AlertDialog,
+  AlertDialogBody,
+  AlertDialogContent,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogOverlay,
   Badge,
   Box,
   Button,
@@ -7,12 +13,19 @@ import {
   CardBody,
   CardHeader,
   Collapse,
+  Divider,
   Flex,
   Heading,
   HStack,
+  Icon,
   IconButton,
   Input,
+  InputGroup,
+  InputLeftElement,
+  InputRightElement,
   Select,
+  SimpleGrid,
+  Spinner,
   Stack,
   Table,
   TableContainer,
@@ -21,12 +34,16 @@ import {
   Text,
   Th,
   Thead,
+  Tooltip,
   Tr,
+  useColorModeValue,
+  useDisclosure,
   useToast,
+  VStack,
 } from "@chakra-ui/react";
-import { AddIcon, CheckIcon, CloseIcon, DeleteIcon } from "@chakra-ui/icons";
-import { FiChevronDown, FiChevronRight } from "react-icons/fi";
-import axios from "axios";
+import { AddIcon, CheckIcon, CloseIcon, DeleteIcon, EditIcon } from "@chakra-ui/icons";
+import { FiChevronDown, FiChevronRight, FiKey, FiLock, FiPower, FiRefreshCw, FiSearch, FiShield, FiUserCheck, FiUserPlus, FiUsers, FiX } from "react-icons/fi";
+import axiosInstance from "../../services/axiosInstance";
 import Layout from "./Layout";
 
 const normalizeRoleValue = (value = "") =>
@@ -34,7 +51,7 @@ const normalizeRoleValue = (value = "") =>
 
 const isCustomerSuccessAccount = (role) => {
   const normalized = normalizeRoleValue(role);
-  return normalized === "customerservice" || normalized === "customersuccessmanager";
+  return normalized === "customerservice" || normalized === "customersuccessmanager" || normalized.includes("customer");
 };
 
 const getCustomerRoleLabel = (role) =>
@@ -63,11 +80,17 @@ const CustomerUserManagement = () => {
   const [savingUser, setSavingUser] = useState(false);
   const [editingUserId, setEditingUserId] = useState(null);
   const [passwordDrafts, setPasswordDrafts] = useState({});
-  const [accountsOpen, setAccountsOpen] = useState(true);
   const [accountSearch, setAccountSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [isFormOpen, setIsFormOpen] = useState(true);
   const formCardRef = useRef(null);
+
+  // Delete User Dialog
+  const [deletingUser, setDeletingUser] = useState(null);
+  const { isOpen: isDeleteOpen, onOpen: onDeleteOpen, onClose: onDeleteClose } = useDisclosure();
+  const cancelDeleteRef = useRef();
+
   const [userForm, setUserForm] = useState({
     username: "",
     fullName: "",
@@ -76,9 +99,17 @@ const CustomerUserManagement = () => {
     role: "customerservice",
     status: "active",
   });
+
+  const cardBg = useColorModeValue("white", "gray.800");
+  const borderColor = useColorModeValue("gray.200", "gray.700");
+  const sidebarBg = useColorModeValue("gray.50", "gray.900");
+  const mutedColor = useColorModeValue("gray.600", "gray.400");
+  const tableHoverBg = useColorModeValue("gray.50", "gray.750");
+
   const currentUserId = getStoredUserId();
+
   const filteredUsers = useMemo(() => {
-    const query = accountSearch.trim().toLowerCase();
+    const query = (accountSearch || "").trim().toLowerCase();
     return users.filter((user) => {
       const normalizedRole = normalizeRoleValue(user.role || user.roleName);
       const normalizedStatus = (user.status || "inactive").toLowerCase();
@@ -95,16 +126,14 @@ const CustomerUserManagement = () => {
         .toLowerCase();
 
       const matchesSearch = !query || searchable.includes(query);
-      const matchesRole = roleFilter === "all" || normalizedRole === roleFilter;
+      const matchesRole =
+        roleFilter === "all" ||
+        (roleFilter === "csm" && normalizedRole === "customersuccessmanager") ||
+        (roleFilter === "cs" && normalizedRole === "customerservice");
       const matchesStatus = statusFilter === "all" || normalizedStatus === statusFilter;
       return matchesSearch && matchesRole && matchesStatus;
     });
   }, [accountSearch, roleFilter, statusFilter, users]);
-
-  const getAuthHeaders = () => {
-    const token = localStorage.getItem("userToken");
-    return token ? { Authorization: `Bearer ${token}` } : {};
-  };
 
   const normalizeUsersResponse = (payload) => {
     const raw =
@@ -118,9 +147,7 @@ const CustomerUserManagement = () => {
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/users`, {
-        headers: getAuthHeaders(),
-      });
+      const res = await axiosInstance.get("/users");
       const customerUsers = normalizeUsersResponse(res.data)
         .filter((u) => isCustomerSuccessAccount(u.role || u.roleName))
         .sort((a, b) =>
@@ -162,6 +189,7 @@ const CustomerUserManagement = () => {
 
   const startUserEdit = (user) => {
     setEditingUserId(user._id);
+    setIsFormOpen(true);
     setUserForm({
       username: user.username || "",
       fullName: user.fullName || "",
@@ -175,7 +203,7 @@ const CustomerUserManagement = () => {
     });
     window.setTimeout(() => {
       formCardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }, 0);
+    }, 50);
     toast({
       title: "Edit mode opened",
       description: `Updating ${user.fullName || user.username || user.email}.`,
@@ -184,7 +212,8 @@ const CustomerUserManagement = () => {
     });
   };
 
-  const saveCustomerUser = async () => {
+  const saveCustomerUser = async (e) => {
+    e?.preventDefault?.();
     if (!userForm.username.trim() || !userForm.email.trim() || (!editingUserId && !userForm.password.trim())) {
       toast({
         title: "Missing account details",
@@ -198,35 +227,39 @@ const CustomerUserManagement = () => {
     const role = userForm.role;
     const payload = {
       username: userForm.username.trim(),
-      fullName: userForm.fullName.trim(),
-      email: userForm.email.trim(),
+      fullName: userForm.fullName.trim() || userForm.username.trim(),
+      email: userForm.email.trim().toLowerCase(),
       role,
       status: userForm.status,
       department: "Customer Success",
-      jobTitle:
-        normalizeRoleValue(role) === "customersuccessmanager"
-          ? "Customer Success Manager"
-          : "Customer Service Representative",
+      infoStatus: userForm.status,
     };
-    if (userForm.password.trim()) payload.password = userForm.password.trim();
+
+    if (userForm.password && userForm.password.trim()) {
+      payload.password = userForm.password.trim();
+    }
 
     try {
       if (editingUserId) {
-        await axios.put(`${import.meta.env.VITE_API_URL}/api/users/${editingUserId}`, payload, {
-          headers: getAuthHeaders(),
+        await axiosInstance.put(`/users/${editingUserId}`, payload);
+        toast({
+          title: "User updated",
+          description: "Customer service account updated successfully.",
+          status: "success",
         });
-        toast({ title: "Customer user updated", status: "success" });
       } else {
-        await axios.post(`${import.meta.env.VITE_API_URL}/api/users`, payload, {
-          headers: getAuthHeaders(),
+        await axiosInstance.post("/users", payload);
+        toast({
+          title: "User created",
+          description: "New customer service account registered successfully.",
+          status: "success",
         });
-        toast({ title: "Customer user created", status: "success" });
       }
       resetUserForm();
       await fetchUsers();
     } catch (err) {
       toast({
-        title: editingUserId ? "Failed to update user" : "Failed to create user",
+        title: editingUserId ? "Update failed" : "Creation failed",
         description: err.response?.data?.message || err.message,
         status: "error",
       });
@@ -235,65 +268,68 @@ const CustomerUserManagement = () => {
     }
   };
 
-  const toggleCustomerUserStatus = async (user) => {
-    const nextStatus = user.status === "active" ? "inactive" : "active";
+  const updateUserInline = async (user, updates) => {
     try {
-      await axios.put(
-        `${import.meta.env.VITE_API_URL}/api/users/${user._id}`,
-        { status: nextStatus },
-        { headers: getAuthHeaders() }
-      );
-      toast({ title: `User ${nextStatus === "active" ? "activated" : "deactivated"}`, status: "success" });
+      await axiosInstance.put(`/users/${user._id}`, updates);
       await fetchUsers();
-    } catch (err) {
+      toast({ title: "Account updated", status: "success", duration: 2000 });
+    } catch (error) {
       toast({
-        title: "Failed to update status",
-        description: err.response?.data?.message || err.message,
+        title: "Update failed",
+        description: error.response?.data?.message || error.message,
         status: "error",
       });
     }
   };
 
-  const resetCustomerUserPassword = async (user) => {
-    const password = (passwordDrafts[user._id] || "").trim();
-    if (!password) {
-      toast({ title: "Enter a new password first", status: "warning" });
+  const handleResetPassword = async (user) => {
+    const newPassword = passwordDrafts[user._id];
+    if (!newPassword || newPassword.trim().length < 4) {
+      toast({ title: "Password must be at least 4 characters", status: "warning", duration: 2500 });
       return;
     }
     try {
-      await axios.put(
-        `${import.meta.env.VITE_API_URL}/api/users/${user._id}`,
-        { password },
-        { headers: getAuthHeaders() }
-      );
+      await axiosInstance.put(`/users/${user._id}`, { password: newPassword });
       setPasswordDrafts((prev) => ({ ...prev, [user._id]: "" }));
-      toast({ title: "Password reset", status: "success" });
-    } catch (err) {
       toast({
-        title: "Failed to reset password",
-        description: err.response?.data?.message || err.message,
+        title: "Password updated",
+        description: `New password set for ${user.username || user.email}`,
+        status: "success",
+        duration: 3000,
+      });
+    } catch (error) {
+      toast({
+        title: "Password reset failed",
+        description: error.response?.data?.message || error.message,
         status: "error",
       });
     }
   };
 
-  const deleteCustomerUser = async (user) => {
-    if (user._id === currentUserId) {
-      toast({ title: "You cannot delete your own account here", status: "warning" });
+  const openDeleteDialog = (user) => {
+    if (String(user._id) === String(currentUserId)) {
+      toast({
+        title: "Action restricted",
+        description: "You cannot delete your own signed-in account.",
+        status: "warning",
+      });
       return;
     }
-    const confirmed = window.confirm(`Delete ${user.fullName || user.username || user.email}?`);
-    if (!confirmed) return;
+    setDeletingUser(user);
+    onDeleteOpen();
+  };
 
+  const confirmDeleteUser = async () => {
+    if (!deletingUser?._id) return;
     try {
-      await axios.delete(`${import.meta.env.VITE_API_URL}/api/users/${user._id}`, {
-        headers: getAuthHeaders(),
-      });
-      toast({ title: "Customer user deleted", status: "info" });
+      await axiosInstance.delete(`/users/${deletingUser._id}`);
+      onDeleteClose();
+      setDeletingUser(null);
       await fetchUsers();
+      toast({ title: "User removed successfully", status: "info", duration: 2500 });
     } catch (err) {
       toast({
-        title: "Failed to delete user",
+        title: "Delete failed",
         description: err.response?.data?.message || err.message,
         status: "error",
       });
@@ -302,237 +338,340 @@ const CustomerUserManagement = () => {
 
   return (
     <Layout>
-      <Box bgGradient="linear(to-b, gray.50, white)" minH="100vh" p={{ base: 4, md: 8 }}>
-        <Flex align="center" justify="space-between" gap={4} wrap="wrap" mb={6}>
-          <Box>
-            <Heading size="lg">Customer User Management</Heading>
-            <Text color="gray.500" fontSize="sm">
-              Manage Customer Service and Customer Success Manager accounts separately from settings.
-            </Text>
-          </Box>
-          <Badge colorScheme="blue" rounded="full" px={3} py={1}>
-            {loading ? "Loading..." : `${users.length} accounts`}
-          </Badge>
-        </Flex>
-
-        <Card ref={formCardRef} border="1px solid" borderColor="gray.200" rounded="2xl" boxShadow="xl" mb={6}>
-          <CardHeader pb={2}>
-            <Flex align="center" justify="space-between" gap={3} wrap="wrap">
+      <Box w="100%" minH="100vh" p={{ base: 4, md: 6 }}>
+        <VStack spacing={6} align="stretch" w="100%">
+          {/* Header Banner - Full Screen */}
+          <Flex justify="space-between" align={{ base: "flex-start", md: "center" }} gap={4} flexWrap="wrap" w="100%">
+            <HStack spacing={3}>
+              <Box p={2.5} bg="blue.500" color="white" borderRadius="xl" boxShadow="sm">
+                <FiUsers size={24} />
+              </Box>
               <Box>
-                <Heading size="md">{editingUserId ? "Edit User" : "Create User"}</Heading>
-                <Text color="gray.500" fontSize="sm">
-                  Create accounts, reset credentials, and control access status.
+                <Heading size="lg">Customer User Management</Heading>
+                <Text color={mutedColor} fontSize="sm">
+                  Create, configure roles, reset credentials, and govern Customer Service & CSM staff accounts.
                 </Text>
               </Box>
-              {editingUserId && (
-                <Badge colorScheme="orange" rounded="full" px={3} py={1}>
-                  Editing {userForm.fullName || userForm.username || userForm.email}
-                </Badge>
-              )}
-            </Flex>
-          </CardHeader>
-          <CardBody>
-            <Stack spacing={4}>
-              <Stack direction={{ base: "column", xl: "row" }} spacing={3} align="stretch">
-                <Input
-                  placeholder="Username"
-                  name="customer_user_management_username"
-                  autoComplete="off"
-                  value={userForm.username}
-                  onChange={(e) => handleUserFormChange("username", e.target.value)}
-                />
-                <Input
-                  placeholder="Full name"
-                  name="customer_user_management_full_name"
-                  autoComplete="off"
-                  value={userForm.fullName}
-                  onChange={(e) => handleUserFormChange("fullName", e.target.value)}
-                />
-                <Input
-                  placeholder="Email"
-                  type="email"
-                  name="customer_user_management_email"
-                  autoComplete="off"
-                  value={userForm.email}
-                  onChange={(e) => handleUserFormChange("email", e.target.value)}
-                />
-              </Stack>
-              <Stack direction={{ base: "column", lg: "row" }} spacing={3} align="stretch">
-                <Input
-                  placeholder={editingUserId ? "New password (optional)" : "Password"}
-                  type="password"
-                  name="customer_user_management_new_password"
-                  autoComplete="new-password"
-                  value={userForm.password}
-                  onChange={(e) => handleUserFormChange("password", e.target.value)}
-                />
-                <Select value={userForm.role} onChange={(e) => handleUserFormChange("role", e.target.value)}>
-                  <option value="customerservice">Customer Service</option>
-                  <option value="CustomerSuccessManager">Customer Success Manager</option>
-                </Select>
-                <Select value={userForm.status} onChange={(e) => handleUserFormChange("status", e.target.value)}>
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
-                </Select>
-                <Button
-                  colorScheme="blue"
-                  leftIcon={editingUserId ? <CheckIcon /> : <AddIcon />}
-                  onClick={saveCustomerUser}
-                  isLoading={savingUser}
-                  minW="150px"
-                >
-                  {editingUserId ? "Update User" : "Create User"}
-                </Button>
-                {editingUserId && (
-                  <Button variant="ghost" leftIcon={<CloseIcon />} onClick={resetUserForm}>
-                    Cancel
-                  </Button>
-                )}
-              </Stack>
-            </Stack>
-          </CardBody>
-        </Card>
+            </HStack>
 
-        <Card border="1px solid" borderColor="gray.200" rounded="2xl" boxShadow="xl">
-          <CardHeader pb={accountsOpen ? 2 : 4}>
-            <Flex align="center" justify="space-between" gap={3} wrap="wrap">
+            <HStack spacing={3}>
+              <Badge colorScheme="blue" fontSize="sm" px={3} py={1} borderRadius="full">
+                {users.length} Active CS Accounts
+              </Badge>
               <Button
-                variant="ghost"
-                leftIcon={accountsOpen ? <FiChevronDown /> : <FiChevronRight />}
-                onClick={() => setAccountsOpen((prev) => !prev)}
-                justifyContent="flex-start"
-                px={0}
-                _hover={{ bg: "transparent", color: "blue.600" }}
+                size="sm"
+                colorScheme="blue"
+                leftIcon={<FiUserPlus />}
+                onClick={() => {
+                  resetUserForm();
+                  setIsFormOpen(true);
+                  window.setTimeout(() => {
+                    formCardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+                  }, 50);
+                }}
               >
-                <Box textAlign="left">
-                  <Heading size="md">Customer Accounts</Heading>
-                  <Text color="gray.500" fontSize="sm" fontWeight="normal">
-                    Collapse or expand the full account control table.
-                  </Text>
-                </Box>
+                New Account
               </Button>
-              <HStack spacing={2}>
-                <Badge colorScheme="blue" rounded="full" px={3} py={1}>
-                  {filteredUsers.length}/{users.length} shown
-                </Badge>
-                <Badge colorScheme="green" rounded="full" px={3} py={1}>
-                  {users.filter((user) => user.status === "active").length} active
-                </Badge>
-              </HStack>
-            </Flex>
-          </CardHeader>
-          <Collapse in={accountsOpen} animateOpacity>
-            <CardBody pt={0}>
-              <Stack direction={{ base: "column", lg: "row" }} spacing={3} mb={4}>
-                <Input
-                  placeholder="Search by name, username, email, department, or role"
-                  value={accountSearch}
-                  onChange={(e) => setAccountSearch(e.target.value)}
-                  bg="white"
-                />
-                <Select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)} maxW={{ base: "100%", lg: "220px" }}>
-                  <option value="all">All roles</option>
-                  <option value="customerservice">Customer Service</option>
-                  <option value="customersuccessmanager">Customer Success Manager</option>
-                </Select>
-                <Select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} maxW={{ base: "100%", lg: "180px" }}>
-                  <option value="all">All statuses</option>
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
-                </Select>
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setAccountSearch("");
-                    setRoleFilter("all");
-                    setStatusFilter("all");
-                  }}
-                >
-                  Clear
-                </Button>
-              </Stack>
+              <IconButton
+                aria-label="Refresh user list"
+                icon={<FiRefreshCw />}
+                size="sm"
+                variant="outline"
+                onClick={fetchUsers}
+                isLoading={loading}
+              />
+            </HStack>
+          </Flex>
+
+          {/* Account Creation / Edit Form */}
+          <Card ref={formCardRef} bg={cardBg} borderColor={borderColor} borderWidth="1px" borderRadius="2xl" boxShadow="sm" w="100%">
+            <CardHeader pb={2} pt={4} px={5}>
+              <Flex justify="space-between" align="center">
+                <HStack spacing={2}>
+                  <Icon as={editingUserId ? EditIcon : FiUserPlus} color="blue.500" />
+                  <Heading size="md">
+                    {editingUserId ? "Edit Customer Service Account" : "Register Customer Service Account"}
+                  </Heading>
+                </HStack>
+                <HStack spacing={2}>
+                  {editingUserId && (
+                    <Button size="xs" variant="ghost" onClick={resetUserForm} leftIcon={<CloseIcon />}>
+                      Cancel Edit
+                    </Button>
+                  )}
+                  <IconButton
+                    size="xs"
+                    variant="ghost"
+                    icon={isFormOpen ? <FiChevronDown /> : <FiChevronRight />}
+                    aria-label="Toggle form"
+                    onClick={() => setIsFormOpen(!isFormOpen)}
+                  />
+                </HStack>
+              </Flex>
+            </CardHeader>
+            <Collapse in={isFormOpen} animateOpacity>
+              <CardBody px={5} pt={2} pb={5}>
+                <form onSubmit={saveCustomerUser} autoComplete="off">
+                  <SimpleGrid columns={{ base: 1, sm: 2, md: 3, xl: 6 }} spacing={3}>
+                    <Box>
+                      <Text fontSize="xs" fontWeight="bold" mb={1} color={mutedColor}>USERNAME *</Text>
+                      <Input
+                        size="sm"
+                        placeholder="Username"
+                        name="cs_new_username_input"
+                        autoComplete="off"
+                        value={userForm.username}
+                        onChange={(e) => handleUserFormChange("username", e.target.value)}
+                        required
+                      />
+                    </Box>
+
+                    <Box>
+                      <Text fontSize="xs" fontWeight="bold" mb={1} color={mutedColor}>FULL NAME</Text>
+                      <Input
+                        size="sm"
+                        placeholder="Full Name"
+                        name="cs_new_fullname_input"
+                        autoComplete="off"
+                        value={userForm.fullName}
+                        onChange={(e) => handleUserFormChange("fullName", e.target.value)}
+                      />
+                    </Box>
+
+                    <Box>
+                      <Text fontSize="xs" fontWeight="bold" mb={1} color={mutedColor}>EMAIL *</Text>
+                      <Input
+                        size="sm"
+                        type="email"
+                        placeholder="Email address"
+                        name="cs_new_email_input"
+                        autoComplete="off"
+                        value={userForm.email}
+                        onChange={(e) => handleUserFormChange("email", e.target.value)}
+                        required
+                      />
+                    </Box>
+
+                    <Box>
+                      <Text fontSize="xs" fontWeight="bold" mb={1} color={mutedColor}>
+                        {editingUserId ? "PASSWORD (OPTIONAL)" : "PASSWORD *"}
+                      </Text>
+                      <Input
+                        size="sm"
+                        type="password"
+                        placeholder={editingUserId ? "Leave blank to keep" : "Temporary password"}
+                        name="cs_new_password_input"
+                        autoComplete="new-password"
+                        value={userForm.password}
+                        onChange={(e) => handleUserFormChange("password", e.target.value)}
+                        required={!editingUserId}
+                      />
+                    </Box>
+
+                    <Box>
+                      <Text fontSize="xs" fontWeight="bold" mb={1} color={mutedColor}>ROLE</Text>
+                      <Select
+                        size="sm"
+                        value={userForm.role}
+                        onChange={(e) => handleUserFormChange("role", e.target.value)}
+                      >
+                        <option value="customerservice">Customer Service</option>
+                        <option value="CustomerSuccessManager">Customer Success Manager</option>
+                      </Select>
+                    </Box>
+
+                    <Box display="flex" alignItems="flex-end">
+                      <Button
+                        size="sm"
+                        colorScheme="blue"
+                        type="submit"
+                        w="100%"
+                        isLoading={savingUser}
+                        leftIcon={editingUserId ? <CheckIcon /> : <AddIcon />}
+                      >
+                        {editingUserId ? "Update User" : "Add Account"}
+                      </Button>
+                    </Box>
+                  </SimpleGrid>
+                </form>
+              </CardBody>
+            </Collapse>
+          </Card>
+
+          {/* Directory & Management Table - Full Screen */}
+          <Card bg={cardBg} borderColor={borderColor} borderWidth="1px" borderRadius="2xl" boxShadow="sm" w="100%">
+            <CardHeader pb={3} pt={4} px={5}>
+              <Flex justify="space-between" align={{ base: "flex-start", sm: "center" }} gap={3} flexWrap="wrap">
+                <HStack spacing={2}>
+                  <Heading size="md">Customer Service Staff Directory</Heading>
+                  <Badge colorScheme="blue" borderRadius="full" px={2.5}>
+                    {filteredUsers.length} Users
+                  </Badge>
+                </HStack>
+
+                <HStack spacing={2} flexWrap="wrap">
+                  <Select
+                    size="sm"
+                    w="150px"
+                    value={roleFilter}
+                    onChange={(e) => setRoleFilter(e.target.value)}
+                  >
+                    <option value="all">All CS Roles</option>
+                    <option value="cs">Customer Service</option>
+                    <option value="csm">Success Managers</option>
+                  </Select>
+
+                  <Select
+                    size="sm"
+                    w="120px"
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                  >
+                    <option value="all">All Status</option>
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                  </Select>
+
+                  {/* Clean Non-Autofilled Search Input */}
+                  <InputGroup size="sm" maxW="240px">
+                    <InputLeftElement pointerEvents="none">
+                      <FiSearch color="gray" />
+                    </InputLeftElement>
+                    <Input
+                      placeholder="Search accounts..."
+                      name="cs_account_search_unique_field"
+                      id="cs_account_search_unique_field"
+                      autoComplete="off"
+                      autoCorrect="off"
+                      spellCheck="false"
+                      value={accountSearch}
+                      onChange={(e) => setAccountSearch(e.target.value)}
+                    />
+                    {accountSearch && (
+                      <InputRightElement>
+                        <IconButton
+                          aria-label="Clear search"
+                          icon={<FiX />}
+                          size="xs"
+                          variant="ghost"
+                          onClick={() => setAccountSearch("")}
+                        />
+                      </InputRightElement>
+                    )}
+                  </InputGroup>
+                </HStack>
+              </Flex>
+            </CardHeader>
+
+            <CardBody p={0}>
               <TableContainer>
                 <Table size="sm" variant="simple">
-                  <Thead bg="gray.50">
+                  <Thead bg={sidebarBg}>
                     <Tr>
-                      <Th>User</Th>
+                      <Th>Staff Member</Th>
                       <Th>Role</Th>
                       <Th>Status</Th>
-                      <Th>Password reset</Th>
+                      <Th>Reset Password</Th>
                       <Th textAlign="right">Actions</Th>
                     </Tr>
                   </Thead>
                   <Tbody>
-                    {filteredUsers.length === 0 ? (
+                    {loading ? (
                       <Tr>
-                        <Td colSpan={5} textAlign="center" py={6}>
-                          <Text color="gray.500">
-                            {users.length === 0
-                              ? "No customer service accounts found."
-                              : "No accounts match the current search or filters."}
-                          </Text>
+                        <Td colSpan={5} textAlign="center" py={8}>
+                          <Spinner size="md" color="blue.500" />
+                          <Text fontSize="xs" color={mutedColor} mt={2}>Loading customer service accounts...</Text>
+                        </Td>
+                      </Tr>
+                    ) : filteredUsers.length === 0 ? (
+                      <Tr>
+                        <Td colSpan={5} textAlign="center" py={8} color={mutedColor}>
+                          No accounts found matching your search.
                         </Td>
                       </Tr>
                     ) : (
                       filteredUsers.map((user) => (
-                        <Tr key={user._id} _hover={{ bg: "gray.50" }}>
+                        <Tr key={user._id || user.email} _hover={{ bg: tableHoverBg }}>
                           <Td>
-                            <Text fontWeight="semibold">{user.fullName || user.username || "Unnamed user"}</Text>
-                            <Text color="gray.500" fontSize="xs">
-                              {user.email || user.username}
+                            <Text fontWeight="semibold" fontSize="xs">
+                              {user.fullName || user.username}
                             </Text>
+                            <Text fontSize="2xs" color="gray.500">{user.email}</Text>
                           </Td>
+
                           <Td>
-                            <Badge colorScheme={normalizeRoleValue(user.role) === "customersuccessmanager" ? "purple" : "teal"}>
-                              {getCustomerRoleLabel(user.role)}
-                            </Badge>
+                            <Select
+                              size="xs"
+                              w="180px"
+                              value={
+                                normalizeRoleValue(user.role || user.roleName) === "customersuccessmanager"
+                                  ? "CustomerSuccessManager"
+                                  : "customerservice"
+                              }
+                              onChange={(e) => updateUserInline(user, { role: e.target.value })}
+                            >
+                              <option value="customerservice">Customer Service</option>
+                              <option value="CustomerSuccessManager">Customer Success Manager</option>
+                            </Select>
                           </Td>
+
                           <Td>
-                            <Badge colorScheme={user.status === "active" ? "green" : "red"} variant="subtle">
-                              {user.status || "inactive"}
-                            </Badge>
+                            <Select
+                              size="xs"
+                              w="110px"
+                              value={user.status || "active"}
+                              colorScheme={user.status === "active" ? "green" : "red"}
+                              onChange={(e) => updateUserInline(user, { status: e.target.value })}
+                            >
+                              <option value="active">🟢 Active</option>
+                              <option value="inactive">🔴 Inactive</option>
+                            </Select>
                           </Td>
+
                           <Td>
-                            <HStack spacing={2}>
+                            <HStack spacing={1.5} maxW="200px">
                               <Input
-                                size="sm"
+                                size="xs"
                                 type="password"
-                                placeholder="New password"
-                                name={`customer_user_management_reset_${user._id}`}
+                                placeholder="New pass..."
                                 autoComplete="new-password"
                                 value={passwordDrafts[user._id] || ""}
-                                onChange={(e) =>
-                                  setPasswordDrafts((prev) => ({ ...prev, [user._id]: e.target.value }))
-                                }
-                                maxW="180px"
+                                onChange={(e) => setPasswordDrafts({ ...passwordDrafts, [user._id]: e.target.value })}
                               />
-                              <Button size="sm" variant="outline" onClick={() => resetCustomerUserPassword(user)}>
-                                Reset
+                              <Button
+                                size="xs"
+                                colorScheme="blue"
+                                onClick={() => handleResetPassword(user)}
+                                isDisabled={!passwordDrafts[user._id]}
+                              >
+                                Set
                               </Button>
                             </HStack>
                           </Td>
+
                           <Td textAlign="right">
-                            <HStack justify="flex-end" spacing={2}>
-                              <Button size="sm" variant="outline" onClick={() => startUserEdit(user)}>
-                                Edit
-                              </Button>
-                              <Button
-                                size="sm"
-                                colorScheme={user.status === "active" ? "orange" : "green"}
-                                variant="outline"
-                                onClick={() => toggleCustomerUserStatus(user)}
-                              >
-                                {user.status === "active" ? "Deactivate" : "Activate"}
-                              </Button>
-                              <IconButton
-                                aria-label="Delete customer user"
-                                icon={<DeleteIcon />}
-                                size="sm"
-                                variant="ghost"
-                                colorScheme="red"
-                                isDisabled={user._id === currentUserId}
-                                onClick={() => deleteCustomerUser(user)}
-                              />
+                            <HStack justify="flex-end" spacing={1}>
+                              <Tooltip label="Edit Details">
+                                <IconButton
+                                  aria-label="Edit user"
+                                  icon={<EditIcon />}
+                                  size="xs"
+                                  variant="ghost"
+                                  colorScheme="blue"
+                                  onClick={() => startUserEdit(user)}
+                                />
+                              </Tooltip>
+
+                              <Tooltip label="Delete Account">
+                                <IconButton
+                                  aria-label="Delete user"
+                                  icon={<DeleteIcon />}
+                                  size="xs"
+                                  variant="ghost"
+                                  colorScheme="red"
+                                  onClick={() => openDeleteDialog(user)}
+                                />
+                              </Tooltip>
                             </HStack>
                           </Td>
                         </Tr>
@@ -542,9 +681,27 @@ const CustomerUserManagement = () => {
                 </Table>
               </TableContainer>
             </CardBody>
-          </Collapse>
-        </Card>
+          </Card>
+        </VStack>
       </Box>
+
+      {/* Delete User Confirmation Dialog */}
+      <AlertDialog isOpen={isDeleteOpen} leastDestructiveRef={cancelDeleteRef} onClose={onDeleteClose} isCentered>
+        <AlertDialogOverlay backdropFilter="blur(2px)">
+          <AlertDialogContent borderRadius="2xl">
+            <AlertDialogHeader fontSize="lg" fontWeight="bold">
+              Permanently Delete Account
+            </AlertDialogHeader>
+            <AlertDialogBody>
+              Are you sure you want to delete customer service account <strong>"{deletingUser?.fullName || deletingUser?.username || deletingUser?.email}"</strong>? This will revoke all system access.
+            </AlertDialogBody>
+            <AlertDialogFooter gap={2}>
+              <Button ref={cancelDeleteRef} onClick={onDeleteClose}>Cancel</Button>
+              <Button colorScheme="red" onClick={confirmDeleteUser}>Delete Account</Button>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialogOverlay>
+      </AlertDialog>
     </Layout>
   );
 };

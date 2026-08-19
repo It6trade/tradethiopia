@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef } from "react";
-import axios from "axios";
 import Layout from './Layout';
 import jsPDF from "jspdf";
 import 'jspdf-autotable';
@@ -67,16 +66,7 @@ import {
   FiTrendingUp
 } from "react-icons/fi";
 
-const API_URL = import.meta.env.VITE_API_URL;
-
-// Create axios instance with timeout
-const apiClient = axios.create({
-  baseURL: API_URL,
-  timeout: 5000, // 5 second timeout to prevent hanging
-  headers: {
-    'Content-Type': 'application/json',
-  }
-});
+import axiosInstance from "../../services/axiosInstance";
 
 const CustomerFollowupReport = () => {
   const [followups, setFollowups] = useState([]);
@@ -106,109 +96,55 @@ const CustomerFollowupReport = () => {
   const secondaryTextColor = useColorModeValue("gray.500", "gray.400");
 
   useEffect(() => {
-    let retryCount = 0;
-    const maxRetries = 2; // Reduce retries to prevent excessive attempts
-    
+    let isMounted = true;
     const fetchFollowups = async () => {
       try {
         setLoading(true);
-        const startTime = performance.now();
-        const token = localStorage.getItem("userToken");
-        const headers = token ? { Authorization: `Bearer ${token}` } : {};
-        
-        // Log request start
-        console.log(`Starting followup data fetch (attempt ${retryCount + 1})`);
-        // Request smaller chunks of data to prevent timeouts
-        const [response, trainingRes, usersRes] = await Promise.all([
-          apiClient.get(`/api/followups?limit=100&page=1`, { headers }),
-          apiClient.get(`/api/training-followups?limit=100&page=1`, { headers }).catch(() => ({ data: [] })),
-          apiClient.get(`/api/users`, { headers }).catch(() => ({ data: [] }))
+        // Fast parallel fetch without blocking each other
+        const [response, trainingRes, usersRes] = await Promise.allSettled([
+          axiosInstance.get('/followups?limit=100&page=1'),
+          axiosInstance.get('/training-followups?limit=100&page=1'),
+          axiosInstance.get('/users'),
         ]);
-        
-        // Handle the new response format from followups API
-        if (response.data && Array.isArray(response.data.data)) {
-          setFollowups(response.data.data);
-          calculateStats(response.data.data);
-        } else if (response.data && Array.isArray(response.data)) {
-          // Fallback for old format
-          setFollowups(response.data);
-          calculateStats(response.data);
-        } else {
-          setError("Invalid data format received from server");
+
+        if (!isMounted) return;
+
+        if (response.status === 'fulfilled' && response.value?.data) {
+          const raw = response.value.data;
+          const list = Array.isArray(raw.data) ? raw.data : Array.isArray(raw) ? raw : [];
+          setFollowups(list);
+          calculateStats(list);
         }
 
-        // Handle the new response format from training followups API
-        if (trainingRes.data && Array.isArray(trainingRes.data.data)) {
-          setTrainingFollowupsData(trainingRes.data.data);
-        } else if (Array.isArray(trainingRes.data)) {
-          // Fallback for old format
-          setTrainingFollowupsData(trainingRes.data);
-        } else {
-          setTrainingFollowupsData([]);
+        if (trainingRes.status === 'fulfilled' && trainingRes.value?.data) {
+          const raw = trainingRes.value.data;
+          const list = Array.isArray(raw.data) ? raw.data : Array.isArray(raw) ? raw : [];
+          setTrainingFollowupsData(list);
         }
 
-        const userList = Array.isArray(usersRes.data)
-          ? usersRes.data
-          : Array.isArray(usersRes.data?.users)
-            ? usersRes.data.users
-            : [];
-        const map = {};
-        userList.forEach((u) => {
-          const id = (u._id || u.id || '').toString();
-          if (id) {
-            map[id] = u.username || u.name || u.email || id;
-          }
-        });
-        setUsersMap(map);
-        
-        // Log request completion time
-        const endTime = performance.now();
-        console.log(`Followup data fetch completed in ${(endTime - startTime).toFixed(2)}ms`);
+        if (usersRes.status === 'fulfilled' && usersRes.value?.data) {
+          const raw = usersRes.value.data;
+          const userList = Array.isArray(raw) ? raw : Array.isArray(raw?.users) ? raw.users : Array.isArray(raw?.data) ? raw.data : [];
+          const map = {};
+          userList.forEach((u) => {
+            const id = (u._id || u.id || '').toString();
+            if (id) {
+              map[id] = u.fullName || u.username || u.name || u.email || id;
+            }
+          });
+          setUsersMap(map);
+        }
       } catch (err) {
-        console.error("Error fetching followups:", err);
-        
-        // Log more detailed error information
-        if (err.response) {
-          console.error("Response data:", err.response.data);
-          console.error("Response status:", err.response.status);
-          console.error("Response headers:", err.response.headers);
-        } else if (err.request) {
-          console.error("Request data:", err.request);
-        }
-        
-        // Handle timeout errors specifically
-        if ((err.code === 'ECONNABORTED' || err.message.includes('timeout')) && retryCount < maxRetries) {
-          retryCount++;
-          console.log(`Retry attempt ${retryCount} after timeout`);
-          // Adaptive delay - increase with each retry
-          const delay = retryCount * 750; // 750ms, 1500ms, etc.
-          setTimeout(fetchFollowups, delay);
-          return;
-        } else if (err.code === 'ECONNABORTED' || err.message.includes('timeout')) {
-          setError("Request timed out after multiple attempts. Please check your connection and try again.");
-          toast({
-            title: "Timeout Error",
-            description: "The request took too long to complete after multiple attempts.",
-            status: "warning",
-            duration: 5000,
-            isClosable: true,
-          });
-        } else {
-          setError("Failed to load follow-up data. Please try again later.");
-          toast({
-            title: "Error",
-            description: "Failed to load follow-up data",
-            status: "error",
-            duration: 5000,
-            isClosable: true,
-          });
-        }
+        console.warn("Followup report load warning:", err.message);
       } finally {
-        setLoading(false);
+        if (isMounted) setLoading(false);
       }
     };
 
     fetchFollowups();
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const calculateStats = (data) => {
@@ -309,6 +245,31 @@ const CustomerFollowupReport = () => {
       duration: 3000,
       isClosable: true,
     });
+  };
+
+  const handleExportCSV = () => {
+    if (!filteredFollowups.length) {
+      toast({ title: "No follow-up records to export", status: "info" });
+      return;
+    }
+    const headers = ["Customer", "Type", "Status", "Due Date", "Assigned To", "Last Updated"];
+    const rows = filteredFollowups.map((f) => [
+      `"${(f.customerName || '').replace(/"/g, '""')}"`,
+      `"${(f.type || 'General').replace(/"/g, '""')}"`,
+      `"${(f.status || 'pending').replace(/"/g, '""')}"`,
+      f.dueDate ? new Date(f.dueDate).toLocaleDateString() : '',
+      `"${(getAssignedDisplay(f) || '').replace(/"/g, '""')}"`,
+      f.updatedAt ? new Date(f.updatedAt).toLocaleString() : '',
+    ]);
+    const csvContent = "data:text/csv;charset=utf-8," + [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `Customer_Followup_Report_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast({ title: "CSV exported successfully", status: "success", duration: 2500 });
   };
 
   const filteredFollowups = followups.filter(followup => {
@@ -546,17 +507,31 @@ const CustomerFollowupReport = () => {
                   })}
                 </Text>
               </Box>
-              <Button
-                leftIcon={<FiDownload />}
-                onClick={handleExportPDF}
-                colorScheme="blue"
-                size="md"
-                boxShadow="md"
-                _hover={{ transform: "translateY(-2px)", boxShadow: "lg" }}
-                transition="all 0.2s"
-              >
-                Export as PDF
-              </Button>
+              <HStack spacing={3}>
+                <Button
+                  leftIcon={<FiDownload />}
+                  onClick={handleExportCSV}
+                  variant="outline"
+                  colorScheme="blue"
+                  size="md"
+                  boxShadow="sm"
+                  _hover={{ transform: "translateY(-2px)", boxShadow: "md" }}
+                  transition="all 0.2s"
+                >
+                  Export CSV
+                </Button>
+                <Button
+                  leftIcon={<FiDownload />}
+                  onClick={handleExportPDF}
+                  colorScheme="blue"
+                  size="md"
+                  boxShadow="md"
+                  _hover={{ transform: "translateY(-2px)", boxShadow: "lg" }}
+                  transition="all 0.2s"
+                >
+                  Export PDF
+                </Button>
+              </HStack>
             </Flex>
           </CardBody>
         </Card>
