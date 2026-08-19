@@ -247,6 +247,7 @@ const UserCard = ({ user, isSelectionMode = false, isSelected = false, onSelectT
                 isOpen={isDrawerOpen} 
                 onClose={() => setDrawerOpen(false)} 
                 user={user} 
+                onUserUpdated={() => fetchUsers(true)}
             />
 
             <Modal isOpen={isEditOpen} onClose={onEditClose}>

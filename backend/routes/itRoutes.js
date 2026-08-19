@@ -33,12 +33,26 @@ router.post('/reports', itController.createReport);
 // Audit
 router.get('/audit/all', itController.getAuditLog);
 
+// Support request creation
+router.post('/support-requests', itController.createSupportRequest);
+
+// Support ticket workflow & records
+router.post('/:id/support/accept', itController.acceptSupportRequest);
+router.post('/:id/support/staff-accept', itController.staffAcceptSupport);
+router.post('/:id/support/staff-reject', itController.staffRejectSupport);
+router.post('/:id/support/report', itController.recordSupportReport);
+router.patch('/:id/ticket-records/:recordId/approval', itController.updateTicketRecordApproval);
+router.delete('/:id/ticket-records/:recordId', itController.deleteTicketRecord);
+
 // Task routes
 router.get('/:id', itController.getTaskById);
 router.post('/', itController.createTask);
 router.post('/:id/comments', itController.addTaskComment);
 router.post('/:id/approve', itController.approveTask);
 router.post('/:id/workflow', itController.updateWorkflow);
+router.post('/:id/external/review', itController.reviewExternalProject);
+router.post('/:id/external/staff-response', itController.respondToExternalProject);
+router.post('/:id/feedback', itController.submitFeedback);
 router.post('/:id/reassign', itController.reassignTask);
 router.post('/:id/reminders', itController.addReminder);
 router.patch('/:id/reminders/:reminderId', itController.updateReminder);

@@ -1,8 +1,7 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
     Alert,
     AlertIcon,
-    Badge,
     Box,
     Button,
     Card,
@@ -11,19 +10,21 @@ import {
     FormControl,
     FormHelperText,
     FormLabel,
-    Grid,
-    GridItem,
-    Heading,
     Icon,
     Input,
     Select,
+    SimpleGrid,
     Spinner,
     Text,
+    useColorModeValue,
     useToast,
+    VStack,
 } from '@chakra-ui/react';
-import { FiCheckCircle, FiFile, FiRefreshCw, FiUploadCloud, FiUser } from 'react-icons/fi';
+import { FiCheckCircle, FiUploadCloud } from 'react-icons/fi';
 import axiosInstance from '../services/axiosInstance';
 
+const CURRENT_YEAR = new Date().getFullYear();
+const YEAR_OPTIONS = Array.from({ length: 35 }, (_, index) => CURRENT_YEAR + 5 - index);
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 const ACCEPTED_FILE_TYPES = [
     'application/pdf',
@@ -62,11 +63,12 @@ const employeeLabel = (employee) =>
 const employeeDepartment = (employee) =>
     employee.jobTitle || employee.role || 'General';
 
-const DocumentUploadForm = ({ fetchDocuments }) => {
+const DocumentUploadForm = ({ fetchDocuments, onComplete, defaultEmployeeName = '' }) => {
     const [employees, setEmployees] = useState([]);
     const [categories, setCategories] = useState([]);
     const [userId, setUserId] = useState('');
     const [title, setTitle] = useState('');
+    const [documentYear, setDocumentYear] = useState(String(CURRENT_YEAR));
     const [categoryId, setCategoryId] = useState('');
     const [subcategory, setSubcategory] = useState('');
     const [department, setDepartment] = useState('');
@@ -96,9 +98,24 @@ const DocumentUploadForm = ({ fetchDocuments }) => {
                 axiosInstance.get('/users'),
                 axiosInstance.get('/categories'),
             ]);
-            setEmployees(usersResponse.data?.data || []);
+            const loadedUsers = Array.isArray(usersResponse.data) ? usersResponse.data : (usersResponse.data?.data || []);
+            setEmployees(loadedUsers);
+
+            if (defaultEmployeeName && loadedUsers.length > 0) {
+                const match = loadedUsers.find(
+                    (u) => (u.fullName && u.fullName.toLowerCase() === defaultEmployeeName.toLowerCase()) ||
+                           (u.username && u.username.toLowerCase() === defaultEmployeeName.toLowerCase()) ||
+                           u._id === defaultEmployeeName
+                );
+                if (match) {
+                    setUserId(match._id);
+                    setDepartment(employeeDepartment(match));
+                }
+            }
+
+            const rawCategories = Array.isArray(categoriesResponse.data) ? categoriesResponse.data : (categoriesResponse.data?.data || []);
             setCategories(
-                (categoriesResponse.data?.data || []).filter(
+                rawCategories.filter(
                     (category) => category.section === 'employees'
                 )
             );
@@ -160,6 +177,7 @@ const DocumentUploadForm = ({ fetchDocuments }) => {
     const resetForm = () => {
         setUserId('');
         setTitle('');
+        setDocumentYear(String(CURRENT_YEAR));
         setCategoryId('');
         setSubcategory('');
         setDepartment('');
@@ -192,6 +210,8 @@ const DocumentUploadForm = ({ fetchDocuments }) => {
         const formData = new FormData();
         formData.append('userId', selectedEmployee._id);
         formData.append('title', title);
+        formData.append('documentYear', documentYear);
+        formData.append('documentDate', `${documentYear}-01-01`);
         formData.append('categoryId', categoryId);
         if (requiresLeaveType) formData.append('subcategory', subcategory);
         formData.append('department', department);
@@ -203,13 +223,14 @@ const DocumentUploadForm = ({ fetchDocuments }) => {
             await axiosInstance.post('/documents', formData);
             toast({
                 title: 'Employee document uploaded',
-                description: `${title} was linked to ${employeeLabel(selectedEmployee)}.`,
+                description: `${title} was linked to ${employeeLabel(selectedEmployee)} (Year: ${documentYear}).`,
                 status: 'success',
                 duration: 4000,
                 isClosable: true,
             });
             resetForm();
-            await fetchDocuments?.();
+            if (typeof fetchDocuments === 'function') await fetchDocuments();
+            if (typeof onComplete === 'function') onComplete();
         } catch (error) {
             toast({
                 title: 'Document upload failed',
@@ -227,168 +248,189 @@ const DocumentUploadForm = ({ fetchDocuments }) => {
     };
 
     return (
-        <Card maxW="7xl" mx="auto" mt={6} borderRadius="2xl" border="1px solid" borderColor="gray.200" shadow="sm">
-            <CardBody p={{ base: 5, md: 7 }}>
-                <Flex justify="space-between" align={{ base: 'start', md: 'center' }} gap={4} mb={6} direction={{ base: 'column', md: 'row' }}>
-                    <Box>
-                        <Heading size="md" color="gray.800">Add employee document</Heading>
-                        <Text mt={1} fontSize="sm" color="gray.500">
-                            Link a validated HR file directly to an employee record.
-                        </Text>
-                    </Box>
-                    <Button
-                        leftIcon={<FiRefreshCw />}
-                        variant="outline"
-                        colorScheme="teal"
-                        size="sm"
-                        onClick={loadOptions}
-                        isLoading={loadingOptions}
-                    >
-                        Refresh records
-                    </Button>
-                </Flex>
-
+        <Card borderRadius="xl" borderWidth="1px" bg={useColorModeValue('gray.50', 'gray.750')} boxShadow="none">
+            <CardBody p={{ base: 4, md: 5 }}>
                 {loadError && (
-                    <Alert status="error" borderRadius="xl" mb={5}>
+                    <Alert status="error" borderRadius="lg" mb={4}>
                         <AlertIcon />
                         {loadError}
                     </Alert>
                 )}
 
-                <form onSubmit={handleSubmit}>
-                    <Grid templateColumns={{ base: '1fr', lg: 'repeat(2, 1fr)' }} gap={5}>
-                        <GridItem>
-                            <FormControl isRequired isDisabled={loadingOptions}>
-                                <FormLabel fontSize="sm" fontWeight="700">Employee</FormLabel>
+                {loadingOptions ? (
+                    <Flex justify="center" align="center" py={8} gap={3}>
+                        <Spinner size="md" color="teal.500" />
+                        <Text color="gray.500" fontSize="sm">Loading employee database...</Text>
+                    </Flex>
+                ) : (
+                    <form onSubmit={handleSubmit}>
+                        <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} spacing={4}>
+                            {/* Employee Select */}
+                            <FormControl isRequired>
+                                <FormLabel fontSize="xs" fontWeight="bold" color="gray.700">
+                                    Select Employee
+                                </FormLabel>
                                 <Select
+                                    placeholder="Choose employee..."
                                     value={userId}
                                     onChange={handleEmployeeChange}
-                                    placeholder={loadingOptions ? 'Loading employees…' : 'Select employee from database'}
-                                    focusBorderColor="teal.500"
-                                    bg="white"
+                                    size="sm"
+                                    borderRadius="lg"
+                                    bg={useColorModeValue('white', 'gray.700')}
                                 >
                                     {employees.map((employee) => (
                                         <option key={employee._id} value={employee._id}>
-                                            {employeeLabel(employee)} — {employee.digitalId || employee.email}
+                                            {employeeLabel(employee)} ({employeeDepartment(employee)})
                                         </option>
                                     ))}
                                 </Select>
-                                <FormHelperText>The employee name is read from the selected database record.</FormHelperText>
                             </FormControl>
-                        </GridItem>
 
-                        <GridItem>
+                            {/* Document Type */}
                             <FormControl isRequired>
-                                <FormLabel fontSize="sm" fontWeight="700">Document type</FormLabel>
-                                <Select value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Select document type" focusBorderColor="teal.500">
-                                    {DOCUMENT_TYPES.map((type) => <option key={type} value={type}>{type}</option>)}
-                                </Select>
-                                <FormHelperText>Use a standard type so HR records remain consistent.</FormHelperText>
-                            </FormControl>
-                        </GridItem>
-
-                        <GridItem>
-                            <FormControl isRequired>
-                                <FormLabel fontSize="sm" fontWeight="700">Category</FormLabel>
+                                <FormLabel fontSize="xs" fontWeight="bold" color="gray.700">
+                                    Document Type / Title
+                                </FormLabel>
                                 <Select
-                                    value={categoryId}
-                                    onChange={(event) => {
-                                        setCategoryId(event.target.value);
-                                        setSubcategory('');
-                                    }}
-                                    placeholder="Select employee-document category"
-                                    focusBorderColor="teal.500"
+                                    placeholder="Select standard type..."
+                                    value={title}
+                                    onChange={(e) => setTitle(e.target.value)}
+                                    size="sm"
+                                    borderRadius="lg"
+                                    bg={useColorModeValue('white', 'gray.700')}
                                 >
-                                    {categories.map((category) => (
-                                        <option key={category._id} value={category._id}>{category.name}</option>
+                                    {DOCUMENT_TYPES.map((type) => (
+                                        <option key={type} value={type}>
+                                            {type}
+                                        </option>
                                     ))}
                                 </Select>
-                                <FormHelperText>Categories are loaded from the Employee Documents category list.</FormHelperText>
                             </FormControl>
-                        </GridItem>
 
-                        {requiresLeaveType && (
-                            <GridItem>
+                            {/* Category */}
+                            <FormControl isRequired>
+                                <FormLabel fontSize="xs" fontWeight="bold" color="gray.700">
+                                    Category
+                                </FormLabel>
+                                <Select
+                                    placeholder="Select category..."
+                                    value={categoryId}
+                                    onChange={(e) => setCategoryId(e.target.value)}
+                                    size="sm"
+                                    borderRadius="lg"
+                                    bg={useColorModeValue('white', 'gray.700')}
+                                >
+                                    {categories.map((category) => (
+                                        <option key={category._id} value={category._id}>
+                                            {category.name}
+                                        </option>
+                                    ))}
+                                </Select>
+                            </FormControl>
+
+                            {/* Document Year (Determined by HR) */}
+                            <FormControl isRequired>
+                                <FormLabel fontSize="xs" fontWeight="bold" color="gray.700">
+                                    Document Year (Determined by HR)
+                                </FormLabel>
+                                <Select
+                                    value={documentYear}
+                                    onChange={(e) => setDocumentYear(e.target.value)}
+                                    size="sm"
+                                    borderRadius="lg"
+                                    bg={useColorModeValue('white', 'gray.700')}
+                                >
+                                    {YEAR_OPTIONS.map((year) => (
+                                        <option key={year} value={year}>
+                                            {year}
+                                        </option>
+                                    ))}
+                                </Select>
+                            </FormControl>
+
+                            {/* Department (Auto-filled / Editable) */}
+                            <FormControl isRequired>
+                                <FormLabel fontSize="xs" fontWeight="bold" color="gray.700">
+                                    Department / Job Role
+                                </FormLabel>
+                                <Input
+                                    value={department}
+                                    onChange={(e) => setDepartment(e.target.value)}
+                                    placeholder="e.g. Finance, Sales, Human Resources"
+                                    size="sm"
+                                    borderRadius="lg"
+                                    bg={useColorModeValue('white', 'gray.700')}
+                                />
+                            </FormControl>
+
+                            {/* Leave Type if required */}
+                            {requiresLeaveType && (
                                 <FormControl isRequired>
-                                    <FormLabel fontSize="sm" fontWeight="700">Leave type</FormLabel>
+                                    <FormLabel fontSize="xs" fontWeight="bold" color="gray.700">
+                                        Leave Subcategory
+                                    </FormLabel>
                                     <Select
+                                        placeholder="Select leave type..."
                                         value={subcategory}
-                                        onChange={(event) => setSubcategory(event.target.value)}
-                                        placeholder="Select leave type"
-                                        focusBorderColor="teal.500"
+                                        onChange={(e) => setSubcategory(e.target.value)}
+                                        size="sm"
+                                        borderRadius="lg"
+                                        bg={useColorModeValue('white', 'gray.700')}
                                     >
-                                        {LEAVE_SUBCATEGORIES.map((leaveType) => (
-                                            <option key={leaveType} value={leaveType}>{leaveType}</option>
+                                        {LEAVE_SUBCATEGORIES.map((leave) => (
+                                            <option key={leave} value={leave}>
+                                                {leave}
+                                            </option>
                                         ))}
                                     </Select>
-                                    <FormHelperText>
-                                        This leave classification will be visible in the employee’s document record.
-                                    </FormHelperText>
                                 </FormControl>
-                            </GridItem>
-                        )}
+                            )}
 
-                        <GridItem>
-                            <FormControl isRequired>
-                                <FormLabel fontSize="sm" fontWeight="700">Department</FormLabel>
-                                <Input value={department} readOnly bg="gray.50" placeholder="Selected automatically with employee" />
-                                <FormHelperText>Derived from the employee’s current database job assignment.</FormHelperText>
-                            </FormControl>
-                        </GridItem>
-
-                        <GridItem colSpan={{ base: 1, lg: 2 }}>
-                            <FormControl isRequired>
-                                <FormLabel fontSize="sm" fontWeight="700">Document file</FormLabel>
-                                <Box border="1px dashed" borderColor={file ? 'teal.400' : 'gray.300'} borderRadius="xl" p={5} bg={file ? 'teal.50' : 'gray.50'}>
-                                    <Flex align="center" justify="space-between" gap={4} wrap="wrap">
-                                        <Flex align="center" gap={3}>
-                                            <Icon as={file ? FiCheckCircle : FiUploadCloud} boxSize={6} color={file ? 'teal.600' : 'gray.500'} />
-                                            <Box>
-                                                <Text fontSize="sm" fontWeight="700">{file ? file.name : 'Choose an employee document'}</Text>
-                                                <Text fontSize="xs" color="gray.500">
-                                                    {file ? `${(file.size / 1024 / 1024).toFixed(2)} MB` : 'PDF, DOC, DOCX, JPG or PNG — maximum 10 MB'}
-                                                </Text>
-                                            </Box>
-                                        </Flex>
-                                        <Input
-                                            ref={fileInputRef}
-                                            type="file"
-                                            accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-                                            onChange={handleFileChange}
-                                            maxW={{ base: '100%', md: '320px' }}
-                                            bg="white"
-                                            p={1}
-                                        />
+                            {/* File Upload */}
+                            <FormControl isRequired gridColumn={{ base: 'span 1', md: 'span 2', lg: 'span 3' }}>
+                                <FormLabel fontSize="xs" fontWeight="bold" color="gray.700">
+                                    Upload Document File (PDF, DOC, DOCX, JPG, PNG - Max 10MB)
+                                </FormLabel>
+                                <Input
+                                    ref={fileInputRef}
+                                    type="file"
+                                    onChange={handleFileChange}
+                                    size="sm"
+                                    pt={1}
+                                    borderRadius="lg"
+                                    bg={useColorModeValue('white', 'gray.700')}
+                                />
+                                {file && (
+                                    <Flex align="center" gap="1.5" mt="1.5" color="teal.600" fontSize="2xs">
+                                        <Icon as={FiCheckCircle} />
+                                        <Text fontWeight="bold" noOfLines={1}>{file.name}</Text>
                                     </Flex>
-                                </Box>
+                                )}
                             </FormControl>
-                        </GridItem>
-                    </Grid>
+                        </SimpleGrid>
 
-                    {selectedEmployee && (
-                        <Flex mt={5} p={4} bg="gray.50" borderRadius="xl" border="1px solid" borderColor="gray.200" align="center" gap={3} wrap="wrap">
-                            <Icon as={FiUser} color="teal.600" />
-                            <Text fontWeight="700">{employeeLabel(selectedEmployee)}</Text>
-                            <Badge colorScheme="teal">{selectedEmployee.digitalId || 'No employee ID'}</Badge>
-                            <Badge colorScheme={selectedEmployee.status === 'active' ? 'green' : 'gray'}>{selectedEmployee.status || 'Unknown status'}</Badge>
-                            <Text fontSize="sm" color="gray.600">{department}</Text>
+                        <Flex justify="space-between" align="center" mt={5} pt={3} borderTopWidth="1px" borderColor={useColorModeValue('gray.200', 'gray.600')} wrap="wrap" gap={3}>
+                            <Text fontSize="2xs" color="gray.500">
+                                Uploaded document will be linked to the employee dossier and categorized automatically.
+                            </Text>
+
+                            <Button
+                                type="submit"
+                                colorScheme="teal"
+                                bg="#004D40"
+                                _hover={{ bg: '#00796B' }}
+                                size="sm"
+                                px={6}
+                                borderRadius="lg"
+                                leftIcon={<Icon as={FiUploadCloud} />}
+                                isLoading={submitting}
+                                loadingText="Uploading"
+                            >
+                                Link & Upload Document
+                            </Button>
                         </Flex>
-                    )}
-
-                    <Flex justify="flex-end" gap={3} mt={6}>
-                        <Button variant="ghost" onClick={resetForm} isDisabled={submitting}>Clear</Button>
-                        <Button
-                            type="submit"
-                            colorScheme="teal"
-                            leftIcon={submitting ? <Spinner size="sm" /> : <FiFile />}
-                            isLoading={submitting}
-                            loadingText="Uploading"
-                            isDisabled={loadingOptions || Boolean(loadError)}
-                        >
-                            Upload document
-                        </Button>
-                    </Flex>
-                </form>
+                    </form>
+                )}
             </CardBody>
         </Card>
     );

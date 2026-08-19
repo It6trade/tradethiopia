@@ -35,6 +35,33 @@ const ITTaskSchema = new mongoose.Schema({
   taskLeader: { type: String, default: '' },
   assignedTo: [{ type: String }], // Array of assigned user IDs
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: false },
+  requestedBy: { type: String, default: '' },
+  requestedDepartment: { type: String, default: '' },
+  requestSource: { type: String, default: '' },
+  ticketCategory: { type: String, default: '' },
+  priority: { type: String, default: 'normal' },
+  supportRequestNote: { type: String, default: '' },
+  supportStatus: { type: String, default: 'requested' },
+  requestedAt: { type: Date },
+  managerAcceptedAt: { type: Date },
+  managerAcceptedByName: { type: String, default: '' },
+  managerAcceptedById: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  staffAcceptedAt: { type: Date },
+  staffAcceptedByName: { type: String, default: '' },
+  staffAcceptedById: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  sla: {
+    responseDueAt: { type: Date },
+    resolutionDueAt: { type: Date },
+    escalatedAt: { type: Date },
+    escalationReason: { type: String, default: '' }
+  },
+  requesterFeedback: {
+    rating: { type: Number, default: 0 },
+    comment: { type: String, default: '' },
+    submittedBy: { type: String, default: '' },
+    submittedAt: { type: Date }
+  },
+  ticketRecords: [{ type: mongoose.Schema.Types.Mixed }],
   progressPercent: { type: Number, min: 0, max: 100, default: 0 },
   featureCount: { type: Number, default: 0 }, // Number of features added to the task
   comments: [{
@@ -42,6 +69,7 @@ const ITTaskSchema = new mongoose.Schema({
     authorName: { type: String, default: '' },
     authorRole: { type: String, default: '' },
     body: { type: String, required: true },
+    audience: { type: String, enum: ['general', 'cs_manager', 'staff_manager', 'internal_staff'], default: 'general' },
     createdAt: { type: Date, default: Date.now }
   }],
   reminders: [{
@@ -64,6 +92,6 @@ const ITTaskSchema = new mongoose.Schema({
     metadata: { type: mongoose.Schema.Types.Mixed },
     createdAt: { type: Date, default: Date.now }
   }]
-}, { timestamps: true });
+}, { timestamps: true, strict: false });
 
 module.exports = mongoose.model('ITTask', ITTaskSchema);

@@ -336,6 +336,7 @@ app.use('/api/external-courses', require('./routes/externalCourseRoutes'));
 app.use('/api/internal-courses', require('./routes/internalCourseRoutes'));
 app.use('/api/product-followups', productFollowupRoutes);
 app.use('/api/it', itRoutes);
+app.use('/api/notices', require('./routes/noticeRoutes'));
 app.use('/api/inventory', inventoryRoutes);
 app.use('/api/finance', require('./routes/financeRoutes'));
 app.use('/api/finance-erp', require('./routes/financeErpRoutes'));

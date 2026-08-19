@@ -1,29 +1,26 @@
-import axios from 'axios';
+import axiosInstance from './axiosInstance';
 
-const API_BASE = import.meta.env.VITE_API_URL || '';
-
-export async function calculateAwards(month) {
-  const token = localStorage.getItem('userToken');
-  const resp = await axios.post(
-    `${API_BASE}/api/awards/calculate`,
-    { month },
-    { headers: { Authorization: `Bearer ${token}` } }
-  );
+export async function calculateAwards(month, recalculate = false) {
+  const resp = await axiosInstance.post('/awards/calculate', { month, recalculate });
   return resp.data;
 }
 
 export async function getAwardsByMonth(month) {
-  const token = localStorage.getItem('userToken');
-  const resp = await axios.get(`${API_BASE}/api/awards/month/${month}`, {
-    headers: { Authorization: `Bearer ${token}` }
-  });
+  const resp = await axiosInstance.get(`/awards/month/${month}`);
   return resp.data;
 }
 
 export async function getPerformanceDetail(month, employeeId) {
-  const token = localStorage.getItem('userToken');
-  const resp = await axios.get(`${API_BASE}/api/awards/details/${month}/${employeeId}`, {
-    headers: { Authorization: `Bearer ${token}` }
-  });
+  const resp = await axiosInstance.get(`/awards/details/${month}/${employeeId}`);
+  return resp.data;
+}
+
+export async function getMonthlyPerformances(month) {
+  const resp = await axiosInstance.get(`/awards/performances/${month}`);
+  return resp.data;
+}
+
+export async function updatePerformance(id, data) {
+  const resp = await axiosInstance.put(`/awards/performance/${id}`, data);
   return resp.data;
 }

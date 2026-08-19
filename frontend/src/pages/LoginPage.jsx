@@ -47,23 +47,19 @@ const handleLogin = async (event) => {
         if (response.data.success) {
             // Extract user data and token correctly
             const { user, token } = response.data;
-            const { _id, role, status, infoStatus, trainingStatus, username, email, fullName, jobTitle } = user;
-            console.log('LoginPage - Login Success:', { _id, role, status, infoStatus, username, email });
+            const { _id, role, status, infoStatus, trainingStatus, examBypass, username, email, fullName, jobTitle } = user;
+            console.log('LoginPage - Login Success:', { _id, role, status, infoStatus, examBypass, username, email });
 
             // Save token and user information in local storage
-            setCurrentUser({ username, role, status, infoStatus, trainingStatus, token, _id, email, fullName, jobTitle });
+            setCurrentUser({ username, role, status, infoStatus, trainingStatus, examBypass, token, _id, email, fullName, jobTitle });
 
-            const normalizedRole = normalizeRole(role);
+            const hasExamBypass = Boolean(examBypass) || String(trainingStatus || '').toLowerCase() === 'exempt';
 
-            // Roles like Tessbin Admin bypass HR employee onboarding info checks
-            const bypassHrApprovalRoles = ['tessbinadmin', 'tessbin', 'tessbin_admin', 'admin', 'coo', 'ceo', 'it', 'itadmin'];
-            const isBypassRole = bypassHrApprovalRoles.includes(normalizedRole);
-
-            // Check user and info statuses
-            if (!isBypassRole && status === 'inactive' && infoStatus === 'active') {
-                console.log('LoginPage - redirecting to /secondpage (inactive status, active infoStatus)');
+            // Check user, info statuses, and HR exam/tutorial bypass permission
+            if (!hasExamBypass && status === 'inactive' && infoStatus === 'active') {
+                console.log('LoginPage - redirecting to /secondpage (inactive status, active infoStatus, no bypass)');
                 redirectAfterLogin('/secondpage');
-            } else if (!isBypassRole && (status === 'inactive' || status === 'active') && infoStatus !== 'active')  {
+            } else if (!hasExamBypass && (status === 'inactive' || status === 'active') && infoStatus !== 'active')  {
                 console.log('LoginPage - redirecting to /employee-info (infoStatus is not active:', infoStatus, ')');
                 redirectAfterLogin('/employee-info');
             } else {

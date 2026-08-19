@@ -1,5 +1,6 @@
-import React, { useState } from "react";
+import React from "react";
 import {
+  Badge,
   Box,
   Button,
   Card,
@@ -8,7 +9,6 @@ import {
   Heading,
   HStack,
   Input,
-  Modal, ModalBody, ModalCloseButton, ModalContent, ModalFooter, ModalHeader, ModalOverlay,
   Table,
   Tbody,
   Td,
@@ -19,7 +19,7 @@ import {
   Tr,
   VStack,
 } from "@chakra-ui/react";
-import { AddIcon, DownloadIcon, ArrowUpIcon } from "@chakra-ui/icons";
+import { DownloadIcon, ArrowUpIcon } from "@chakra-ui/icons";
 
 const CompactHeaderCell = ({ children, borderColor }) => (
   <Td
@@ -70,39 +70,8 @@ const TesbinnTabPage = ({
   handleExportTesbinn,
   handleCsvImport,
   isCsvImportingTesbinn,
-  handleManualCreate,
-  isCreatingTesbinn,
 }) => {
-  const [isManualOpen, setIsManualOpen] = useState(false);
-  const [manualError, setManualError] = useState("");
-  const closeManual = () => {
-    if (isCreatingTesbinn) return;
-    setIsManualOpen(false);
-    setManualError("");
-  };
-  const submitManual = async (event) => {
-    event.preventDefault();
-    const formElement = event.currentTarget;
-    const formData = new FormData(formElement);
-    const form = Object.fromEntries(formData.entries());
-    const customerName = form.customerName.trim();
-    const trainingType = form.trainingType.trim();
-    if (!customerName || !trainingType) {
-      setManualError("Customer name and course are required.");
-      return;
-    }
-    if (form.startDate && form.endDate && form.endDate < form.startDate) {
-      setManualError("End date cannot be before the start date.");
-      return;
-    }
-    setManualError("");
-    if (await handleManualCreate({ ...form, customerName, trainingType })) {
-      formElement.reset();
-      setIsManualOpen(false);
-    }
-  };
   return (
-    <>
     <Card bg={cardBg} boxShadow="md" borderRadius="lg">
       <CardBody>
         <VStack spacing={4} align="stretch">
@@ -110,12 +79,8 @@ const TesbinnTabPage = ({
             <Heading size="md" color={headerBg}>
               All TESBINN Users (Progress: Completed)
             </Heading>
-            <HStack spacing={2}>
-              <Tooltip label="Add a TESBINN user manually">
-                <Button size="sm" colorScheme="teal" leftIcon={<AddIcon />} onClick={() => setIsManualOpen(true)}>Add User</Button>
-              </Tooltip>
-              {isCustomerSuccessManager && (
-                <>
+            {isCustomerSuccessManager && (
+              <HStack spacing={2}>
                 <Tooltip label="Import TESBINN CSV from local file">
                   <Button
                     as="label"
@@ -147,9 +112,8 @@ const TesbinnTabPage = ({
                     Export
                   </Button>
                 </Tooltip>
-                </>
-              )}
-            </HStack>
+              </HStack>
+            )}
           </Flex>
 
           <Flex
@@ -280,33 +244,6 @@ const TesbinnTabPage = ({
         </VStack>
       </CardBody>
     </Card>
-    <Modal isOpen={isManualOpen} onClose={closeManual} size="lg">
-      <ModalOverlay />
-      <ModalContent as="form" onSubmit={submitManual}>
-        <ModalHeader>Add TESBINN User Manually</ModalHeader>
-        <ModalCloseButton isDisabled={isCreatingTesbinn} />
-        <ModalBody><VStack spacing={3} align="stretch">
-          {manualError && <Text color="red.500" fontSize="sm">{manualError}</Text>}
-          <Input name="customerName" required placeholder="Customer name *" />
-          <Input name="email" type="email" placeholder="Email" />
-          <Input name="phoneNumber" type="tel" placeholder="Phone number" />
-          <Input name="trainingType" required placeholder="Course *" list="tesbinn-course-options" />
-          <datalist id="tesbinn-course-options">{trainingCourseOptions.map((course) => <option key={course} value={course} />)}</datalist>
-          <Input name="scheduleShift" as="select" defaultValue="Regular">
-            <option>Regular</option><option>Night</option><option>Weekend</option><option>Night/Weekend</option>
-          </Input>
-          <HStack>
-            <Input name="startDate" type="date" aria-label="Start date" />
-            <Input name="endDate" type="date" aria-label="End date" />
-          </HStack>
-        </VStack></ModalBody>
-        <ModalFooter>
-          <Button type="button" variant="ghost" mr={3} onClick={closeManual} isDisabled={isCreatingTesbinn}>Cancel</Button>
-          <Button type="submit" colorScheme="teal" isLoading={isCreatingTesbinn} loadingText="Adding">Add User</Button>
-        </ModalFooter>
-      </ModalContent>
-    </Modal>
-    </>
   );
 };
 

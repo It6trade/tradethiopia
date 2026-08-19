@@ -5,6 +5,15 @@ const jwt = require('jsonwebtoken');
 
 const escapeRegex = (value = '') => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
+const resolveFileUrl = (fileId) => {
+    if (!fileId) return null;
+    const str = String(fileId).trim();
+    if (str.startsWith('http://') || str.startsWith('https://') || str.startsWith('data:')) {
+        return str;
+    }
+    return `https://cloud.appwrite.io/v1/storage/buckets/${process.env.APPWRITE_BUCKET_ID}/files/${str}/view?project=${process.env.APPWRITE_PROJECT_ID}`;
+};
+
 // Health check endpoint for users
 const userHealthCheck = async (req, res) => {
   try {
@@ -96,17 +105,20 @@ const loginUser = async (req, res) => {
             additionalLanguages: user.additionalLanguages,
             salary: user.salary,
             notes: user.notes,
+            bio: user.bio || '',
+            website: user.website || '',
+            twitter: user.twitter || '',
+            linkedin: user.linkedin || '',
+            facebook: user.facebook || '',
+            telegram: user.telegram || '',
                 digitalId: user.digitalId,
                 photo: user.photo,
-                photoUrl: user.photo ? 
-                    `https://cloud.appwrite.io/v1/storage/buckets/${process.env.APPWRITE_BUCKET_ID}/files/${user.photo}/view?project=${process.env.APPWRITE_PROJECT_ID}` : 
-                    null,
+                photoUrl: resolveFileUrl(user.photo),
                 infoStatus: user.infoStatus,
                 trainingStatus: user.trainingStatus,
+                examBypass: user.examBypass || false,
                 guarantorFile: user.guarantorFile,
-                guarantorFileUrl: user.guarantorFile ? 
-                    `https://cloud.appwrite.io/v1/storage/buckets/${process.env.APPWRITE_BUCKET_ID}/files/${user.guarantorFile}/view?project=${process.env.APPWRITE_PROJECT_ID}` : 
-                    null
+                guarantorFileUrl: resolveFileUrl(user.guarantorFile)
             }
         });
     } catch (error) {
@@ -122,7 +134,7 @@ const createuser = async (req, res) => {
         fullName, altEmail, altPhone, gender, 
         jobTitle, hireDate, employmentType, 
         education, location, phone, additionalLanguages, 
-        notes,digitalId,photo,infoStatus,trainingStatus,guarantorFile,
+        notes,digitalId,photo,infoStatus,trainingStatus,examBypass,guarantorFile,
         salary, managerId
     } = req.body;
 
@@ -177,6 +189,7 @@ const createuser = async (req, res) => {
             photo,
             infoStatus,
             trainingStatus,
+            examBypass: Boolean(examBypass),
             guarantorFile,
             managerId: managerId || null,
             salary: salary !== undefined && salary !== null ? Number(salary) : undefined
@@ -209,7 +222,7 @@ const getuser = async (req, res) => {
         // Directory consumers receive summary data only. Sensitive HR fields
         // are available through the protected /:id/details endpoint.
         const users = await User.find({}).select(
-            '_id username email role status fullName jobTitle photo guarantorFile phone gender education location digitalId managerId employmentType hireDate salary infoStatus trainingStatus createdAt updatedAt'
+            '_id username email role status fullName jobTitle photo guarantorFile phone gender education location digitalId managerId employmentType hireDate salary infoStatus trainingStatus examBypass createdAt updatedAt'
         );
         const Document = mongoose.models.Document || require('../models/Document');
         const documents = await Document.find({}).select('userId employeeName').lean();
@@ -294,6 +307,7 @@ const getuser = async (req, res) => {
                 managerId: userObj.managerId,
                 infoStatus: userObj.infoStatus,
                 trainingStatus: userObj.trainingStatus,
+                examBypass: Boolean(userObj.examBypass),
                 createdAt: userObj.createdAt,
                 updatedAt: userObj.updatedAt,
                 profileCompleteness: coreProfileCompleteness,
@@ -318,7 +332,9 @@ const getCurrentUser = async (req, res) => {
     if (!user) {
         return res.status(404).json({ success: false, message: 'User not found' });
     }
-    return res.status(200).json({ success: true, data: user });
+    const userObj = user.toObject();
+    const photoUrl = resolveFileUrl(userObj.photo);
+    return res.status(200).json({ success: true, data: { ...userObj, photoUrl } });
 };
 
 // Return the complete employee profile only to authenticated HR users.
@@ -356,21 +372,17 @@ const getEmployeeDetails = async (req, res) => {
                 .sort({ createdAt: -1 })
                 .lean();
 
-        const fileUrl = (fileId) => fileId
-            ? `https://cloud.appwrite.io/v1/storage/buckets/${process.env.APPWRITE_BUCKET_ID}/files/${fileId}/view?project=${process.env.APPWRITE_PROJECT_ID}`
-            : null;
-
         res.status(200).json({
             success: true,
             data: {
                 user: {
                     ...user,
-                    photoUrl: fileUrl(user.photo),
-                    guarantorFileUrl: fileUrl(user.guarantorFile)
+                    photoUrl: resolveFileUrl(user.photo),
+                    guarantorFileUrl: resolveFileUrl(user.guarantorFile)
                 },
                 documents: documents.map((document) => ({
                     ...document,
-                    fileUrl: fileUrl(document.file),
+                    fileUrl: resolveFileUrl(document.file),
                     association: document.userId && String(document.userId) === String(user._id)
                         ? 'direct'
                         : 'legacy-name-match'
@@ -409,7 +421,15 @@ const updateuser = async (req, res) => {
         if (!updatedUser) {
             return res.status(404).json({ success: false, message: "User not found" });
         }
-        res.status(200).json({ success: true, message: "User updated successfully!", data: updatedUser });
+        const userObj = updatedUser.toObject();
+        res.status(200).json({
+            success: true,
+            message: "User updated successfully!",
+            data: {
+                ...userObj,
+                photoUrl: resolveFileUrl(userObj.photo)
+            }
+        });
     } catch (error) {
         console.error("Error updating user:", error.message);
         if (error.code === 11000) {

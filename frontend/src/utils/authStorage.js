@@ -4,7 +4,9 @@ const RETURN_PATH_KEY = 'tradeEthiopiaReturnPath';
 export const AUTH_KEYS = [
   'userToken', 'userRole', 'userRoleRaw', 'userName', 'userFullName',
   'userJobTitle', 'userStatus', 'infoStatus', 'userId', 'userEmail',
-  'userDepartment', 'trainingStatus',
+  'userDepartment', 'trainingStatus', 'examBypass',
+  'userPhoto', 'userPhotoUrl', 'userPhone', 'userLocation', 'userBio',
+  'userWebsite', 'userLinkedin', 'userTwitter', 'userFacebook', 'userTelegram',
 ];
 
 const initializeTabSession = () => {

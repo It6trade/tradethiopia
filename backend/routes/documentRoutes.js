@@ -121,6 +121,8 @@ router.post('/', uploadEmployeeDocument, async (req, res) => {
             file: file
         });
 
+        const docYear = req.body.documentYear ? Number(req.body.documentYear) : (req.body.documentDate ? new Date(req.body.documentDate).getFullYear() : new Date().getFullYear());
+
         // Create new document with Appwrite file ID
         const newDocument = new Document({
             userId: isEmployeeDocument ? userId : null,
@@ -131,6 +133,8 @@ router.post('/', uploadEmployeeDocument, async (req, res) => {
             subcategory: isEmployeeLeaveCategory(category) ? subcategory : '',
             department,
             section: suppliedSection || category.section,
+            documentYear: docYear,
+            documentDate: req.body.documentDate ? new Date(req.body.documentDate) : new Date(Date.UTC(docYear, 0, 1)),
         });
 
         const savedDocument = await newDocument.save();
@@ -148,9 +152,18 @@ router.post('/', uploadEmployeeDocument, async (req, res) => {
 // Get all documents
 router.get('/', async (req, res) => {
     try {
-        // Filter by section if provided
-        const filter = req.query.section ? { section: req.query.section } : {};
-        const documents = await Document.find(filter).populate('category');
+        // Filter by section, userId, or employeeName if provided
+        const filter = {};
+        if (req.query.section) filter.section = req.query.section;
+        if (req.query.userId) filter.userId = req.query.userId;
+        if (req.query.employeeName) {
+            filter.employeeName = { $regex: new RegExp(req.query.employeeName.trim(), 'i') };
+        }
+
+        const documents = await Document.find(filter)
+            .populate('category')
+            .populate('userId', 'fullName username email jobTitle role');
+
         // Add file URLs to each document for frontend access
         const documentsWithUrls = documents.map(doc => ({
             ...doc.toObject(),
@@ -233,7 +246,7 @@ router.put('/:id', async (req, res) => {
 // Partially update a document (without changing the file)
 router.patch('/:id', async (req, res) => {
     try {
-        const { title, categoryId, category, subcategory, department, section, licenseSchedule } = req.body;
+        const { title, categoryId, category, subcategory, department, section, documentDate, documentYear, licenseSchedule } = req.body;
         const nextCategoryId = categoryId || category;
         const update = {};
 
@@ -245,6 +258,14 @@ router.patch('/:id', async (req, res) => {
         if (title !== undefined) update.title = title;
         if (department !== undefined) update.department = department;
         if (section !== undefined) update.section = section;
+        if (documentYear !== undefined) {
+            const yr = Number(documentYear);
+            update.documentYear = yr;
+            update.documentDate = new Date(Date.UTC(yr, 0, 1));
+        } else if (documentDate !== undefined) {
+            update.documentDate = new Date(documentDate);
+            update.documentYear = new Date(documentDate).getFullYear();
+        }
         if (subcategory !== undefined) {
             if (subcategory && !leaveSubcategories.has(subcategory)) {
                 return res.status(400).json({ error: 'Invalid leave type' });
@@ -262,13 +283,6 @@ router.patch('/:id', async (req, res) => {
         }
 
         if (licenseSchedule !== undefined) {
-            const effectiveCategory = nextCategoryId
-                ? await Category.findById(nextCategoryId)
-                : currentDocument.category;
-            if (!isLicenseCategory(effectiveCategory)) {
-                return res.status(400).json({ error: 'Renewal schedules can only be assigned to License documents' });
-            }
-
             const startDateEthiopian = licenseSchedule.startDateEthiopian;
             const endDateEthiopian = licenseSchedule.endDateEthiopian;
             if (!validateEthiopianDate(startDateEthiopian)) {

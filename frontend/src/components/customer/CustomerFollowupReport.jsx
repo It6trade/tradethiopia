@@ -520,36 +520,46 @@ const CustomerFollowupReport = () => {
 
   return (
     <Layout>
-      <Box p={6}>
+      <Box p={{ base: 4, md: 5, xl: 6 }} w="100%" maxW="none" mx="0">
         {/* Header Section */}
-        <Flex justify="space-between" align="center" mb={6} wrap="wrap" gap={4}>
-          <Box>
-            <Heading as="h1" size="xl" color={headerColor} mb={2}>
-              Customer Follow-up Report
-            </Heading>
-            <Text color={secondaryTextColor}>
-              {new Date().toLocaleDateString('en-US', { 
-                weekday: 'long', 
-                year: 'numeric', 
-                month: 'long', 
-                day: 'numeric' 
-              })}
-            </Text>
-          </Box>
-          <HStack spacing={3}>
-            <Button
-              leftIcon={<FiDownload />}
-              onClick={handleExportPDF}
-              colorScheme="blue"
-              size="md"
-              boxShadow="md"
-              _hover={{ transform: "translateY(-2px)", boxShadow: "lg" }}
-              transition="all 0.2s"
-            >
-              Export as PDF
-            </Button>
-          </HStack>
-        </Flex>
+        <Card
+          mb={6}
+          borderRadius="xl"
+          borderWidth="1px"
+          borderColor="blue.100"
+          bg="linear-gradient(135deg, #f8fbff 0%, #f0fdfa 100%)"
+          boxShadow="lg"
+        >
+          <CardBody>
+            <Flex justify="space-between" align={{ base: "flex-start", md: "center" }} wrap="wrap" gap={4}>
+              <Box>
+                <Badge colorScheme="blue" mb={2}>Report center</Badge>
+                <Heading as="h1" size="xl" color={headerColor} mb={2}>
+                  Customer Follow-up Report
+                </Heading>
+                <Text color={secondaryTextColor}>
+                  {new Date().toLocaleDateString('en-US', { 
+                    weekday: 'long', 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric' 
+                  })}
+                </Text>
+              </Box>
+              <Button
+                leftIcon={<FiDownload />}
+                onClick={handleExportPDF}
+                colorScheme="blue"
+                size="md"
+                boxShadow="md"
+                _hover={{ transform: "translateY(-2px)", boxShadow: "lg" }}
+                transition="all 0.2s"
+              >
+                Export as PDF
+              </Button>
+            </Flex>
+          </CardBody>
+        </Card>
 
         {/* Stats Overview */}
         <SimpleGrid 
@@ -559,12 +569,12 @@ const CustomerFollowupReport = () => {
         >
           <Card 
             bg={cardBg} 
-            boxShadow="lg" 
-            borderRadius="xl" 
+            boxShadow="md" 
+            borderRadius="lg" 
             borderWidth="1px" 
             borderColor={borderColor}
             transition="all 0.3s"
-            _hover={{ transform: "translateY(-5px)", boxShadow: "xl" }}
+            _hover={{ transform: "translateY(-3px)", boxShadow: "lg" }}
           >
             <CardBody>
               <Stat>
@@ -591,12 +601,12 @@ const CustomerFollowupReport = () => {
 
           <Card 
             bg={cardBg} 
-            boxShadow="lg" 
-            borderRadius="xl" 
+            boxShadow="md" 
+            borderRadius="lg" 
             borderWidth="1px" 
             borderColor={borderColor}
             transition="all 0.3s"
-            _hover={{ transform: "translateY(-5px)", boxShadow: "xl" }}
+            _hover={{ transform: "translateY(-3px)", boxShadow: "lg" }}
           >
             <CardBody>
               <Stat>
@@ -623,12 +633,12 @@ const CustomerFollowupReport = () => {
 
           <Card 
             bg={cardBg} 
-            boxShadow="lg" 
-            borderRadius="xl" 
+            boxShadow="md" 
+            borderRadius="lg" 
             borderWidth="1px" 
             borderColor={borderColor}
             transition="all 0.3s"
-            _hover={{ transform: "translateY(-5px)", boxShadow: "xl" }}
+            _hover={{ transform: "translateY(-3px)", boxShadow: "lg" }}
           >
             <CardBody>
               <Stat>
@@ -658,12 +668,12 @@ const CustomerFollowupReport = () => {
 
           <Card 
             bg={cardBg} 
-            boxShadow="lg" 
-            borderRadius="xl" 
+            boxShadow="md" 
+            borderRadius="lg" 
             borderWidth="1px" 
             borderColor={borderColor}
             transition="all 0.3s"
-            _hover={{ transform: "translateY(-5px)", boxShadow: "xl" }}
+            _hover={{ transform: "translateY(-3px)", boxShadow: "lg" }}
           >
             <CardBody>
               <Stat>
@@ -702,8 +712,8 @@ const CustomerFollowupReport = () => {
           mb={{ base: 6, md: 8 }}
         >
           <CardBody>
-            <Flex direction={{ base: 'column', md: 'row' }} gap={4}>
-              <InputGroup maxW="400px">
+            <Flex direction={{ base: 'column', md: 'row' }} gap={4} align="center">
+              <InputGroup maxW={{ base: "100%", md: "520px" }}>
                 <InputLeftElement pointerEvents="none">
                   <Icon as={FiSearch} color="gray.400" />
                 </InputLeftElement>
@@ -719,7 +729,7 @@ const CustomerFollowupReport = () => {
                 <Select
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value)}
-                  maxW="200px"
+                maxW="220px"
                   bg={useColorModeValue('white', 'gray.700')}
                 >
                   <option value="all">All Status</option>
@@ -757,7 +767,7 @@ const CustomerFollowupReport = () => {
             </Flex>
           </CardHeader>
           <CardBody p={0}>
-            <Table variant="simple" size="sm">
+            <Table variant="simple" size="sm" minW="980px">
               <Thead bg={useColorModeValue('gray.50', 'gray.700')} fontSize="sm">
                 <Tr>
                   <Th>Customer</Th>
@@ -844,7 +854,7 @@ const CustomerFollowupReport = () => {
                   })
                 ) : (
                   <Tr>
-                    <Td colSpan={7} textAlign="center" py={8}>
+                    <Td colSpan={8} textAlign="center" py={8}>
                       <VStack spacing={2}>
                         <Icon as={FiAlertCircle} boxSize={8} color={secondaryTextColor} />
                         <Text color={secondaryTextColor}>
