@@ -41,6 +41,10 @@ const formatTimeAgo = (value) => {
 };
 
 const buildNotificationLink = (item, currentUser = null) => {
+  if (item.type === 'risk document' || item.category === 'risk document' || item.metadata?.isRiskDocument) {
+    return item.link || '/documentlist';
+  }
+
   const role = String(currentUser?.role || currentUser?.displayRole || '').toLowerCase().replace(/[^a-z0-9]/g, '');
   const isCS = ['customerservice', 'customersuccessmanager', 'cs', 'csmanager'].includes(role);
   const isIT = ['admin', 'itmanager', 'itadmin', 'it', 'itstaff', 'itteamleader', 'itleader', 'itofficer'].includes(role);
@@ -108,6 +112,9 @@ const appendNotificationContext = (link, item) => {
 };
 
 const getNotificationTitle = (item) => {
+  if (item.type === 'risk document' || item.category === 'risk document' || item.metadata?.isRiskDocument) {
+    return item.metadata?.title || 'Risk Document: License Renewal Alert';
+  }
   if (['comment', 'task', 'reminder'].includes(item.type)) {
     return item.metadata?.title || (item.type === 'reminder' ? 'Task reminder' : item.type === 'task' ? 'IT task update' : 'New task comment');
   }
@@ -115,6 +122,9 @@ const getNotificationTitle = (item) => {
 };
 
 const getNotificationDetail = (item) => {
+  if (item.type === 'risk document' || item.category === 'risk document' || item.metadata?.isRiskDocument) {
+    return item.text || '';
+  }
   if (['comment', 'task', 'reminder'].includes(item.type)) {
     const taskTitle = item.metadata?.taskTitle ? `Task: ${item.metadata.taskTitle}` : '';
     const author = item.metadata?.authorName || item.metadata?.actorName ? `By ${item.metadata.authorName || item.metadata.actorName}` : '';
@@ -131,6 +141,7 @@ const getCommentPreview = (item) =>
 
 const shouldKeepVisible = (item) => item.type === 'reminder' && item.metadata?.keepVisible;
 const getTypeColor = (type) => {
+  if (type === 'risk document' || type === 'risk') return 'red';
   if (type === 'task') return 'orange';
   if (type === 'chat') return 'green';
   if (type === 'comment') return 'blue';
@@ -190,27 +201,59 @@ export default function NotificationBall({ extraNotifications = [], iconColor = 
           text: notification.text,
           read: notification.read ?? false,
           type: notification.type || 'general',
+          category: notification.category,
+          documentId: notification.documentId || notification.metadata?.documentId,
           itTaskId: notification.itTaskId,
           commentId: notification.commentId,
           link: notification.link,
           metadata: notification.metadata,
           createdAt: notification.createdAt || new Date().toISOString(),
         },
-        ...current,
+        ...current.filter(
+          (item) =>
+            (notification.documentId && String(item.documentId || item.metadata?.documentId) !== String(notification.documentId)) ||
+            (notification._id && String(item._id || item.id) !== String(notification._id))
+        ),
       ]);
+    });
+    socket.on('notification:resolved', ({ documentId, type }) => {
+      setNotifications((current) =>
+        current.filter((n) => {
+          const itemDocId = n.documentId || n.metadata?.documentId;
+          if (documentId && String(itemDocId) === String(documentId)) {
+            return false;
+          }
+          return true;
+        })
+      );
     });
     return () => socket.close();
   }, [currentUser?._id]);
 
-  const combined = useMemo(
-    () => [
-      ...extraNotifications.map((item) => ({ ...item, read: item.read ?? false, local: true })),
-      ...notifications,
-    ].filter((item) => !item.read || shouldKeepVisible(item)),
-    [extraNotifications, notifications]
-  );
+  const combined = useMemo(() => {
+    const map = new Map();
+    notifications.forEach((item) => {
+      const key = item._id || item.id || (item.documentId ? `doc-${item.documentId}` : null) || item.text;
+      if (key) map.set(String(key), item);
+    });
+    extraNotifications.forEach((item) => {
+      const key = item._id || item.id || (item.documentId ? `doc-${item.documentId}` : null) || item.text;
+      if (key && !map.has(String(key))) {
+        map.set(String(key), { ...item, read: item.read ?? false, local: true });
+      }
+    });
+    return Array.from(map.values()).filter((item) => !item.read || shouldKeepVisible(item));
+  }, [extraNotifications, notifications]);
 
   const unreadCount = combined.filter((item) => !item.read).length;
+  const hasUnreadRisk = combined.some(
+    (item) =>
+      !item.read &&
+      (item.type === 'risk document' ||
+        item.category === 'risk document' ||
+        item.metadata?.isRiskDocument ||
+        item.metadata?.isHazard)
+  );
 
   const markOneRead = async (item) => {
     if (item.local || item.read) return item;
@@ -260,22 +303,24 @@ export default function NotificationBall({ extraNotifications = [], iconColor = 
                 position="absolute"
                 inset="-8px"
                 borderRadius="full"
-                bg={unreadCount > 0 ? 'blue.400' : 'transparent'}
-                opacity={unreadCount > 0 ? 0.18 : 0}
-                animation={unreadCount > 0 ? 'notificationPulse 1.7s infinite' : 'none'}
+                bg={hasUnreadRisk ? 'red.500' : unreadCount > 0 ? 'blue.400' : 'transparent'}
+                opacity={hasUnreadRisk ? 0.35 : unreadCount > 0 ? 0.18 : 0}
+                animation={hasUnreadRisk ? 'hazardPulse 1.3s infinite' : unreadCount > 0 ? 'notificationPulse 1.7s infinite' : 'none'}
               />
-              <BsBell color={iconColor} size={20} />
+              <BsBell color={hasUnreadRisk ? '#EF4444' : iconColor} size={20} />
               {unreadCount > 0 && (
                 <Badge
                   position="absolute"
                   top="-12px"
                   right="-14px"
-                  colorScheme="red"
+                  colorScheme={hasUnreadRisk ? 'red' : 'red'}
+                  bg={hasUnreadRisk ? 'red.600' : undefined}
+                  color={hasUnreadRisk ? 'white' : undefined}
                   borderRadius="full"
                   minW="20px"
                   px={1.5}
-                  boxShadow="0 0 0 3px white"
-                  animation="notificationPulse 1.7s infinite"
+                  boxShadow={hasUnreadRisk ? '0 0 8px rgba(239, 68, 68, 0.9), 0 0 0 2px white' : '0 0 0 3px white'}
+                  animation={hasUnreadRisk ? 'hazardPulse 1.3s infinite' : 'notificationPulse 1.7s infinite'}
                 >
                   {unreadCount > 99 ? '99+' : unreadCount}
                 </Badge>
@@ -285,9 +330,9 @@ export default function NotificationBall({ extraNotifications = [], iconColor = 
           variant="ghost"
           aria-label="Notifications"
           border="1px solid"
-          borderColor={buttonBorder}
+          borderColor={hasUnreadRisk ? 'red.300' : buttonBorder}
           bg={buttonBg}
-          boxShadow={unreadCount > 0 ? buttonShadow : 'none'}
+          boxShadow={hasUnreadRisk ? '0 0 14px rgba(239, 68, 68, 0.35)' : unreadCount > 0 ? buttonShadow : 'none'}
           borderRadius="full"
           sx={{
             '@keyframes notificationPulse': {
@@ -295,15 +340,32 @@ export default function NotificationBall({ extraNotifications = [], iconColor = 
               '70%': { transform: 'scale(1.18)', opacity: 0.35 },
               '100%': { transform: 'scale(1)', opacity: 1 },
             },
+            '@keyframes hazardPulse': {
+              '0%': { transform: 'scale(1)', opacity: 0.9 },
+              '50%': { transform: 'scale(1.24)', opacity: 0.45 },
+              '100%': { transform: 'scale(1)', opacity: 0.9 },
+            },
+            '@keyframes hazardDotPulse': {
+              '0%': { transform: 'scale(1)', boxShadow: '0 0 0 0 rgba(239, 68, 68, 0.85)' },
+              '60%': { transform: 'scale(1.28)', boxShadow: '0 0 0 7px rgba(239, 68, 68, 0)' },
+              '100%': { transform: 'scale(1)', boxShadow: '0 0 0 0 rgba(239, 68, 68, 0)' },
+            },
           }}
           _hover={{ bg: unreadBg, transform: 'translateY(-1px)' }}
         />
       </Tooltip>
       <Portal>
-        <MenuList p={0} w="380px" maxW="calc(100vw - 24px)" overflow="hidden" zIndex="9999" bg={menuBg} boxShadow="0 24px 70px rgba(15, 23, 42, 0.20)">
+        <MenuList p={0} w="390px" maxW="calc(100vw - 24px)" overflow="hidden" zIndex="9999" bg={menuBg} boxShadow="0 24px 70px rgba(15, 23, 42, 0.20)">
         <HStack justify="space-between" px={4} py={3} bg={menuBg}>
           <Box>
-            <Text fontWeight="900">Notifications</Text>
+            <HStack spacing={2}>
+              <Text fontWeight="900">Notifications</Text>
+              {hasUnreadRisk && (
+                <Badge colorScheme="red" bg="red.500" color="white" fontSize="2xs" borderRadius="full" px={2}>
+                  HAZARD ALERT
+                </Badge>
+              )}
+            </HStack>
             <Text fontSize="xs" color={muted}>{unreadCount} unread updates</Text>
           </Box>
           <HStack>
@@ -325,38 +387,46 @@ export default function NotificationBall({ extraNotifications = [], iconColor = 
           ) : (
             <VStack align="stretch" spacing={0}>
               {combined.map((item, index) => {
-                const link = buildNotificationLink(item);
+                const link = buildNotificationLink(item, currentUser);
                 const canOpen = Boolean(link);
                 const title = getNotificationTitle(item);
                 const detail = getNotificationDetail(item);
                 const preview = getCommentPreview(item);
+                const isRiskDoc = item.type === 'risk document' || item.category === 'risk document' || item.metadata?.isRiskDocument || item.metadata?.isHazard;
+
                 return (
                 <Box
                   key={item._id || item.id || `${item.text}-${index}`}
                   px={4}
-                  py={2.5}
-                  bg={!item.read ? unreadBg : itemBg}
+                  py={3}
+                  bg={!item.read ? (isRiskDoc ? useColorModeValue('red.50', 'rgba(239, 68, 68, 0.12)') : unreadBg) : itemBg}
                   borderBottom="1px solid"
-                  borderColor={itemBorder}
+                  borderColor={isRiskDoc && !item.read ? 'red.200' : itemBorder}
+                  borderLeft={isRiskDoc && !item.read ? '4px solid #EF4444' : undefined}
                   cursor={canOpen ? 'pointer' : item.local ? 'default' : 'pointer'}
                   onClick={() => (canOpen || !item.local ? openNotification(item) : undefined)}
-                  _hover={{ bg: unreadBg }}
+                  _hover={{ bg: isRiskDoc ? useColorModeValue('red.100', 'rgba(239, 68, 68, 0.2)') : unreadBg }}
                 >
                   <HStack align="start" spacing={3}>
+                    {/* HAZARD RED POPUP DOT FOR RISK DOCUMENT */}
                     <Box
-                      w="10px"
-                      h="10px"
+                      w="11px"
+                      h="11px"
                       borderRadius="full"
-                      bg={!item.read ? 'blue.400' : 'gray.300'}
+                      bg={isRiskDoc ? 'red.500' : (!item.read ? 'blue.400' : 'gray.300')}
+                      boxShadow={isRiskDoc ? '0 0 10px #ef4444, 0 0 4px #dc2626' : (!item.read ? '0 0 6px rgba(59, 130, 246, 0.5)' : 'none')}
+                      animation={isRiskDoc && !item.read ? 'hazardDotPulse 1.3s infinite' : 'none'}
                       mt={1.5}
                       flexShrink={0}
                     />
                     <Box flex="1" minW={0} lineHeight="1.35">
-                      <Text fontSize="sm" fontWeight={!item.read ? '800' : '700'} noOfLines={2}>
-                        {title}
-                      </Text>
+                      <HStack justify="space-between" align="start">
+                        <Text fontSize="sm" fontWeight={!item.read ? '800' : '700'} color={isRiskDoc ? (useColorModeValue('red.900', 'red.200')) : undefined} noOfLines={2}>
+                          {title}
+                        </Text>
+                      </HStack>
                       {detail && (
-                        <Text fontSize="xs" color={muted} mt={0.5} noOfLines={2}>
+                        <Text fontSize="xs" color={isRiskDoc ? (useColorModeValue('red.700', 'red.300')) : muted} mt={0.5} noOfLines={3}>
                           {detail}
                         </Text>
                       )}
@@ -371,9 +441,27 @@ export default function NotificationBall({ extraNotifications = [], iconColor = 
                         </Text>
                       )}
                       <HStack mt={2} spacing={2} align="center" flexWrap="wrap">
-                        <Badge size="sm" colorScheme={getTypeColor(item.type)}>
-                          {item.type || 'general'}
-                        </Badge>
+                        {/* NOTIFICATION CATEGORY: "risk document" in hazard red badge */}
+                        {isRiskDoc ? (
+                          <Badge
+                            size="sm"
+                            colorScheme="red"
+                            bg="red.500"
+                            color="white"
+                            px={2}
+                            py={0.5}
+                            borderRadius="full"
+                            fontWeight="extrabold"
+                            textTransform="lowercase"
+                            boxShadow="0 0 6px rgba(239, 68, 68, 0.35)"
+                          >
+                            risk document
+                          </Badge>
+                        ) : (
+                          <Badge size="sm" colorScheme={getTypeColor(item.type)}>
+                            {item.category || item.type || 'general'}
+                          </Badge>
+                        )}
                         <Text fontSize="xs" color={muted}>{formatTimeAgo(item.createdAt)}</Text>
                         {shouldKeepVisible(item) && item.read && (
                           <Badge size="sm" colorScheme="purple" variant="outline">
@@ -381,8 +469,8 @@ export default function NotificationBall({ extraNotifications = [], iconColor = 
                           </Badge>
                         )}
                         {canOpen && (
-                          <Badge size="sm" colorScheme={getTypeColor(item.type)} variant="subtle">
-                            {item.metadata?.actionLabel || 'Open'}
+                          <Badge size="sm" colorScheme={isRiskDoc ? 'red' : getTypeColor(item.type)} variant={isRiskDoc ? 'solid' : 'subtle'}>
+                            {item.metadata?.actionLabel || (isRiskDoc ? 'View Document Library' : 'Open')}
                           </Badge>
                         )}
                       </HStack>

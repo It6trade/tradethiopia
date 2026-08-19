@@ -1,8 +1,19 @@
 const Notification = require("../models/Notification.js"); // Use require for CommonJS
 const User = require("../models/user.model.js");
+const { syncAllApproachingLicenses } = require("../services/documentLicenseReminderService.js");
+
+const HR_ROLES = new Set(['hr', 'HR', 'admin', 'Admin']);
 
 const getNotifications = async (req, res) => {
   try {
+    const isHrUser = HR_ROLES.has(String(req.user?.role || ''));
+    if (isHrUser) {
+      // Silently sync approaching company licenses so HR gets up-to-date alerts
+      syncAllApproachingLicenses(req.app).catch((err) =>
+        console.error('License reminder sync error in getNotifications:', err)
+      );
+    }
+
     const notifications = await Notification.find({
       user: req.user._id,
       $or: [
@@ -14,6 +25,18 @@ const getNotifications = async (req, res) => {
       const item = notification.toObject();
       if (['comment', 'task', 'reminder'].includes(item.type) && !item.link && item.itTaskId) {
         item.link = `/it?tab=projects&task=${item.itTaskId}${item.commentId ? `&comment=${item.commentId}` : ''}`;
+      }
+      if (item.type === 'risk document' || item.category === 'risk document') {
+        item.category = 'risk document';
+        item.link = item.link || '/documentlist';
+        item.metadata = {
+          title: 'Risk Document Alert',
+          actionLabel: 'View Risk Document',
+          category: 'risk document',
+          isRiskDocument: true,
+          isHazard: true,
+          ...(item.metadata || {}),
+        };
       }
       if (item.type === 'comment') {
         item.metadata = {

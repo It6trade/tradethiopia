@@ -129,15 +129,14 @@ const IT_ALLOWED_ROLES = [
 function App() {
   const location = useLocation();
 
-  // Define the paths where Sidebar and Navbar should not appear
+  // Define the paths where Sidebar and Navbar should not appear (standalone pages with their own layout)
   const noNavSidebarRoutes = [
-    "/", "/login", "/secondpage", "/employee-info", "/employee-file-upload", 
-    "/thirdpage", "/ttv", "/fourthpage", "/fifthpage", "/exam", "/sdashboard", "/sales", "/sales/dashboard", "/finance-dashboard", "/finance-dashboard/reports",
-    "/finance-dashboard/inventory", "/finance-dashboard/orders", "/finance-dashboard/pricing", "/finance-dashboard/revenue", "/finance-dashboard/purchase",
-    "/finance/messages", "/finance/team-requests", "/finance/demands", "/finance/payments", "/finance/inventory", "/finance/orders",
-    "/addcustomer", "/resource", "/videolist", "/uploadpage", "/my-payroll",
-    "/cdashboard", "/waitingforapproval", "/training","/comingsoonpage", "/customerreport", "/followup-report", "/customerfollowup", "/b2b-dashboard",
-    "/coo-dashboard", "/ceo-dashboard", "/tradextv-dashboard", "/customer-settings", "/it", "/salesmanager", "/social-media", "/requests", "/finance-dashboard/payroll", "/finance-dashboard/commission-approval", "/finance-dashboard/forms", "/supervisor", "/supervisor/account", "/finance/requests", "/reception-dashboard"
+    "/", "/login", "/infoform", "/secondpage", "/employee-info", "/employee-file-upload", 
+    "/thirdpage", "/ttv", "/fourthpage", "/fifthpage", "/exam", "/sdashboard", "/sales", "/sales/dashboard", "/srequest",
+    "/finance-dashboard", "/finance",
+    "/cdashboard", "/waitingforapproval", "/comingsoonpage", "/b2b-dashboard",
+    "/coo-dashboard", "/ceo-dashboard", "/tradextv-dashboard", "/it", "/instructor", "/enisra", "/salesmanager",
+    "/supervisor", "/my-payroll", "/messages", "/customer/messages", "/sales/messages", "/customer/kpi"
   ].map((path) => path.toLowerCase());
 
   // Hide the navbar and sidebar for legacy/fullscreen pages; root should only match exactly
@@ -146,7 +145,7 @@ function App() {
     if (route === "/") {
       return normalizedPath === "/";
     }
-    return normalizedPath.startsWith(route);
+    return normalizedPath === route || normalizedPath.startsWith(`${route}/`);
   });
 
   // Wrapper component that conditionally applies the layout

@@ -2,12 +2,14 @@ const express = require('express');
 const multer = require('multer');
 const path = require('path');
 const Document = require('../models/Document.js');
+const Notification = require('../models/Notification.js');
 const Category = require('../models/Category.js');
 const User = require('../models/user.model.js');
 const fs = require('fs');
 const { storage } = require('../config/appwriteClient.js'); // Import Appwrite storage
 const { File } = require('node-fetch-native-with-agent'); // Import File class
 const { ethiopianToGregorianDate, validateEthiopianDate } = require('../utils/ethiopianCalendar.js');
+const { syncDocumentLicenseNotification } = require('../services/documentLicenseReminderService.js');
 
 const router = express.Router();
 const leaveSubcategories = new Set([
@@ -321,6 +323,12 @@ router.patch('/:id', async (req, res) => {
             { new: true }
         ).populate('category');
 
+        if (licenseSchedule !== undefined && updatedDocument) {
+            syncDocumentLicenseNotification(updatedDocument, req.app).catch((err) =>
+                console.error('Error syncing license reminder on patch:', err)
+            );
+        }
+
         res.status(200).json({
             ...updatedDocument.toObject(),
             fileUrl: `https://cloud.appwrite.io/v1/storage/buckets/${process.env.APPWRITE_BUCKET_ID}/files/${updatedDocument.file}/view?project=${process.env.APPWRITE_PROJECT_ID}`
@@ -351,6 +359,17 @@ router.delete('/:id', async (req, res) => {
 
         // Delete the document from the database
         await Document.findByIdAndDelete(req.params.id);
+
+        // Delete any related notifications
+        await Notification.deleteMany({ documentId: req.params.id });
+
+        const io = req.app.get('io');
+        if (io) {
+            io.emit('notification:resolved', {
+                documentId: String(req.params.id),
+                type: 'risk document',
+            });
+        }
 
         res.status(200).json({ message: 'Document deleted successfully' });
     } catch (err) {
