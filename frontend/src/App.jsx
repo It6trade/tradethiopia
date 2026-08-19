@@ -297,7 +297,27 @@ function App() {
         }
       />
       <Route
+        path="/customerfollowup"
+        element={
+          <ProtectedRoute>
+            <LayoutWrapper>
+              <CustomerFollowup />
+            </LayoutWrapper>
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/AddCustomer"
+        element={
+          <ProtectedRoute>
+            <LayoutWrapper>
+              <AddCustomer />
+            </LayoutWrapper>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/addcustomer"
         element={
           <ProtectedRoute>
             <LayoutWrapper>
@@ -317,6 +337,16 @@ function App() {
         }
       />
       <Route
+        path="/videolist"
+        element={
+          <ProtectedRoute>
+            <LayoutWrapper>
+              <VideoList />
+            </LayoutWrapper>
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/UploadPage"
         element={
           <ProtectedRoute>
@@ -327,7 +357,25 @@ function App() {
         }
       />
       <Route
+        path="/uploadpage"
+        element={
+          <ProtectedRoute>
+            <LayoutWrapper>
+              <UploadResource />
+            </LayoutWrapper>
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/Cdashboard"
+        element={
+          <ProtectedRoute>
+            <CDashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/cdashboard"
         element={
           <ProtectedRoute>
             <CDashboard />
