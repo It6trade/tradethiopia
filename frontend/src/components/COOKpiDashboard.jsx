@@ -54,7 +54,7 @@ const SCORE_LABELS = {
   2: 'Near Miss',
   1: 'Below',
 };
-const DEPARTMENTS = ['All', 'Sales', 'Customer Success', 'IT', 'Tradex TV', 'Operations', 'HR', 'Finance', 'Supervisor', 'ENISRA'];
+const DEPARTMENTS = ['All', 'Sales', 'Customer Success', 'IT', 'Tradex TV', 'Operations', 'HR', 'Finance', 'Supervisor', 'ENISRA', 'Tessbin'];
 const buildCompleteMonthList = (periods = []) => {
   return [...new Set(periods)]
     .filter((key) => /^\d{4}-\d{2}$/.test(String(key)))

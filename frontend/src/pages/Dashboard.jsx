@@ -64,6 +64,7 @@ import {
 } from 'recharts';
 import axiosInstance from '../services/axiosInstance';
 import { useUserStore } from '../store/user';
+import { getUserDepartment } from '../utils/department';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 
 // Mini Sparkline component for Stats Cards
@@ -213,7 +214,8 @@ const Dashboard = () => {
         (emp.email || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
         (emp.username || '').toLowerCase().includes(searchQuery.toLowerCase());
       
-      const matchesDept = deptFilter === 'All' || emp.jobTitle === deptFilter;
+      const empDept = getUserDepartment(emp) || emp.department || emp.jobTitle;
+      const matchesDept = deptFilter === 'All' || empDept === deptFilter;
       const matchesStatus = statusFilter === 'All' || emp.status === statusFilter;
       
       return matchesSearch && matchesDept && matchesStatus;
@@ -222,7 +224,7 @@ const Dashboard = () => {
 
   // Unique list of departments/job titles for filter dropdown
   const departmentsList = useMemo(() => {
-    const depts = new Set(employees.map(e => e.jobTitle).filter(Boolean));
+    const depts = new Set(employees.map(e => getUserDepartment(e) || e.department || e.jobTitle).filter(Boolean));
     return ['All', ...Array.from(depts)];
   }, [employees]);
 
@@ -411,26 +413,35 @@ const Dashboard = () => {
           p={5}
           boxShadow="sm"
           h="400px"
+          overflow="hidden"
+          display="flex"
+          flexDirection="column"
         >
-          <Text fontWeight="800" fontSize="md" color={useColorModeValue("gray.900", "white")} mb={6}>
-            Department Distribution
-          </Text>
+          <Box mb={4}>
+            <Text fontWeight="800" fontSize="md" color={useColorModeValue("gray.900", "white")}>
+              Department Distribution
+            </Text>
+            <Text fontSize="xs" color="gray.400" fontWeight="600" mt={0.5}>
+              Workforce headcount by department
+            </Text>
+          </Box>
 
           {loading ? (
-            <Flex align="center" justify="center" h="280px">
+            <Flex align="center" justify="center" flex={1}>
               <Spinner size="md" />
             </Flex>
           ) : (
-            <Flex align="center" justify="center" h="280px">
-              <Box position="relative" w="180px" h="180px">
+            <Flex align="center" justify="space-between" flex={1} minW={0}>
+              {/* Compact Donut Chart */}
+              <Box position="relative" w="120px" h="120px" flexShrink={0}>
                 <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
+                  <PieChart margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
                     <Pie
                       data={stats?.deptStats}
                       cx="50%"
                       cy="50%"
-                      innerRadius={60}
-                      outerRadius={80}
+                      innerRadius={38}
+                      outerRadius={54}
                       paddingAngle={3}
                       dataKey="value"
                     >
@@ -447,29 +458,60 @@ const Dashboard = () => {
                   left="50%"
                   transform="translate(-50%, -50%)"
                   textAlign="center"
+                  pointerEvents="none"
                 >
-                  <Text fontSize="24px" fontWeight="800" color={useColorModeValue("gray.800", "white")} lh="1">
+                  <Text fontSize="18px" fontWeight="900" color={useColorModeValue("gray.800", "white")} lineHeight="1">
                     {stats?.counts?.totalUsers || 247}
                   </Text>
-                  <Text fontSize="10px" color="gray.400" fontWeight="700" textTransform="uppercase">
+                  <Text fontSize="9px" color="gray.400" fontWeight="700" textTransform="uppercase" mt={0.5}>
                     Total
                   </Text>
                 </Box>
               </Box>
 
               {/* Sidebar Legend list */}
-              <VStack align="stretch" spacing={2.5} flex={1} pl={4}>
+              <VStack align="stretch" spacing={2} flex={1} minW={0} pl={3}>
                 {stats?.deptStats?.map((entry, index) => {
-                  const percent = Math.round((entry.value / (stats?.counts?.totalUsers || 247)) * 100);
+                  const total = stats?.counts?.totalUsers || 247;
+                  const percent = Math.round((entry.value / total) * 100);
                   return (
-                    <Flex key={entry.name} align="center" justify="space-between" fontSize="xs">
-                      <HStack spacing={2}>
-                        <Box w={2} h={2} borderRadius="full" bg={deptChartColors[index % deptChartColors.length]} />
-                        <Text fontWeight="700" color={useColorModeValue("gray.700", "gray.300")}>{entry.name}</Text>
+                    <Flex
+                      key={entry.name}
+                      align="center"
+                      justify="space-between"
+                      fontSize="xs"
+                      py={1.5}
+                      px={2.5}
+                      borderRadius="lg"
+                      bg={useColorModeValue("gray.50", "gray.800")}
+                      transition="all 0.15s ease"
+                      _hover={{ bg: useColorModeValue("gray.100", "gray.750") }}
+                    >
+                      <HStack spacing={2} minW={0} flex={1} mr={1.5}>
+                        <Box
+                          w="8px"
+                          h="8px"
+                          borderRadius="full"
+                          bg={deptChartColors[index % deptChartColors.length]}
+                          flexShrink={0}
+                        />
+                        <Text
+                          fontWeight="700"
+                          color={useColorModeValue("gray.700", "gray.200")}
+                          noOfLines={1}
+                          fontSize="11px"
+                        >
+                          {entry.name}
+                        </Text>
                       </HStack>
-                      <HStack spacing={1}>
-                        <Text fontWeight="800" color={useColorModeValue("gray.800", "white")}>{entry.value}</Text>
-                        <Text fontSize="10px" color="gray.400">({percent}%)</Text>
+
+                      <HStack spacing={1.5} flexShrink={0}>
+                        <Text fontWeight="800" color={useColorModeValue("gray.900", "white")} fontSize="11px">
+                          {entry.value}
+                        </Text>
+                        <Text fontSize="10px" color="gray.400" fontWeight="600">
+                          ({percent}%)
+                        </Text>
                       </HStack>
                     </Flex>
                   );

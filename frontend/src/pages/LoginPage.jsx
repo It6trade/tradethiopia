@@ -63,7 +63,6 @@ const handleLogin = async (event) => {
                 console.log('LoginPage - redirecting to /employee-info (infoStatus is not active:', infoStatus, ')');
                 redirectAfterLogin('/employee-info');
             } else {
-                const normalizedRole = normalizeRole(role);
                 const returnPath = consumeReturnPath({ _id, role: normalizedRole });
                 console.log('LoginPage - redirecting based on normalized role:', normalizedRole);
                 if (returnPath) {
@@ -124,6 +123,11 @@ const handleLogin = async (event) => {
                         break;
                     case 'instructor':
                         redirectAfterLogin('/instructor');
+                        break;
+                    case 'tessbinadmin':
+                    case 'tessbin':
+                    case 'tessbin_admin':
+                        redirectAfterLogin('/tessbin-dashboard');
                         break;
                     default:
                         redirectAfterLogin('/ComingSoonPage'); // Optional: handle unknown roles

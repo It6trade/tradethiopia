@@ -10,6 +10,7 @@ export const REQUEST_DEPARTMENTS = [
   "Sales",
   "Customer Success",
   "Finance",
+  "Tessbin",
 ];
 export const REQUEST_STATUSES = ["Pending", "Approved", "Completed"];
 export const REQUEST_PRIORITIES = ["High", "Medium", "Low"];
