@@ -281,6 +281,8 @@ export default function ITDashboard() {
             users={users}
             currentUser={currentUser}
             persona={persona}
+            permissions={persona}
+            focusedTaskId={focusedTaskId}
             fetchTasks={fetchTasks}
           />
         );

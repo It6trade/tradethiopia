@@ -24,6 +24,16 @@ const loadCurrentUser = () => {
     const jobTitle = getAuthItem("userJobTitle");
     const userId = getAuthItem("userId");
     const email = getAuthItem("userEmail");
+    const photo = getAuthItem("userPhoto");
+    const photoUrl = getAuthItem("userPhotoUrl");
+    const phone = getAuthItem("userPhone");
+    const location = getAuthItem("userLocation");
+    const bio = getAuthItem("userBio");
+    const website = getAuthItem("userWebsite");
+    const linkedin = getAuthItem("userLinkedin");
+    const twitter = getAuthItem("userTwitter");
+    const facebook = getAuthItem("userFacebook");
+    const telegram = getAuthItem("userTelegram");
     const departmentFromCache = getAuthItem("userDepartment") || getDepartmentFromRole(storedRole);
 
     return token
@@ -41,6 +51,16 @@ const loadCurrentUser = () => {
               token,
               _id: userId,
               email,
+              photo,
+              photoUrl,
+              phone,
+              location,
+              bio,
+              website,
+              linkedin,
+              twitter,
+              facebook,
+              telegram,
               department: departmentFromCache || "",
           }
         : null;
@@ -48,7 +68,7 @@ const loadCurrentUser = () => {
 
 
 
-export const useUserStore = create((set) => ({
+export const useUserStore = create((set, get) => ({
     users: [],
     loading: false,
     error: null,
@@ -75,6 +95,27 @@ export const useUserStore = create((set) => ({
         }
     },
 
+    // Refresh current user data from server
+    refreshCurrentUser: async () => {
+        const current = get().currentUser;
+        if (!current?._id) return null;
+        try {
+            const { data } = await axiosInstance.get(`/users/me`);
+            if (data?.success && data?.data) {
+                const refreshed = {
+                    ...current,
+                    ...data.data,
+                    photoUrl: data.data.photoUrl || current.photoUrl,
+                };
+                get().setCurrentUser(refreshed);
+                return refreshed;
+            }
+        } catch (err) {
+            console.warn("Could not refresh current user:", err.message);
+        }
+        return current;
+    },
+
     // Function to set the current user
     setCurrentUser: (user) => {
         if (user) {
@@ -89,18 +130,18 @@ export const useUserStore = create((set) => ({
                 role: normalizedRole,
                 normalizedRole,
                 displayRole,
-                department: computedDepartment || "",
+                department: computedDepartment || user.department || "",
             };
             set({ currentUser: sanitizedUser });
-            setAuthItem("userToken", user.token);
+            setAuthItem("userToken", user.token || getAuthItem("userToken"));
             setAuthItem("userRole", normalizedRole);
             setAuthItem("userRoleRaw", displayRole);
             setAuthItem("userName", user.username);
-            setAuthItem("userFullName", user.fullName);
-            setAuthItem("userJobTitle", user.jobTitle);
-            setAuthItem("userStatus", user.status);
-            setAuthItem("infoStatus", user.infoStatus);
-            setAuthItem("trainingStatus", user.trainingStatus);
+            setAuthItem("userFullName", user.fullName || "");
+            setAuthItem("userJobTitle", user.jobTitle || "");
+            setAuthItem("userStatus", user.status || "active");
+            setAuthItem("infoStatus", user.infoStatus || "pending");
+            setAuthItem("trainingStatus", user.trainingStatus || "");
             setAuthItem("examBypass", user.examBypass ? "true" : "false");
             setAuthItem("userId", user._id);
             if (user.email) {
@@ -109,6 +150,16 @@ export const useUserStore = create((set) => ({
                 removeAuthItem("userEmail");
             }
             setAuthItem("userDepartment", sanitizedUser.department || "");
+            setAuthItem("userPhoto", user.photo || "");
+            setAuthItem("userPhotoUrl", user.photoUrl || "");
+            setAuthItem("userPhone", user.phone || "");
+            setAuthItem("userLocation", user.location || "");
+            setAuthItem("userBio", user.bio || "");
+            setAuthItem("userWebsite", user.website || "");
+            setAuthItem("userLinkedin", user.linkedin || "");
+            setAuthItem("userTwitter", user.twitter || "");
+            setAuthItem("userFacebook", user.facebook || "");
+            setAuthItem("userTelegram", user.telegram || "");
         } else {
             set({ currentUser: null });
             clearAuthSession();
@@ -144,10 +195,24 @@ export const useUserStore = create((set) => ({
             const { data } = await axiosInstance.put(`/users/${uid}`, updatedUser);
             if (!data.success) return { success: false, message: data.message };
 
-            set((state) => ({
-                users: state.users.map((user) => (user._id === uid ? data.data : user)),
-            }));
-            return { success: true, message: "User updated successfully!", data: data.data };
+            const updatedData = data.data;
+
+            set((state) => {
+                const isCurrent = state.currentUser?._id === uid;
+                const nextCurrent = isCurrent
+                    ? { ...state.currentUser, ...updatedData }
+                    : state.currentUser;
+
+                if (isCurrent) {
+                    get().setCurrentUser(nextCurrent);
+                }
+
+                return {
+                    users: state.users.map((user) => (user._id === uid ? updatedData : user)),
+                    currentUser: nextCurrent,
+                };
+            });
+            return { success: true, message: "User updated successfully!", data: updatedData };
         } catch (error) {
             console.error("Error updating user:", error);
             return {
@@ -164,11 +229,15 @@ export const useUserStore = create((set) => ({
             if (!data.success) return { success: false, message: data.message };
     
             // Update currentUser in the store
-            set((state) => ({
-                currentUser: { ...state.currentUser, ...updatedInfo },
-                users: state.users.map((user) => (user._id === uid ? data.data : user)),
-            }));
-            return { success: true, message: "User information updated successfully!" };
+            set((state) => {
+                const nextCurrent = { ...state.currentUser, ...updatedInfo, ...data.data };
+                get().setCurrentUser(nextCurrent);
+                return {
+                    currentUser: nextCurrent,
+                    users: state.users.map((user) => (user._id === uid ? data.data : user)),
+                };
+            });
+            return { success: true, message: "User information updated successfully!", data: data.data };
         } catch (error) {
             console.error("Error updating user information:", error);
             return { success: false, message: "Failed to update user information. Please try again later." };

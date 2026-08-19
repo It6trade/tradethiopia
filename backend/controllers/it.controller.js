@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const ITTask = require('../models/ITTask');
 const ITReport = require('../models/ITReport');
 const Notification = require('../models/Notification');
@@ -70,15 +71,24 @@ const filterTaskCommentsForUser = (task, user) => {
   if (!user) return [];
 
   const role = normalizeRole(user.role);
+  const isTicket = isSupportTicketTask(task);
 
-  // 1. IT Managers / General Admins: full visibility of all comments (CS and Staff channels)
+  // 1. IT Managers / General Admins: full visibility of all comments
   if (isItManagerRole(role)) {
     return task.comments;
   }
 
-  // 2. Customer Service Team (Task Sender or CS Manager):
-  // Can only view comments directed to CS (audience === 'cs_manager' or 'general').
-  // Cannot see IT staff comments (audience === 'staff_manager').
+  // 2. Support tickets: strictly internal between IT Staff & Management
+  if (isTicket) {
+    if (isItManagerRole(role) || isItStaffRole(role)) {
+      // IT staff and managers can view all ticket comments
+      return task.comments;
+    }
+    // Completely invisible to CS
+    return [];
+  }
+
+  // 3. Customer Service Team (Task Sender or CS Manager for External tasks):
   if (isCsRole(role) || isTaskOwnerOrRequester(task, user)) {
     if (isTaskOwnerOrRequester(task, user) || isCsManagerRole(role)) {
       return task.comments.filter((c) => (c.audience || 'general') !== 'staff_manager');
@@ -86,14 +96,12 @@ const filterTaskCommentsForUser = (task, user) => {
     return [];
   }
 
-  // 3. IT Staff:
-  // Can only view comments directed to IT staff (audience === 'staff_manager' or 'general').
-  // Cannot see Customer Service comments (audience === 'cs_manager').
+  // 4. IT Staff (External tasks):
   if (isItStaffRole(role)) {
     const userAliases = getUserAliases(user);
     const userIdStr = String(user._id || user.id || '').trim();
     return task.comments.filter((c) => {
-      // Hide all CS comments from IT staff
+      // Hide CS comments from IT staff in external projects
       if (c.audience === 'cs_manager') return false;
 
       const authorId = String(c.author?._id || c.author || '').trim();
@@ -268,6 +276,16 @@ const notifyOnTaskCreation = async (task, req) => {
   }
 };
 
+const isSupportTicketTask = (task = {}) => (
+  Boolean(task.supportRequestNote)
+  || task.requestSource === 'employee_call'
+  || Boolean(task.requestedAt)
+  || (Array.isArray(task.ticketRecords) && task.ticketRecords.length > 0)
+  || task.actionType === 'Support Request'
+  || task.actionType === 'Support Ticket'
+  || task.category === 'Support Ticket'
+);
+
 const notifyOnTaskAssignment = async (task, req, previous = {}) => {
   try {
     const allUsers = await User.find({ status: 'active' }).select('username fullName email role department status');
@@ -275,6 +293,7 @@ const notifyOnTaskAssignment = async (task, req, previous = {}) => {
     const taskTitle = getTaskTitle(task);
     const actorName = getUserDisplayName(req.user);
     const staffNames = [task.taskLeader, ...(task.assignedTo || [])].filter(Boolean).join(', ') || 'IT staff';
+    const isTicket = isSupportTicketTask(task);
 
     // 1. Notify newly assigned staff / leader
     const participantAliases = collectTaskParticipantAliases(task);
@@ -283,15 +302,18 @@ const notifyOnTaskAssignment = async (task, req, previous = {}) => {
       if (matches && String(u._id) !== String(req.user?._id)) {
         recipients.push({
           user: u._id,
-          text: `You have been assigned to IT task: ${taskTitle}.`,
+          text: isTicket
+            ? `You have been assigned to IT support ticket: ${taskTitle}. Please accept the ticket to begin work.`
+            : `You have been assigned to IT task: ${taskTitle}.`,
           type: 'task',
           itTaskId: task._id,
-          link: `/it?tab=projects&task=${task._id}`,
+          link: isTicket ? `/it?tab=tickets&task=${task._id}` : `/it?tab=projects&task=${task._id}`,
           metadata: {
-            title: 'Task assignment',
+            isTicket,
+            title: isTicket ? 'Support Ticket Assigned' : 'Task assignment',
             taskTitle,
-            taskLocation: getTaskLocation(task),
-            actionLabel: 'View task',
+            taskLocation: isTicket ? 'IT Support Department' : getTaskLocation(task),
+            actionLabel: isTicket ? 'Accept Ticket' : 'View task',
             actorName,
           },
         });
@@ -309,19 +331,24 @@ const notifyOnTaskAssignment = async (task, req, previous = {}) => {
       const role = normalizeRole(u.role);
       const isRequester = getUserAliases(u).some((alias) => requesterAliases.includes(alias));
       const isCsMgr = isCsManagerRole(role);
+      // For tickets, only notify the actual ticket sender/requester, not all CS reps
+      const shouldNotifyCs = isTicket ? isRequester : (isRequester || isCsMgr);
 
-      if ((isRequester || isCsMgr) && String(u._id) !== String(req.user?._id)) {
+      if (shouldNotifyCs && String(u._id) !== String(req.user?._id)) {
         recipients.push({
           user: u._id,
-          text: `IT task assigned: ${taskTitle} has been assigned to ${staffNames}.`,
+          text: isTicket
+            ? `IT support ticket assigned: ${taskTitle} has been assigned to ${staffNames}.`
+            : `IT task assigned: ${taskTitle} has been assigned to ${staffNames}.`,
           type: 'task',
           itTaskId: task._id,
           link: `/cdashboard?section=it-requests&task=${task._id}`,
           metadata: {
-            title: 'IT task assigned to staff',
+            isTicket,
+            title: isTicket ? 'IT support ticket assigned to staff' : 'IT task assigned to staff',
             taskTitle,
             assignedTo: staffNames,
-            taskLocation: getTaskLocation(task),
+            taskLocation: isTicket ? 'IT Support Department' : getTaskLocation(task),
             actionLabel: 'View in CS',
             actorName,
           },
@@ -348,6 +375,9 @@ const notifyOnTaskUpgrade = async (task, req, options = {}) => {
     const actorName = getUserDisplayName(req.user);
     const statusLabel = String(task.workflowStatus || task.status || 'updated').replace('_', ' ');
 
+    const isTicket = isSupportTicketTask(task);
+    const itLink = isTicket ? `/it?tab=tickets&task=${task._id}` : `/it?tab=projects&task=${task._id}`;
+
     // 1. Notify IT Participants (Leader & Assigned Staff) and IT Managers
     const participantAliases = collectTaskParticipantAliases(task);
     allUsers.forEach((u) => {
@@ -360,14 +390,15 @@ const notifyOnTaskUpgrade = async (task, req, options = {}) => {
           text: options.text || `IT task updated: ${taskTitle} is now ${statusLabel}.`,
           type: 'task',
           itTaskId: task._id,
-          link: `/it?tab=projects&task=${task._id}`,
+          link: itLink,
           metadata: {
+            isTicket,
             title: options.title || 'IT task update',
             taskTitle,
             workflowStatus: task.workflowStatus,
             status: task.status,
             progressPercent: task.progressPercent,
-            taskLocation: getTaskLocation(task),
+            taskLocation: isTicket ? 'IT Support Department' : getTaskLocation(task),
             actionLabel: 'View task',
             actorName,
             ...(options.metadata || {}),
@@ -387,8 +418,10 @@ const notifyOnTaskUpgrade = async (task, req, options = {}) => {
       const role = normalizeRole(u.role);
       const isRequester = getUserAliases(u).some((alias) => requesterAliases.includes(alias));
       const isCsMgr = isCsManagerRole(role);
+      // For tickets, only notify the actual ticket sender/requester, not all CS reps
+      const shouldNotifyCs = isTicket ? isRequester : (isRequester || isCsMgr);
 
-      if ((isRequester || isCsMgr) && String(u._id) !== String(req.user?._id)) {
+      if (shouldNotifyCs && String(u._id) !== String(req.user?._id)) {
         recipients.push({
           user: u._id,
           text: `IT task update: ${taskTitle} is now ${statusLabel}${task.progressPercent ? ` (${task.progressPercent}%)` : ''}.`,
@@ -401,7 +434,7 @@ const notifyOnTaskUpgrade = async (task, req, options = {}) => {
             workflowStatus: task.workflowStatus,
             status: task.status,
             progressPercent: task.progressPercent,
-            taskLocation: getTaskLocation(task),
+            taskLocation: isTicket ? 'IT Support Department' : getTaskLocation(task),
             actionLabel: 'View in CS',
             actorName,
             ...(options.metadata || {}),
@@ -435,6 +468,7 @@ const notifyTaskCommentParticipants = async (task, comment, req) => {
     const actorName = getUserDisplayName(req.user);
     const commentPreview = String(comment.body || '').slice(0, 160);
     const audience = comment.audience || 'general';
+    const isTicket = isSupportTicketTask(task);
 
     const requesterAliases = [
       String(task.requestedBy || '').trim().toLowerCase(),
@@ -447,7 +481,61 @@ const notifyTaskCommentParticipants = async (task, comment, req) => {
     const isManagerAuthor = isItManagerRole(actorRole);
     const participantAliases = collectTaskParticipantAliases(task);
 
-    if (audience === 'cs_manager') {
+    const itLink = isTicket ? `/it?tab=tickets&task=${taskId}&comment=${commentId}` : `/it?tab=projects&task=${taskId}&comment=${commentId}`;
+    const csLink = `/cdashboard?section=it-requests&task=${taskId}&comment=${commentId}`;
+
+    if (isTicket) {
+      // Support Ticket Notifications: Strictly internal between IT Staff & Management
+      if (isManagerAuthor) {
+        // Manager commented -> Notify ONLY assigned IT staff
+        allUsers.forEach((u) => {
+          const matches = getUserAliases(u).some((alias) => participantAliases.includes(alias));
+          if (matches && String(u._id) !== String(req.user?._id)) {
+            recipients.push({
+              user: u._id,
+              text: `New ticket comment from manager ${actorName}: ${taskTitle}.`,
+              type: 'comment',
+              itTaskId: taskId,
+              commentId,
+              link: itLink,
+              metadata: {
+                isTicket: true,
+                title: 'New ticket comment',
+                taskTitle,
+                taskLocation: 'IT Support Department',
+                commentPreview,
+                authorName: actorName,
+                actionLabel: 'View comment',
+              },
+            });
+          }
+        });
+      } else {
+        // IT Staff commented -> Notify ONLY IT Manager(s)
+        allUsers.forEach((u) => {
+          const role = normalizeRole(u.role);
+          if (isItManagerRole(role) && String(u._id) !== String(req.user?._id)) {
+            recipients.push({
+              user: u._id,
+              text: `New ticket comment from ${actorName}: ${taskTitle}.`,
+              type: 'comment',
+              itTaskId: taskId,
+              commentId,
+              link: itLink,
+              metadata: {
+                isTicket: true,
+                title: 'New ticket comment',
+                taskTitle,
+                taskLocation: 'IT Support Department',
+                commentPreview,
+                authorName: actorName,
+                actionLabel: 'View comment',
+              },
+            });
+          }
+        });
+      }
+    } else if (audience === 'cs_manager') {
       // CS Channel: Strictly between CS Sender and IT Manager
       if (isSenderAuthor) {
         // CS Sender commented -> Notify IT Manager(s)
@@ -460,7 +548,7 @@ const notifyTaskCommentParticipants = async (task, comment, req) => {
               type: 'comment',
               itTaskId: taskId,
               commentId,
-              link: `/it?tab=projects&task=${taskId}&comment=${commentId}`,
+              link: itLink,
               metadata: {
                 title: 'New external task comment',
                 taskTitle,
@@ -483,7 +571,7 @@ const notifyTaskCommentParticipants = async (task, comment, req) => {
               type: 'comment',
               itTaskId: taskId,
               commentId,
-              link: `/cdashboard?section=it-requests&task=${taskId}&comment=${commentId}`,
+              link: csLink,
               metadata: {
                 title: 'New external task comment',
                 taskTitle,
@@ -509,7 +597,7 @@ const notifyTaskCommentParticipants = async (task, comment, req) => {
               type: 'comment',
               itTaskId: taskId,
               commentId,
-              link: `/it?tab=projects&task=${taskId}&comment=${commentId}`,
+              link: itLink,
               metadata: {
                 title: 'New task comment',
                 taskTitle,
@@ -532,7 +620,7 @@ const notifyTaskCommentParticipants = async (task, comment, req) => {
               type: 'comment',
               itTaskId: taskId,
               commentId,
-              link: `/it?tab=projects&task=${taskId}&comment=${commentId}`,
+              link: itLink,
               metadata: {
                 title: 'New task comment',
                 taskTitle,
@@ -913,13 +1001,20 @@ const addTaskComment = async (req, res) => {
       });
     }
 
-    let audience = req.body.audience || 'general';
-    if (isItStaffRole(role) && !isItManagerRole(role)) {
-      audience = 'staff_manager';
-    } else if (isCsRole(role) && !isItManagerRole(role)) {
-      audience = 'cs_manager';
-    } else if (isItManagerRole(role)) {
-      audience = req.body.audience === 'staff_manager' ? 'staff_manager' : 'cs_manager';
+    const isTicket = isSupportTicketTask(task);
+    let audience = req.body.audience;
+    if (!audience) {
+      if (isTicket) {
+        audience = 'general';
+      } else if (isItStaffRole(role) && !isItManagerRole(role)) {
+        audience = 'staff_manager';
+      } else if (isCsRole(role) && !isItManagerRole(role)) {
+        audience = 'cs_manager';
+      } else if (isItManagerRole(role)) {
+        audience = 'general';
+      } else {
+        audience = 'general';
+      }
     }
 
     const comment = task.comments.create({
@@ -1338,6 +1433,48 @@ const submitFeedback = async (req, res) => {
     });
 
     await task.save();
+
+    // Notify assigned IT staff and leader about the feedback & rating
+    try {
+      const isTicket = isSupportTicketTask(task);
+      const participantAliases = collectTaskParticipantAliases(task);
+      const taskTitle = getTaskTitle(task);
+      const actorName = getUserDisplayName(req.user);
+      const feedbackAuthor = task.requesterFeedback.submittedBy || actorName;
+      const allUsers = await User.find({ status: 'active' }).select('username fullName email role department status');
+      const recipients = [];
+
+      allUsers.forEach((u) => {
+        const matches = getUserAliases(u).some((alias) => participantAliases.includes(alias));
+        if (matches && String(u._id) !== String(req.user?._id)) {
+          recipients.push({
+            user: u._id,
+            text: `Feedback received on ${taskTitle}: ${rating} ★ by ${feedbackAuthor}${comment ? ` - "${comment}"` : ''}.`,
+            type: 'task',
+            itTaskId: task._id,
+            link: isTicket ? `/it?tab=tickets&task=${task._id}` : `/it?tab=projects&task=${task._id}`,
+            metadata: {
+              isTicket,
+              title: 'Ticket Feedback Received',
+              taskTitle,
+              rating: Number(rating),
+              comment: comment || '',
+              authorName: feedbackAuthor,
+              actionLabel: 'View Feedback',
+            },
+          });
+        }
+      });
+
+      if (recipients.length) {
+        const uniqueRecipients = Array.from(new Map(recipients.map((r) => [String(r.user), r])).values());
+        const createdNotifications = await Notification.insertMany(uniqueRecipients);
+        createdNotifications.forEach(emitNotification);
+      }
+    } catch (notifErr) {
+      console.error('Feedback notification error:', notifErr);
+    }
+
     res.json({ success: true, data: task });
   } catch (error) {
     console.error('submitFeedback error', error);
@@ -1489,6 +1626,441 @@ const respondToExternalProject = async (req, res) => {
   }
 };
 
+// Create Support Request / Ticket
+const createSupportRequest = async (req, res) => {
+  try {
+    const data = req.body || {};
+    const taskName = String(data.taskName || '').trim() || String(data.summary || '').slice(0, 60).trim() || 'IT Support Request';
+    const rawAttachments = data.attachments;
+    const attachments = rawAttachments
+      ? (Array.isArray(rawAttachments) ? rawAttachments : String(rawAttachments).split('\n').map((s) => s.trim()).filter(Boolean))
+      : [];
+
+    const priority = String(data.priority || 'normal').toLowerCase();
+    const now = new Date();
+    let responseHours = 4;
+    let resolutionHours = 24;
+    if (priority === 'critical') {
+      responseHours = 0.5;
+      resolutionHours = 4;
+    } else if (priority === 'high') {
+      responseHours = 2;
+      resolutionHours = 8;
+    } else if (priority === 'low') {
+      responseHours = 8;
+      resolutionHours = 48;
+    }
+
+    const responseDueAt = new Date(now.getTime() + responseHours * 60 * 60 * 1000);
+    const resolutionDueAt = new Date(now.getTime() + resolutionHours * 60 * 60 * 1000);
+
+    const task = new ITTask({
+      taskName,
+      projectType: 'internal',
+      category: 'Support Ticket',
+      platform: 'Internal Support',
+      actionType: 'Support Request',
+      description: data.summary || data.description || '',
+      supportRequestNote: data.summary || data.description || '',
+      ticketCategory: data.ticketCategory || 'support',
+      priority,
+      requestedBy: data.requestedBy || getUserDisplayName(req.user),
+      requestedDepartment: data.requestedDepartment || req.user?.department || 'Customer Service',
+      requestSource: data.requestSource || 'employee_call',
+      requestedAt: now,
+      status: 'pending',
+      workflowStatus: 'pending',
+      supportStatus: 'requested',
+      attachments,
+      sla: {
+        responseDueAt,
+        resolutionDueAt,
+      },
+      createdBy: req.user?._id,
+      ticketRecords: [],
+    });
+
+    appendAudit(task, req, 'support_request_created', {
+      to: {
+        taskName: task.taskName,
+        requestedBy: task.requestedBy,
+        requestedDepartment: task.requestedDepartment,
+        priority: task.priority,
+      },
+      note: task.supportRequestNote,
+    });
+
+    await task.save();
+
+    // Send notifications to all active IT managers
+    try {
+      const allUsers = await User.find({ status: 'active' }).select('username fullName email role department status');
+      const recipients = [];
+      const taskTitle = getTaskTitle(task);
+      const actorName = getUserDisplayName(req.user);
+
+      allUsers.forEach((u) => {
+        const role = normalizeRole(u.role);
+        if (isItManagerRole(role) && String(u._id) !== String(req.user?._id)) {
+          recipients.push({
+            user: u._id,
+            text: `New IT support request from ${task.requestedBy || actorName}: ${taskTitle}.`,
+            type: 'task',
+            itTaskId: task._id,
+            link: `/it?tab=tickets&task=${task._id}`,
+            metadata: {
+              title: 'New IT Support Request',
+              taskTitle,
+              taskLocation: getTaskLocation(task),
+              actionLabel: 'Review Ticket',
+              actorName,
+            },
+          });
+        }
+      });
+
+      if (recipients.length) {
+        const uniqueRecipients = Array.from(new Map(recipients.map((r) => [String(r.user), r])).values());
+        const createdNotifications = await Notification.insertMany(uniqueRecipients);
+        createdNotifications.forEach(emitNotification);
+      }
+    } catch (notifErr) {
+      console.error('Support request notification error:', notifErr);
+    }
+
+    const taskObj = task.toObject ? task.toObject() : task;
+    taskObj.comments = filterTaskCommentsForUser(taskObj, req.user);
+    res.status(201).json({ success: true, data: taskObj });
+  } catch (error) {
+    console.error('createSupportRequest error', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// Manager Accept & Assign Support Request
+const acceptSupportRequest = async (req, res) => {
+  try {
+    const { taskLeader, assignedTo, note } = req.body;
+    const task = await ITTask.findById(req.params.id);
+    if (!task) return res.status(404).json({ success: false, message: 'Task not found' });
+
+    const previousSnapshot = {
+      taskLeader: task.taskLeader,
+      assignedTo: task.assignedTo,
+      supportStatus: task.supportStatus,
+      workflowStatus: task.workflowStatus,
+    };
+
+    task.taskLeader = String(taskLeader || '').trim();
+    if (assignedTo !== undefined) {
+      task.assignedTo = Array.isArray(assignedTo) ? assignedTo : [assignedTo].filter(Boolean);
+    }
+    task.managerAcceptedAt = new Date();
+    task.managerAcceptedByName = getUserDisplayName(req.user);
+    task.managerAcceptedById = req.user?._id;
+    task.supportStatus = 'assigned';
+    task.workflowStatus = 'assigned';
+    task.status = 'ongoing';
+
+    if (note) {
+      task.comments.push({
+        author: req.user?._id,
+        authorName: getUserDisplayName(req.user),
+        authorRole: req.user?.role || '',
+        body: `Manager accepted and assigned ticket: ${note}`,
+        audience: 'general',
+      });
+    }
+
+    appendAudit(task, req, 'support_request_accepted_and_assigned', {
+      from: previousSnapshot,
+      to: {
+        taskLeader: task.taskLeader,
+        assignedTo: task.assignedTo,
+        supportStatus: task.supportStatus,
+        workflowStatus: task.workflowStatus,
+      },
+      note: note || '',
+    });
+
+    await task.save();
+    await notifyOnTaskAssignment(task, req, previousSnapshot);
+
+    const taskObj = task.toObject ? task.toObject() : task;
+    taskObj.comments = filterTaskCommentsForUser(taskObj, req.user);
+    res.json({ success: true, data: taskObj });
+  } catch (error) {
+    console.error('acceptSupportRequest error', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// Staff Accept Assigned Support Request
+const staffAcceptSupport = async (req, res) => {
+  try {
+    const task = await ITTask.findById(req.params.id);
+    if (!task) return res.status(404).json({ success: false, message: 'Task not found' });
+
+    const actorName = getUserDisplayName(req.user);
+    task.staffAcceptedAt = new Date();
+    task.staffAcceptedByName = actorName;
+    task.staffAcceptedById = req.user?._id;
+    task.supportStatus = 'in_progress';
+    task.workflowStatus = 'in_progress';
+    task.status = 'ongoing';
+
+    task.comments.push({
+      author: req.user?._id,
+      authorName: actorName,
+      authorRole: req.user?.role || '',
+      body: `Staff accepted ticket and started work.`,
+      audience: 'general',
+    });
+
+    appendAudit(task, req, 'support_ticket_staff_accepted', {
+      to: {
+        staffAcceptedByName: actorName,
+        supportStatus: task.supportStatus,
+        workflowStatus: task.workflowStatus,
+      },
+      note: req.body.note || '',
+    });
+
+    await task.save();
+    await notifyOnTaskUpgrade(task, req, {
+      title: 'IT support ticket accepted by staff',
+      text: `${actorName} accepted support ticket ${getTaskTitle(task)} and started work.`,
+    });
+
+    const taskObj = task.toObject ? task.toObject() : task;
+    taskObj.comments = filterTaskCommentsForUser(taskObj, req.user);
+    res.json({ success: true, data: taskObj });
+  } catch (error) {
+    console.error('staffAcceptSupport error', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// Staff Record Work / Report on Ticket
+const recordSupportReport = async (req, res) => {
+  try {
+    const task = await ITTask.findById(req.params.id);
+    if (!task) return res.status(404).json({ success: false, message: 'Task not found' });
+
+    const data = req.body || {};
+    const rawAttachments = data.attachments;
+    const attachments = rawAttachments
+      ? (Array.isArray(rawAttachments) ? rawAttachments : String(rawAttachments).split('\n').map((s) => s.trim()).filter(Boolean))
+      : [];
+
+    const record = {
+      _id: new mongoose.Types.ObjectId(),
+      taskId: task._id,
+      workType: data.workType || 'support',
+      summary: String(data.summary || '').trim(),
+      outstandingTasks: String(data.outstandingTasks || '').trim(),
+      attachments,
+      completedAt: data.completedAt ? new Date(data.completedAt) : new Date(),
+      durationMinutes: Number(data.durationMinutes) || 30,
+      staff: req.user?._id,
+      staffName: getUserDisplayName(req.user),
+      staffRole: req.user?.role || '',
+      approvalStatus: 'pending_approval',
+      createdAt: new Date(),
+    };
+
+    if (!Array.isArray(task.ticketRecords)) {
+      task.ticketRecords = [];
+    }
+    task.ticketRecords.push(record);
+    task.markModified('ticketRecords');
+
+    task.supportStatus = 'reported';
+    task.workflowStatus = 'submitted';
+    task.status = 'ongoing';
+
+    appendAudit(task, req, 'support_ticket_work_reported', {
+      note: record.summary,
+      metadata: { recordId: record._id, workType: record.workType },
+    });
+
+    await task.save();
+    await notifyOnTaskUpgrade(task, req, {
+      title: 'Support ticket report submitted',
+      text: `${record.staffName} submitted a work completion report on ${getTaskTitle(task)}.`,
+    });
+
+    const taskObj = task.toObject ? task.toObject() : task;
+    taskObj.comments = filterTaskCommentsForUser(taskObj, req.user);
+    res.status(201).json({ success: true, data: taskObj, record });
+  } catch (error) {
+    console.error('recordSupportReport error', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// Manager Review / Approve Record
+const updateTicketRecordApproval = async (req, res) => {
+  try {
+    const { approvalStatus, managerNote } = req.body;
+    if (!['approved', 'rejected'].includes(approvalStatus)) {
+      return res.status(400).json({ success: false, message: 'Invalid approval status. Must be approved or rejected.' });
+    }
+
+    const task = await ITTask.findById(req.params.id);
+    if (!task) return res.status(404).json({ success: false, message: 'Task not found' });
+
+    if (!Array.isArray(task.ticketRecords)) {
+      task.ticketRecords = [];
+    }
+
+    const record = task.ticketRecords.find((r) => String(r._id) === String(req.params.recordId));
+    if (!record) {
+      return res.status(404).json({ success: false, message: 'Ticket record not found' });
+    }
+
+    record.approvalStatus = approvalStatus;
+    record.managerNote = managerNote || '';
+    record.reviewedAt = new Date();
+    record.reviewedBy = req.user?._id;
+    record.reviewedByName = getUserDisplayName(req.user);
+
+    if (approvalStatus === 'approved') {
+      task.supportStatus = 'approved';
+      task.workflowStatus = 'approved';
+      task.status = 'done';
+      await createCompletionReportForTask(task);
+    } else {
+      task.supportStatus = 'rejected';
+      task.workflowStatus = 'rejected';
+    }
+
+    task.markModified('ticketRecords');
+    appendAudit(task, req, `support_ticket_record_${approvalStatus}`, {
+      note: managerNote || '',
+      metadata: { recordId: record._id, approvalStatus },
+    });
+
+    await task.save();
+    await notifyOnTaskUpgrade(task, req, {
+      title: approvalStatus === 'approved' ? 'Ticket record approved' : 'Ticket record rejected',
+      text: `Ticket record on ${getTaskTitle(task)} was ${approvalStatus} by ${getUserDisplayName(req.user)}.`,
+    });
+
+    const taskObj = task.toObject ? task.toObject() : task;
+    taskObj.comments = filterTaskCommentsForUser(taskObj, req.user);
+    res.json({ success: true, data: taskObj });
+  } catch (error) {
+    console.error('updateTicketRecordApproval error', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// Delete Ticket Record
+const deleteTicketRecord = async (req, res) => {
+  try {
+    const task = await ITTask.findById(req.params.id);
+    if (!task) return res.status(404).json({ success: false, message: 'Task not found' });
+
+    if (Array.isArray(task.ticketRecords)) {
+      task.ticketRecords = task.ticketRecords.filter((r) => String(r._id) !== String(req.params.recordId));
+      task.markModified('ticketRecords');
+    }
+
+    appendAudit(task, req, 'support_ticket_record_deleted', {
+      metadata: { recordId: req.params.recordId },
+    });
+
+    await task.save();
+    const taskObj = task.toObject ? task.toObject() : task;
+    taskObj.comments = filterTaskCommentsForUser(taskObj, req.user);
+    res.json({ success: true, data: taskObj });
+  } catch (error) {
+    console.error('deleteTicketRecord error', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// Staff Reject Assigned Support Request
+const staffRejectSupport = async (req, res) => {
+  try {
+    const { reason } = req.body || {};
+    const task = await ITTask.findById(req.params.id);
+    if (!task) return res.status(404).json({ success: false, message: 'Task not found' });
+
+    const actorName = getUserDisplayName(req.user);
+    const previousStaff = task.assignedTo;
+    task.staffRejectedAt = new Date();
+    task.staffRejectedByName = actorName;
+    task.staffRejectedById = req.user?._id;
+    task.staffRejectedReason = reason || '';
+    task.assignedTo = [];
+    task.supportStatus = 'staff_rejected';
+    task.workflowStatus = 'rejected';
+    task.status = 'pending';
+
+    task.comments.push({
+      author: req.user?._id,
+      authorName: actorName,
+      authorRole: req.user?.role || '',
+      body: `Staff declined assigned ticket${reason ? `: ${reason}` : ''}`,
+      audience: 'staff_manager',
+    });
+
+    appendAudit(task, req, 'support_ticket_staff_rejected', {
+      from: { assignedTo: previousStaff, supportStatus: 'assigned' },
+      to: { assignedTo: [], supportStatus: 'staff_rejected', workflowStatus: 'rejected' },
+      note: reason || '',
+    });
+
+    await task.save();
+
+    // Notify all active IT Managers about the rejection so they can reassign
+    try {
+      const allUsers = await User.find({ status: 'active' }).select('username fullName email role department status');
+      const recipients = [];
+      const taskTitle = getTaskTitle(task);
+
+      allUsers.forEach((u) => {
+        const role = normalizeRole(u.role);
+        if (isItManagerRole(role) && String(u._id) !== String(req.user?._id)) {
+          recipients.push({
+            user: u._id,
+            text: `Staff ${actorName} declined support ticket: ${taskTitle}${reason ? ` (Reason: ${reason})` : ''}. Reassignment needed.`,
+            type: 'task',
+            itTaskId: task._id,
+            link: `/it?tab=tickets&task=${task._id}`,
+            metadata: {
+              isTicket: true,
+              title: 'Support Ticket Declined by Staff',
+              taskTitle,
+              taskLocation: 'IT Support Department',
+              actionLabel: 'Reassign Ticket',
+              actorName,
+              reason: reason || '',
+            },
+          });
+        }
+      });
+
+      if (recipients.length) {
+        const uniqueRecipients = Array.from(new Map(recipients.map((r) => [String(r.user), r])).values());
+        const createdNotifications = await Notification.insertMany(uniqueRecipients);
+        createdNotifications.forEach(emitNotification);
+      }
+    } catch (notifErr) {
+      console.error('Staff reject notification error:', notifErr);
+    }
+
+    const taskObj = task.toObject ? task.toObject() : task;
+    taskObj.comments = filterTaskCommentsForUser(taskObj, req.user);
+    res.json({ success: true, data: taskObj });
+  } catch (error) {
+    console.error('staffRejectSupport error', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 module.exports = {
   createTask,
   getTasks,
@@ -1509,4 +2081,11 @@ module.exports = {
   submitFeedback,
   reviewExternalProject,
   respondToExternalProject,
+  createSupportRequest,
+  acceptSupportRequest,
+  staffAcceptSupport,
+  staffRejectSupport,
+  recordSupportReport,
+  updateTicketRecordApproval,
+  deleteTicketRecord,
 };

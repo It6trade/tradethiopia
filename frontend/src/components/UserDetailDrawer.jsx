@@ -86,6 +86,16 @@ import {
   FiSearch,
   FiShield,
   FiUser,
+  FiGlobe,
+  FiLinkedin,
+  FiTwitter,
+  FiFacebook,
+  FiSend,
+  FiExternalLink,
+  FiClipboard,
+  FiCheckSquare,
+  FiSquare,
+  FiList,
 } from 'react-icons/fi';
 import axiosInstance from '../services/axiosInstance';
 import { normalizeRole, useUserStore } from '../store/user';

@@ -44,11 +44,18 @@ const buildNotificationLink = (item, currentUser = null) => {
   const role = String(currentUser?.role || currentUser?.displayRole || '').toLowerCase().replace(/[^a-z0-9]/g, '');
   const isCS = ['customerservice', 'customersuccessmanager', 'cs', 'csmanager'].includes(role);
   const isIT = ['admin', 'itmanager', 'itadmin', 'it', 'itstaff', 'itteamleader', 'itleader', 'itofficer'].includes(role);
+  const isTicket = item.metadata?.isTicket || item.type === 'ticket' || item.link?.includes('tab=tickets');
 
   // If notification has an itTaskId, route according to viewing user's active portal
   if (item.itTaskId) {
     if (isCS) {
       return `/cdashboard?section=it-requests&task=${item.itTaskId}${item.commentId ? `&comment=${item.commentId}` : ''}`;
+    }
+    if (isTicket) {
+      return `/it?tab=tickets&task=${item.itTaskId}${item.commentId ? `&comment=${item.commentId}` : ''}`;
+    }
+    if (item.link && item.link.startsWith('/it')) {
+      return item.link;
     }
     return `/it?tab=projects&task=${item.itTaskId}${item.commentId ? `&comment=${item.commentId}` : ''}`;
   }
@@ -60,7 +67,7 @@ const buildNotificationLink = (item, currentUser = null) => {
       const taskId = parsed.searchParams.get('task') || parsed.searchParams.get('taskId');
       const commentId = parsed.searchParams.get('comment') || parsed.searchParams.get('commentId');
       if (taskId) {
-        return `/it?tab=projects&task=${taskId}${commentId ? `&comment=${commentId}` : ''}`;
+        return `/it?tab=${isTicket ? 'tickets' : 'projects'}&task=${taskId}${commentId ? `&comment=${commentId}` : ''}`;
       }
     } catch (_) {}
   }
