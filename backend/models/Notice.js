@@ -15,8 +15,8 @@ const noticeSchema = new mongoose.Schema(
     },
     category: {
       type: String,
-      enum: ['training', 'price_change', 'update', 'urgent_alert', 'policy', 'general'],
       default: 'general',
+      trim: true,
       index: true,
     },
     department: {
@@ -74,6 +74,14 @@ const noticeSchema = new mongoose.Schema(
       type: Date,
       default: Date.now,
     },
+    attachments: [
+      {
+        name: { type: String, default: '' },
+        url: { type: String, default: '' },
+        fileType: { type: String, default: '' },
+        size: { type: Number, default: 0 },
+      },
+    ],
   },
   {
     timestamps: true,

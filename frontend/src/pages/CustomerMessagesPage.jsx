@@ -217,13 +217,32 @@ const CustomerMessagesPage = ({ embedded = false }) => {
       if (dateFilterType === 'year' && filterYear) params.year = filterYear;
       if (searchQuery.trim()) params.search = searchQuery.trim();
 
-      const [noticeList, statsData] = await Promise.all([
+      const [noticeListRes, statsDataRes] = await Promise.allSettled([
         getNotices(params),
         getNoticeStats({ department: 'Customer Service' }),
       ]);
 
-      setNotices(noticeList);
-      setStats(statsData);
+      let hasSuccess = false;
+
+      if (noticeListRes.status === 'fulfilled') {
+        setNotices(Array.isArray(noticeListRes.value) ? noticeListRes.value : []);
+        hasSuccess = true;
+      } else {
+        console.error('Error fetching notice list:', noticeListRes.reason);
+      }
+
+      if (statsDataRes.status === 'fulfilled') {
+        setStats(statsDataRes.value || null);
+        hasSuccess = true;
+      } else {
+        console.error('Error fetching notice stats:', statsDataRes.reason);
+      }
+
+      if (!hasSuccess) {
+        setError('Failed to load notices. Please try again.');
+      } else {
+        setError(null);
+      }
     } catch (err) {
       console.error('Error fetching notices:', err);
       setError('Failed to load notices. Please try again.');

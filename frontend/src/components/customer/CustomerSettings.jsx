@@ -1,37 +1,45 @@
 import React, { useEffect, useState } from "react";
 import {
+  Badge,
   Box,
+  Button,
   Card,
   CardBody,
   CardHeader,
-  chakra,
+  Divider,
   Flex,
   Heading,
   HStack,
+  Icon,
   IconButton,
   Input,
   NumberInput,
   NumberInputField,
+  Select,
+  SimpleGrid,
+  Spinner,
   Stack,
-  VStack,
   Table,
   TableContainer,
+  Tag,
+  TagCloseButton,
+  TagLabel,
   Tbody,
   Td,
   Text,
   Th,
   Thead,
+  Tooltip,
   Tr,
-  Button,
-  Select,
+  useColorModeValue,
   useToast,
-  Tag,
-  TagLabel,
-  TagCloseButton,
-  Badge,
+  VStack,
+  Wrap,
+  WrapItem,
 } from "@chakra-ui/react";
-import { AddIcon, DeleteIcon, EditIcon, CheckIcon, CloseIcon } from "@chakra-ui/icons";
-import axios from "axios";
+import { AddIcon, CheckIcon, CloseIcon, DeleteIcon, EditIcon } from "@chakra-ui/icons";
+import { FiBox, FiCheckCircle, FiEdit3, FiGlobe, FiPackage, FiPlus, FiRefreshCw, FiSearch, FiSettings, FiUserCheck, FiUsers } from "react-icons/fi";
+import axiosInstance from "../../services/axiosInstance";
 import Layout from "./Layout";
 
 const normalizeRoleValue = (value = "") =>
@@ -45,6 +53,9 @@ const CustomerSettings = () => {
   const [csUsers, setCsUsers] = useState([]);
   const [assigningId, setAssigningId] = useState(null);
   const [selectedAgent, setSelectedAgent] = useState({});
+  const [searchQuery, setSearchQuery] = useState("");
+  const [marketFilter, setMarketFilter] = useState("all");
+
   const [form, setForm] = useState({
     packageNumber: "",
     services: [],
@@ -54,7 +65,13 @@ const CustomerSettings = () => {
     market: "Local",
   });
   const [editingId, setEditingId] = useState(null);
-  const LOCAL_COUNTRY = "ethiopia";
+
+  const cardBg = useColorModeValue("white", "gray.800");
+  const borderColor = useColorModeValue("gray.200", "gray.700");
+  const sidebarBg = useColorModeValue("gray.50", "gray.900");
+  const mutedColor = useColorModeValue("gray.600", "gray.400");
+  const tableHoverBg = useColorModeValue("gray.50", "gray.750");
+
   const servicePalette = ["blue", "green", "purple", "orange", "teal", "pink", "cyan", "red", "yellow"];
   const getServiceColor = (name = "") => {
     const key = name.toString();
@@ -63,18 +80,6 @@ const CustomerSettings = () => {
       hash = (hash + key.charCodeAt(i) * (i + 1)) % 9973;
     }
     return servicePalette[hash % servicePalette.length];
-  };
-  const normalizePackageScope = (scope = "", country = "") => {
-    const cleanedScope = (scope || "").toString().trim().toLowerCase();
-    if (cleanedScope.includes("local")) return "Local";
-    if (cleanedScope.includes("international") || cleanedScope.includes("intl")) return "International";
-    const countryValue = (country || "").toString().trim().toLowerCase();
-    if (countryValue === LOCAL_COUNTRY || countryValue.includes("ethiopia")) return "Local";
-    return "International";
-  };
-  const getAuthHeaders = () => {
-    const token = localStorage.getItem("userToken");
-    return token ? { Authorization: `Bearer ${token}` } : {};
   };
 
   const normalizeUsersResponse = (payload) => {
@@ -88,11 +93,12 @@ const CustomerSettings = () => {
 
   const fetchCsUsers = async () => {
     try {
-      const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/users`, {
-        headers: getAuthHeaders(),
-      });
+      const res = await axiosInstance.get("/users");
       const users = normalizeUsersResponse(res.data)
-        .filter((u) => normalizeRoleValue(u.role || u.roleName) === "customerservice")
+        .filter((u) => {
+          const r = normalizeRoleValue(u.role || u.roleName);
+          return r === "customerservice" || r === "customersuccessmanager";
+        })
         .sort((a, b) =>
           (a.fullName || a.username || a.email || "").localeCompare(
             b.fullName || b.username || b.email || ""
@@ -102,43 +108,33 @@ const CustomerSettings = () => {
       setCsUsers(users);
     } catch (err) {
       console.error("Failed to load CS users", err);
-      toast({
-        title: "Failed to load customer users",
-        description: err.response?.data?.message || err.message,
-        status: "error",
-      });
+    }
+  };
+
+  const fetchPackages = async () => {
+    setLoading(true);
+    try {
+      const res = await axiosInstance.get("/packages");
+      setPackages(Array.isArray(res.data) ? res.data : []);
+    } catch (err) {
+      console.error("Failed to load packages", err);
+      toast({ title: "Failed to load packages", status: "error" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchPendingB2B = async () => {
+    try {
+      const res = await axiosInstance.get("/followups/b2b-pending");
+      setPendingB2B(Array.isArray(res.data) ? res.data : []);
+    } catch (err) {
+      console.error("Failed to load pending B2B customers", err);
     }
   };
 
   useEffect(() => {
-    const fetchPackages = async () => {
-      setLoading(true);
-      try {
-        const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/packages`);
-        setPackages(Array.isArray(res.data) ? res.data : []);
-      } catch (err) {
-        console.error("Failed to load packages", err);
-        toast({ title: "Failed to load packages", status: "error" });
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchPackages();
-
-  }, [toast]);
-
-  useEffect(() => {
-    const headers = getAuthHeaders();
-
-    const fetchPendingB2B = async () => {
-      try {
-        const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/followups/b2b-pending`, { headers });
-        setPendingB2B(Array.isArray(res.data) ? res.data : []);
-      } catch (err) {
-        console.error("Failed to load pending B2B customers", err);
-      }
-    };
-
     fetchCsUsers();
     fetchPendingB2B();
   }, []);
@@ -177,7 +173,7 @@ const CustomerSettings = () => {
     setEditingId(null);
   };
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
     const services = form.services || [];
     const market = form.market || "Local";
     if (!form.packageNumber || services.length === 0 || !form.price) {
@@ -201,109 +197,109 @@ const CustomerSettings = () => {
       });
       return;
     }
-    axios
-      .post(`${import.meta.env.VITE_API_URL}/api/packages`, {
+
+    try {
+      const payload = {
         packageNumber: form.packageNumber,
         services,
-        price: parseFloat(form.price) || 0,
+        price: form.price,
         description: form.description,
         market,
-      })
-      .then((res) => {
-        setPackages((prev) => [...prev, res.data]);
-        resetForm();
-        toast({ title: "Package added", status: "success" });
-      })
-      .catch((err) => {
-        toast({
-          title: "Failed to add package",
-          description: err.response?.data?.message || err.message,
-          status: "error",
-        });
+      };
+      const res = await axiosInstance.post("/packages", payload);
+      setPackages((prev) => [...prev, res.data]);
+      resetForm();
+      toast({ title: "Package created successfully", status: "success" });
+    } catch (err) {
+      toast({
+        title: "Create failed",
+        description: err.response?.data?.message || err.message,
+        status: "error",
       });
+    }
   };
 
-  const startEdit = (pkg) => {
-    setEditingId(pkg._id);
+  const handleEdit = (p) => {
+    setEditingId(p._id);
     setForm({
-      packageNumber: pkg.packageNumber,
-      services: pkg.services || [],
+      packageNumber: p.packageNumber,
+      services: Array.isArray(p.services) ? p.services : [],
       serviceInput: "",
-      price: pkg.price,
-      description: pkg.description || "",
-      market: pkg.market || "Local",
+      price: p.price,
+      description: p.description || "",
+      market: p.market || "Local",
     });
   };
 
-  const saveEdit = () => {
+  const handleUpdate = async () => {
+    if (!editingId) return;
     const services = form.services || [];
-    if (services.length === 0) {
-      toast({ title: "Add at least one service", status: "warning" });
+    const market = form.market || "Local";
+    if (!form.packageNumber || services.length === 0 || !form.price) {
+      toast({
+        title: "Missing fields",
+        description: "Package number, services, and price are required.",
+        status: "warning",
+      });
       return;
     }
-    axios
-      .put(`${import.meta.env.VITE_API_URL}/api/packages/${editingId}`, {
+
+    try {
+      const payload = {
         packageNumber: form.packageNumber,
         services,
-        price: parseFloat(form.price) || 0,
+        price: form.price,
         description: form.description,
-        market: form.market || "Local",
-      })
-      .then((res) => {
-        setPackages((prev) => prev.map((p) => (p._id === editingId ? res.data : p)));
-        resetForm();
-        toast({ title: "Package updated", status: "success" });
-      })
-      .catch((err) => {
-        toast({
-          title: "Failed to update",
-          description: err.response?.data?.message || err.message,
-          status: "error",
-        });
-      });
-  };
-
-  const deletePkg = (id) => {
-    axios
-      .delete(`${import.meta.env.VITE_API_URL}/api/packages/${id}`)
-      .then(() => {
-        setPackages((prev) => prev.filter((p) => p._id !== id));
-        toast({ title: "Package deleted", status: "info" });
-      })
-      .catch((err) => {
-        toast({
-          title: "Failed to delete",
-          description: err.response?.data?.message || err.message,
-          status: "error",
-        });
-      });
-  };
-
-  // Weekly targets functionality removed
-
-  const handleAssignB2B = async (customer) => {
-    const token = localStorage.getItem("userToken");
-    const agentId = selectedAgent[customer._id];
-    if (!token) {
-      toast({ title: "Please log in first", status: "error" });
-      return;
-    }
-    if (!agentId) {
-      toast({ title: "Select an agent", status: "warning" });
-      return;
-    }
-    setAssigningId(customer._id);
-    try {
-      await axios.post(
-        `${import.meta.env.VITE_API_URL}/api/followups/import-b2b`,
-        { customerType: customer.type, customerId: customer._id, agentId },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      toast({ title: "Assigned and imported", status: "success" });
-      setPendingB2B((prev) => prev.filter((c) => c._id !== customer._id));
+        market,
+      };
+      const res = await axiosInstance.put(`/packages/${editingId}`, payload);
+      setPackages((prev) => prev.map((p) => (p._id === editingId ? res.data : p)));
+      resetForm();
+      toast({ title: "Package updated successfully", status: "success" });
     } catch (err) {
       toast({
-        title: "Failed to assign",
+        title: "Update failed",
+        description: err.response?.data?.message || err.message,
+        status: "error",
+      });
+    }
+  };
+
+  const handleDelete = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this package?")) return;
+    try {
+      await axiosInstance.delete(`/packages/${id}`);
+      setPackages((prev) => prev.filter((p) => p._id !== id));
+      toast({ title: "Package deleted", status: "info" });
+    } catch (err) {
+      toast({
+        title: "Delete failed",
+        description: err.response?.data?.message || err.message,
+        status: "error",
+      });
+    }
+  };
+
+  const handleAssignAgent = async (customerId) => {
+    const agentId = selectedAgent[customerId];
+    if (!agentId) {
+      toast({ title: "Please select an agent to assign", status: "warning" });
+      return;
+    }
+
+    setAssigningId(customerId);
+    try {
+      await axiosInstance.put(`/followups/assign/${customerId}`, { assignedTo: agentId });
+      setPendingB2B((prev) => prev.filter((c) => c._id !== customerId));
+      setSelectedAgent((prev) => {
+        const next = { ...prev };
+        delete next[customerId];
+        return next;
+      });
+      toast({ title: "Customer assigned to agent successfully", status: "success" });
+    } catch (err) {
+      toast({
+        title: "Assignment failed",
         description: err.response?.data?.message || err.message,
         status: "error",
       });
@@ -312,353 +308,362 @@ const CustomerSettings = () => {
     }
   };
 
+  const filteredPackages = packages.filter((pkg) => {
+    if (marketFilter !== "all" && (pkg.market || "Local") !== marketFilter) return false;
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      const numMatch = String(pkg.packageNumber || "").toLowerCase().includes(q);
+      const descMatch = String(pkg.description || "").toLowerCase().includes(q);
+      const svcMatch = (pkg.services || []).some((s) => s.toLowerCase().includes(q));
+      if (!numMatch && !descMatch && !svcMatch) return false;
+    }
+    return true;
+  });
+
   return (
     <Layout>
-      <Box bgGradient="linear(to-b, gray.50, white)" minH="100vh" p={{ base: 4, md: 8 }}>
-        <Flex align="center" justify="space-between" mb={6}>
-          <Box>
-            <Heading size="lg">Customer Settings</Heading>
-            <Text color="gray.500" fontSize="sm">
-              Manage packages, services, pricing, and Assign Customers to Agents in one place.
-            </Text>
-          </Box>
-          {loading && <Text color="gray.500" fontSize="sm">Loading...</Text>}
-        </Flex>
+      <Box w="100%" minH="100vh" p={{ base: 4, md: 6 }}>
+        <VStack spacing={6} align="stretch" w="100%">
+          {/* Header Banner - Full Screen */}
+          <Flex justify="space-between" align={{ base: "flex-start", md: "center" }} gap={4} flexWrap="wrap">
+            <HStack spacing={3}>
+              <Box p={2.5} bg="blue.500" color="white" borderRadius="xl" boxShadow="sm">
+                <FiSettings size={24} />
+              </Box>
+              <Box>
+                <Heading size="lg">Customer Service Settings</Heading>
+                <Text color={mutedColor} fontSize="sm">
+                  Configure client service tiers, package definitions, and assign incoming B2B inquiries.
+                </Text>
+              </Box>
+            </HStack>
 
-<Card border="1px solid" borderColor="gray.200" rounded="2xl" boxShadow="xl" mb={6}>
-          <CardHeader pb={2}>
-            <Heading size="md">Assign B2B Customers</Heading>
-            <Text color="gray.500" fontSize="sm">
-              Select a customer service agent for each pending B2B customer.
-            </Text>
-          </CardHeader>
-          <CardBody>
-            <TableContainer>
-              <Table size="sm" variant="simple">
-                <Thead bg="gray.50">
-                  <Tr>
-                    <Th>Client</Th>
-                    <Th>Company</Th>
-                    <Th>Email</Th>
-                    <Th>Phone</Th>
-                    <Th>Type</Th>
-                    <Th>Package Scope</Th>
-                    <Th>Assign to Agent</Th>
-                    <Th></Th>
-                  </Tr>
-                </Thead>
-                <Tbody>
-                  {pendingB2B.length === 0 ? (
-                    <Tr>
-                      <Td colSpan={8} textAlign="center" py={6}>
-                        <Text color="gray.500">No pending B2B customers.</Text>
-                      </Td>
-                    </Tr>
-                  ) : (
-                    pendingB2B.map((cust) => {
-                      const scopeLabel = normalizePackageScope(cust.packageScope, cust.country);
-                      const scopeColor = scopeLabel === "Local" ? "green" : "purple";
-                      return (
-                        <Tr key={cust._id}>
-                          <Td>{cust.clientName}</Td>
-                          <Td>{cust.companyName}</Td>
-                          <Td>{cust.email}</Td>
-                          <Td>{cust.phoneNumber}</Td>
+            <HStack spacing={3}>
+              <IconButton
+                aria-label="Refresh settings"
+                icon={<FiRefreshCw />}
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  fetchPackages();
+                  fetchCsUsers();
+                  fetchPendingB2B();
+                }}
+              />
+            </HStack>
+          </Flex>
+
+          {/* Pending B2B Customer Assignments */}
+          <Card bg={cardBg} borderColor={borderColor} borderWidth="1px" borderRadius="2xl" boxShadow="sm">
+            <CardHeader pb={2} pt={4} px={5}>
+              <Flex justify="space-between" align="center">
+                <HStack spacing={2}>
+                  <Icon as={FiUserCheck} color="blue.500" />
+                  <Heading size="md">Pending B2B Customer Assignments</Heading>
+                </HStack>
+                <Badge colorScheme={pendingB2B.length > 0 ? "orange" : "green"} borderRadius="full" px={2.5}>
+                  {pendingB2B.length} Pending
+                </Badge>
+              </Flex>
+            </CardHeader>
+            <CardBody px={5} pt={2} pb={5}>
+              {pendingB2B.length === 0 ? (
+                <Box p={6} textAlign="center" color={mutedColor}>
+                  <Icon as={FiCheckCircle} boxSize={8} color="green.400" mb={2} />
+                  <Text fontSize="sm">All incoming B2B customers are assigned to Customer Service agents.</Text>
+                </Box>
+              ) : (
+                <TableContainer>
+                  <Table size="sm">
+                    <Thead bg={sidebarBg}>
+                      <Tr>
+                        <Th>Company Name</Th>
+                        <Th>Contact Person</Th>
+                        <Th>Email</Th>
+                        <Th>Market</Th>
+                        <Th>Assign To Agent</Th>
+                        <Th textAlign="right">Action</Th>
+                      </Tr>
+                    </Thead>
+                    <Tbody>
+                      {pendingB2B.map((c) => (
+                        <Tr key={c._id} _hover={{ bg: tableHoverBg }}>
+                          <Td fontWeight="semibold">{c.companyName || "N/A"}</Td>
+                          <Td>{c.contactPerson || "-"}</Td>
+                          <Td fontSize="xs" color="gray.500">{c.email || "-"}</Td>
                           <Td>
-                            <Badge colorScheme={cust.type === "buyer" ? "green" : "purple"}>
-                              {cust.type}
-                            </Badge>
-                          </Td>
-                          <Td>
-                            <Badge colorScheme={scopeColor} variant="subtle">
-                              {scopeLabel}
+                            <Badge colorScheme={c.market === "International" ? "purple" : "blue"} fontSize="2xs">
+                              {c.market || "Local"}
                             </Badge>
                           </Td>
                           <Td>
                             <Select
-                              placeholder="Select agent"
-                              size="sm"
-                              value={selectedAgent[cust._id] || ""}
+                              size="xs"
+                              w="200px"
+                              placeholder="Select CS Agent..."
+                              value={selectedAgent[c._id] || ""}
                               onChange={(e) =>
-                                setSelectedAgent((prev) => ({ ...prev, [cust._id]: e.target.value }))
+                                setSelectedAgent((prev) => ({ ...prev, [c._id]: e.target.value }))
                               }
                             >
-                              {csUsers
-                                .filter((u) => normalizeRoleValue(u.role || u.roleName) === "customerservice")
-                                .map((u) => (
-                                  <option key={u._id} value={u._id}>
-                                    {u.username || u.email || u._id}
-                                  </option>
-                                ))}
+                              {csUsers.map((u) => (
+                                <option key={u._id} value={u._id}>
+                                  {u.fullName || u.username} ({u.email})
+                                </option>
+                              ))}
                             </Select>
                           </Td>
                           <Td textAlign="right">
                             <Button
-                              size="sm"
-                              colorScheme="teal"
-                              isLoading={assigningId === cust._id}
-                              onClick={() => handleAssignB2B(cust)}
+                              size="xs"
+                              colorScheme="blue"
+                              onClick={() => handleAssignAgent(c._id)}
+                              isLoading={assigningId === c._id}
+                              isDisabled={!selectedAgent[c._id]}
                             >
                               Assign
                             </Button>
                           </Td>
                         </Tr>
-                      );
-                    })
-                  )}
-                </Tbody>
-              </Table>
-            </TableContainer>
-          </CardBody>
-        </Card>
+                      ))}
+                    </Tbody>
+                  </Table>
+                </TableContainer>
+              )}
+            </CardBody>
+          </Card>
 
-        <Card
-          mb={6}
-          border="1px solid"
-          borderColor="gray.200"
-          boxShadow="xl"
-          bg="white"
-          rounded="2xl"
-        >
-          <CardHeader
-            pb={2}
-            bgGradient="linear(to-r, teal.500, blue.500)"
-            color="white"
-            roundedTop="2xl"
-          >
-            <Flex align="center" justify="space-between">
-              <Box>
-                <Text fontSize="sm" opacity={0.9}>
-                  {editingId ? "Update an existing package" : "Create a new package"}
-                </Text>
-                <Heading size="md" mt={1}>
-                  {editingId ? "Edit Package" : "Add Package"}
-                </Heading>
-              </Box>
-              <Button
-                size="sm"
-                variant="outline"
-                color="white"
-                borderColor="whiteAlpha.700"
-                leftIcon={<CloseIcon boxSize={2.5} />}
-                onClick={resetForm}
-              >
-                Reset
-              </Button>
-            </Flex>
-          </CardHeader>
-          <CardBody>
-            <Stack spacing={5}>
-              <Stack
-                direction={{ base: "column", md: "row" }}
-                spacing={4}
-                align="flex-start"
-              >
-                <NumberInput
-                  value={form.packageNumber}
-                  min={1}
-                  onChange={(val) => handleChange("packageNumber", val)}
-                  flex={1}
-                >
-                  <NumberInputField placeholder="Package number (use numbers)" />
-                </NumberInput>
-                <Input
-                  placeholder="Add a service name"
-                  value={form.serviceInput}
-                  onChange={(e) => handleChange("serviceInput", e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      handleAddService();
-                    }
-                  }}
-                  flex={2}
-                />
-                <Button
-                  colorScheme="teal"
-                  leftIcon={<AddIcon />}
-                  onClick={handleAddService}
-                  minW="140px"
-                >
-                  Add Service
-                </Button>
-              </Stack>
-
-              <HStack spacing={2} wrap="wrap">
-                {(form.services || []).map((svc) => (
-                  <Tag
-                    key={svc}
-                    size="md"
-                    borderRadius="full"
-                    colorScheme="blue"
-                    variant="subtle"
-                  >
-                    <TagLabel>{svc}</TagLabel>
-                    <TagCloseButton onClick={() => handleRemoveService(svc)} />
-                  </Tag>
-                ))}
-                {form.services.length === 0 && (
-                  <Text color="gray.500" fontSize="sm">
-                    Add at least one service to this package.
-                  </Text>
-                )}
-              </HStack>
-
-              <Stack
-                direction={{ base: "column", md: "row" }}
-                spacing={4}
-                align="stretch"
-              >
-                <NumberInput
-                  value={form.price}
-                  min={0}
-                  precision={2}
-                  onChange={(val) => handleChange("price", val)}
-                  flex={1}
-                >
-                  <NumberInputField placeholder="Price" />
-                </NumberInput>
-                <Select
-                  value={form.market}
-                  onChange={(e) => handleChange("market", e.target.value)}
-                  flex={1}
-                  placeholder="Select market"
-                >
-                  <option value="Local">Local</option>
-                  <option value="International">International</option>
-                </Select>
-                <Input
-                  placeholder="Description (optional)"
-                  value={form.description}
-                  onChange={(e) => handleChange("description", e.target.value)}
-                  flex={2}
-                />
-              </Stack>
-
-              <HStack spacing={3}>
-                <Button
-                  colorScheme="teal"
-                  leftIcon={editingId ? <CheckIcon /> : <AddIcon />}
-                  onClick={editingId ? saveEdit : handleAdd}
-                >
-                  {editingId ? "Save Changes" : "Add Package"}
-                </Button>
+          {/* Package Configuration Form */}
+          <Card bg={cardBg} borderColor={borderColor} borderWidth="1px" borderRadius="2xl" boxShadow="sm">
+            <CardHeader pb={2} pt={4} px={5}>
+              <HStack justify="space-between">
+                <HStack spacing={2}>
+                  <Icon as={editingId ? FiEdit3 : FiPackage} color="blue.500" />
+                  <Heading size="md">{editingId ? "Edit Service Package" : "Create New Service Package"}</Heading>
+                </HStack>
                 {editingId && (
-                  <Button variant="ghost" leftIcon={<CloseIcon />} onClick={resetForm}>
-                    Cancel
+                  <Button size="xs" variant="ghost" onClick={resetForm} leftIcon={<CloseIcon />}>
+                    Cancel Edit
                   </Button>
                 )}
               </HStack>
-            </Stack>
-          </CardBody>
-        </Card>
+            </CardHeader>
+            <CardBody px={5} pt={2} pb={5}>
+              <VStack spacing={4} align="stretch">
+                <SimpleGrid columns={{ base: 1, sm: 2, md: 4 }} spacing={3}>
+                  <Box>
+                    <Text fontSize="xs" fontWeight="bold" mb={1} color={mutedColor}>PACKAGE NUMBER / TIER *</Text>
+                    <Input
+                      size="sm"
+                      placeholder="e.g. 1, 2, Silver, Gold"
+                      value={form.packageNumber}
+                      onChange={(e) => handleChange("packageNumber", e.target.value)}
+                    />
+                  </Box>
 
-        <Card border="1px solid" borderColor="gray.200" rounded="2xl" boxShadow="xl" mb={6}>
-          <CardHeader pb={2}>
-            <Heading size="md">Packages & Services</Heading>
-          </CardHeader>
-          <CardBody>
-            <TableContainer>
-              <Table size="sm" variant="simple">
-                <Thead bg="gray.50">
-                  <Tr>
-                    <Th fontSize="xs" textTransform="uppercase" letterSpacing="0.08em">
-                      Package #
-                    </Th>
-                    <Th fontSize="xs" textTransform="uppercase" letterSpacing="0.08em">
-                      Services
-                    </Th>
-                    <Th fontSize="xs" textTransform="uppercase" letterSpacing="0.08em">
-                      Price
-                    </Th>
-                    <Th fontSize="xs" textTransform="uppercase" letterSpacing="0.08em">
-                      Market
-                    </Th>
-                    <Th fontSize="xs" textTransform="uppercase" letterSpacing="0.08em">
-                      Description
-                    </Th>
-                    <Th textAlign="right" fontSize="xs" textTransform="uppercase" letterSpacing="0.08em">
-                      Actions
-                    </Th>
-                  </Tr>
-                </Thead>
-                <Tbody>
-                  {packages.length === 0 ? (
+                  <Box>
+                    <Text fontSize="xs" fontWeight="bold" mb={1} color={mutedColor}>MARKET SCOPE *</Text>
+                    <Select
+                      size="sm"
+                      value={form.market}
+                      onChange={(e) => handleChange("market", e.target.value)}
+                    >
+                      <option value="Local">Local (Ethiopia)</option>
+                      <option value="International">International</option>
+                    </Select>
+                  </Box>
+
+                  <Box>
+                    <Text fontSize="xs" fontWeight="bold" mb={1} color={mutedColor}>PRICE *</Text>
+                    <Input
+                      size="sm"
+                      placeholder="e.g. 2500 ETB or $150 USD"
+                      value={form.price}
+                      onChange={(e) => handleChange("price", e.target.value)}
+                    />
+                  </Box>
+
+                  <Box>
+                    <Text fontSize="xs" fontWeight="bold" mb={1} color={mutedColor}>DESCRIPTION</Text>
+                    <Input
+                      size="sm"
+                      placeholder="Optional brief description"
+                      value={form.description}
+                      onChange={(e) => handleChange("description", e.target.value)}
+                    />
+                  </Box>
+                </SimpleGrid>
+
+                {/* Services Tags Builder */}
+                <Box>
+                  <Text fontSize="xs" fontWeight="bold" mb={1} color={mutedColor}>PACKAGE SERVICES INCLUDED *</Text>
+                  <HStack spacing={2} mb={2}>
+                    <Input
+                      size="sm"
+                      placeholder="Type a service name and click Add (e.g., Training, Export Consultancy)..."
+                      value={form.serviceInput}
+                      onChange={(e) => handleChange("serviceInput", e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          handleAddService();
+                        }
+                      }}
+                    />
+                    <Button size="sm" colorScheme="blue" variant="outline" onClick={handleAddService} leftIcon={<AddIcon />}>
+                      Add
+                    </Button>
+                  </HStack>
+
+                  {form.services && form.services.length > 0 && (
+                    <Wrap spacing={2} p={2} bg={sidebarBg} borderRadius="lg" border="1px solid" borderColor={borderColor}>
+                      {form.services.map((svc, idx) => (
+                        <WrapItem key={idx}>
+                          <Tag size="md" borderRadius="full" variant="solid" colorScheme={getServiceColor(svc)}>
+                            <TagLabel>{svc}</TagLabel>
+                            <TagCloseButton onClick={() => handleRemoveService(svc)} />
+                          </Tag>
+                        </WrapItem>
+                      ))}
+                    </Wrap>
+                  )}
+                </Box>
+
+                <HStack justify="flex-end" spacing={2}>
+                  {editingId && (
+                    <Button size="sm" variant="ghost" onClick={resetForm}>
+                      Cancel
+                    </Button>
+                  )}
+                  <Button
+                    size="sm"
+                    colorScheme="blue"
+                    onClick={editingId ? handleUpdate : handleAdd}
+                    leftIcon={editingId ? <CheckIcon /> : <AddIcon />}
+                  >
+                    {editingId ? "Update Package" : "Save Package"}
+                  </Button>
+                </HStack>
+              </VStack>
+            </CardBody>
+          </Card>
+
+          {/* Existing Packages Table */}
+          <Card bg={cardBg} borderColor={borderColor} borderWidth="1px" borderRadius="2xl" boxShadow="sm">
+            <CardHeader pb={3} pt={4} px={5}>
+              <Flex justify="space-between" align={{ base: "flex-start", sm: "center" }} gap={3} flexWrap="wrap">
+                <HStack spacing={2}>
+                  <Heading size="md">Configured Service Packages</Heading>
+                  <Badge colorScheme="blue" borderRadius="full" px={2.5}>
+                    {filteredPackages.length} Packages
+                  </Badge>
+                </HStack>
+
+                <HStack spacing={2} flexWrap="wrap">
+                  <Select
+                    size="sm"
+                    w="150px"
+                    value={marketFilter}
+                    onChange={(e) => setMarketFilter(e.target.value)}
+                  >
+                    <option value="all">All Markets</option>
+                    <option value="Local">Local Only</option>
+                    <option value="International">International Only</option>
+                  </Select>
+
+                  <Input
+                    size="sm"
+                    placeholder="Search packages..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    maxW="200px"
+                  />
+                </HStack>
+              </Flex>
+            </CardHeader>
+
+            <CardBody p={0}>
+              <TableContainer>
+                <Table size="sm">
+                  <Thead bg={sidebarBg}>
                     <Tr>
-                    <Td colSpan={6} textAlign="center" py={6}>
-                        <Text color="gray.500">No packages added yet.</Text>
-                      </Td>
+                      <Th>Package Tier</Th>
+                      <Th>Market</Th>
+                      <Th>Price</Th>
+                      <Th>Included Services</Th>
+                      <Th>Description</Th>
+                      <Th textAlign="right">Actions</Th>
                     </Tr>
-                  ) : (
-                    packages.map((pkg) => (
-                      <Tr key={pkg._id} _hover={{ bg: "gray.50" }}>
-                        <Td fontWeight="bold">{pkg.packageNumber}</Td>
-                        <Td>
-                          <VStack align="start" spacing={1}>
-                            {(pkg.services || []).map((svc, idx) => (
-                              <HStack key={idx} spacing={2}>
-                                <Box
-                                  w="10px"
-                                  h="10px"
-                                  borderRadius="full"
-                                  bg={`${getServiceColor(svc)}.400`}
-                                  boxShadow="sm"
-                                />
-                                <Text fontSize="sm" color="gray.700">
-                                  {svc}
-                                </Text>
-                              </HStack>
-                            ))}
-                            {(pkg.services || []).length === 0 && (
-                              <Text fontSize="sm" color="gray.400">No services listed</Text>
-                            )}
-                          </VStack>
-                        </Td>
-                        <Td fontWeight="semibold">${Number(pkg.price || 0).toFixed(2)}</Td>
-                        <Td>
-                          <Badge
-                            colorScheme={(pkg.market || "Local") === "Local" ? "green" : "purple"}
-                            variant="subtle"
-                          >
-                            {(pkg.market || "Local") === "International" ? "International" : "Local"}
-                          </Badge>
-                        </Td>
-                        <Td maxW="300px">
-                          <chakra.span noOfLines={2}>
-                            {pkg.description || "-"}
-                          </chakra.span>
-                        </Td>
-                        <Td textAlign="right">
-                          <HStack justify="flex-end" spacing={2}>
-                            <IconButton
-                              aria-label="Edit package"
-                              icon={<EditIcon />}
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => startEdit(pkg)}
-                            />
-                            <IconButton
-                              aria-label="Delete package"
-                              icon={<DeleteIcon />}
-                              size="sm"
-                              variant="ghost"
-                              colorScheme="red"
-                              onClick={() => deletePkg(pkg._id)}
-                            />
-                          </HStack>
+                  </Thead>
+                  <Tbody>
+                    {loading ? (
+                      <Tr>
+                        <Td colSpan={6} textAlign="center" py={8}>
+                          <Spinner size="md" color="blue.500" />
+                          <Text fontSize="xs" color={mutedColor} mt={2}>Loading service packages...</Text>
                         </Td>
                       </Tr>
-                    ))
-                  )}
-                </Tbody>
-              </Table>
-            </TableContainer>
-          </CardBody>
-        </Card>
-
-        
-
-  
+                    ) : filteredPackages.length === 0 ? (
+                      <Tr>
+                        <Td colSpan={6} textAlign="center" py={8} color={mutedColor}>
+                          No service packages defined yet. Use the form above to add your first package.
+                        </Td>
+                      </Tr>
+                    ) : (
+                      filteredPackages.map((pkg) => (
+                        <Tr key={pkg._id} _hover={{ bg: tableHoverBg }}>
+                          <Td fontWeight="bold">Package {pkg.packageNumber}</Td>
+                          <Td>
+                            <Badge colorScheme={pkg.market === "International" ? "purple" : "blue"} fontSize="2xs">
+                              {pkg.market || "Local"}
+                            </Badge>
+                          </Td>
+                          <Td fontWeight="semibold">{pkg.price}</Td>
+                          <Td>
+                            <Wrap spacing={1}>
+                              {(pkg.services || []).map((s, idx) => (
+                                <WrapItem key={idx}>
+                                  <Tag size="xs" colorScheme={getServiceColor(s)} borderRadius="md">
+                                    {s}
+                                  </Tag>
+                                </WrapItem>
+                              ))}
+                            </Wrap>
+                          </Td>
+                          <Td fontSize="xs" color="gray.500">{pkg.description || "-"}</Td>
+                          <Td textAlign="right">
+                            <HStack justify="flex-end" spacing={1}>
+                              <Tooltip label="Edit Package">
+                                <IconButton
+                                  aria-label="Edit package"
+                                  icon={<EditIcon />}
+                                  size="xs"
+                                  variant="ghost"
+                                  colorScheme="blue"
+                                  onClick={() => handleEdit(pkg)}
+                                />
+                              </Tooltip>
+                              <Tooltip label="Delete Package">
+                                <IconButton
+                                  aria-label="Delete package"
+                                  icon={<DeleteIcon />}
+                                  size="xs"
+                                  variant="ghost"
+                                  colorScheme="red"
+                                  onClick={() => handleDelete(pkg._id)}
+                                />
+                              </Tooltip>
+                            </HStack>
+                          </Td>
+                        </Tr>
+                      ))
+                    )}
+                  </Tbody>
+                </Table>
+              </TableContainer>
+            </CardBody>
+          </Card>
+        </VStack>
       </Box>
     </Layout>
   );

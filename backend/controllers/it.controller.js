@@ -1313,9 +1313,38 @@ const getAuditLog = async (req, res) => {
 
 const deleteTask = async (req, res) => {
   try {
-    const deleted = await ITTask.findByIdAndDelete(req.params.id);
-    if (!deleted) return res.status(404).json({ success: false, message: 'Task not found' });
-    res.json({ success: true, message: 'Deleted' });
+    const { id } = req.params;
+    const task = await ITTask.findById(id);
+    if (!task) {
+      return res.status(404).json({ success: false, message: 'Request or Task not found' });
+    }
+
+    if (req.user) {
+      const userRole = normalizeRole(req.user.role);
+      const isManager =
+        isItManagerRole(userRole) ||
+        isCsManagerRole(userRole) ||
+        ['admin', 'supervisor', 'leader', 'ceo', 'coo', 'manager', 'salesmanager'].includes(userRole) ||
+        userRole.includes('manager');
+
+      const isSender = isTaskOwnerOrRequester(task, req.user);
+
+      if (!isManager && !isSender) {
+        return res.status(403).json({
+          success: false,
+          message: 'Permission denied: Only the sender and the manager are authorized to delete this request.',
+        });
+      }
+    }
+
+    appendAudit(task, req, 'deleted', { taskName: task.taskName });
+    await ITTask.findByIdAndDelete(id);
+
+    res.json({
+      success: true,
+      message: 'Deleted successfully',
+      data: { id },
+    });
   } catch (error) {
     console.error('deleteTask error', error);
     res.status(500).json({ success: false, message: error.message });

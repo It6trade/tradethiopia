@@ -11,11 +11,13 @@ import {
   Heading,
   HStack,
   Icon,
+  IconButton,
   Input,
   Select,
   SimpleGrid,
   Text,
   Textarea,
+  Tooltip,
   VStack,
   useColorModeValue,
   useToast,
@@ -30,6 +32,7 @@ import {
   FiShield,
   FiStar,
   FiTool,
+  FiTrash2,
   FiUserCheck,
 } from "react-icons/fi";
 import axiosInstance from "../../services/axiosInstance";
@@ -241,6 +244,67 @@ export default function CustomerSupportRequestPanel() {
     }
   };
 
+  const [deletingTicketId, setDeletingTicketId] = useState("");
+
+  const isManagerUser = useCallback((user = {}) => {
+    const role = String(user?.role || user?.userRole || user?.displayRole || "").trim().toLowerCase().replace(/[^a-z0-9]/g, "");
+    return (
+      role === "customersuccessmanager" ||
+      role === "itmanager" ||
+      role === "admin" ||
+      role === "leader" ||
+      role === "supervisor" ||
+      role === "ceo" ||
+      role === "coo" ||
+      role === "salesmanager" ||
+      role.includes("manager")
+    );
+  }, []);
+
+  const canUserDeleteSupportTicket = useCallback((ticket = {}) => {
+    if (isManagerUser(currentUser)) return true;
+    const reqBy = String(ticket.requestedBy || "").trim().toLowerCase();
+    const createdBy = String(ticket.createdBy?._id || ticket.createdBy || "").trim().toLowerCase();
+    const submitter = String(ticket.submittedBy?._id || ticket.submittedBy || "").trim().toLowerCase();
+    const userId = String(currentUser?._id || currentUser?.id || "").trim().toLowerCase();
+    return (
+      userAliases.includes(reqBy) ||
+      userAliases.includes(createdBy) ||
+      userAliases.includes(submitter) ||
+      (userId && (userId === createdBy || userId === submitter))
+    );
+  }, [currentUser, isManagerUser, userAliases]);
+
+  const handleDeleteSupportTicket = async (ticket) => {
+    const ticketId = ticket._id || ticket.id;
+    const title = getTaskTitle(ticket);
+    if (!window.confirm(`Are you sure you want to delete "${title}"? Only the sender and managers can delete this request.`)) {
+      return;
+    }
+
+    setDeletingTicketId(ticketId);
+    try {
+      await axiosInstance.delete(`/it/${ticketId}`);
+      setManagerTickets((prev) => prev.filter((t) => (t._id || t.id) !== ticketId));
+      toast({
+        title: "Support request deleted",
+        status: "success",
+        duration: 3000,
+        isClosable: true,
+      });
+    } catch (error) {
+      toast({
+        title: "Failed to delete support request",
+        description: error.response?.data?.message || error.message,
+        status: "error",
+        duration: 4000,
+        isClosable: true,
+      });
+    } finally {
+      setDeletingTicketId("");
+    }
+  };
+
   const toggleManagerTicket = (ticketId) => {
     setExpandedManagerTicketIds((prev) => ({
       ...prev,
@@ -397,9 +461,27 @@ export default function CustomerSupportRequestPanel() {
                             <Text fontSize="xs" color={muted}>{ticket.requestedDepartment || "Customer Service"}</Text>
                           </Box>
                         </HStack>
-                        <Badge colorScheme={getStatusColor(ticket.supportStatus)}>
-                          {String(ticket.supportStatus || "requested").replace("_", " ")}
-                        </Badge>
+                        <HStack spacing={2}>
+                          <Badge colorScheme={getStatusColor(ticket.supportStatus)}>
+                            {String(ticket.supportStatus || "requested").replace("_", " ")}
+                          </Badge>
+                          {canUserDeleteSupportTicket(ticket) && (
+                            <Tooltip label="Delete Support Request (Sender & Manager only)" hasArrow>
+                              <IconButton
+                                aria-label="Delete support request"
+                                icon={<FiTrash2 />}
+                                size="xs"
+                                variant="ghost"
+                                colorScheme="red"
+                                isLoading={deletingTicketId === ticketId}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteSupportTicket(ticket);
+                                }}
+                              />
+                            </Tooltip>
+                          )}
+                        </HStack>
                       </Flex>
 
                       {isExpanded && (

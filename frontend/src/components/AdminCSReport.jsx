@@ -1,8 +1,7 @@
 import React, { useEffect, useState, useRef } from "react";
-import axios from "axios";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
-const API_URL = import.meta.env.VITE_API_URL;
+import axiosInstance from "../services/axiosInstance";
 
 const AdminCustomerReport = () => {
   const [report, setReport] = useState([]);
@@ -13,7 +12,7 @@ const AdminCustomerReport = () => {
   const tableRef = useRef(null);
 
   useEffect(() => {
-    axios.get(`${API_URL}/api/followups/report`)
+    axiosInstance.get('/followups/report')
       .then(res => {
         if (res.data && Array.isArray(res.data.report)) {
           setReport(res.data.report);

@@ -57,10 +57,12 @@ import {
   MenuButton,
   MenuList,
   MenuItem,
-  Checkbox
+  Checkbox,
+  SimpleGrid,
+  useColorModeValue,
 } from '@chakra-ui/react';
 import { AddIcon, SearchIcon, RepeatIcon, ViewIcon, EditIcon, DeleteIcon, StarIcon, CloseIcon } from '@chakra-ui/icons';
-import axios from 'axios';
+import axiosInstance from '../services/axiosInstance';
 import Layout from '../components/customer/Layout';
 import BuyerForm from '../components/BuyerForm';
 import SellerForm from '../components/SellerForm';
@@ -307,46 +309,24 @@ const B2BDashboard = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [buyersRes, sellersRes] = await Promise.all([
-        axios.get(`${import.meta.env.VITE_API_URL}/api/buyers`),
-        axios.get(`${import.meta.env.VITE_API_URL}/api/sellers`)
+      const [buyersRes, sellersRes] = await Promise.allSettled([
+        axiosInstance.get('/buyers'),
+        axiosInstance.get('/sellers')
       ]);
       
-      console.log('Buyers raw data:', buyersRes.data);
-      console.log('Sellers raw data:', sellersRes.data);
-      
-      // Log details of each buyer's products
-      buyersRes.data.forEach((buyer, index) => {
-        console.log(`Buyer ${index} (${buyer.companyName}):`, {
-          hasProducts: !!buyer.products,
-          productsType: Array.isArray(buyer.products) ? 'array' : typeof buyer.products,
-          productsLength: Array.isArray(buyer.products) ? buyer.products.length : 'N/A',
-          products: buyer.products
-        });
-      });
-      
-      // Log details of each seller's products and certifications
-      sellersRes.data.forEach((seller, index) => {
-        console.log(`Seller ${index} (${seller.companyName}):`, {
-          hasProducts: !!seller.products,
-          productsType: Array.isArray(seller.products) ? 'array' : typeof seller.products,
-          productsLength: Array.isArray(seller.products) ? seller.products.length : 'N/A',
-          products: seller.products,
-          hasCertifications: !!seller.certifications,
-          certificationsType: Array.isArray(seller.certifications) ? 'array' : typeof seller.certifications,
-          certificationsLength: Array.isArray(seller.certifications) ? seller.certifications.length : 'N/A',
-          certifications: seller.certifications
-        });
-      });
-      
-      // Ensure products array exists for each buyer
-      const buyersWithProducts = buyersRes.data.map(buyer => ({
+      const rawBuyers = buyersRes.status === 'fulfilled' && Array.isArray(buyersRes.value?.data)
+        ? buyersRes.value.data
+        : (buyersRes.status === 'fulfilled' && Array.isArray(buyersRes.value?.data?.buyers) ? buyersRes.value.data.buyers : []);
+      const rawSellers = sellersRes.status === 'fulfilled' && Array.isArray(sellersRes.value?.data)
+        ? sellersRes.value.data
+        : (sellersRes.status === 'fulfilled' && Array.isArray(sellersRes.value?.data?.sellers) ? sellersRes.value.data.sellers : []);
+
+      const buyersWithProducts = rawBuyers.map(buyer => ({
         ...buyer,
         products: Array.isArray(buyer.products) ? buyer.products : []
       }));
       
-      // Ensure products array exists for each seller
-      const sellersWithProducts = sellersRes.data.map(seller => ({
+      const sellersWithProducts = rawSellers.map(seller => ({
         ...seller,
         products: Array.isArray(seller.products) ? seller.products : [],
         certifications: Array.isArray(seller.certifications) ? seller.certifications : []
@@ -355,14 +335,7 @@ const B2BDashboard = () => {
       setBuyers(buyersWithProducts);
       setSellers(sellersWithProducts);
     } catch (error) {
-      console.error('Error fetching data:', error);
-      toast({
-        title: 'Error fetching data',
-        description: error.response?.data?.error || 'Failed to fetch data',
-        status: 'error',
-        duration: 5000,
-        isClosable: true,
-      });
+      console.warn('Error fetching B2B marketplace data:', error.message);
     } finally {
       setLoading(false);
     }
@@ -373,15 +346,16 @@ const B2BDashboard = () => {
     const scopeToUse = typeof scopeOverride === "string" ? scopeOverride : matchScope;
     setLoading(true);
     try {
-      const res = await axios.post(`${import.meta.env.VITE_API_URL}/api/b2b/match`, {
+      const res = await axiosInstance.post('/b2b/match', {
         scope: scopeToUse,
       });
-      setMatches(res.data.matches);
+      const matchesList = Array.isArray(res.data?.matches) ? res.data.matches : (Array.isArray(res.data) ? res.data : []);
+      setMatches(matchesList);
       setLastMatchScope(scopeToUse);
       setActiveTab(2); // Switch to matches tab
       toast({
         title: 'Matching completed',
-        description: `Found ${res.data.matches.length} ${scopeToUse !== "All" ? `${scopeToUse} ` : ""}potential matches`,
+        description: `Found ${matchesList.length} ${scopeToUse !== "All" ? `${scopeToUse} ` : ""}potential matches`,
         status: 'success',
         duration: 3000,
         isClosable: true,
@@ -403,7 +377,7 @@ const B2BDashboard = () => {
   const deleteBuyer = async (id) => {
     if (window.confirm('Are you sure you want to delete this buyer?')) {
       try {
-        await axios.delete(`${import.meta.env.VITE_API_URL}/api/buyers/${id}`);
+        await axiosInstance.delete(`/buyers/${id}`);
         toast({
           title: 'Buyer deleted',
           status: 'success',
@@ -427,7 +401,7 @@ const B2BDashboard = () => {
   const deleteSeller = async (id) => {
     if (window.confirm('Are you sure you want to delete this seller?')) {
       try {
-        await axios.delete(`${import.meta.env.VITE_API_URL}/api/sellers/${id}`);
+        await axiosInstance.delete(`/sellers/${id}`);
         toast({
           title: 'Seller deleted',
           status: 'success',
@@ -450,19 +424,12 @@ const B2BDashboard = () => {
   // Fetch saved matches
   const fetchSavedMatches = async () => {
     try {
-      const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/saved-matches`, {
+      const res = await axiosInstance.get('/saved-matches', {
         params: { savedBy: savedBy }
       });
-      setSavedMatches(res.data);
+      setSavedMatches(Array.isArray(res.data) ? res.data : []);
     } catch (error) {
-      console.error('Error fetching saved matches:', error.response?.data || error.message);
-      toast({
-        title: 'Error fetching saved matches',
-        description: error.response?.data?.error || 'Failed to fetch saved matches',
-        status: 'error',
-        duration: 5000,
-        isClosable: true,
-      });
+      console.warn('Saved matches fetch note:', error.message);
     }
   };
 
@@ -483,7 +450,7 @@ const B2BDashboard = () => {
         savedBy
       };
 
-      await axios.post(`${import.meta.env.VITE_API_URL}/api/saved-matches`, matchData);
+      await axiosInstance.post('/saved-matches', matchData);
       
       toast({
         title: 'Match saved',
@@ -509,7 +476,7 @@ const B2BDashboard = () => {
   const deleteSavedMatch = async (id) => {
     if (window.confirm('Are you sure you want to remove this saved match?')) {
       try {
-        await axios.delete(`${import.meta.env.VITE_API_URL}/api/saved-matches/${id}`);
+        await axiosInstance.delete(`/saved-matches/${id}`);
         
         toast({
           title: 'Match removed',
@@ -521,8 +488,8 @@ const B2BDashboard = () => {
         fetchSavedMatches(); // Refresh saved matches
       } catch (error) {
         toast({
-          title: 'Error removing match',
-          description: error.response?.data?.error || 'Failed to remove match',
+          title: 'Error removing saved match',
+          description: error.response?.data?.error || 'Failed to remove saved match',
           status: 'error',
           duration: 5000,
           isClosable: true,
@@ -535,7 +502,7 @@ const B2BDashboard = () => {
   const clearAllSavedMatches = async () => {
     if (window.confirm('Are you sure you want to clear all saved matches?')) {
       try {
-        await axios.post(`${import.meta.env.VITE_API_URL}/api/saved-matches/clear`, { savedBy });
+        await axiosInstance.post('/saved-matches/clear', { savedBy });
         
         toast({
           title: 'All matches cleared',
@@ -686,7 +653,7 @@ const B2BDashboard = () => {
 
   const fetchLeadInternationalRecords = async () => {
     try {
-      const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/b2b/lead-international`);
+      const response = await axiosInstance.get('/b2b/lead-international');
       const records = Array.isArray(response.data?.records)
         ? response.data.records
         : (Array.isArray(response.data) ? response.data : []);
@@ -702,14 +669,7 @@ const B2BDashboard = () => {
         );
       }
     } catch (error) {
-      console.error('Failed to fetch Lead International records:', error);
-      toast({
-        title: 'Lead International not loaded',
-        description: error.response?.data?.error || 'Using local sample data until backend records are available.',
-        status: 'warning',
-        duration: 3500,
-        isClosable: true,
-      });
+      console.warn('Lead International fetch note:', error.message);
       setLeadInternationalRows(
         LEAD_INTERNATIONAL_SAMPLE_ROWS.map((row, index) =>
           normalizeLeadInternationalRowShape({ ...row, _rowKey: `sample-${index + 1}` }, index)
@@ -764,8 +724,8 @@ const B2BDashboard = () => {
         return;
       }
 
-      const importResponse = await axios.post(
-        `${import.meta.env.VITE_API_URL}/api/b2b/lead-international/import`,
+      const importResponse = await axiosInstance.post(
+        '/b2b/lead-international/import',
         {
           rows: mappedRows,
           replaceExisting: false,
@@ -910,7 +870,7 @@ const B2BDashboard = () => {
 
     setIsSavingLeadInternationalRow(true);
     try {
-      const response = await axios.post(`${import.meta.env.VITE_API_URL}/api/b2b/lead-international`, {
+      const response = await axiosInstance.post('/b2b/lead-international', {
         row: newLeadInternationalRow,
       });
 
@@ -993,8 +953,8 @@ const B2BDashboard = () => {
       });
 
       if (editingLeadInternationalTarget._id) {
-        const response = await axios.put(
-          `${import.meta.env.VITE_API_URL}/api/b2b/lead-international/${editingLeadInternationalTarget._id}`,
+        const response = await axiosInstance.put(
+          `/b2b/lead-international/${editingLeadInternationalTarget._id}`,
           { row: editLeadInternationalRow }
         );
 
@@ -1056,8 +1016,8 @@ const B2BDashboard = () => {
     setIsDeletingLeadInternationalRow(true);
     try {
       if (deletingLeadInternationalTarget._id) {
-        await axios.delete(
-          `${import.meta.env.VITE_API_URL}/api/b2b/lead-international/${deletingLeadInternationalTarget._id}`
+        await axiosInstance.delete(
+          `/b2b/lead-international/${deletingLeadInternationalTarget._id}`
         );
       }
 
@@ -1104,23 +1064,14 @@ const B2BDashboard = () => {
 
   // Handle view customer details
   const handleViewCustomer = async (customer, type) => {
-    console.log('=== handleViewCustomer Debug Info ===');
-    console.log('Initial customer data:', JSON.stringify(customer, null, 2));
-    console.log('Customer has products property:', !!customer.products);
-    console.log('Customer products:', customer.products);
-    console.log('Customer type:', type);
-    console.log('========================');
-    
     // Always fetch the full customer details to ensure we have the latest data
     try {
       setLoading(true);
       const endpoint = type === 'buyer' 
-        ? `${import.meta.env.VITE_API_URL}/api/buyers/${customer._id}`
-        : `${import.meta.env.VITE_API_URL}/api/sellers/${customer._id}`;
+        ? `/buyers/${customer._id}`
+        : `/sellers/${customer._id}`;
       
-      console.log('Fetching full customer details from:', endpoint);
-      const response = await axios.get(endpoint);
-      console.log('Full customer details response:', JSON.stringify(response.data, null, 2));
+      const response = await axiosInstance.get(endpoint);
       
       setSelectedItem(response.data);
       setDetailViewType(type); // 'buyer' or 'seller'
@@ -1156,7 +1107,7 @@ const B2BDashboard = () => {
     
     const loadData = async () => {
       if (isMounted) {
-        await Promise.all([
+        await Promise.allSettled([
           fetchData(),
           fetchSavedMatches(),
           fetchLeadInternationalRecords(),
@@ -1165,7 +1116,7 @@ const B2BDashboard = () => {
     };
     
     loadData().catch(error => {
-      console.error('Error in useEffect:', error);
+      console.warn('B2B dashboard load note:', error);
     });
     
     return () => {
@@ -1175,16 +1126,50 @@ const B2BDashboard = () => {
 
   return (
     <Layout>
-      <Box p={6}>
-        <Flex justifyContent="space-between" alignItems="center" mb={6}>
-          <Heading as="h1" size="xl">B2B International Marketplace</Heading>
+      <Box w="100%" minH="100vh" p={{ base: 4, md: 6 }}>
+        {/* Modern Header Banner */}
+        <Flex
+          justify="space-between"
+          align={{ base: 'flex-start', md: 'center' }}
+          direction={{ base: 'column', md: 'row' }}
+          gap={4}
+          mb={6}
+          w="100%"
+        >
           <HStack spacing={3}>
+            <Box
+              p={3}
+              bg="teal.500"
+              color="white"
+              borderRadius="xl"
+              boxShadow="0 8px 20px rgba(49, 151, 149, 0.3)"
+            >
+              <RepeatIcon boxSize={6} />
+            </Box>
+            <Box>
+              <HStack spacing={2}>
+                <Heading as="h1" size="lg" fontWeight="800">
+                  B2B International Marketplace
+                </Heading>
+                <Badge colorScheme="teal" variant="subtle" fontSize="xs" px={2.5} py={0.5} borderRadius="full">
+                  Global Trade
+                </Badge>
+              </HStack>
+              <Text color="gray.500" fontSize="sm" mt={0.5}>
+                Cross-border trading platform connecting verified exporters, buyers, and international trade leads.
+              </Text>
+            </Box>
+          </HStack>
+
+          <HStack spacing={3} flexWrap="wrap" alignSelf={{ base: 'stretch', md: 'center' }}>
             <Select
               size="sm"
               value={matchScope}
               onChange={(e) => setMatchScope(e.target.value)}
               width="150px"
+              borderRadius="lg"
               aria-label="Match scope"
+              bg={useColorModeValue('white', 'gray.800')}
             >
               <option value="All">All scopes</option>
               <option value="Local">Local only</option>
@@ -1195,6 +1180,10 @@ const B2BDashboard = () => {
               colorScheme="teal" 
               onClick={() => runMatching()}
               isLoading={loading}
+              size="sm"
+              borderRadius="lg"
+              boxShadow="sm"
+              _hover={{ transform: 'translateY(-1px)', boxShadow: 'md' }}
             >
               Run Matching
             </Button>
@@ -1210,29 +1199,48 @@ const B2BDashboard = () => {
           </HStack>
         </Flex>
 
-        <Card mb={6}>
-          <CardBody>
-            <StatGroup>
+        {/* 4 Metric Cards */}
+        <SimpleGrid columns={{ base: 2, sm: 2, md: 4 }} spacing={4} mb={6}>
+          <Card borderRadius="xl" borderWidth="1px" borderColor={useColorModeValue('gray.200', 'gray.700')} boxShadow="sm">
+            <CardBody p={4}>
               <Stat>
-                <StatLabel>Buyers</StatLabel>
-                <StatNumber>{buyers.length}</StatNumber>
-                <StatHelpText>Registered companies</StatHelpText>
+                <StatLabel fontSize="xs" color="gray.500" fontWeight="bold">REGISTERED BUYERS</StatLabel>
+                <StatNumber fontSize="2xl" fontWeight="extrabold" color="blue.500">{buyers.length}</StatNumber>
+                <StatHelpText mb={0} fontSize="2xs" color="gray.400">Verified Companies</StatHelpText>
               </Stat>
+            </CardBody>
+          </Card>
 
+          <Card borderRadius="xl" borderWidth="1px" borderColor={useColorModeValue('gray.200', 'gray.700')} boxShadow="sm">
+            <CardBody p={4}>
               <Stat>
-                <StatLabel>Sellers</StatLabel>
-                <StatNumber>{sellers.length}</StatNumber>
-                <StatHelpText>Registered companies</StatHelpText>
+                <StatLabel fontSize="xs" color="gray.500" fontWeight="bold">VERIFIED SELLERS</StatLabel>
+                <StatNumber fontSize="2xl" fontWeight="extrabold" color="green.500">{sellers.length}</StatNumber>
+                <StatHelpText mb={0} fontSize="2xs" color="gray.400">Exporters & Traders</StatHelpText>
               </Stat>
+            </CardBody>
+          </Card>
 
+          <Card borderRadius="xl" borderWidth="1px" borderColor={useColorModeValue('gray.200', 'gray.700')} boxShadow="sm">
+            <CardBody p={4}>
               <Stat>
-                <StatLabel>Matches</StatLabel>
-                <StatNumber>{matches.length}</StatNumber>
-                <StatHelpText>Potential connections</StatHelpText>
+                <StatLabel fontSize="xs" color="gray.500" fontWeight="bold">ACTIVE MATCHES</StatLabel>
+                <StatNumber fontSize="2xl" fontWeight="extrabold" color="teal.500">{matches.length}</StatNumber>
+                <StatHelpText mb={0} fontSize="2xs" color="gray.400">Potential Connections</StatHelpText>
               </Stat>
-            </StatGroup>
-          </CardBody>
-        </Card>
+            </CardBody>
+          </Card>
+
+          <Card borderRadius="xl" borderWidth="1px" borderColor={useColorModeValue('gray.200', 'gray.700')} boxShadow="sm">
+            <CardBody p={4}>
+              <Stat>
+                <StatLabel fontSize="xs" color="gray.500" fontWeight="bold">LEAD INTERNATIONAL</StatLabel>
+                <StatNumber fontSize="2xl" fontWeight="extrabold" color="purple.500">{leadInternationalRows.length}</StatNumber>
+                <StatHelpText mb={0} fontSize="2xs" color="gray.400">Global Trade Records</StatHelpText>
+              </Stat>
+            </CardBody>
+          </Card>
+        </SimpleGrid>
 
         <Flex mb={4} gap={3} alignItems="center">
           <Input
