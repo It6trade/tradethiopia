@@ -113,6 +113,7 @@ const CalendarPage = lazy(() => import("./components/salesmanager/CalendarPage")
 const SettingsPage = lazy(() => import("./components/salesmanager/SettingsPage"));
 const ContentTrackerReport = lazy(() => import("./components/salesmanager/ContentTrackerReport"));
 const CourseManagerPage = lazy(() => import("./components/salesmanager/CourseManagerPage"));
+const HRProfilePage = lazy(() => import("./pages/HRProfilePage.jsx"));
 
 const IT_ALLOWED_ROLES = [
   "admin",
@@ -227,6 +228,14 @@ return (
         }
       />
       <Route path="/dashboard" element={<LayoutWrapper><Dashboard /></LayoutWrapper>} />
+      <Route
+        path="/profile"
+        element={
+          <ProtectedRoute>
+            <LayoutWrapper><HRProfilePage /></LayoutWrapper>
+          </ProtectedRoute>
+        }
+      />
       <Route path="/course" element={<LayoutWrapper><AdminTrainingUpload /></LayoutWrapper>} />
       <Route path="/hr-training" element={<LayoutWrapper><HRTrainingPage /></LayoutWrapper>} />
       <Route path="/candidate-pool" element={<LayoutWrapper><CandidatePoolPage /></LayoutWrapper>} />
