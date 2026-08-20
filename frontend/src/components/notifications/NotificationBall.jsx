@@ -88,6 +88,12 @@ const buildNotificationLink = (item, currentUser = null) => {
     } catch (_) {}
   }
 
+  // If notification contains employeeId in metadata or link, route to /users with specific user drawer
+  if (item.metadata?.employeeId || item.metadata?.userId) {
+    const empId = item.metadata.employeeId || item.metadata.userId;
+    return `/users?userId=${empId}&tab=2`;
+  }
+
   return item.link || '';
 };
 

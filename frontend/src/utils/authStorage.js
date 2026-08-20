@@ -4,7 +4,7 @@ const RETURN_PATH_KEY = 'tradeEthiopiaReturnPath';
 export const AUTH_KEYS = [
   'userToken', 'userRole', 'userRoleRaw', 'userName', 'userFullName',
   'userJobTitle', 'userStatus', 'infoStatus', 'userId', 'userEmail',
-  'userDepartment', 'trainingStatus', 'examBypass',
+  'userDepartment', 'trainingStatus', 'examStatus', 'examBypass',
   'userPhoto', 'userPhotoUrl', 'userPhone', 'userLocation', 'userBio',
   'userWebsite', 'userLinkedin', 'userTwitter', 'userFacebook', 'userTelegram',
 ];

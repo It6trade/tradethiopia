@@ -18,6 +18,7 @@ const loadCurrentUser = () => {
     const status = getAuthItem("userStatus");
     const infoStatus = getAuthItem("infoStatus");
     const trainingStatus = getAuthItem("trainingStatus");
+    const examStatus = getAuthItem("examStatus");
     const examBypass = getAuthItem("examBypass") === "true";
     const username = getAuthItem("userName");
     const fullName = getAuthItem("userFullName");
@@ -47,6 +48,7 @@ const loadCurrentUser = () => {
               status,
               infoStatus,
               trainingStatus,
+              examStatus,
               examBypass,
               token,
               _id: userId,
@@ -142,6 +144,7 @@ export const useUserStore = create((set, get) => ({
             setAuthItem("userStatus", user.status || "active");
             setAuthItem("infoStatus", user.infoStatus || "pending");
             setAuthItem("trainingStatus", user.trainingStatus || "");
+            setAuthItem("examStatus", user.examStatus || "");
             setAuthItem("examBypass", user.examBypass ? "true" : "false");
             setAuthItem("userId", user._id);
             if (user.email) {

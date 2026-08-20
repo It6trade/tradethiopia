@@ -116,6 +116,7 @@ const loginUser = async (req, res) => {
                 photoUrl: resolveFileUrl(user.photo),
                 infoStatus: user.infoStatus,
                 trainingStatus: user.trainingStatus,
+                examStatus: user.examStatus || 'off',
                 examBypass: user.examBypass || false,
                 guarantorFile: user.guarantorFile,
                 guarantorFileUrl: resolveFileUrl(user.guarantorFile)
@@ -134,7 +135,7 @@ const createuser = async (req, res) => {
         fullName, altEmail, altPhone, gender, 
         jobTitle, hireDate, employmentType, 
         education, location, phone, additionalLanguages, 
-        notes,digitalId,photo,infoStatus,trainingStatus,examBypass,guarantorFile,
+        notes,digitalId,photo,infoStatus,trainingStatus,examStatus,examBypass,guarantorFile,
         salary, managerId
     } = req.body;
 
@@ -189,6 +190,7 @@ const createuser = async (req, res) => {
             photo,
             infoStatus,
             trainingStatus,
+            examStatus: examStatus || 'off',
             examBypass: Boolean(examBypass),
             guarantorFile,
             managerId: managerId || null,
@@ -222,7 +224,7 @@ const getuser = async (req, res) => {
         // Directory consumers receive summary data only. Sensitive HR fields
         // are available through the protected /:id/details endpoint.
         const users = await User.find({}).select(
-            '_id username email role status fullName jobTitle photo guarantorFile phone gender education location digitalId managerId employmentType hireDate salary infoStatus trainingStatus examBypass createdAt updatedAt'
+            '_id username email role status fullName jobTitle photo guarantorFile phone gender education location digitalId managerId employmentType hireDate salary infoStatus trainingStatus examStatus examBypass createdAt updatedAt'
         );
         const Document = mongoose.models.Document || require('../models/Document');
         const documents = await Document.find({}).select('userId employeeName').lean();
@@ -307,6 +309,7 @@ const getuser = async (req, res) => {
                 managerId: userObj.managerId,
                 infoStatus: userObj.infoStatus,
                 trainingStatus: userObj.trainingStatus,
+                examStatus: userObj.examStatus || 'off',
                 examBypass: Boolean(userObj.examBypass),
                 createdAt: userObj.createdAt,
                 updatedAt: userObj.updatedAt,

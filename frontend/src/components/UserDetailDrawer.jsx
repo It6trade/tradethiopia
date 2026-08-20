@@ -96,10 +96,23 @@ import {
   FiCheckSquare,
   FiSquare,
   FiList,
+  FiVideo,
+  FiPlayCircle,
+  FiZap,
 } from 'react-icons/fi';
 import axiosInstance from '../services/axiosInstance';
 import { normalizeRole, useUserStore } from '../store/user';
 import { buildEmployeeExportData, exportEmployeePdf, exportEmployeeWord } from '../utils/employeeExport';
+
+const isTrainingEnabled = (value) =>
+  ['on', 'active', 'approved', 'enabled', 'true'].includes(
+    String(value || '').trim().toLowerCase()
+  );
+
+const isExamEnabled = (value) =>
+  ['on', 'active', 'approved', 'enabled', 'true'].includes(
+    String(value || '').trim().toLowerCase()
+  );
 
 const EMPTY_VALUE = 'Not provided';
 
@@ -319,6 +332,8 @@ const UserDetailDrawer = ({ isOpen, onClose, user: summaryUser, initialTab = 0, 
   const [documentCategory, setDocumentCategory] = useState('all');
   const [exporting, setExporting] = useState('');
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+  const [isUpdatingTutorial, setIsUpdatingTutorial] = useState(false);
+  const [isUpdatingExam, setIsUpdatingExam] = useState(false);
   const [isUpdatingBypass, setIsUpdatingBypass] = useState(false);
   const toast = useToast();
   const drawerSize = useBreakpointValue({ base: 'full', md: 'xl' });
@@ -404,6 +419,68 @@ const UserDetailDrawer = ({ isOpen, onClose, user: summaryUser, initialTab = 0, 
     }
   };
 
+  const handleTutorialToggle = async (newVal) => {
+    const targetId = profile?._id || summaryUser?._id;
+    if (!targetId || isUpdatingTutorial) return;
+    setIsUpdatingTutorial(true);
+    const newStatus = newVal ? 'on' : 'off';
+    try {
+      await axiosInstance.put(`/users/${targetId}`, { trainingStatus: newStatus });
+      setProfile((prev) => (prev ? { ...prev, trainingStatus: newStatus } : { ...summaryUser, trainingStatus: newStatus }));
+      if (onUserUpdated) onUserUpdated();
+      toast({
+        title: newVal ? 'Tutorial Approved (Access ON)' : 'Tutorial Access Set to OFF',
+        description: newVal
+          ? 'Employee tutorial completion is verified and approved. Employee can now proceed to the exam.'
+          : 'Tutorial access set to OFF.',
+        status: newVal ? 'success' : 'info',
+        duration: 4000,
+        isClosable: true,
+      });
+    } catch (err) {
+      toast({
+        title: 'Failed to update tutorial status',
+        description: err.response?.data?.message || err.message,
+        status: 'error',
+        duration: 4000,
+        isClosable: true,
+      });
+    } finally {
+      setIsUpdatingTutorial(false);
+    }
+  };
+
+  const handleExamToggle = async (newVal) => {
+    const targetId = profile?._id || summaryUser?._id;
+    if (!targetId || isUpdatingExam) return;
+    setIsUpdatingExam(true);
+    const newStatus = newVal ? 'on' : 'off';
+    try {
+      await axiosInstance.put(`/users/${targetId}`, { examStatus: newStatus });
+      setProfile((prev) => (prev ? { ...prev, examStatus: newStatus } : { ...summaryUser, examStatus: newStatus }));
+      if (onUserUpdated) onUserUpdated();
+      toast({
+        title: newVal ? 'Exam Approved (Access ON)' : 'Exam Access Set to OFF',
+        description: newVal
+          ? 'Employee exam completion is verified and approved. Employee is now granted access to the Dashboard.'
+          : 'Exam access set to OFF.',
+        status: newVal ? 'success' : 'info',
+        duration: 4000,
+        isClosable: true,
+      });
+    } catch (err) {
+      toast({
+        title: 'Failed to update exam status',
+        description: err.response?.data?.message || err.message,
+        status: 'error',
+        duration: 4000,
+        isClosable: true,
+      });
+    } finally {
+      setIsUpdatingExam(false);
+    }
+  };
+
   const handleExamBypassToggle = async (newVal) => {
     const targetId = profile?._id || summaryUser?._id;
     if (!targetId || isUpdatingBypass) return;
@@ -413,10 +490,10 @@ const UserDetailDrawer = ({ isOpen, onClose, user: summaryUser, initialTab = 0, 
       setProfile((prev) => (prev ? { ...prev, examBypass: newVal } : { ...summaryUser, examBypass: newVal }));
       if (onUserUpdated) onUserUpdated();
       toast({
-        title: newVal ? 'Exam & Tutorial Bypass Granted' : 'Exam & Tutorial Required',
+        title: newVal ? 'Exam & Tutorial Bypass Granted' : 'Standard Onboarding Required',
         description: newVal
           ? 'HR granted permission to bypass tutorials and exam. The employee can directly access their dashboard upon login.'
-          : 'HR set exam and tutorials as required. The employee must complete tutorials and pass the exam.',
+          : 'HR set exam and tutorials as standard onboarding flow.',
         status: newVal ? 'success' : 'info',
         duration: 4500,
         isClosable: true,
@@ -1323,74 +1400,227 @@ const UserDetailDrawer = ({ isOpen, onClose, user: summaryUser, initialTab = 0, 
                         </Text>
                       </Box>
 
-                      {/* HR Exam & Tutorial Permission Card */}
-                      <Box
-                        p={{ base: 4, md: 5 }}
-                        bg="white"
-                        border="1px solid"
-                        borderColor={employee.examBypass ? 'purple.300' : 'gray.200'}
-                        borderRadius="2xl"
-                        shadow="sm"
-                      >
-                        <Flex
-                          justify="space-between"
-                          align={{ base: 'flex-start', sm: 'center' }}
-                          direction={{ base: 'column', sm: 'row' }}
-                          gap={4}
+                      {/* HR Onboarding, Tutorial & Exam Permission Controls */}
+                      <VStack spacing={3.5} align="stretch">
+                        {/* 1. Tutorial to Exam Permission Switch */}
+                        <Box
+                          p={{ base: 4, md: 5 }}
+                          bg="white"
+                          border="1px solid"
+                          borderColor={isTrainingEnabled(employee.trainingStatus) ? 'teal.300' : employee.trainingStatus === 'completed' ? 'orange.300' : 'gray.200'}
+                          borderRadius="2xl"
+                          shadow="sm"
                         >
-                          <HStack spacing={3}>
-                            <Flex
-                              w="46px"
-                              h="46px"
-                              borderRadius="xl"
-                              bg={employee.examBypass ? 'purple.50' : 'gray.100'}
-                              color={employee.examBypass ? 'purple.600' : 'gray.500'}
-                              align="center"
-                              justify="center"
-                            >
-                              <Icon as={employee.examBypass ? FiCheckCircle : FiAward} boxSize={5} />
-                            </Flex>
-                            <Box>
-                              <HStack spacing={2}>
-                                <Text fontSize="xs" fontWeight="700" color="gray.500" textTransform="uppercase">
-                                  Exam & Tutorial Permission
+                          <Flex
+                            justify="space-between"
+                            align={{ base: 'flex-start', sm: 'center' }}
+                            direction={{ base: 'column', sm: 'row' }}
+                            gap={4}
+                          >
+                            <HStack spacing={3}>
+                              <Flex
+                                w="46px"
+                                h="46px"
+                                borderRadius="xl"
+                                bg={isTrainingEnabled(employee.trainingStatus) ? 'teal.50' : employee.trainingStatus === 'completed' ? 'orange.50' : 'gray.100'}
+                                color={isTrainingEnabled(employee.trainingStatus) ? 'teal.600' : employee.trainingStatus === 'completed' ? 'orange.600' : 'gray.500'}
+                                align="center"
+                                justify="center"
+                              >
+                                <Icon as={isTrainingEnabled(employee.trainingStatus) ? FiCheckCircle : FiPlayCircle} boxSize={5} />
+                              </Flex>
+                              <Box>
+                                <HStack spacing={2}>
+                                  <Text fontSize="xs" fontWeight="700" color="gray.500" textTransform="uppercase">
+                                    Tutorial to Exam Permission
+                                  </Text>
+                                  <Badge
+                                    colorScheme={isTrainingEnabled(employee.trainingStatus) ? 'teal' : employee.trainingStatus === 'completed' ? 'orange' : 'gray'}
+                                    borderRadius="full"
+                                    px={2.5}
+                                    py={0.5}
+                                  >
+                                    {isTrainingEnabled(employee.trainingStatus)
+                                      ? 'Tutorial Approved (ON)'
+                                      : employee.trainingStatus === 'completed'
+                                      ? 'Finished Tutorial (Pending HR Approval)'
+                                      : 'Required (OFF)'}
+                                  </Badge>
+                                </HStack>
+                                <Text mt={1} fontSize="md" fontWeight="800" color="gray.900">
+                                  {isTrainingEnabled(employee.trainingStatus)
+                                    ? 'Tutorial Completed & Approved by HR'
+                                    : employee.trainingStatus === 'completed'
+                                    ? 'Finished Tutorial — Awaiting HR Approval'
+                                    : 'Must Review Tutorial Video & Packages'}
                                 </Text>
-                                <Badge
-                                  colorScheme={employee.examBypass ? 'purple' : 'gray'}
-                                  borderRadius="full"
-                                  px={2.5}
-                                  py={0.5}
-                                >
-                                  {employee.examBypass ? 'Bypass Granted' : 'Standard (Required)'}
-                                </Badge>
-                              </HStack>
-                              <Text mt={1} fontSize="md" fontWeight="800" color="gray.900">
-                                {employee.examBypass
-                                  ? 'Exempt from Exam & Tutorial'
-                                  : 'Must Pass Exam & Complete Tutorials'}
+                              </Box>
+                            </HStack>
+                            <HStack spacing={3}>
+                              <Text fontSize="xs" fontWeight="700" color="gray.600">
+                                {isTrainingEnabled(employee.trainingStatus) ? 'Tutorial Access ON' : 'Tutorial Access OFF'}
                               </Text>
-                            </Box>
-                          </HStack>
-                          <HStack spacing={3}>
-                            <Text fontSize="xs" fontWeight="700" color="gray.600">
-                              {employee.examBypass ? 'Direct Access Granted' : 'Require Assessment'}
-                            </Text>
-                            <Switch
-                              colorScheme="purple"
-                              size="lg"
-                              isChecked={Boolean(employee.examBypass)}
-                              isDisabled={isUpdatingBypass}
-                              onChange={(e) => handleExamBypassToggle(e.target.checked)}
-                            />
-                          </HStack>
-                        </Flex>
-                        <Divider my={3} />
-                        <Text fontSize="xs" color="gray.600">
-                          {employee.examBypass
-                            ? 'HR permission granted: The employee can bypass the onboarding tutorials and exam to directly access their role dashboard upon login.'
-                            : 'Standard onboarding: If verified by HR, the employee must complete the tutorials and pass the exam before their dashboard is accessible.'}
-                        </Text>
-                      </Box>
+                              <Switch
+                                colorScheme="teal"
+                                size="lg"
+                                isChecked={isTrainingEnabled(employee.trainingStatus)}
+                                isDisabled={isUpdatingTutorial}
+                                onChange={(e) => handleTutorialToggle(e.target.checked)}
+                              />
+                            </HStack>
+                          </Flex>
+                          <Divider my={3} />
+                          <Text fontSize="xs" color="gray.600">
+                            {isTrainingEnabled(employee.trainingStatus)
+                              ? 'HR verified and approved: The employee has permission to access and take the examination.'
+                              : 'When switched ON, HR approves the employee’s tutorial completion and unlocks the exam page for them.'}
+                          </Text>
+                        </Box>
+
+                        {/* 2. Exam to Dashboard Permission Switch */}
+                        <Box
+                          p={{ base: 4, md: 5 }}
+                          bg="white"
+                          border="1px solid"
+                          borderColor={isExamEnabled(employee.examStatus) ? 'green.300' : employee.examStatus === 'completed' ? 'orange.300' : 'gray.200'}
+                          borderRadius="2xl"
+                          shadow="sm"
+                        >
+                          <Flex
+                            justify="space-between"
+                            align={{ base: 'flex-start', sm: 'center' }}
+                            direction={{ base: 'column', sm: 'row' }}
+                            gap={4}
+                          >
+                            <HStack spacing={3}>
+                              <Flex
+                                w="46px"
+                                h="46px"
+                                borderRadius="xl"
+                                bg={isExamEnabled(employee.examStatus) ? 'green.50' : employee.examStatus === 'completed' ? 'orange.50' : 'gray.100'}
+                                color={isExamEnabled(employee.examStatus) ? 'green.600' : employee.examStatus === 'completed' ? 'orange.600' : 'gray.500'}
+                                align="center"
+                                justify="center"
+                              >
+                                <Icon as={isExamEnabled(employee.examStatus) ? FiCheckCircle : FiAward} boxSize={5} />
+                              </Flex>
+                              <Box>
+                                <HStack spacing={2}>
+                                  <Text fontSize="xs" fontWeight="700" color="gray.500" textTransform="uppercase">
+                                    Exam to Dashboard Permission
+                                  </Text>
+                                  <Badge
+                                    colorScheme={isExamEnabled(employee.examStatus) ? 'green' : employee.examStatus === 'completed' ? 'orange' : 'gray'}
+                                    borderRadius="full"
+                                    px={2.5}
+                                    py={0.5}
+                                  >
+                                    {isExamEnabled(employee.examStatus)
+                                      ? 'Exam Approved (ON)'
+                                      : employee.examStatus === 'completed'
+                                      ? 'Passed Exam (Pending HR Approval)'
+                                      : 'Required (OFF)'}
+                                  </Badge>
+                                </HStack>
+                                <Text mt={1} fontSize="md" fontWeight="800" color="gray.900">
+                                  {isExamEnabled(employee.examStatus)
+                                    ? 'Exam Passed & Approved by HR'
+                                    : employee.examStatus === 'completed'
+                                    ? 'Passed Exam (70%+) — Awaiting HR Approval'
+                                    : 'Must Pass Assessment Exam (70%+)'}
+                                </Text>
+                              </Box>
+                            </HStack>
+                            <HStack spacing={3}>
+                              <Text fontSize="xs" fontWeight="700" color="gray.600">
+                                {isExamEnabled(employee.examStatus) ? 'Exam Access ON' : 'Exam Access OFF'}
+                              </Text>
+                              <Switch
+                                colorScheme="green"
+                                size="lg"
+                                isChecked={isExamEnabled(employee.examStatus)}
+                                isDisabled={isUpdatingExam}
+                                onChange={(e) => handleExamToggle(e.target.checked)}
+                              />
+                            </HStack>
+                          </Flex>
+                          <Divider my={3} />
+                          <Text fontSize="xs" color="gray.600">
+                            {isExamEnabled(employee.examStatus)
+                              ? 'HR verified and approved: The employee is granted full access to their role Dashboard.'
+                              : 'When switched ON, HR approves the employee’s exam completion (70%+ passing grade), allowing them to enter the Dashboard.'}
+                          </Text>
+                        </Box>
+
+                        {/* 3. Direct Dashboard Bypass Switch */}
+                        <Box
+                          p={{ base: 4, md: 5 }}
+                          bg="white"
+                          border="1px solid"
+                          borderColor={employee.examBypass ? 'purple.300' : 'gray.200'}
+                          borderRadius="2xl"
+                          shadow="sm"
+                        >
+                          <Flex
+                            justify="space-between"
+                            align={{ base: 'flex-start', sm: 'center' }}
+                            direction={{ base: 'column', sm: 'row' }}
+                            gap={4}
+                          >
+                            <HStack spacing={3}>
+                              <Flex
+                                w="46px"
+                                h="46px"
+                                borderRadius="xl"
+                                bg={employee.examBypass ? 'purple.50' : 'gray.100'}
+                                color={employee.examBypass ? 'purple.600' : 'gray.500'}
+                                align="center"
+                                justify="center"
+                              >
+                                <Icon as={employee.examBypass ? FiZap : FiShield} boxSize={5} />
+                              </Flex>
+                              <Box>
+                                <HStack spacing={2}>
+                                  <Text fontSize="xs" fontWeight="700" color="gray.500" textTransform="uppercase">
+                                    Direct Dashboard Bypass
+                                  </Text>
+                                  <Badge
+                                    colorScheme={employee.examBypass ? 'purple' : 'gray'}
+                                    borderRadius="full"
+                                    px={2.5}
+                                    py={0.5}
+                                  >
+                                    {employee.examBypass ? 'Direct Access Granted' : 'Standard Onboarding'}
+                                  </Badge>
+                                </HStack>
+                                <Text mt={1} fontSize="md" fontWeight="800" color="gray.900">
+                                  {employee.examBypass
+                                    ? 'Exempt from Tutorial & Exam (Direct to Dashboard)'
+                                    : 'Standard Step-by-Step Onboarding'}
+                                </Text>
+                              </Box>
+                            </HStack>
+                            <HStack spacing={3}>
+                              <Text fontSize="xs" fontWeight="700" color="gray.600">
+                                {employee.examBypass ? 'Bypass Active' : 'Bypass Disabled'}
+                              </Text>
+                              <Switch
+                                colorScheme="purple"
+                                size="lg"
+                                isChecked={Boolean(employee.examBypass)}
+                                isDisabled={isUpdatingBypass}
+                                onChange={(e) => handleExamBypassToggle(e.target.checked)}
+                              />
+                            </HStack>
+                          </Flex>
+                          <Divider my={3} />
+                          <Text fontSize="xs" color="gray.600">
+                            {employee.examBypass
+                              ? 'HR override active: The employee bypasses all tutorials and exams to directly access their role dashboard.'
+                              : 'If HR deems the employee experienced enough, turn this ON to grant immediate direct dashboard access.'}
+                          </Text>
+                        </Box>
+                      </VStack>
 
                       <Section
                         title="Authentication identity"
