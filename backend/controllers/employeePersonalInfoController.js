@@ -108,6 +108,12 @@ const personalInformationForDisplay = (user) => {
   return { ...stored, emergencyContact };
 };
 
+const resolveFileUrl = (fileId) => {
+  if (!fileId) return null;
+  if (fileId.startsWith('http://') || fileId.startsWith('https://')) return fileId;
+  return `https://cloud.appwrite.io/v1/storage/buckets/${process.env.APPWRITE_BUCKET_ID}/files/${fileId}/view?project=${process.env.APPWRITE_PROJECT_ID}`;
+};
+
 const present = async (user) => {
   const documents = await relatedDocuments(user);
   const linkedChecklist = {};
@@ -135,6 +141,10 @@ const present = async (user) => {
       education: user.education,
       location: user.location,
       digitalId: user.digitalId,
+      photo: user.photo,
+      photoUrl: resolveFileUrl(user.photo),
+      guarantorFile: user.guarantorFile,
+      guarantorFileUrl: resolveFileUrl(user.guarantorFile),
     },
     record,
     linkedChecklist,
