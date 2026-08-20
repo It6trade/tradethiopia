@@ -29,6 +29,7 @@ import {
   FiClipboard,
   FiGlobe,
   FiHome,
+  FiLayers,
   FiLogOut,
   FiMessageSquare,
   FiPackage,
@@ -414,6 +415,17 @@ const SSidebar = ({ isCollapsed: collapsedProp, toggleCollapse: toggleProp, acti
                 icon={<FiSettings />}
                 label="Service Settings"
                 active={isActive("/customer-settings")}
+                iconColor={iconColor}
+                activeIconColor={activeIconColor}
+                textColor={textColor}
+                activeTextColor={activeTextColor}
+              />
+              <SidebarLink
+                isCollapsed={isCollapsed}
+                to="/customer/manager-tasks"
+                icon={<FiLayers />}
+                label="Task Oversight"
+                active={isActive("/customer/manager-tasks") || isActive("/customer-manager-tasks")}
                 iconColor={iconColor}
                 activeIconColor={activeIconColor}
                 textColor={textColor}
