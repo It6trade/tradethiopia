@@ -141,9 +141,77 @@ const broadcastNotification = async (req, res) => {
   }
 };
 
+// Notify all HR & Admin staff of employee milestone completions (Tutorial finish / Exam pass)
+const notifyHR = async (req, res) => {
+  try {
+    const { title, message, category = 'onboarding', type = 'request', employeeId, employeeName, score, percentage } = req.body;
+    
+    if (!title && !message) {
+      return res.status(400).json({ message: 'Title or message is required' });
+    }
+
+    // Find all HR, Admin, COO users
+    const hrUsers = await User.find({
+      role: { $in: ['admin', 'Admin', 'hr', 'HR', 'coo', 'COO'] }
+    }).select('_id fullName username role');
+
+    const notificationText = title ? `${title}: ${message}` : message;
+
+    const notificationDocs = hrUsers.map((u) => ({
+      user: u._id,
+      text: notificationText,
+      type: 'request',
+      category: category || 'onboarding',
+      link: '/users',
+      metadata: {
+        title: title || 'HR Approval Request',
+        message: message,
+        actionLabel: 'Review Employee Access',
+        employeeId: employeeId || req.user?._id,
+        employeeName: employeeName || req.user?.fullName || req.user?.username,
+        score: score,
+        percentage: percentage,
+        isImportant: true,
+      },
+    }));
+
+    if (notificationDocs.length > 0) {
+      await Notification.insertMany(notificationDocs);
+    }
+
+    // Emit Socket.io notifications to active socket users
+    try {
+      const io = req.app.get('io');
+      const connectedUsers = req.app.get('connectedUsers');
+      if (io && connectedUsers) {
+        hrUsers.forEach((u) => {
+          const socketId = connectedUsers.get(u._id.toString());
+          if (socketId) {
+            io.to(socketId).emit('newNotification', {
+              text: notificationText,
+              type: 'request',
+              link: '/users',
+              createdAt: new Date(),
+            });
+          }
+        });
+      }
+    } catch (sockErr) {
+      console.log('Socket notification error (non-fatal):', sockErr);
+    }
+
+    res.json({ success: true, notifiedCount: hrUsers.length });
+  } catch (err) {
+    console.error('notifyHR error:', err);
+    res.status(500).json({ message: 'Failed to notify HR', error: err.message });
+  }
+};
+
 module.exports = {
   getNotifications,
   markAsRead,
   markAllAsRead,
-  broadcastNotification
+  broadcastNotification,
+  notifyHR,
 };
+

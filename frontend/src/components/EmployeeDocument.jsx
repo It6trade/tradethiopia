@@ -344,6 +344,7 @@ const EmployeeDocument = () => {
     const [selectedFileType, setSelectedFileType] = useState('');
     const [selectedYear, setSelectedYear] = useState('');
     const [complianceFilter, setComplianceFilter] = useState(''); // all, complete, incomplete, empty
+    const [employeeStatusFilter, setEmployeeStatusFilter] = useState('all'); // all, active, inactive
     const [onlyUrgentSchedules, setOnlyUrgentSchedules] = useState(false);
     
     // UI State
@@ -585,6 +586,9 @@ const EmployeeDocument = () => {
     // Filtered Employee Quick-Access List
     const displayedEmployeeCards = useMemo(() => {
         return employeeGroups.filter((emp) => {
+            if (employeeStatusFilter && employeeStatusFilter !== 'all') {
+                if (emp.status !== employeeStatusFilter) return false;
+            }
             if (complianceFilter === 'complete' && emp.completionPercentage < 80) return false;
             if (complianceFilter === 'incomplete' && (emp.completionPercentage >= 80 || emp.documents.length === 0)) return false;
             if (complianceFilter === 'empty' && emp.documents.length > 0) return false;
@@ -606,7 +610,7 @@ const EmployeeDocument = () => {
 
             return true;
         });
-    }, [employeeGroups, complianceFilter, selectedDepartment, searchQuery, selectedEmployeeName]);
+    }, [employeeGroups, employeeStatusFilter, complianceFilter, selectedDepartment, searchQuery, selectedEmployeeName]);
 
     const urgentSchedules = useMemo(() => {
         return documents
@@ -624,6 +628,14 @@ const EmployeeDocument = () => {
             if (onlyUrgentSchedules) {
                 const status = getDocumentScheduleStatus(doc);
                 if (!status.isUrgent) return false;
+            }
+
+            // 0. FILTER BY EMPLOYEE STATUS (Active / Inactive)
+            if (employeeStatusFilter && employeeStatusFilter !== 'all') {
+                const key = getEmployeeKey(doc);
+                const empGroup = employeeGroups.find((g) => g.key === key);
+                const empStatus = empGroup ? empGroup.status : (typeof doc.userId === 'object' && doc.userId?.status ? doc.userId.status : 'active');
+                if (empStatus !== employeeStatusFilter) return false;
             }
 
             // 1. FILTER BY SPECIFIC INDIVIDUAL EMPLOYEE (By Name, Key, or UserId)
@@ -698,13 +710,13 @@ const EmployeeDocument = () => {
 
             return true;
         });
-    }, [documents, searchQuery, selectedEmployeeName, selectedCategory, selectedDepartment, selectedFileType, selectedYear, onlyUrgentSchedules, categories, getDocEmployeeName, getEmployeeKey]);
+    }, [documents, searchQuery, selectedEmployeeName, selectedCategory, selectedDepartment, selectedFileType, selectedYear, complianceFilter, employeeStatusFilter, onlyUrgentSchedules, categories, employeeGroups, getDocEmployeeName, getEmployeeKey]);
 
     const totalPages = Math.max(1, Math.ceil(filteredDocuments.length / PAGE_SIZE));
     const paginatedDocuments = filteredDocuments.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-    const activeFilterCount = [selectedCategory, selectedEmployeeName, selectedDepartment, selectedFileType, selectedYear, complianceFilter, onlyUrgentSchedules ? 'urgent' : ''].filter(Boolean).length;
+    const activeFilterCount = [selectedCategory, selectedEmployeeName, selectedDepartment, selectedFileType, selectedYear, complianceFilter, employeeStatusFilter !== 'all' ? employeeStatusFilter : '', onlyUrgentSchedules ? 'urgent' : ''].filter(Boolean).length;
 
-    useEffect(() => setPage(1), [searchQuery, selectedCategory, selectedEmployeeName, selectedDepartment, selectedFileType, selectedYear, complianceFilter, onlyUrgentSchedules, viewMode]);
+    useEffect(() => setPage(1), [searchQuery, selectedCategory, selectedEmployeeName, selectedDepartment, selectedFileType, selectedYear, complianceFilter, employeeStatusFilter, onlyUrgentSchedules, viewMode]);
     useEffect(() => { if (page > totalPages) setPage(totalPages); }, [page, totalPages]);
 
     const clearFilters = () => {
@@ -715,8 +727,10 @@ const EmployeeDocument = () => {
         setSelectedFileType('');
         setSelectedYear('');
         setComplianceFilter('');
+        setEmployeeStatusFilter('all');
         setCategoryFilterSearch('');
         setOnlyUrgentSchedules(false);
+        setPage(1);
     };
 
     const handleSelectEmployee = (emp) => {
@@ -948,6 +962,25 @@ const EmployeeDocument = () => {
 
                     {/* Universal Top Controls */}
                     <HStack spacing="2.5" flexWrap="wrap" w={{ base: '100%', lg: 'auto' }}>
+                        {/* EMPLOYEE ACTIVE / INACTIVE FILTER */}
+                        <Select
+                            size="sm"
+                            borderRadius="full"
+                            value={employeeStatusFilter}
+                            onChange={(e) => setEmployeeStatusFilter(e.target.value)}
+                            maxW={{ base: '100%', md: '180px' }}
+                            bg={panelBg}
+                            borderColor={employeeStatusFilter !== 'all' ? 'teal.500' : borderColor}
+                            boxShadow="sm"
+                            focusBorderColor="teal.500"
+                            fontWeight="bold"
+                            color={employeeStatusFilter === 'active' ? 'green.600' : employeeStatusFilter === 'inactive' ? 'red.600' : 'gray.700'}
+                        >
+                            <option value="all">👥 All Staff (Active & Inactive)</option>
+                            <option value="active">🟢 Active Staff Only</option>
+                            <option value="inactive">🔴 Inactive Staff Only</option>
+                        </Select>
+
                         {/* EMPLOYEE SEARCH & AUTOCOMPLETE SELECTOR */}
                         <Select
                             size="sm"
@@ -962,9 +995,11 @@ const EmployeeDocument = () => {
                             focusBorderColor="teal.500"
                             fontWeight="semibold"
                         >
-                            {employeeGroups.map((emp) => (
+                            {employeeGroups
+                                .filter((emp) => employeeStatusFilter === 'all' || emp.status === employeeStatusFilter)
+                                .map((emp) => (
                                 <option key={emp.key} value={emp.employeeName}>
-                                    {emp.employeeName} ({emp.documents.length} doc{emp.documents.length === 1 ? '' : 's'} · {emp.department})
+                                    {emp.employeeName} ({emp.documents.length} doc{emp.documents.length === 1 ? '' : 's'} · {emp.department} · {emp.status === 'active' ? 'Active' : 'Inactive'})
                                 </option>
                             ))}
                         </Select>
@@ -1482,6 +1517,22 @@ const EmployeeDocument = () => {
                         </HStack>
 
                         <HStack spacing={2} wrap="wrap">
+                            {/* Employee Active/Inactive Status Filter */}
+                            <Select
+                                size="xs"
+                                borderRadius="lg"
+                                value={employeeStatusFilter}
+                                onChange={(e) => setEmployeeStatusFilter(e.target.value)}
+                                maxW="170px"
+                                bg={panelBg}
+                                fontWeight="bold"
+                                borderColor={employeeStatusFilter !== 'all' ? 'teal.500' : borderColor}
+                            >
+                                <option value="all">👥 All Staff (Active & Inactive)</option>
+                                <option value="active">🟢 Active Staff Only</option>
+                                <option value="inactive">🔴 Inactive Staff Only</option>
+                            </Select>
+
                             {/* Compliance Filter Selector */}
                             <Select
                                 size="xs"
@@ -1572,9 +1623,20 @@ const EmployeeDocument = () => {
                                                     <Box h="3px" w="30px" bg="gray.200" borderRadius="full" />
                                                 </VStack>
                                             </HStack>
-                                            <Badge bg="emerald.50" color="emerald.800" borderRadius="full" fontSize="2xs" px={2} fontWeight="bold">
-                                                {emp.documents.length} files
-                                            </Badge>
+                                            <HStack spacing={1}>
+                                                <Badge
+                                                    colorScheme={emp.status === 'active' ? 'green' : 'red'}
+                                                    borderRadius="full"
+                                                    fontSize="2xs"
+                                                    px={1.5}
+                                                    fontWeight="extrabold"
+                                                >
+                                                    {emp.status === 'active' ? 'Active' : 'Inactive'}
+                                                </Badge>
+                                                <Badge bg="emerald.50" color="emerald.800" borderRadius="full" fontSize="2xs" px={2} fontWeight="bold">
+                                                    {emp.documents.length} files
+                                                </Badge>
+                                            </HStack>
                                         </Box>
                                     </Box>
 

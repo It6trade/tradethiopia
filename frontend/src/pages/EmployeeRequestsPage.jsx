@@ -52,31 +52,68 @@ import {
   FiUserCheck,
   FiX,
 } from 'react-icons/fi';
+import { useNavigate } from 'react-router-dom';
 import axiosInstance from '../services/axiosInstance';
 import { normalizeRole, useUserStore } from '../store/user';
 
 const CATEGORIES = [
   {
     key: 'leave',
-    label: 'Leave Request',
-    icon: FiClock,
-    children: [
-      ['annual_leave', 'Annual Leave'],
-      ['sick_leave', 'Sick Leave'],
-      ['paternity_leave', 'Paternity Leave'],
-      ['maternity_leave', 'Maternity Leave'],
-      ['marriage_leave', 'Marriage Leave'],
-      ['unpaid_leave', 'Unpaid Leave'],
-      ['other_leave', 'Other Leave'],
+    label: 'Leave & absence',
+    subcategories: [
+      { key: 'annual_leave', label: 'Annual leave' },
+      { key: 'sick_leave', label: 'Sick leave' },
+      { key: 'maternity_paternity', label: 'Maternity / paternity' },
+      { key: 'compassionate', label: 'Compassionate leave' },
+      { key: 'unpaid_leave', label: 'Unpaid leave' },
     ],
   },
   {
-    key: 'handover',
-    label: 'Handover Request',
-    icon: FiPackage,
-    children: [
-      ['material_handover', 'Material Handover'],
-      ['task_handover', 'Task Handover'],
+    key: 'payroll',
+    label: 'Payroll & compensation',
+    subcategories: [
+      { key: 'advance_salary', label: 'Advance salary' },
+      { key: 'expense_reimbursement', label: 'Expense reimbursement' },
+      { key: 'bank_account_update', label: 'Bank account update' },
+      { key: 'tax_clarification', label: 'Tax clarification' },
+    ],
+  },
+  {
+    key: 'credentials',
+    label: 'Account & credentials',
+    subcategories: [
+      { key: 'role_access_change', label: 'Role access change' },
+      { key: 'system_account_reset', label: 'System account reset' },
+      { key: 'two_factor_reset', label: 'Two-factor reset' },
+      { key: 'account_transfer', label: 'Account ownership transfer' },
+    ],
+  },
+  {
+    key: 'training',
+    label: 'Training & development',
+    subcategories: [
+      { key: 'external_training', label: 'External course approval' },
+      { key: 'certification_fee', label: 'Certification fee support' },
+      { key: 'materials_access', label: 'Specialized materials access' },
+    ],
+  },
+  {
+    key: 'workplace',
+    label: 'Workplace & equipment',
+    subcategories: [
+      { key: 'hardware_request', label: 'Hardware replacement' },
+      { key: 'office_stationery', label: 'Stationery & supplies' },
+      { key: 'ergonomic_support', label: 'Ergonomic support' },
+      { key: 'remote_work_setup', label: 'Remote work equipment' },
+    ],
+  },
+  {
+    key: 'grievance',
+    label: 'Grievance & ethics',
+    subcategories: [
+      { key: 'workplace_concern', label: 'Workplace concern' },
+      { key: 'policy_clarification', label: 'Policy clarification' },
+      { key: 'confidential_report', label: 'Confidential report' },
     ],
   },
 ];
@@ -791,8 +828,28 @@ const EmployeeRequestsPage = () => {
               <Stack spacing={6}>
                 <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}>
                   <Box bg="white" borderRadius="xl" border="1px solid" borderColor="gray.200" p={5}>
-                    <Text fontSize="xs" color="gray.500">EMPLOYEE</Text>
-                    <HStack mt={2}><Avatar size="sm" name={personName(selected.requester)} /><Box><Text fontWeight="800">{personName(selected.requester)}</Text><Text fontSize="xs" color="gray.500">{selected.department}</Text></Box></HStack>
+                    <Flex justify="space-between" align="center">
+                      <Box>
+                        <Text fontSize="xs" color="gray.500">EMPLOYEE</Text>
+                        <HStack mt={2}>
+                          <Avatar size="sm" name={personName(selected.requester)} />
+                          <Box>
+                            <Text fontWeight="800">{personName(selected.requester)}</Text>
+                            <Text fontSize="xs" color="gray.500">{selected.department}</Text>
+                          </Box>
+                        </HStack>
+                      </Box>
+                      {(selected.requester?._id || selected.requestedById) && (
+                        <Button
+                          size="xs"
+                          colorScheme="teal"
+                          variant="outline"
+                          onClick={() => navigate(`/users?userId=${selected.requester?._id || selected.requestedById}&tab=2`)}
+                        >
+                          Permissions & Profile
+                        </Button>
+                      )}
+                    </Flex>
                   </Box>
                   <Box bg="white" borderRadius="xl" border="1px solid" borderColor="gray.200" p={5}>
                     <Text fontSize="xs" color="gray.500">ASSIGNED MANAGER</Text>

@@ -65,6 +65,7 @@ const employeeDepartment = (employee) =>
 
 const DocumentUploadForm = ({ fetchDocuments, onComplete, defaultEmployeeName = '' }) => {
     const [employees, setEmployees] = useState([]);
+    const [uploadStatusFilter, setUploadStatusFilter] = useState('all'); // all, active, inactive
     const [categories, setCategories] = useState([]);
     const [userId, setUserId] = useState('');
     const [title, setTitle] = useState('');
@@ -267,9 +268,23 @@ const DocumentUploadForm = ({ fetchDocuments, onComplete, defaultEmployeeName = 
                         <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} spacing={4}>
                             {/* Employee Select */}
                             <FormControl isRequired>
-                                <FormLabel fontSize="xs" fontWeight="bold" color="gray.700">
-                                    Select Employee
-                                </FormLabel>
+                                <Flex justify="space-between" align="center" mb={1}>
+                                    <FormLabel fontSize="xs" fontWeight="bold" color="gray.700" m={0}>
+                                        Select Employee
+                                    </FormLabel>
+                                    <Select
+                                        size="2xs"
+                                        value={uploadStatusFilter}
+                                        onChange={(e) => setUploadStatusFilter(e.target.value)}
+                                        maxW="110px"
+                                        borderRadius="md"
+                                        fontWeight="bold"
+                                    >
+                                        <option value="all">All</option>
+                                        <option value="active">Active Only</option>
+                                        <option value="inactive">Inactive Only</option>
+                                    </Select>
+                                </Flex>
                                 <Select
                                     placeholder="Choose employee..."
                                     value={userId}
@@ -278,9 +293,11 @@ const DocumentUploadForm = ({ fetchDocuments, onComplete, defaultEmployeeName = 
                                     borderRadius="lg"
                                     bg={useColorModeValue('white', 'gray.700')}
                                 >
-                                    {employees.map((employee) => (
+                                    {employees
+                                        .filter((emp) => uploadStatusFilter === 'all' || (uploadStatusFilter === 'active' ? (emp.status === 'active' || emp.status !== 'inactive') : emp.status === 'inactive'))
+                                        .map((employee) => (
                                         <option key={employee._id} value={employee._id}>
-                                            {employeeLabel(employee)} ({employeeDepartment(employee)})
+                                            {employeeLabel(employee)} ({employeeDepartment(employee)} · {employee.status === 'inactive' ? 'Inactive' : 'Active'})
                                         </option>
                                     ))}
                                 </Select>

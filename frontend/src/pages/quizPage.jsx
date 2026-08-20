@@ -23,15 +23,24 @@ import {
   useColorModeValue,
   IconButton,
   Spacer,
+  useToast,
+  Badge,
+  VStack,
 } from '@chakra-ui/react';
-import { FaClock, FaSun, FaMoon } from 'react-icons/fa';
-import axios from 'axios';
+import { FaClock, FaSun, FaMoon, FaCheckCircle, FaTimesCircle, FaRedo } from 'react-icons/fa';
+import axiosInstance from '../services/axiosInstance';
 import { useUserStore } from '../store/user';
 import { useQuizStore } from '../store/quiz';
 import { useNavigate } from 'react-router-dom';
 
+const isAccessGranted = (val) =>
+  ['on', 'active', 'approved', 'enabled', 'true'].includes(
+    String(val || '').trim().toLowerCase()
+  );
+
 const QuizPage = () => {
   const { colorMode, toggleColorMode } = useColorMode();
+  const toast = useToast();
   const [quiz, setQuiz] = useState([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [userAnswers, setUserAnswers] = useState({});
@@ -42,11 +51,44 @@ const QuizPage = () => {
   const { isOpen: showResults, onOpen: openResults, onClose: closeResults } = useDisclosure();
   const [score, setScore] = useState(0);
   const [totalQuestions, setTotalQuestions] = useState(0);
+  const [percentage, setPercentage] = useState(0);
   const [passed, setPassed] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const currentUser = useUserStore((state) => state.currentUser);
+  const setCurrentUser = useUserStore((state) => state.setCurrentUser);
   const quizData = useQuizStore((state) => state.quizs);
-  const navigate = useNavigate(); // Add navigate hook
+  const navigate = useNavigate();
+
+  // Validate tutorial approval before taking exam
+  useEffect(() => {
+    const checkTutorialApproval = async () => {
+      try {
+        const { data } = await axiosInstance.get('/users/me');
+        const user = data?.data;
+        if (user) {
+          setCurrentUser({ ...currentUser, ...user, token: currentUser?.token });
+        }
+        if (user?.examBypass) {
+          navigate('/sdashboard');
+          return;
+        }
+        if (!isAccessGranted(user?.trainingStatus)) {
+          toast({
+            title: 'Tutorial Approval Required',
+            description: 'HR must approve your tutorial completion before you can access the exam.',
+            status: 'warning',
+            duration: 5000,
+            isClosable: true,
+          });
+          navigate('/fourthpage');
+        }
+      } catch (err) {
+        console.error('Error validating access:', err);
+      }
+    };
+    checkTutorialApproval();
+  }, []);
 
   useEffect(() => {
     if (quizData.length === 0) {
@@ -59,12 +101,13 @@ const QuizPage = () => {
 
   const fetchQuiz = async () => {
     try {
-      const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/quiz`);
+      const response = await axiosInstance.get('/quiz');
       if (response.data.success && Array.isArray(response.data.data)) {
         setQuiz(response.data.data);
         setLoading(false);
       } else {
         setError('Invalid quiz data format.');
+        setLoading(false);
       }
     } catch (error) {
       setError('Error fetching quiz data. Please try again later.');
@@ -112,7 +155,7 @@ const QuizPage = () => {
 
   const calculateScore = () => {
     let correctAnswers = 0;
-    const totalQuestions = quiz.length;
+    const total = quiz.length;
 
     quiz.forEach((question) => {
       if (userAnswers[question._id] === question.correctAnswer) {
@@ -120,30 +163,104 @@ const QuizPage = () => {
       }
     });
 
+    const calculatedPercentage = total > 0 ? Math.round((correctAnswers / total) * 100) : 0;
+    const isPassing = calculatedPercentage >= 70; // 70% passing grade requirement
+
     setScore(correctAnswers);
-    setTotalQuestions(totalQuestions);
-    setPassed(correctAnswers / totalQuestions > 0.5);
+    setTotalQuestions(total);
+    setPercentage(calculatedPercentage);
+    setPassed(isPassing);
     openResults();
   };
 
+  const handleRetakeExam = () => {
+    closeResults();
+    setUserAnswers({});
+    setCurrentQuestionIndex(0);
+    setTimeLeft(3600);
+    setIsStarted(true);
+  };
+
   const handleContinue = async () => {
-    // Update user status to 'active'
+    if (isSubmitting) return;
+    setIsSubmitting(true);
     try {
-      const response = await axios.put(`${import.meta.env.VITE_API_URL}/api/users/${currentUser._id}`, {
-        status: 'active',
-      });
-      
-      if (response.data.success) {
+      const { data } = await axiosInstance.get('/users/me');
+      const refreshedUser = data?.data;
+
+      const isExamApproved = isAccessGranted(refreshedUser?.examStatus) || Boolean(refreshedUser?.examBypass);
+
+      if (isExamApproved) {
+        await axiosInstance.put(`/users/${currentUser._id}`, { status: 'active', examStatus: 'on' });
         closeResults();
-        alert('Your status has been updated to active!');
-        navigate('/sdashboard'); // Redirect to home after status update
-      } else {
-        alert('Failed to update status: ' + response.data.message);
+        toast({
+          title: 'Exam Verified & Approved!',
+          description: 'Welcome to your role dashboard.',
+          status: 'success',
+          duration: 3500,
+          isClosable: true,
+        });
+        navigate('/sdashboard');
+        return;
       }
-      
+
+      const empName = refreshedUser?.fullName || currentUser?.fullName || currentUser?.username || 'Employee';
+
+      // Mark exam as completed in user record
+      await axiosInstance.put(`/users/${currentUser._id}`, { examStatus: 'completed' });
+
+      // 1. Direct In-App Notification to All Admin & HR Staff with Exam Score
+      try {
+        await axiosInstance.post('/notifications/notify-hr', {
+          title: `Exam Passed (${percentage}%): ${empName}`,
+          message: `Employee ${empName} passed their onboarding exam with a score of ${score}/${totalQuestions} (${percentage}%). Passing requirement (70%+) satisfied. Please open Employee Directory and switch Exam Permission ON to unlock their Dashboard.`,
+          category: 'onboarding',
+          employeeId: currentUser?._id,
+          employeeName: empName,
+          score: `${score}/${totalQuestions}`,
+          percentage: `${percentage}%`,
+        });
+      } catch (notifErr) {
+        console.log('HR exam in-app notification error:', notifErr);
+      }
+
+      // 2. Formal HR Approval Request
+      try {
+        await axiosInstance.post('/requests', {
+          department: 'HR',
+          title: `Exam Passed (${percentage}%): ${empName}`,
+          details: `Employee ${empName} (${refreshedUser?.role || currentUser?.role || 'Employee'}) completed and passed their onboarding exam with a score of ${score}/${totalQuestions} (${percentage}%). HR approval (Exam Permission ON) is required to unlock the main Dashboard.`,
+          priority: 'High',
+          requestType: 'Approval',
+          requestedBy: empName,
+          requestedById: currentUser?._id,
+          status: 'Pending',
+        });
+      } catch (notifyErr) {
+        console.log('HR exam request error:', notifyErr);
+      }
+
+      toast({
+        title: 'Exam Passed — Awaiting HR Approval',
+        description: `HR has been notified of your score (${percentage}%). Once HR turns Exam Permission ON, you can enter the main Dashboard.`,
+        status: 'info',
+        duration: 6000,
+        isClosable: true,
+      });
+
+      closeResults();
+      navigate('/waiting-for-approval');
     } catch (error) {
       console.error('Error updating user status:', error);
-      alert('Failed to update status. Please try again later.');
+      toast({
+        title: 'Submission Error',
+        description: error.response?.data?.message || 'Failed to submit exam results.',
+        status: 'error',
+        duration: 4000,
+        isClosable: true,
+      });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -167,23 +284,25 @@ const QuizPage = () => {
           <ModalHeader>Ready to Start the Exam?</ModalHeader>
           <ModalCloseButton />
           <ModalBody>
-            <Text mb={4}>
-              Once you start, the timer will begin and you won't be able to
-              go back to previous pages.
+            <Text mb={3}>
+              Once you start, the timer will begin and you won't be able to go back to previous pages.
             </Text>
-            <Progress value={100} />
+            <Text fontSize="sm" fontWeight="bold" color="teal.600" mb={4}>
+              Requirement: You must score at least 70% to pass and qualify for HR dashboard approval.
+            </Text>
+            <Progress value={100} colorScheme="teal" borderRadius="full" />
           </ModalBody>
           <ModalFooter>
-          <Button
-          colorScheme="purple"
-          variant="outline"
-          onClick={() => navigate(-1)}
-          _hover={{ backgroundColor: "purple.500", color: "white" }}
-        >
-          Back
-        </Button>
-        <Spacer />
-            <Button colorScheme="blue" onClick={handleStart}>
+            <Button
+              colorScheme="purple"
+              variant="outline"
+              onClick={() => navigate(-1)}
+              _hover={{ backgroundColor: "purple.500", color: "white" }}
+            >
+              Back
+            </Button>
+            <Spacer />
+            <Button colorScheme="teal" onClick={handleStart}>
               Start Exam
             </Button>
           </ModalFooter>
@@ -273,42 +392,67 @@ const QuizPage = () => {
               </Button>
             ) : (
               <Button colorScheme="green" onClick={handleSubmit}>
-                Submit
+                Submit Exam
               </Button>
             )}
           </Box>
 
           {/* Results Modal */}
-          <Modal isOpen={showResults} onClose={closeResults}>
+          <Modal isOpen={showResults} onClose={() => {}} isCentered closeOnOverlayClick={false}>
             <ModalOverlay />
             <ModalContent>
-              <ModalHeader>Your Results</ModalHeader>
-              <ModalCloseButton />
+              <ModalHeader textAlign="center">
+                {passed ? 'Assessment Passed! 🎉' : 'Assessment Result'}
+              </ModalHeader>
               <ModalBody>
-                {passed ? (
-                  <Text fontSize="lg">
-                    You scored {score} out of {totalQuestions}! You passed!
+                <VStack spacing={4} align="center" py={2}>
+                  <Icon
+                    as={passed ? FaCheckCircle : FaTimesCircle}
+                    boxSize={16}
+                    color={passed ? 'green.500' : 'red.500'}
+                  />
+                  <Badge
+                    colorScheme={passed ? 'green' : 'red'}
+                    fontSize="md"
+                    px={3}
+                    py={1}
+                    borderRadius="full"
+                  >
+                    {passed ? `PASSED — ${percentage}% (Required: 70%+)` : `NOT PASSED — ${percentage}% (Required: 70%)`}
+                  </Badge>
+                  <Text fontSize="lg" fontWeight="semibold" textAlign="center">
+                    You scored {score} out of {totalQuestions} ({percentage}%).
                   </Text>
-                ) : (
-                  <Text fontSize="lg">
-                    You scored {score} out of {totalQuestions}. Please try again.
-                  </Text>
-                )}
+                  {passed ? (
+                    <Text fontSize="sm" color="gray.600" textAlign="center">
+                      Congratulations on passing! HR has been notified with your score. Once HR switches <strong>Exam Permission ON</strong>, your Dashboard will unlock.
+                    </Text>
+                  ) : (
+                    <Text fontSize="sm" color="red.600" textAlign="center">
+                      A minimum score of 70% is required to pass. Please click Retake Exam to try again.
+                    </Text>
+                  )}
+                </VStack>
               </ModalBody>
-              <ModalFooter>
+              <ModalFooter justifyContent="center">
                 {passed ? (
-                  <Button colorScheme="blue" onClick={handleContinue}>
-                    Continue
+                  <Button
+                    colorScheme="green"
+                    size="lg"
+                    onClick={handleContinue}
+                    isLoading={isSubmitting}
+                    loadingText="Submitting..."
+                  >
+                    Continue to Approval
                   </Button>
                 ) : (
-                  <Button 
-                    colorScheme="blue" 
-                    onClick={() => {
-                      closeResults(); 
-                      navigate('/exam'); // Redirect to /exam
-                    }}
+                  <Button
+                    colorScheme="blue"
+                    size="lg"
+                    leftIcon={<FaRedo />}
+                    onClick={handleRetakeExam}
                   >
-                    Close
+                    Retake Exam
                   </Button>
                 )}
               </ModalFooter>
