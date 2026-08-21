@@ -28,7 +28,7 @@ import { SunIcon } from "@chakra-ui/icons";
 import { FiSearch, FiUser, FiLogOut } from "react-icons/fi";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useUserStore } from "../store/user";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import axios from "axios";
 import ChatLauncher from "./chat/ChatLauncher";
 import NotificationBall from "./notifications/NotificationBall";
@@ -87,20 +87,43 @@ const NavbarPage = ({ sidebarWidth = "0px" }) => {
     };
 
     useEffect(() => {
-        const pendingNotifications = users.filter(user => user.infoStatus === 'pending');
+        const pendingNotifications = (users || []).filter(
+            user => user.infoStatus === 'pending' || 
+            (user.personalInformation && user.personalInformation.status === 'submitted')
+        );
         setNotifications(pendingNotifications);
     }, [users]);
 
-    const extraNotifications = [
-        ...notifications.map((user) => ({
-            id: `user-${user._id}`,
-            text: `${user.username} has HR verification pending approval`,
-            type: "general",
+    const extraNotifications = useMemo(() => {
+        return notifications.map((user) => ({
+            id: `pending-emp-${user._id}`,
+            _id: `pending-emp-${user._id}`,
+            text: `${user.fullName || user.username} has submitted onboarding information pending HR verification.`,
+            title: 'Employee Verification Pending',
+            type: 'request',
+            category: 'onboarding',
+            link: `/users?userId=${user._id}&tab=2`,
             read: false,
-        })),
-    ];
+            createdAt: user.updatedAt || user.createdAt || new Date().toISOString(),
+            metadata: {
+                actionLabel: 'Review Employee',
+                employeeId: user._id,
+                employeeName: user.fullName || user.username,
+                role: user.role,
+            },
+        }));
+    }, [notifications]);
 
     const pageName = getPageName(location.pathname);
+    const navPhotoSrc = currentUser?.photoUrl || currentUser?.photo || currentUser?.photoURL;
+    const safeNavPhoto =
+        navPhotoSrc &&
+        typeof navPhotoSrc === 'string' &&
+        navPhotoSrc.trim() !== '' &&
+        navPhotoSrc !== 'null' &&
+        navPhotoSrc !== 'undefined'
+            ? navPhotoSrc
+            : undefined;
 
     return (
         <Box
@@ -177,7 +200,7 @@ const NavbarPage = ({ sidebarWidth = "0px" }) => {
                     <Menu>
                         <MenuButton cursor="pointer">
                             <HStack spacing={2}>
-                                <Avatar size="sm" name={currentUser?.fullName || currentUser?.username} src={currentUser?.photoUrl || currentUser?.photo || currentUser?.photoURL} />
+                                <Avatar size="sm" name={currentUser?.fullName || currentUser?.username} src={safeNavPhoto} ignoreFallback={!safeNavPhoto} />
                                 <Box display={{ base: "none", lg: "block" }}>
                                     <Text fontSize="xs" fontWeight="700" lineHeight="short" color={useColorModeValue("gray.800", "white")}>
                                         {currentUser?.fullName || currentUser?.username}
@@ -190,7 +213,7 @@ const NavbarPage = ({ sidebarWidth = "0px" }) => {
                         </MenuButton>
                         <MenuList borderRadius="xl" boxShadow="lg" border="1px solid" borderColor={useColorModeValue("gray.100", "gray.700")} p={2}>
                             <Box p={3} textAlign="center">
-                                <Avatar size="lg" name={currentUser?.fullName || currentUser?.username} src={currentUser?.photoUrl || currentUser?.photo || currentUser?.photoURL} mb={2} />
+                                <Avatar size="lg" name={currentUser?.fullName || currentUser?.username} src={safeNavPhoto} ignoreFallback={!safeNavPhoto} mb={2} />
                                 <Text fontSize="sm" fontWeight="bold">{currentUser?.fullName || currentUser?.username}</Text>
                                 <Text fontSize="xs" color="gray.500">{currentUser?.jobTitle || currentUser?.role}</Text>
                             </Box>

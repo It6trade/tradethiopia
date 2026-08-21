@@ -1,7 +1,9 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Alert,
+  AlertDescription,
   AlertIcon,
+  AlertTitle,
   Badge,
   Box,
   Button,
@@ -30,12 +32,15 @@ import {
   Text,
   Th,
   Thead,
+  Tooltip,
   Tr,
   useColorModeValue,
   useToast,
   VStack,
 } from '@chakra-ui/react';
 import {
+  FiAlertCircle,
+  FiAlertTriangle,
   FiArrowRight,
   FiAward,
   FiCheck,
@@ -49,6 +54,7 @@ import {
   FiInfo,
   FiPlus,
   FiShield,
+  FiStar,
   FiTrash2,
   FiUploadCloud,
   FiUser,
@@ -56,6 +62,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import axiosInstance from '../services/axiosInstance';
 import { useUserStore } from '../store/user';
+import { isUserPermittedForDashboard } from '../utils/dashboardAccess';
 
 const SUGGESTED_TITLES = [
   'Curriculum Vitae (CV) / Resume',
@@ -77,7 +84,7 @@ const getFileIcon = (title = '', url = '') => {
   return FiFileText;
 };
 
-const EmployeeFileUploadForm = () => {
+const EmployeeFileUploadForm = ({ embedded = false }) => {
   const currentUser = useUserStore((state) => state.currentUser);
   const toast = useToast();
   const navigate = useNavigate();
@@ -128,6 +135,50 @@ const EmployeeFileUploadForm = () => {
     }
   }, []);
 
+  // Fetch already uploaded documents for this employee
+  const fetchMyDocuments = useCallback(async () => {
+    if (!currentUser?._id) return;
+    setLoadingDocs(true);
+    try {
+      const { data } = await axiosInstance.get('/documents', {
+        params: { userId: currentUser._id, section: 'employees' },
+      });
+      setMyDocuments(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error('Error fetching employee documents:', err);
+    } finally {
+      setLoadingDocs(false);
+    }
+  }, [currentUser?._id]);
+
+  useEffect(() => {
+    fetchCategories();
+    fetchMyDocuments();
+  }, [fetchCategories, fetchMyDocuments]);
+
+  // Mandatory Categories vs Optional Categories calculation
+  const mandatoryCategories = useMemo(() => {
+    return categories.filter((c) => Boolean(c.isMandatory));
+  }, [categories]);
+
+  const optionalCategories = useMemo(() => {
+    return categories.filter((c) => !c.isMandatory);
+  }, [categories]);
+
+  // Determine missing mandatory categories
+  const missingMandatoryCategories = useMemo(() => {
+    if (mandatoryCategories.length === 0) return [];
+    return mandatoryCategories.filter((mandCat) => {
+      const hasUploaded = myDocuments.some((doc) => {
+        const docCatId = typeof doc.category === 'object' ? doc.category?._id : doc.category;
+        return String(docCatId) === String(mandCat._id);
+      });
+      return !hasUploaded;
+    });
+  }, [mandatoryCategories, myDocuments]);
+
+  const isAllMandatoryUploaded = missingMandatoryCategories.length === 0;
+
   const handleSelectSuggestedTitle = (title) => {
     setDocumentTitle(title);
     setFormErrors((prev) => ({ ...prev, title: null }));
@@ -164,27 +215,6 @@ const EmployeeFileUploadForm = () => {
       setFormErrors((prev) => ({ ...prev, category: null }));
     }
   };
-
-  // Fetch already uploaded documents for this employee
-  const fetchMyDocuments = useCallback(async () => {
-    if (!currentUser?._id) return;
-    setLoadingDocs(true);
-    try {
-      const { data } = await axiosInstance.get('/documents', {
-        params: { userId: currentUser._id, section: 'employees' },
-      });
-      setMyDocuments(Array.isArray(data) ? data : []);
-    } catch (err) {
-      console.error('Error fetching employee documents:', err);
-    } finally {
-      setLoadingDocs(false);
-    }
-  }, [currentUser?._id]);
-
-  useEffect(() => {
-    fetchCategories();
-    fetchMyDocuments();
-  }, [fetchCategories, fetchMyDocuments]);
 
   // Handle file selection
   const handleFileChange = (e) => {
@@ -241,7 +271,7 @@ const EmployeeFileUploadForm = () => {
     formData.append('documentDate', new Date().toISOString());
 
     try {
-      const { data } = await axiosInstance.post('/documents', formData, {
+      await axiosInstance.post('/documents', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
 
@@ -305,120 +335,232 @@ const EmployeeFileUploadForm = () => {
   };
 
   const handleProceedToTutorials = () => {
+    if (!isAllMandatoryUploaded) {
+      toast({
+        title: 'Mandatory Documents Required',
+        description: `Please upload all mandatory documents (${missingMandatoryCategories.map((c) => c.name).join(', ')}) before proceeding.`,
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+      });
+      return;
+    }
     navigate('/secondpage');
   };
 
+  const isAlreadyActiveOrHr = embedded || currentUser?.status === 'active' || isUserPermittedForDashboard(currentUser);
+
   return (
-    <Box minH="100vh" bg={bg} py={{ base: 6, md: 10 }} px={{ base: 4, md: 8 }}>
-      <Container maxW="6xl">
-        {/* Top Header Card with Logo & Stepper */}
-        <Box
-          bg={cardBg}
-          border="1px solid"
-          borderColor={borderColor}
-          borderRadius="2xl"
-          p={{ base: 5, md: 8 }}
-          boxShadow="sm"
-          mb={6}
-        >
-          <Flex
-            direction={{ base: 'column', md: 'row' }}
-            align={{ base: 'flex-start', md: 'center' }}
-            justify="space-between"
-            gap={4}
-          >
-            <HStack spacing={4}>
-              <Image
-                src="/brand/tradethiopia-logo.png"
-                alt="Trade Ethiopia Group"
-                h="60px"
-                objectFit="contain"
-                fallback={<Heading size="md" color={navyBrand}>TradeEthiopia Group</Heading>}
-              />
-              <Box>
-                <HStack spacing={2}>
-                  <Badge colorScheme="teal" borderRadius="full" px={2.5} py={0.5} fontSize="xs">
-                    Step 2 of 4: Optional
-                  </Badge>
-                  <Badge colorScheme="green" variant="subtle" borderRadius="full" px={2.5} py={0.5} fontSize="xs">
-                    <HStack spacing={1}>
-                      <Icon as={FiCheck} />
-                      <Text>Personal Info Form Approved</Text>
-                    </HStack>
-                  </Badge>
-                </HStack>
-                <Heading mt={1} size="md" color={navyBrand} letterSpacing="0.02em">
-                  Employee Document Submission
-                </Heading>
-                <Text fontSize="xs" color="gray.500">
-                  Upload your verification credentials. Uploaded files automatically populate your official HR dossier.
-                </Text>
-              </Box>
-            </HStack>
-
-            <Button
-              colorScheme="teal"
-              size="md"
-              rightIcon={<Icon as={FiArrowRight} />}
-              onClick={handleProceedToTutorials}
-              boxShadow="sm"
-            >
-              Continue to Tutorials
-            </Button>
-          </Flex>
-
-          {/* Stepper Bar */}
-          <Divider my={4} borderColor={borderColor} />
-          <SimpleGrid columns={{ base: 2, md: 4 }} spacing={2} fontSize="xs">
-            <HStack spacing={2} color="green.600" fontWeight="700">
-              <Icon as={FiCheckCircle} />
-              <Text>1. Personal Form (Approved)</Text>
-            </HStack>
-            <HStack spacing={2} color="teal.600" fontWeight="800">
-              <Box w={2} h={2} borderRadius="full" bg="teal.500" />
-              <Text>2. Upload Documents (Optional)</Text>
-            </HStack>
-            <HStack spacing={2} color="gray.400">
-              <Icon as={FiClock} />
-              <Text>3. Training Tutorials</Text>
-            </HStack>
-            <HStack spacing={2} color="gray.400">
-              <Icon as={FiAward} />
-              <Text>4. Exam & Portal Access</Text>
-            </HStack>
-          </SimpleGrid>
-        </Box>
-
-        {/* Optional Notice Alert */}
-        <Alert
-          status="info"
-          borderRadius="xl"
-          mb={6}
-          bg="teal.50"
-          border="1px solid"
-          borderColor="teal.200"
-          color="teal.900"
-        >
-          <AlertIcon color="teal.600" />
-          <Box flex="1">
-            <Text fontSize="sm" fontWeight="700">
-              This document upload step is optional.
-            </Text>
-            <Text fontSize="xs" color="teal.800" mt={0.5}>
-              You can upload your CV, degree certificates, ID copies, or contracts here. If you do not have some documents right now, you can still proceed directly to the training tutorials.
-            </Text>
+    <Box
+      minH={embedded ? 'auto' : '100vh'}
+      bg={embedded ? 'transparent' : bg}
+      py={embedded ? 0 : { base: 6, md: 10 }}
+      px={embedded ? 0 : { base: 4, md: 8 }}
+    >
+      <Container maxW={embedded ? 'full' : '6xl'} px={embedded ? 0 : undefined}>
+        {/* Top Header Card */}
+        {isAlreadyActiveOrHr ? (
+          <Box mb={6} p={5} bg={cardBg} borderRadius="2xl" border="1px solid" borderColor={borderColor} boxShadow="sm">
+            <Flex justify="space-between" align="center" wrap="wrap" gap={3}>
+              <HStack spacing={3}>
+                <Flex boxSize="44px" borderRadius="xl" bg="teal.50" color="teal.600" align="center" justify="center">
+                  <Icon as={FiFolder} boxSize={6} />
+                </Flex>
+                <Box>
+                  <Heading size="md" color={navyBrand}>
+                    My Document Management
+                  </Heading>
+                  <Text fontSize="xs" color="gray.500">
+                    Upload and manage non-mandatory credentials, certifications, and updated documents for your HR dossier.
+                  </Text>
+                </Box>
+              </HStack>
+              <Badge colorScheme="teal" bg="teal.50" color="teal.700" borderRadius="full" px={3} py={1} fontSize="xs" fontWeight="800">
+                {myDocuments.length} DOCUMENT(S) ON FILE
+              </Badge>
+            </Flex>
           </Box>
-          <Button
-            size="xs"
-            colorScheme="teal"
-            variant="outline"
-            onClick={handleProceedToTutorials}
-            rightIcon={<Icon as={FiArrowRight} />}
-            flexShrink={0}
+        ) : (
+          <Box
+            bg={cardBg}
+            border="1px solid"
+            borderColor={borderColor}
+            borderRadius="2xl"
+            p={{ base: 5, md: 8 }}
+            boxShadow="sm"
+            mb={6}
           >
-            Skip for now
-          </Button>
-        </Alert>
+            <Flex
+              direction={{ base: 'column', md: 'row' }}
+              align={{ base: 'flex-start', md: 'center' }}
+              justify="space-between"
+              gap={4}
+            >
+              <HStack spacing={4}>
+                <Image
+                  src="/brand/tradethiopia-logo.png"
+                  alt="Trade Ethiopia Group"
+                  h="60px"
+                  objectFit="contain"
+                  fallback={<Heading size="md" color={navyBrand}>TradeEthiopia Group</Heading>}
+                />
+                <Box>
+                  <HStack spacing={2} wrap="wrap">
+                    <Badge colorScheme="teal" borderRadius="full" px={2.5} py={0.5} fontSize="xs">
+                      Step 2 of 4: Document Submission
+                    </Badge>
+                    <Badge colorScheme="green" variant="subtle" borderRadius="full" px={2.5} py={0.5} fontSize="xs">
+                      <HStack spacing={1}>
+                        <Icon as={FiCheck} />
+                        <Text>Personal Info Form Approved</Text>
+                      </HStack>
+                    </Badge>
+                    {mandatoryCategories.length > 0 && (
+                      <Badge
+                        colorScheme={isAllMandatoryUploaded ? 'green' : 'purple'}
+                        variant="solid"
+                        borderRadius="full"
+                        px={2.5}
+                        py={0.5}
+                        fontSize="xs"
+                      >
+                        {isAllMandatoryUploaded
+                          ? 'All Mandatory Documents Uploaded ✓'
+                          : `${missingMandatoryCategories.length} Mandatory Document(s) Required`}
+                      </Badge>
+                    )}
+                  </HStack>
+                  <Heading mt={1} size="md" color={navyBrand} letterSpacing="0.02em">
+                    Employee Document Submission
+                  </Heading>
+                  <Text fontSize="xs" color="gray.500">
+                    Upload your credentials. Mandatory documents are required to access tutorials. Optional documents can also be uploaded from your dashboard sidebar later.
+                  </Text>
+                </Box>
+              </HStack>
+
+              <Tooltip
+                label={
+                  !isAllMandatoryUploaded
+                    ? `Upload missing mandatory documents (${missingMandatoryCategories.map((c) => c.name).join(', ')}) to unlock tutorials`
+                    : 'Proceed to company tutorials'
+                }
+                hasArrow
+              >
+                <Button
+                  colorScheme="teal"
+                  size="md"
+                  rightIcon={<Icon as={FiArrowRight} />}
+                  onClick={handleProceedToTutorials}
+                  isDisabled={!isAllMandatoryUploaded}
+                  boxShadow="sm"
+                >
+                  Continue to Tutorials
+                </Button>
+              </Tooltip>
+            </Flex>
+
+            {/* Stepper Bar */}
+            <Divider my={4} borderColor={borderColor} />
+            <SimpleGrid columns={{ base: 2, md: 4 }} spacing={2} fontSize="xs">
+              <HStack spacing={2} color="green.600" fontWeight="700">
+                <Icon as={FiCheckCircle} />
+                <Text>1. Personal Form (Approved)</Text>
+              </HStack>
+              <HStack spacing={2} color="teal.600" fontWeight="800">
+                <Box w={2} h={2} borderRadius="full" bg="teal.500" />
+                <Text>2. Upload Documents</Text>
+              </HStack>
+              <HStack spacing={2} color="gray.400">
+                <Icon as={FiClock} />
+                <Text>3. Training Tutorials</Text>
+              </HStack>
+              <HStack spacing={2} color="gray.400">
+                <Icon as={FiAward} />
+                <Text>4. Exam & Portal Access</Text>
+              </HStack>
+            </SimpleGrid>
+          </Box>
+        )}
+
+        {/* Mandatory Categories Alert / Requirement Banner */}
+        {!isAlreadyActiveOrHr && mandatoryCategories.length > 0 && !isAllMandatoryUploaded && (
+          <Alert
+            status="warning"
+            borderRadius="xl"
+            mb={6}
+            bg="purple.50"
+            border="1.5px solid"
+            borderColor="purple.300"
+            color="purple.900"
+          >
+            <AlertIcon color="purple.600" />
+            <Box flex="1">
+              <HStack spacing={2}>
+                <AlertTitle fontSize="sm" fontWeight="800">
+                  Mandatory Documents Required
+                </AlertTitle>
+                <Badge colorScheme="purple" variant="solid" fontSize="10px" borderRadius="full">
+                  Action Required
+                </Badge>
+              </HStack>
+              <AlertDescription fontSize="xs" color="purple.800" mt={1} display="block">
+                HR has set mandatory document requirements for your onboarding. You must upload at least one document for each mandatory category below before tutorial access is unlocked:
+              </AlertDescription>
+
+              <HStack mt={3} spacing={2} wrap="wrap">
+                {missingMandatoryCategories.map((mandCat) => (
+                  <Button
+                    key={mandCat._id}
+                    size="xs"
+                    colorScheme="purple"
+                    variant="outline"
+                    bg="white"
+                    leftIcon={<Icon as={FiStar} />}
+                    onClick={() => {
+                      setSelectedCategory(mandCat._id);
+                      setDocumentTitle(mandCat.name);
+                    }}
+                  >
+                    Upload {mandCat.name}
+                  </Button>
+                ))}
+              </HStack>
+            </Box>
+          </Alert>
+        )}
+
+        {/* Optional Guidance Alert */}
+        {!embedded && isAllMandatoryUploaded && (
+          <Alert
+            status="success"
+            borderRadius="xl"
+            mb={6}
+            bg="green.50"
+            border="1px solid"
+            borderColor="green.200"
+            color="green.900"
+          >
+            <AlertIcon color="green.600" />
+            <Box flex="1">
+              <Text fontSize="sm" fontWeight="700">
+                All mandatory documents have been uploaded!
+              </Text>
+              <Text fontSize="xs" color="green.800" mt={0.5}>
+                You can upload any additional optional credentials now, or proceed directly to the training tutorials. You can also upload non-mandatory documents later from your employee dashboard sidebar.
+              </Text>
+            </Box>
+            <Button
+              size="xs"
+              colorScheme="green"
+              onClick={handleProceedToTutorials}
+              rightIcon={<Icon as={FiArrowRight} />}
+              flexShrink={0}
+            >
+              Proceed to Tutorials
+            </Button>
+          </Alert>
+        )}
 
         {/* Main 2-Column Grid: Left Upload Form, Right Document Dossier */}
         <SimpleGrid columns={{ base: 1, lg: 12 }} spacing={6} alignItems="flex-start">
@@ -441,7 +583,7 @@ const EmployeeFileUploadForm = () => {
                   Upload New Document
                 </Heading>
                 <Text fontSize="xs" color="gray.500">
-                  Select a category aligned with HR records
+                  Select an HR category (★ = Mandatory)
                 </Text>
               </Box>
             </HStack>
@@ -461,13 +603,13 @@ const EmployeeFileUploadForm = () => {
                       setSelectedCategory(e.target.value);
                       setFormErrors((prev) => ({ ...prev, category: null }));
                     }}
-                    placeholder="Select category"
+                    placeholder={categories.length === 0 ? 'Loading categories...' : 'Select category'}
                     borderRadius="lg"
                     fontSize="sm"
                   >
                     {categories.map((cat) => (
                       <option key={cat._id} value={cat._id}>
-                        {cat.name}
+                        {cat.name} {cat.isMandatory ? '★ (MANDATORY)' : ''}
                       </option>
                     ))}
                   </Select>
@@ -486,7 +628,7 @@ const EmployeeFileUploadForm = () => {
                     setDocumentTitle(e.target.value);
                     setFormErrors((prev) => ({ ...prev, title: null }));
                   }}
-                  placeholder="e.g. BSc Degree Certificate - AAU"
+                  placeholder="e.g. Signed Employment Contract, Degree Certificate"
                   borderRadius="lg"
                   fontSize="sm"
                 />
@@ -613,8 +755,8 @@ const EmployeeFileUploadForm = () => {
                   </Text>
                 </Box>
               </HStack>
-              <Badge colorScheme={myDocuments.length > 0 ? 'green' : 'gray'} borderRadius="full" px={2.5} py={0.5} fontSize="xs">
-                {myDocuments.length} Uploaded
+              <Badge colorScheme="green" bg="green.50" color="green.700" borderRadius="full" px={2.5} py={0.5} fontSize="xs" fontWeight="800">
+                {myDocuments.length} UPLOADED
               </Badge>
             </Flex>
 
@@ -638,43 +780,50 @@ const EmployeeFileUploadForm = () => {
                   No Documents Uploaded Yet
                 </Heading>
                 <Text fontSize="xs" color="gray.400" maxW="400px" mx="auto" mb={4}>
-                  You haven't uploaded any documents yet. You can upload documents using the form on the left or skip this step to proceed to the tutorials.
+                  {mandatoryCategories.length > 0
+                    ? `Please upload the required mandatory documents (${mandatoryCategories.map((c) => c.name).join(', ')}) using the form on the left.`
+                    : 'You have not uploaded any documents yet.'}
                 </Text>
-                <Button
-                  size="sm"
-                  colorScheme="teal"
-                  rightIcon={<Icon as={FiArrowRight} />}
-                  onClick={handleProceedToTutorials}
-                >
-                  Proceed to Tutorials
-                </Button>
+                {!isAlreadyActiveOrHr && isAllMandatoryUploaded && (
+                  <Button
+                    size="sm"
+                    colorScheme="teal"
+                    rightIcon={<Icon as={FiArrowRight} />}
+                    onClick={handleProceedToTutorials}
+                  >
+                    Proceed to Tutorials
+                  </Button>
+                )}
               </Box>
             ) : (
               <Stack spacing={3}>
                 {myDocuments.map((doc) => {
                   const IconComponent = getFileIcon(doc.title, doc.fileUrl);
-                  const categoryName = doc.category?.name || 'Employee Document';
+                  const categoryObj = typeof doc.category === 'object' ? doc.category : categories.find((c) => c._id === doc.category);
+                  const categoryName = categoryObj?.name || 'Employee Document';
+                  const isCatMandatory = Boolean(categoryObj?.isMandatory);
+
                   return (
                     <Flex
                       key={doc._id}
                       p={3.5}
                       border="1px solid"
-                      borderColor="gray.200"
-                      borderRadius="xl"
-                      bg="gray.50"
+                      borderColor={isCatMandatory ? 'purple.200' : 'teal.200'}
+                      borderRadius="2xl"
+                      bg={isCatMandatory ? '#faf5ff' : '#f0fdfa'}
                       align="center"
                       justify="space-between"
                       gap={3}
                       transition="all 0.2s"
-                      _hover={{ borderColor: 'teal.300', bg: 'white', boxShadow: 'xs' }}
+                      _hover={{ borderColor: isCatMandatory ? 'purple.400' : 'teal.400', bg: 'white', boxShadow: 'xs' }}
                     >
                       <HStack spacing={3} minW={0}>
                         <Flex
-                          w={10}
-                          h={10}
-                          borderRadius="lg"
-                          bg="teal.100"
-                          color="teal.700"
+                          w="42px"
+                          h="42px"
+                          borderRadius="xl"
+                          bg={isCatMandatory ? 'purple.100' : 'teal.100'}
+                          color={isCatMandatory ? 'purple.700' : 'teal.700'}
                           align="center"
                           justify="center"
                           flexShrink={0}
@@ -682,12 +831,21 @@ const EmployeeFileUploadForm = () => {
                           <Icon as={IconComponent} boxSize={5} />
                         </Flex>
                         <Box minW={0}>
-                          <Text fontWeight="700" fontSize="sm" color="gray.800" isTruncated>
+                          <Text fontWeight="800" fontSize="sm" color="gray.900" isTruncated>
                             {doc.title}
                           </Text>
                           <HStack spacing={2} mt={0.5} flexWrap="wrap">
-                            <Badge colorScheme="teal" variant="subtle" fontSize="9px" borderRadius="full">
-                              {categoryName}
+                            <Badge
+                              colorScheme={isCatMandatory ? 'purple' : 'teal'}
+                              variant="subtle"
+                              fontSize="9px"
+                              fontWeight="800"
+                              borderRadius="full"
+                              px={2}
+                              py={0.5}
+                              textTransform="uppercase"
+                            >
+                              {categoryName} {isCatMandatory ? '★' : ''}
                             </Badge>
                             <Text fontSize="10px" color="gray.500">
                               {new Date(doc.createdAt || doc.documentDate || Date.now()).toLocaleDateString()}
@@ -724,71 +882,97 @@ const EmployeeFileUploadForm = () => {
                   );
                 })}
 
-                <Flex justify="space-between" align="center" pt={4} w="full" wrap="wrap" gap={3}>
-                  <Button
-                    variant="outline"
-                    colorScheme="teal"
-                    size="sm"
-                    onClick={() => navigate('/employee-info')}
-                  >
-                    ← Back to Personal Form
-                  </Button>
-                  <Button
-                    colorScheme="teal"
-                    size="md"
-                    rightIcon={<Icon as={FiArrowRight} />}
-                    onClick={handleProceedToTutorials}
-                  >
-                    Proceed to Company Tutorials
-                  </Button>
-                </Flex>
+                {!embedded && (
+                  <Flex justify="space-between" align="center" pt={4} w="full" wrap="wrap" gap={3}>
+                    <Button
+                      variant="outline"
+                      colorScheme="teal"
+                      size="sm"
+                      onClick={() => navigate('/employee-info')}
+                    >
+                      ← Back to Personal Form
+                    </Button>
+                    <Tooltip
+                      label={
+                        !isAllMandatoryUploaded
+                          ? `Upload missing mandatory documents (${missingMandatoryCategories.map((c) => c.name).join(', ')}) to unlock tutorials`
+                          : 'Proceed to company tutorials'
+                      }
+                      hasArrow
+                    >
+                      <Button
+                        colorScheme="teal"
+                        size="md"
+                        rightIcon={<Icon as={FiArrowRight} />}
+                        isDisabled={!isAllMandatoryUploaded}
+                        onClick={handleProceedToTutorials}
+                      >
+                        Proceed to Company Tutorials
+                      </Button>
+                    </Tooltip>
+                  </Flex>
+                )}
               </Stack>
             )}
           </Box>
         </SimpleGrid>
 
-        {/* Bottom Page Navigation Bar */}
-        <Flex
-          mt={8}
-          p={4}
-          bg={cardBg}
-          border="1px solid"
-          borderColor={borderColor}
-          borderRadius="xl"
-          justify="space-between"
-          align="center"
-          wrap="wrap"
-          gap={3}
-          boxShadow="sm"
-        >
-          <Button
-            variant="outline"
-            colorScheme="gray"
-            size="sm"
-            onClick={() => navigate('/employee-info')}
+        {/* Bottom Page Navigation Bar (Hidden when embedded) */}
+        {!embedded && (
+          <Flex
+            mt={8}
+            p={4}
+            bg={cardBg}
+            border="1px solid"
+            borderColor={borderColor}
+            borderRadius="xl"
+            justify="space-between"
+            align="center"
+            wrap="wrap"
+            gap={3}
+            boxShadow="sm"
           >
-            ← Back to Personal Information Form
-          </Button>
+            <Button
+              variant="outline"
+              colorScheme="gray"
+              size="sm"
+              onClick={() => navigate('/employee-info')}
+            >
+              ← Back to Personal Information Form
+            </Button>
 
-          <HStack spacing={3}>
-            <Button
-              variant="ghost"
-              colorScheme="teal"
-              size="sm"
-              onClick={handleProceedToTutorials}
-            >
-              Skip & Continue
-            </Button>
-            <Button
-              colorScheme="teal"
-              size="sm"
-              rightIcon={<Icon as={FiArrowRight} />}
-              onClick={handleProceedToTutorials}
-            >
-              Proceed to Tutorials →
-            </Button>
-          </HStack>
-        </Flex>
+            <HStack spacing={3}>
+              {isAllMandatoryUploaded && (
+                <Button
+                  variant="ghost"
+                  colorScheme="teal"
+                  size="sm"
+                  onClick={handleProceedToTutorials}
+                >
+                  Skip & Continue
+                </Button>
+              )}
+              <Tooltip
+                label={
+                  !isAllMandatoryUploaded
+                    ? `Upload missing mandatory documents (${missingMandatoryCategories.map((c) => c.name).join(', ')}) to proceed`
+                    : 'Proceed to tutorials'
+                }
+                hasArrow
+              >
+                <Button
+                  colorScheme="teal"
+                  size="sm"
+                  rightIcon={<Icon as={FiArrowRight} />}
+                  isDisabled={!isAllMandatoryUploaded}
+                  onClick={handleProceedToTutorials}
+                >
+                  Proceed to Tutorials →
+                </Button>
+              </Tooltip>
+            </HStack>
+          </Flex>
+        )}
       </Container>
     </Box>
   );

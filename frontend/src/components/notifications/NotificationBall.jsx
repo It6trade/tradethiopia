@@ -4,7 +4,9 @@ import {
   Box,
   Button,
   Divider,
+  Flex,
   HStack,
+  Icon,
   IconButton,
   Menu,
   MenuButton,
@@ -18,6 +20,17 @@ import {
   useToast,
 } from '@chakra-ui/react';
 import { BsBell } from 'react-icons/bs';
+import {
+  FiCheck,
+  FiCheckCircle,
+  FiExternalLink,
+  FiFileText,
+  FiInbox,
+  FiLayers,
+  FiUserCheck,
+  FiClock,
+  FiRefreshCw,
+} from 'react-icons/fi';
 import { io } from 'socket.io-client';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -29,15 +42,152 @@ import { useUserStore } from '../../store/user';
 
 const socketBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
+const CATEGORY_TABS = [
+  { id: 'all', label: 'All', icon: FiLayers },
+  { id: 'onboarding', label: 'Onboarding', icon: FiUserCheck },
+  { id: 'documents', label: 'Documents', icon: FiFileText },
+  { id: 'requests', label: 'Requests', icon: FiInbox },
+  { id: 'tasks', label: 'Tasks & IT', icon: FiCheckCircle },
+  { id: 'general', label: 'General', icon: FiClock },
+];
+
 const formatTimeAgo = (value) => {
   if (!value) return '';
   const diff = Date.now() - new Date(value).getTime();
   const minutes = Math.max(0, Math.floor(diff / 60000));
-  if (minutes < 1) return 'now';
+  if (minutes < 1) return 'Just now';
   if (minutes < 60) return `${minutes}m ago`;
   const hours = Math.floor(minutes / 60);
   if (hours < 24) return `${hours}h ago`;
   return `${Math.floor(hours / 24)}d ago`;
+};
+
+const normalizeCategory = (item) => {
+  const cat = String(item.category || '').toLowerCase();
+  const type = String(item.type || '').toLowerCase();
+  const text = String(item.text || item.title || '').toLowerCase();
+  const meta = item.metadata || {};
+
+  if (
+    cat === 'risk document' ||
+    type === 'risk document' ||
+    meta.isRiskDocument ||
+    meta.isHazard ||
+    cat === 'document' ||
+    cat === 'compliance' ||
+    text.includes('license') ||
+    text.includes('risk document')
+  ) {
+    return 'documents';
+  }
+
+  if (
+    cat === 'onboarding' ||
+    type === 'onboarding' ||
+    cat === 'verification' ||
+    text.includes('verification') ||
+    text.includes('onboarding') ||
+    text.includes('personal info') ||
+    text.includes('personal information') ||
+    meta.employeeId ||
+    meta.employeeName
+  ) {
+    return 'onboarding';
+  }
+
+  if (
+    cat === 'leave' ||
+    cat === 'request' ||
+    type === 'request' ||
+    text.includes('leave') ||
+    text.includes('request') ||
+    text.includes('approval')
+  ) {
+    return 'requests';
+  }
+
+  if (
+    cat === 'task' ||
+    cat === 'project' ||
+    type === 'task' ||
+    type === 'comment' ||
+    type === 'reminder' ||
+    item.itTaskId ||
+    item.taskId
+  ) {
+    return 'tasks';
+  }
+
+  return 'general';
+};
+
+const getCategoryBadgeConfig = (item) => {
+  const normCat = normalizeCategory(item);
+  const rawCat = (item.category || item.type || 'general').toLowerCase();
+
+  if (
+    item.type === 'risk document' ||
+    item.category === 'risk document' ||
+    item.metadata?.isRiskDocument ||
+    item.metadata?.isHazard
+  ) {
+    return {
+      label: 'RISK DOCUMENT',
+      colorScheme: 'red',
+      bg: 'red.500',
+      color: 'white',
+      border: 'none',
+      boxShadow: '0 0 6px rgba(239, 68, 68, 0.4)',
+    };
+  }
+
+  switch (normCat) {
+    case 'onboarding':
+      return {
+        label: 'ONBOARDING',
+        colorScheme: 'teal',
+        bg: 'teal.50',
+        color: 'teal.700',
+        border: '1px solid',
+        borderColor: 'teal.200',
+      };
+    case 'documents':
+      return {
+        label: 'DOCUMENT',
+        colorScheme: 'cyan',
+        bg: 'cyan.50',
+        color: 'cyan.700',
+        border: '1px solid',
+        borderColor: 'cyan.200',
+      };
+    case 'requests':
+      return {
+        label: rawCat === 'leave' ? 'LEAVE REQUEST' : 'REQUEST',
+        colorScheme: 'orange',
+        bg: 'orange.50',
+        color: 'orange.700',
+        border: '1px solid',
+        borderColor: 'orange.200',
+      };
+    case 'tasks':
+      return {
+        label: item.type === 'comment' ? 'COMMENT' : item.type === 'reminder' ? 'REMINDER' : 'TASK',
+        colorScheme: 'blue',
+        bg: 'blue.50',
+        color: 'blue.700',
+        border: '1px solid',
+        borderColor: 'blue.200',
+      };
+    default:
+      return {
+        label: (item.category || item.type || 'GENERAL').toUpperCase(),
+        colorScheme: 'gray',
+        bg: 'gray.100',
+        color: 'gray.700',
+        border: '1px solid',
+        borderColor: 'gray.200',
+      };
+  }
 };
 
 const buildNotificationLink = (item, currentUser = null) => {
@@ -50,7 +200,6 @@ const buildNotificationLink = (item, currentUser = null) => {
   const isIT = ['admin', 'itmanager', 'itadmin', 'it', 'itstaff', 'itteamleader', 'itleader', 'itofficer'].includes(role);
   const isTicket = item.metadata?.isTicket || item.type === 'ticket' || item.link?.includes('tab=tickets');
 
-  // If notification has an itTaskId, route according to viewing user's active portal
   if (item.itTaskId) {
     if (isCS) {
       return `/cdashboard?section=it-requests&task=${item.itTaskId}${item.commentId ? `&comment=${item.commentId}` : ''}`;
@@ -64,7 +213,6 @@ const buildNotificationLink = (item, currentUser = null) => {
     return `/it?tab=projects&task=${item.itTaskId}${item.commentId ? `&comment=${item.commentId}` : ''}`;
   }
 
-  // If notification link points to /cdashboard but current user is IT manager/staff, convert to /it
   if (item.link && item.link.startsWith('/cdashboard') && (isIT || !isCS)) {
     try {
       const parsed = new URL(item.link, window.location.origin);
@@ -76,7 +224,6 @@ const buildNotificationLink = (item, currentUser = null) => {
     } catch (_) {}
   }
 
-  // If notification link points to /it but current user is CS, convert to /cdashboard
   if (item.link && item.link.startsWith('/it') && isCS) {
     try {
       const parsed = new URL(item.link, window.location.origin);
@@ -88,7 +235,6 @@ const buildNotificationLink = (item, currentUser = null) => {
     } catch (_) {}
   }
 
-  // If notification contains employeeId in metadata or link, route to /users with specific user drawer
   if (item.metadata?.employeeId || item.metadata?.userId) {
     const empId = item.metadata.employeeId || item.metadata.userId;
     return `/users?userId=${empId}&tab=2`;
@@ -124,7 +270,10 @@ const getNotificationTitle = (item) => {
   if (['comment', 'task', 'reminder'].includes(item.type)) {
     return item.metadata?.title || (item.type === 'reminder' ? 'Task reminder' : item.type === 'task' ? 'IT task update' : 'New task comment');
   }
-  return item.text || item.message || item.title || 'Notification';
+  if (item.category === 'onboarding' || item.type === 'onboarding') {
+    return item.metadata?.title || item.title || 'Employee Verification Pending';
+  }
+  return item.title || item.text || item.message || 'Notification';
 };
 
 const getNotificationDetail = (item) => {
@@ -137,7 +286,10 @@ const getNotificationDetail = (item) => {
     const reminder = item.metadata?.reminderTitle ? `Reminder: ${item.metadata.reminderTitle}` : '';
     return [taskTitle, reminder, author].filter(Boolean).join(' - ');
   }
-  return '';
+  if (item.title && item.text && item.title !== item.text) {
+    return item.text;
+  }
+  return item.metadata?.message || '';
 };
 
 const getCommentPreview = (item) =>
@@ -146,29 +298,25 @@ const getCommentPreview = (item) =>
     .trim();
 
 const shouldKeepVisible = (item) => item.type === 'reminder' && item.metadata?.keepVisible;
-const getTypeColor = (type) => {
-  if (type === 'risk document' || type === 'risk') return 'red';
-  if (type === 'task') return 'orange';
-  if (type === 'chat') return 'green';
-  if (type === 'comment') return 'blue';
-  if (type === 'reminder') return 'purple';
-  return 'gray';
-};
 
 export default function NotificationBall({ extraNotifications = [], iconColor = 'white' }) {
   const currentUser = useUserStore((state) => state.currentUser);
   const navigate = useNavigate();
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [activeCategory, setActiveCategory] = useState('all');
   const toast = useToast();
-  const unreadBg = useColorModeValue('blue.50', 'whiteAlpha.100');
-  const itemBorder = useColorModeValue('gray.100', 'whiteAlpha.200');
+
+  const cardBorder = useColorModeValue('gray.200', 'gray.700');
+  const cardHoverBorder = useColorModeValue('teal.300', 'teal.500');
+  const cardBg = useColorModeValue('white', 'gray.850');
+  const unreadCardBg = useColorModeValue('#f8fafc', 'whiteAlpha.100');
   const muted = useColorModeValue('gray.500', 'gray.400');
   const buttonBg = useColorModeValue('white', 'whiteAlpha.100');
-  const buttonBorder = useColorModeValue('blue.100', 'whiteAlpha.200');
-  const buttonShadow = useColorModeValue('0 10px 28px rgba(37, 99, 235, 0.16)', '0 10px 28px rgba(14, 165, 233, 0.18)');
+  const buttonBorder = useColorModeValue('gray.200', 'whiteAlpha.200');
+  const buttonShadow = useColorModeValue('0 6px 20px rgba(0, 0, 0, 0.08)', '0 6px 20px rgba(0, 0, 0, 0.3)');
   const menuBg = useColorModeValue('white', 'gray.900');
-  const itemBg = useColorModeValue('white', 'gray.900');
+  const itemBorder = useColorModeValue('gray.100', 'whiteAlpha.100');
 
   const loadNotifications = async () => {
     if (!currentUser?.token) return;
@@ -190,7 +338,7 @@ export default function NotificationBall({ extraNotifications = [], iconColor = 
 
   useEffect(() => {
     loadNotifications();
-    const interval = setInterval(loadNotifications, 30000);
+    const interval = setInterval(loadNotifications, 25000);
     return () => clearInterval(interval);
   }, [currentUser?.token]);
 
@@ -207,7 +355,7 @@ export default function NotificationBall({ extraNotifications = [], iconColor = 
           text: notification.text,
           read: notification.read ?? false,
           type: notification.type || 'general',
-          category: notification.category,
+          category: notification.category || 'general',
           documentId: notification.documentId || notification.metadata?.documentId,
           itTaskId: notification.itTaskId,
           commentId: notification.commentId,
@@ -222,7 +370,7 @@ export default function NotificationBall({ extraNotifications = [], iconColor = 
         ),
       ]);
     });
-    socket.on('notification:resolved', ({ documentId, type }) => {
+    socket.on('notification:resolved', ({ documentId }) => {
       setNotifications((current) =>
         current.filter((n) => {
           const itemDocId = n.documentId || n.metadata?.documentId;
@@ -251,6 +399,26 @@ export default function NotificationBall({ extraNotifications = [], iconColor = 
     return Array.from(map.values()).filter((item) => !item.read || shouldKeepVisible(item));
   }, [extraNotifications, notifications]);
 
+  // Category counts
+  const categoryCounts = useMemo(() => {
+    const counts = { all: combined.length, onboarding: 0, documents: 0, requests: 0, tasks: 0, general: 0 };
+    combined.forEach((item) => {
+      const cat = normalizeCategory(item);
+      if (counts[cat] !== undefined) {
+        counts[cat] += 1;
+      } else {
+        counts.general += 1;
+      }
+    });
+    return counts;
+  }, [combined]);
+
+  // Filtered by active tab
+  const filteredNotifications = useMemo(() => {
+    if (activeCategory === 'all') return combined;
+    return combined.filter((item) => normalizeCategory(item) === activeCategory);
+  }, [combined, activeCategory]);
+
   const unreadCount = combined.filter((item) => !item.read).length;
   const hasUnreadRisk = combined.some(
     (item) =>
@@ -261,8 +429,12 @@ export default function NotificationBall({ extraNotifications = [], iconColor = 
         item.metadata?.isHazard)
   );
 
-  const markOneRead = async (item) => {
-    if (item.local || item.read) return item;
+  const markOneRead = async (item, e = null) => {
+    if (e) e.stopPropagation();
+    if (item.local || item.read) {
+      setNotifications((current) => current.filter((n) => (n._id || n.id) !== (item._id || item.id)));
+      return item;
+    }
     try {
       const updated = await markNotificationAsRead(item._id || item.id);
       setNotifications((current) =>
@@ -287,12 +459,33 @@ export default function NotificationBall({ extraNotifications = [], iconColor = 
 
   const markAllRead = async () => {
     try {
-      await markAllNotificationsAsRead();
-      setNotifications((current) =>
-        current
-          .map((item) => ({ ...item, read: true }))
-          .filter(shouldKeepVisible)
-      );
+      if (activeCategory === 'all') {
+        await markAllNotificationsAsRead();
+        setNotifications((current) =>
+          current
+            .map((item) => ({ ...item, read: true }))
+            .filter(shouldKeepVisible)
+        );
+      } else {
+        const itemsToMark = filteredNotifications.filter((item) => !item.local && !item.read);
+        await Promise.all(itemsToMark.map((item) => markNotificationAsRead(item._id || item.id)));
+        setNotifications((current) =>
+          current
+            .map((item) => {
+              if (normalizeCategory(item) === activeCategory) {
+                return { ...item, read: true };
+              }
+              return item;
+            })
+            .filter(shouldKeepVisible)
+        );
+      }
+      toast({
+        title: 'Marked as read',
+        status: 'success',
+        duration: 1500,
+        isClosable: true,
+      });
     } catch (error) {
       toast({ title: 'Unable to mark all read', status: 'error', duration: 1800 });
     }
@@ -309,23 +502,29 @@ export default function NotificationBall({ extraNotifications = [], iconColor = 
                 position="absolute"
                 inset="-8px"
                 borderRadius="full"
-                bg={hasUnreadRisk ? 'red.500' : unreadCount > 0 ? 'blue.400' : 'transparent'}
+                bg={hasUnreadRisk ? 'red.500' : unreadCount > 0 ? 'teal.400' : 'transparent'}
                 opacity={hasUnreadRisk ? 0.35 : unreadCount > 0 ? 0.18 : 0}
                 animation={hasUnreadRisk ? 'hazardPulse 1.3s infinite' : unreadCount > 0 ? 'notificationPulse 1.7s infinite' : 'none'}
               />
-              <BsBell color={hasUnreadRisk ? '#EF4444' : iconColor} size={20} />
+              <BsBell color={hasUnreadRisk ? '#EF4444' : iconColor} size={19} />
               {unreadCount > 0 && (
                 <Badge
                   position="absolute"
-                  top="-12px"
-                  right="-14px"
-                  colorScheme={hasUnreadRisk ? 'red' : 'red'}
-                  bg={hasUnreadRisk ? 'red.600' : undefined}
-                  color={hasUnreadRisk ? 'white' : undefined}
+                  top="-10px"
+                  right="-12px"
+                  colorScheme={hasUnreadRisk ? 'red' : 'teal'}
+                  bg={hasUnreadRisk ? 'red.600' : 'teal.600'}
+                  color="white"
                   borderRadius="full"
-                  minW="20px"
-                  px={1.5}
-                  boxShadow={hasUnreadRisk ? '0 0 8px rgba(239, 68, 68, 0.9), 0 0 0 2px white' : '0 0 0 3px white'}
+                  minW="18px"
+                  h="18px"
+                  display="flex"
+                  alignItems="center"
+                  justifyContent="center"
+                  fontSize="10px"
+                  fontWeight="800"
+                  px={1}
+                  boxShadow={hasUnreadRisk ? '0 0 8px rgba(239, 68, 68, 0.9), 0 0 0 2px white' : '0 0 0 2px white'}
                   animation={hasUnreadRisk ? 'hazardPulse 1.3s infinite' : 'notificationPulse 1.7s infinite'}
                 >
                   {unreadCount > 99 ? '99+' : unreadCount}
@@ -357,137 +556,342 @@ export default function NotificationBall({ extraNotifications = [], iconColor = 
               '100%': { transform: 'scale(1)', boxShadow: '0 0 0 0 rgba(239, 68, 68, 0)' },
             },
           }}
-          _hover={{ bg: unreadBg, transform: 'translateY(-1px)' }}
+          _hover={{ bg: unreadCardBg, transform: 'translateY(-1px)' }}
         />
       </Tooltip>
+
       <Portal>
-        <MenuList p={0} w="390px" maxW="calc(100vw - 24px)" overflow="hidden" zIndex="9999" bg={menuBg} boxShadow="0 24px 70px rgba(15, 23, 42, 0.20)">
-        <HStack justify="space-between" px={4} py={3} bg={menuBg}>
-          <Box>
-            <HStack spacing={2}>
-              <Text fontWeight="900">Notifications</Text>
-              {hasUnreadRisk && (
-                <Badge colorScheme="red" bg="red.500" color="white" fontSize="2xs" borderRadius="full" px={2}>
-                  HAZARD ALERT
-                </Badge>
-              )}
-            </HStack>
-            <Text fontSize="xs" color={muted}>{unreadCount} unread updates</Text>
+        <MenuList
+          p={0}
+          w="490px"
+          maxW="calc(100vw - 28px)"
+          overflow="hidden"
+          zIndex="9999"
+          bg={menuBg}
+          borderRadius="2xl"
+          border="1px solid"
+          borderColor={useColorModeValue('gray.200', 'gray.700')}
+          boxShadow="0 24px 60px -12px rgba(15, 23, 42, 0.22), 0 0 1px rgba(15, 23, 42, 0.15)"
+        >
+          {/* Header Card */}
+          <Box p={4} pb={3} bg={menuBg}>
+            <Flex justify="space-between" align="center">
+              <Box>
+                <HStack spacing={2.5}>
+                  <Text fontWeight="800" fontSize="lg" color={useColorModeValue('gray.900', 'white')}>
+                    Notifications
+                  </Text>
+                  {hasUnreadRisk && (
+                    <Badge colorScheme="red" bg="red.500" color="white" fontSize="2xs" borderRadius="full" px={2.5} py={0.5} fontWeight="800">
+                      HAZARD ALERT
+                    </Badge>
+                  )}
+                </HStack>
+                <Text fontSize="xs" color={muted} mt={0.5}>
+                  {unreadCount === 0 ? 'All caught up' : `${unreadCount} unread update${unreadCount === 1 ? '' : 's'}`}
+                </Text>
+              </Box>
+
+              <HStack spacing={2}>
+                <Button
+                  size="xs"
+                  variant="outline"
+                  colorScheme="gray"
+                  onClick={loadNotifications}
+                  leftIcon={loading ? <Spinner size="xs" /> : <Icon as={FiRefreshCw} />}
+                  borderRadius="lg"
+                  px={2.5}
+                >
+                  Refresh
+                </Button>
+                <Button
+                  size="xs"
+                  colorScheme="teal"
+                  variant="solid"
+                  onClick={markAllRead}
+                  isDisabled={!filteredNotifications.length}
+                  borderRadius="lg"
+                  px={3}
+                >
+                  Mark all read
+                </Button>
+              </HStack>
+            </Flex>
           </Box>
-          <HStack>
-            <Button size="xs" variant="ghost" onClick={loadNotifications} leftIcon={loading ? <Spinner size="xs" /> : undefined}>
-              Refresh
-            </Button>
-            <Button size="xs" colorScheme="blue" variant="outline" onClick={markAllRead} isDisabled={!unreadCount}>
-              Mark all read
-            </Button>
-          </HStack>
-        </HStack>
-        <Divider />
-        <Box maxH="420px" overflowY="auto" bg={menuBg}>
-          {combined.length === 0 ? (
-            <Box py={8} textAlign="center">
-              <Text fontWeight="700">No notifications yet</Text>
-              <Text fontSize="sm" color={muted}>Tasks, reminders, comments, reports, and chats will appear here.</Text>
-            </Box>
-          ) : (
-            <VStack align="stretch" spacing={0}>
-              {combined.map((item, index) => {
-                const link = buildNotificationLink(item, currentUser);
-                const canOpen = Boolean(link);
-                const title = getNotificationTitle(item);
-                const detail = getNotificationDetail(item);
-                const preview = getCommentPreview(item);
-                const isRiskDoc = item.type === 'risk document' || item.category === 'risk document' || item.metadata?.isRiskDocument || item.metadata?.isHazard;
+
+          {/* Interactive Category Filter Pills Bar */}
+          <Box
+            px={4}
+            pb={3}
+            pt={1}
+            overflowX="auto"
+            whiteSpace="nowrap"
+            sx={{
+              '&::-webkit-scrollbar': { display: 'none' },
+              scrollbarWidth: 'none',
+              msOverflowStyle: 'none',
+            }}
+          >
+            <HStack spacing={2} minW="max-content">
+              {CATEGORY_TABS.map((tab) => {
+                const count = categoryCounts[tab.id] || 0;
+                const isActive = activeCategory === tab.id;
+                const TabIcon = tab.icon;
 
                 return (
-                <Box
-                  key={item._id || item.id || `${item.text}-${index}`}
-                  px={4}
-                  py={3}
-                  bg={!item.read ? (isRiskDoc ? useColorModeValue('red.50', 'rgba(239, 68, 68, 0.12)') : unreadBg) : itemBg}
-                  borderBottom="1px solid"
-                  borderColor={isRiskDoc && !item.read ? 'red.200' : itemBorder}
-                  borderLeft={isRiskDoc && !item.read ? '4px solid #EF4444' : undefined}
-                  cursor={canOpen ? 'pointer' : item.local ? 'default' : 'pointer'}
-                  onClick={() => (canOpen || !item.local ? openNotification(item) : undefined)}
-                  _hover={{ bg: isRiskDoc ? useColorModeValue('red.100', 'rgba(239, 68, 68, 0.2)') : unreadBg }}
-                >
-                  <HStack align="start" spacing={3}>
-                    {/* HAZARD RED POPUP DOT FOR RISK DOCUMENT */}
-                    <Box
-                      w="11px"
-                      h="11px"
-                      borderRadius="full"
-                      bg={isRiskDoc ? 'red.500' : (!item.read ? 'blue.400' : 'gray.300')}
-                      boxShadow={isRiskDoc ? '0 0 10px #ef4444, 0 0 4px #dc2626' : (!item.read ? '0 0 6px rgba(59, 130, 246, 0.5)' : 'none')}
-                      animation={isRiskDoc && !item.read ? 'hazardDotPulse 1.3s infinite' : 'none'}
-                      mt={1.5}
-                      flexShrink={0}
-                    />
-                    <Box flex="1" minW={0} lineHeight="1.35">
-                      <HStack justify="space-between" align="start">
-                        <Text fontSize="sm" fontWeight={!item.read ? '800' : '700'} color={isRiskDoc ? (useColorModeValue('red.900', 'red.200')) : undefined} noOfLines={2}>
-                          {title}
-                        </Text>
-                      </HStack>
-                      {detail && (
-                        <Text fontSize="xs" color={isRiskDoc ? (useColorModeValue('red.700', 'red.300')) : muted} mt={0.5} noOfLines={3}>
-                          {detail}
-                        </Text>
-                      )}
-                      {item.metadata?.taskLocation && (
-                        <Text fontSize="xs" color={muted} mt={1} noOfLines={2}>
-                          {item.metadata.taskLocation}
-                        </Text>
-                      )}
-                      {item.type === 'comment' && preview && (
-                        <Text fontSize="xs" color={muted} mt={1} noOfLines={2}>
-                          &quot;{preview}&quot;
-                        </Text>
-                      )}
-                      <HStack mt={2} spacing={2} align="center" flexWrap="wrap">
-                        {/* NOTIFICATION CATEGORY: "risk document" in hazard red badge */}
-                        {isRiskDoc ? (
-                          <Badge
-                            size="sm"
-                            colorScheme="red"
-                            bg="red.500"
-                            color="white"
-                            px={2}
-                            py={0.5}
-                            borderRadius="full"
-                            fontWeight="extrabold"
-                            textTransform="lowercase"
-                            boxShadow="0 0 6px rgba(239, 68, 68, 0.35)"
-                          >
-                            risk document
-                          </Badge>
-                        ) : (
-                          <Badge size="sm" colorScheme={getTypeColor(item.type)}>
-                            {item.category || item.type || 'general'}
-                          </Badge>
-                        )}
-                        <Text fontSize="xs" color={muted}>{formatTimeAgo(item.createdAt)}</Text>
-                        {shouldKeepVisible(item) && item.read && (
-                          <Badge size="sm" colorScheme="purple" variant="outline">
-                            reminder on
-                          </Badge>
-                        )}
-                        {canOpen && (
-                          <Badge size="sm" colorScheme={isRiskDoc ? 'red' : getTypeColor(item.type)} variant={isRiskDoc ? 'solid' : 'subtle'}>
-                            {item.metadata?.actionLabel || (isRiskDoc ? 'View Document Library' : 'Open')}
-                          </Badge>
-                        )}
-                      </HStack>
-                    </Box>
-                  </HStack>
-                </Box>
+                  <Button
+                    key={tab.id}
+                    size="sm"
+                    height="32px"
+                    borderRadius="full"
+                    variant={isActive ? 'solid' : 'ghost'}
+                    colorScheme={isActive ? 'teal' : 'gray'}
+                    bg={isActive ? 'teal.600' : useColorModeValue('gray.100', 'gray.800')}
+                    color={isActive ? 'white' : useColorModeValue('gray.700', 'gray.300')}
+                    px={3.5}
+                    fontSize="xs"
+                    fontWeight={isActive ? '700' : '600'}
+                    onClick={() => setActiveCategory(tab.id)}
+                    leftIcon={<Icon as={TabIcon} boxSize={3.5} />}
+                    _hover={{
+                      bg: isActive ? 'teal.700' : useColorModeValue('gray.200', 'gray.700'),
+                    }}
+                    transition="all 0.2s"
+                  >
+                    <Text as="span">{tab.label}</Text>
+                    {count > 0 && (
+                      <Badge
+                        ml={2}
+                        borderRadius="full"
+                        fontSize="10px"
+                        fontWeight="800"
+                        px={1.5}
+                        py={0.2}
+                        colorScheme={isActive ? 'whiteAlpha' : 'teal'}
+                        bg={isActive ? 'whiteAlpha.300' : useColorModeValue('teal.100', 'teal.900')}
+                        color={isActive ? 'white' : useColorModeValue('teal.800', 'teal.200')}
+                      >
+                        {count}
+                      </Badge>
+                    )}
+                  </Button>
                 );
               })}
-            </VStack>
-          )}
-        </Box>
+            </HStack>
+          </Box>
+
+          <Divider borderColor={itemBorder} />
+
+          {/* Notification Items List */}
+          <Box maxH="460px" overflowY="auto" p={3} bg={useColorModeValue('gray.50', 'gray.900')}>
+            {filteredNotifications.length === 0 ? (
+              <Box py={12} px={4} textAlign="center">
+                <Flex
+                  boxSize="52px"
+                  borderRadius="2xl"
+                  bg={useColorModeValue('white', 'gray.800')}
+                  border="1px solid"
+                  borderColor={useColorModeValue('gray.200', 'gray.700')}
+                  align="center"
+                  justify="center"
+                  mx="auto"
+                  mb={3}
+                  boxShadow="xs"
+                >
+                  <Icon as={FiInbox} boxSize={6} color="teal.500" />
+                </Flex>
+                <Text fontWeight="800" fontSize="md" color={useColorModeValue('gray.800', 'gray.100')}>
+                  No {activeCategory !== 'all' ? activeCategory : ''} notifications
+                </Text>
+                <Text fontSize="xs" color={muted} mt={1} maxW="300px" mx="auto">
+                  You're all caught up! When new updates arrive, they will appear right here.
+                </Text>
+              </Box>
+            ) : (
+              <VStack align="stretch" spacing={2.5}>
+                {filteredNotifications.map((item, index) => {
+                  const link = buildNotificationLink(item, currentUser);
+                  const canOpen = Boolean(link);
+                  const title = getNotificationTitle(item);
+                  const detail = getNotificationDetail(item);
+                  const preview = getCommentPreview(item);
+                  const isRiskDoc =
+                    item.type === 'risk document' ||
+                    item.category === 'risk document' ||
+                    item.metadata?.isRiskDocument ||
+                    item.metadata?.isHazard;
+                  const badgeConfig = getCategoryBadgeConfig(item);
+
+                  return (
+                    <Box
+                      key={item._id || item.id || `${item.text}-${index}`}
+                      p={4}
+                      borderRadius="xl"
+                      bg={
+                        !item.read
+                          ? isRiskDoc
+                            ? useColorModeValue('red.50', 'rgba(239, 68, 68, 0.12)')
+                            : useColorModeValue('white', 'gray.800')
+                          : useColorModeValue('white', 'gray.800')
+                      }
+                      border="1px solid"
+                      borderColor={
+                        isRiskDoc && !item.read
+                          ? 'red.300'
+                          : !item.read
+                          ? useColorModeValue('teal.200', 'teal.700')
+                          : cardBorder
+                      }
+                      borderLeft={
+                        isRiskDoc && !item.read
+                          ? '4px solid #EF4444'
+                          : !item.read
+                          ? '4px solid #319795'
+                          : '4px solid transparent'
+                      }
+                      boxShadow="xs"
+                      cursor={canOpen ? 'pointer' : 'default'}
+                      onClick={() => (canOpen ? openNotification(item) : undefined)}
+                      transition="all 0.2s cubic-bezier(0.4, 0, 0.2, 1)"
+                      _hover={{
+                        transform: 'translateY(-1px)',
+                        boxShadow: 'sm',
+                        borderColor: isRiskDoc
+                          ? 'red.400'
+                          : !item.read
+                          ? 'teal.400'
+                          : cardHoverBorder,
+                      }}
+                    >
+                      <HStack align="start" spacing={3.5}>
+                        {/* Status Dot */}
+                        <Box
+                          w="10px"
+                          h="10px"
+                          borderRadius="full"
+                          bg={isRiskDoc ? 'red.500' : !item.read ? 'teal.500' : 'gray.300'}
+                          boxShadow={
+                            isRiskDoc
+                              ? '0 0 10px #ef4444, 0 0 4px #dc2626'
+                              : !item.read
+                              ? '0 0 6px rgba(49, 151, 149, 0.5)'
+                              : 'none'
+                          }
+                          animation={isRiskDoc && !item.read ? 'hazardDotPulse 1.3s infinite' : 'none'}
+                          mt={1.5}
+                          flexShrink={0}
+                        />
+
+                        <Box flex="1" minW={0} lineHeight="1.4">
+                          {/* Title & Mark Read Checkmark Button */}
+                          <HStack justify="space-between" align="start" spacing={2}>
+                            <Text
+                              fontSize="sm"
+                              fontWeight={!item.read ? '800' : '700'}
+                              color={
+                                isRiskDoc
+                                  ? useColorModeValue('red.900', 'red.200')
+                                  : useColorModeValue('gray.900', 'white')
+                              }
+                              noOfLines={2}
+                            >
+                              {title}
+                            </Text>
+
+                            <Tooltip label="Mark as read">
+                              <IconButton
+                                size="xs"
+                                variant="ghost"
+                                colorScheme="gray"
+                                icon={<Icon as={FiCheck} boxSize={3.5} />}
+                                aria-label="Mark as read"
+                                onClick={(e) => markOneRead(item, e)}
+                                flexShrink={0}
+                                borderRadius="md"
+                                _hover={{ bg: useColorModeValue('gray.100', 'gray.700'), color: 'teal.600' }}
+                              />
+                            </Tooltip>
+                          </HStack>
+
+                          {/* Description Detail */}
+                          {detail && (
+                            <Text
+                              fontSize="xs"
+                              color={isRiskDoc ? useColorModeValue('red.700', 'red.300') : muted}
+                              mt={1}
+                              noOfLines={3}
+                            >
+                              {detail}
+                            </Text>
+                          )}
+
+                          {item.metadata?.taskLocation && (
+                            <Text fontSize="xs" color={muted} mt={1} noOfLines={2}>
+                              {item.metadata.taskLocation}
+                            </Text>
+                          )}
+
+                          {item.type === 'comment' && preview && (
+                            <Text fontSize="xs" color={muted} mt={1} fontStyle="italic" noOfLines={2}>
+                              &quot;{preview}&quot;
+                            </Text>
+                          )}
+
+                          {/* Footer Badges & Actions */}
+                          <HStack mt={3} spacing={2} align="center" flexWrap="wrap">
+                            <Badge
+                              fontSize="9px"
+                              fontWeight="800"
+                              borderRadius="full"
+                              px={2.5}
+                              py={0.5}
+                              colorScheme={badgeConfig.colorScheme}
+                              bg={badgeConfig.bg}
+                              color={badgeConfig.color}
+                              border={badgeConfig.border}
+                              borderColor={badgeConfig.borderColor}
+                              boxShadow={badgeConfig.boxShadow}
+                              textTransform="uppercase"
+                            >
+                              {badgeConfig.label}
+                            </Badge>
+
+                            <Text fontSize="10px" color={muted} fontWeight="500">
+                              {formatTimeAgo(item.createdAt)}
+                            </Text>
+
+                            {shouldKeepVisible(item) && item.read && (
+                              <Badge size="sm" colorScheme="purple" variant="outline" fontSize="9px" borderRadius="full">
+                                reminder on
+                              </Badge>
+                            )}
+
+                            {canOpen && (
+                              <Badge
+                                fontSize="9px"
+                                fontWeight="700"
+                                borderRadius="full"
+                                px={2.5}
+                                py={0.5}
+                                colorScheme={isRiskDoc ? 'red' : 'teal'}
+                                variant={isRiskDoc ? 'solid' : 'subtle'}
+                                ml="auto"
+                              >
+                                <HStack spacing={1}>
+                                  <Text>{item.metadata?.actionLabel || (isRiskDoc ? 'View Document Library' : 'Open')}</Text>
+                                  <Icon as={FiExternalLink} boxSize={2.5} />
+                                </HStack>
+                              </Badge>
+                            )}
+                          </HStack>
+                        </Box>
+                      </HStack>
+                    </Box>
+                  );
+                })}
+              </VStack>
+            )}
+          </Box>
         </MenuList>
       </Portal>
     </Menu>

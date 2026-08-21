@@ -35,6 +35,7 @@ import ITAdminPanel from '../components/it/ITAdminPanel';
 import ITCollapsibleSection from '../components/it/ITCollapsibleSection';
 import ITRemindersPanel from '../components/it/ITRemindersPanel';
 import EmployeeWarningsPage from './EmployeeWarningsPage';
+import EmployeeFileUploadForm from './EmployeeFileUploadForm';
 
 // Global shared imports
 import NoticeBoardPanel from '../components/NoticeBoardPanel';
@@ -276,6 +277,8 @@ export default function ITDashboard() {
         );
       case 'profile':
         return <ITProfilePanel user={currentUser} persona={persona} tasks={visibleTasks} />;
+      case 'upload-documents':
+        return <EmployeeFileUploadForm embedded />;
       case 'warnings':
         return <EmployeeWarningsPage mode="employee" />;
       case 'admin':

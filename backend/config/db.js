@@ -7,11 +7,26 @@ try { dns.setServers(['8.8.8.8', '1.1.1.1', '9.9.9.9']); } catch (_) {}
 
 let isConnected = false;
 
+mongoose.connection.on('disconnected', () => {
+  isConnected = false;
+  console.warn('MongoDB connection lost. Mongoose will automatically attempt to reconnect...');
+});
+
+mongoose.connection.on('reconnected', () => {
+  isConnected = true;
+  console.log('MongoDB connection restored successfully.');
+});
+
+mongoose.connection.on('error', (err) => {
+  console.error('MongoDB connection error event:', err.message);
+});
+
 const connectionOptions = {
-  serverSelectionTimeoutMS: 10000,
+  serverSelectionTimeoutMS: 15000,
   socketTimeoutMS: 45000,
   family: 4,
-  maxPoolSize: 10
+  maxPoolSize: 10,
+  autoIndex: true,
 };
 
 const dropLegacyPackageIndex = async () => {

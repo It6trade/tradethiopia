@@ -84,7 +84,10 @@ export const useUserStore = create((set, get) => ({
         }
         try {
             const { data } = await axiosInstance.get("/users");
-            set({ users: data.data });
+            const userList = Array.isArray(data?.data)
+                ? data.data
+                : (Array.isArray(data) ? data : (data?.users || []));
+            set({ users: userList });
         } catch (error) {
             console.error("Failed to fetch users:", error);
             if (!silent) {
@@ -104,12 +107,27 @@ export const useUserStore = create((set, get) => ({
         try {
             const { data } = await axiosInstance.get(`/users/me`);
             if (data?.success && data?.data) {
+                const incoming = data.data;
+                const nextPhoto = incoming.photoUrl || incoming.photo || current.photoUrl || current.photo || '';
                 const refreshed = {
                     ...current,
-                    ...data.data,
-                    photoUrl: data.data.photoUrl || current.photoUrl,
+                    ...incoming,
+                    photoUrl: nextPhoto,
                 };
-                get().setCurrentUser(refreshed);
+                const isUnchanged =
+                    current.status === refreshed.status &&
+                    current.infoStatus === refreshed.infoStatus &&
+                    current.role === refreshed.role &&
+                    current.username === refreshed.username &&
+                    current.email === refreshed.email &&
+                    current.fullName === refreshed.fullName &&
+                    (current.photoUrl || current.photo || '') === nextPhoto &&
+                    current.jobTitle === refreshed.jobTitle &&
+                    current.department === refreshed.department;
+
+                if (!isUnchanged) {
+                    get().setCurrentUser(refreshed);
+                }
                 return refreshed;
             }
         } catch (err) {

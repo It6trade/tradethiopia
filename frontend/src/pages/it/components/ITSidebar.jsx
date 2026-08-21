@@ -35,11 +35,18 @@ import {
   FiLogOut,
   FiChevronLeft,
   FiChevronRight,
+login
   FiLayers,
   FiTrendingUp,
   FiCpu,
   FiCode,
   FiZap,
+=======
+  FiUserCheck,
+  FiBell,
+  FiTool,
+  FiUploadCloud,
+  main,
 } from 'react-icons/fi';
 
 const SidebarButton = ({ label, icon: IconComponent, isActive, onClick, tooltip, isCollapsed, badge }) => {
@@ -405,6 +412,13 @@ export default function ITSidebar({
               icon={FiUser}
               isActive={activeSection === 'profile'}
               onClick={() => setActiveSection('profile')}
+              isCollapsed={isCollapsed}
+            />
+            <SidebarButton
+              label="Upload Documents"
+              icon={FiUploadCloud}
+              isActive={activeSection === 'upload-documents'}
+              onClick={() => setActiveSection('upload-documents')}
               isCollapsed={isCollapsed}
             />
           </SidebarSection>
