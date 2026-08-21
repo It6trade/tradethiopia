@@ -15,6 +15,7 @@ import MonthlyReport from './MonthlyReport.jsx';
 import SalesMessagesPage from '../../pages/SalesMessagesPage';
 import EmployeeRequestsPage from '../../pages/EmployeeRequestsPage';
 import EmployeeInfoPage from '../../pages/EmployeeInfoPage';
+import EmployeeFileUploadForm from '../../pages/EmployeeFileUploadForm';
 import EmployeeWarningsPage from '../../pages/EmployeeWarningsPage';
 import ContentTrackerPage from './ContentTrackerPage.jsx';
 import { useUserStore } from '../../store/user';
@@ -33,7 +34,7 @@ const Layout = ({ children, initialActiveItem }) => {
       return initialActiveItem;
     }
     const savedItem = localStorage.getItem('salesActiveItem');
-    if (savedItem === 'Requests') {
+    if (savedItem === 'Requests' || savedItem === 'Personal Information' || savedItem === 'Tutorials') {
       localStorage.removeItem('salesActiveItem');
       return 'Home';
     }
@@ -73,8 +74,6 @@ const Layout = ({ children, initialActiveItem }) => {
         return <OrderFollowup />;
       case 'Users':
         return <Box p={6}><Text fontSize="xl">Users section</Text></Box>;
-      case 'Tutorials':
-        return <Training />;
       case 'Targets':
         return <SalesTargetsPage />;
       case 'Tasks':
@@ -85,8 +84,8 @@ const Layout = ({ children, initialActiveItem }) => {
         return <SalesMessagesPage />;
       case 'Requests':
         return <EmployeeRequestsPage />;
-      case 'Personal Information':
-        return <EmployeeInfoPage />;
+      case 'Upload Documents':
+        return <EmployeeFileUploadForm embedded />;
       case 'My Warnings':
         return <EmployeeWarningsPage mode="employee" />;
       case 'Content Tracker':

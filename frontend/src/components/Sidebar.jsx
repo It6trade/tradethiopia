@@ -37,6 +37,7 @@ import {
   FiFolder,
   FiChevronDown,
   FiChevronRight,
+  FiUploadCloud,
 } from "react-icons/fi";
 import { Link as RouterLink, useLocation } from "react-router-dom";
 import { useUserStore } from "../store/user";
@@ -168,7 +169,7 @@ const Sidebar = ({ isCollapsed: controlledIsCollapsed, onToggleCollapse }) => {
   const breakpointValue = useBreakpointValue({ base: true, md: false });
   const location = useLocation();
 
-  const isDocPath = location.pathname.startsWith("/documentlist") || location.pathname.startsWith("/EmployeeDocument") || location.pathname.startsWith("/resources") || location.pathname.startsWith("/Addresource") || location.pathname.startsWith("/category") || location.pathname.startsWith("/documentupload");
+  const isDocPath = location.pathname.startsWith("/documentlist") || location.pathname.startsWith("/EmployeeDocument") || location.pathname.startsWith("/employee-file-upload") || location.pathname.startsWith("/resources") || location.pathname.startsWith("/Addresource") || location.pathname.startsWith("/category") || location.pathname.startsWith("/documentupload");
   const isStaffPath = location.pathname.startsWith("/users") || location.pathname.startsWith("/attendance") || location.pathname.startsWith("/leave-management") || location.pathname.startsWith("/employee-requests") || location.pathname.startsWith("/warnings");
   const isTrainingPath = location.pathname.startsWith("/candidate-pool") || location.pathname.startsWith("/hr-training") || location.pathname.startsWith("/course") || location.pathname.startsWith("/quiz") || location.pathname.startsWith("/awards");
   const isAssetPath = location.pathname.startsWith("/assets") || location.pathname.startsWith("/assetcategory");
@@ -204,6 +205,16 @@ const Sidebar = ({ isCollapsed: controlledIsCollapsed, onToggleCollapse }) => {
   };
 
   const isActive = (path) => location.pathname === path || location.pathname.startsWith(path + "/");
+
+  const sidebarPhotoSrc = currentUser?.photoUrl || currentUser?.photo;
+  const safeSidebarPhoto =
+    sidebarPhotoSrc &&
+    typeof sidebarPhotoSrc === "string" &&
+    sidebarPhotoSrc.trim() !== "" &&
+    sidebarPhotoSrc !== "null" &&
+    sidebarPhotoSrc !== "undefined"
+      ? sidebarPhotoSrc
+      : undefined;
 
   return (
     <Box
@@ -248,7 +259,8 @@ const Sidebar = ({ isCollapsed: controlledIsCollapsed, onToggleCollapse }) => {
             h="36px"
             size="sm"
             name={currentUser?.fullName || currentUser?.username || "Trade Ethiopia"}
-            src={currentUser?.photoUrl || currentUser?.photo}
+            src={safeSidebarPhoto}
+            ignoreFallback={!safeSidebarPhoto}
             bg={LOGO_BADGE_BG}
             color="white"
             borderRadius="lg"
@@ -327,6 +339,12 @@ const Sidebar = ({ isCollapsed: controlledIsCollapsed, onToggleCollapse }) => {
             label="Employee Documents"
             isCollapsed={effectiveIsCollapsed}
             isActive={isActive("/EmployeeDocument")}
+          />
+          <SidebarSubItem
+            to="/employee-file-upload"
+            label="Upload Documents"
+            isCollapsed={effectiveIsCollapsed}
+            isActive={isActive("/employee-file-upload")}
           />
           <SidebarSubItem
             to="/resources"

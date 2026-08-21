@@ -17,6 +17,9 @@ import {
   SimpleGrid,
   Spinner,
   Skeleton,
+  Switch,
+  FormControl,
+  FormLabel,
   Modal,
   ModalOverlay,
   ModalContent,
@@ -73,6 +76,7 @@ const Category = () => {
   const [name, setName] = useState('');
   const [section, setSection] = useState('employees'); // 'employees' or 'companys'
   const [description, setDescription] = useState('');
+  const [isMandatory, setIsMandatory] = useState(false);
   
   // Delete Modal State
   const [categoryToDelete, setCategoryToDelete] = useState(null);
@@ -130,12 +134,14 @@ const Category = () => {
 
     setIsSubmitting(true);
     try {
+      const mandatoryFlag = isEmployeeCategory(section) ? Boolean(isMandatory) : false;
       if (selectedCategory) {
         // Update existing category
         await axios.put(`${import.meta.env.VITE_API_URL}/api/categories/${selectedCategory._id}`, {
           name: name.trim(),
           section,
           description: description.trim(),
+          isMandatory: mandatoryFlag,
         });
         toast({
           title: 'Category updated',
@@ -150,6 +156,7 @@ const Category = () => {
           name: name.trim(),
           section,
           description: description.trim(),
+          isMandatory: mandatoryFlag,
         });
         toast({
           title: 'Category created',
@@ -227,6 +234,7 @@ const Category = () => {
     setName('');
     setSection('employees');
     setDescription('');
+    setIsMandatory(false);
     onFormOpen();
   };
 
@@ -236,6 +244,7 @@ const Category = () => {
     setName(cat.name || '');
     setSection(isEmployeeCategory(cat.section) ? 'employees' : 'companys');
     setDescription(cat.description || '');
+    setIsMandatory(Boolean(cat.isMandatory));
     onFormOpen();
   };
 
@@ -244,6 +253,7 @@ const Category = () => {
     setName('');
     setSection('employees');
     setDescription('');
+    setIsMandatory(false);
     onFormClose();
   };
 
@@ -514,17 +524,32 @@ const Category = () => {
                           </Heading>
                         </HStack>
 
-                        <Badge
-                          colorScheme={isEmployee ? 'emerald' : 'blue'}
-                          borderRadius="full"
-                          px="2.5"
-                          py="0.5"
-                          fontSize="2xs"
-                          fontWeight="bold"
-                          textTransform="uppercase"
-                        >
-                          {isEmployee ? 'Employee' : 'Company'}
-                        </Badge>
+                        <HStack spacing="1.5">
+                          {isEmployee && cat.isMandatory && (
+                            <Badge
+                              colorScheme="purple"
+                              variant="solid"
+                              borderRadius="full"
+                              px="2"
+                              py="0.5"
+                              fontSize="2xs"
+                              fontWeight="extrabold"
+                            >
+                              MANDATORY
+                            </Badge>
+                          )}
+                          <Badge
+                            colorScheme={isEmployee ? 'emerald' : 'blue'}
+                            borderRadius="full"
+                            px="2.5"
+                            py="0.5"
+                            fontSize="2xs"
+                            fontWeight="bold"
+                            textTransform="uppercase"
+                          >
+                            {isEmployee ? 'Employee' : 'Company'}
+                          </Badge>
+                        </HStack>
                       </Flex>
 
                       <Text fontSize="xs" color={mutedText} noOfLines={3} lineHeight="relaxed" mt="2">
@@ -649,6 +674,41 @@ const Category = () => {
                     focusBorderColor="teal.500"
                   />
                 </Box>
+
+                {/* Mandatory Setting for Employee Categories */}
+                {isEmployeeCategory(section) && (
+                  <FormControl
+                    display="flex"
+                    alignItems="center"
+                    justifyContent="space-between"
+                    p={3.5}
+                    bg="purple.50"
+                    border="1px solid"
+                    borderColor="purple.200"
+                    borderRadius="xl"
+                  >
+                    <Box pr={3}>
+                      <HStack spacing={2}>
+                        <FormLabel htmlFor="mandatory-switch" mb="0" fontSize="xs" fontWeight="bold" color="purple.900">
+                          Mandatory for Employee Onboarding
+                        </FormLabel>
+                        <Badge colorScheme="purple" fontSize="9px" borderRadius="full">
+                          Required
+                        </Badge>
+                      </HStack>
+                      <Text fontSize="11px" color="purple.700" mt={0.5}>
+                        When enabled, new employees must upload at least one document in this category before they can proceed to company tutorials.
+                      </Text>
+                    </Box>
+                    <Switch
+                      id="mandatory-switch"
+                      colorScheme="purple"
+                      size="md"
+                      isChecked={isMandatory}
+                      onChange={(e) => setIsMandatory(e.target.checked)}
+                    />
+                  </FormControl>
+                )}
               </VStack>
             </ModalBody>
 

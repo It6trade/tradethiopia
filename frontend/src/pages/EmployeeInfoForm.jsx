@@ -711,13 +711,10 @@ const EmployeeInfoForm = () => {
                   <Box>
                     <Text fontWeight="800" color="green.800">HR approval complete</Text>
                     <Text mt={1} fontSize="sm" color="green.700">
-                      Your employee record is approved. You can now upload your official documents (optional) and continue to the company tutorials.
+                      Your employee record is approved. Please proceed to upload your official documents and continue.
                     </Text>
                   </Box>
                   <HStack spacing={3} flexShrink={0} wrap="wrap">
-                    <Button colorScheme="teal" variant="outline" onClick={() => navigate('/secondpage')}>
-                      Skip to tutorials
-                    </Button>
                     <Button colorScheme="green" onClick={() => navigate('/employee-file-upload')}>
                       Upload documents & continue →
                     </Button>

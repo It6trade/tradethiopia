@@ -24,22 +24,20 @@ import {
   FaIdCard,
   FaExclamationTriangle,
 } from 'react-icons/fa';
-import { FiCheckCircle, FiMessageSquare } from 'react-icons/fi';
+import { FiCheckCircle, FiMessageSquare, FiUploadCloud } from 'react-icons/fi';
 import { getNotifications } from '../../services/notificationService';
 
 const sidebarItems = [
   { label: 'Home', icon: FaHome },
   { label: 'Followup', icon: FaMoneyBillWave },
   { label: 'Orders', icon: FaShoppingCart },
-  { label: 'Tutorials', icon: FaVideo },
   { label: 'Tasks', icon: FiCheckCircle },
   { label: 'Content Tracker', icon: FaRegCalendarAlt },
   { label: 'Monthly Report', icon: FaChartLine },
   { label: 'Notice Board', icon: FiMessageSquare },
   { label: 'Requests', icon: FaClipboardList },
-  { label: 'Personal Information', icon: FaIdCard },
+  { label: 'Upload Documents', icon: FiUploadCloud },
   { label: 'My Warnings', icon: FaExclamationTriangle },
-  // { label: 'Financial Reports', icon: FaChartLine },
 ];
 
 const SSidebar = ({ isCollapsed, toggleCollapse, activeItem, setActiveItem }) => {

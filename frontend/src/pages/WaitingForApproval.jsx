@@ -15,6 +15,7 @@ import { FaClock, FaCheckCircle, FaSyncAlt } from 'react-icons/fa';
 import { useUserStore } from '../store/user';
 import { useNavigate } from 'react-router-dom';
 import axiosInstance from '../services/axiosInstance';
+import { getRoleDashboardPath } from '../utils/dashboardAccess';
 
 const isAccessGranted = (val) =>
   ['on', 'active', 'approved', 'enabled', 'true'].includes(
@@ -45,7 +46,8 @@ const WaitingForApproval = () => {
             duration: 3500,
             isClosable: true,
           });
-          navigate('/sdashboard');
+          const targetDashboard = getRoleDashboardPath(refreshedUser.role || currentUser?.role);
+          navigate(targetDashboard);
           return;
         }
       }

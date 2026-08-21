@@ -35,6 +35,7 @@ import ITAdminPanel from './components/ITAdminPanel';
 import ITCollapsibleSection from './components/ITCollapsibleSection';
 import ITRemindersPanel from './components/ITRemindersPanel';
 import TicketManagementTab from './components/TicketManagementTab';
+import EmployeeFileUploadForm from '../EmployeeFileUploadForm';
 
 // Global shared imports
 import NoticeBoardPanel from '../../components/NoticeBoardPanel';
@@ -122,17 +123,20 @@ export default function ITDashboard() {
   const contentBg = useColorModeValue('transparent', 'transparent');
   const softText = useColorModeValue('gray.600', 'gray.400');
   const toolbarIconColor = useColorModeValue('#1e293b', '#e2e8f0');
-  const visibleTasks = filterTasksForPersona(tasks, persona, currentUser || {});
+  const safeUsers = Array.isArray(users) ? users : [];
+  const safeTasks = Array.isArray(tasks) ? tasks : [];
+  const safeReports = Array.isArray(reports) ? reports : [];
+  const visibleTasks = filterTasksForPersona(safeTasks, persona, currentUser || {});
   const nonTicketVisibleTasks = visibleTasks.filter((task) => !isSupportTicketTask(task));
   const visibleTaskIds = new Set(visibleTasks.map((task) => String(task._id || task.id)));
   const visibleReports = persona.canViewAllTasks
-    ? reports
-    : reports.filter((report) => {
-      const taskRef = report.taskRef?._id || report.taskRef || report.taskId;
+    ? safeReports
+    : safeReports.filter((report) => {
+      const taskRef = report?.taskRef?._id || report?.taskRef || report?.taskId;
       return taskRef && visibleTaskIds.has(String(taskRef));
     });
   const dueSoonCount = nonTicketVisibleTasks.filter((task) => {
-    if (!task.endDate || task.status === 'done') return false;
+    if (!task?.endDate || task?.status === 'done') return false;
     const due = new Date(task.endDate).getTime();
     const now = Date.now();
     return due >= now && due - now <= 3 * 24 * 60 * 60 * 1000;
@@ -142,13 +146,13 @@ export default function ITDashboard() {
     {
       label: 'Visible tasks',
       value: nonTicketVisibleTasks.length,
-      helper: `${nonTicketVisibleTasks.filter((task) => task.status === 'ongoing').length} in progress`,
+      helper: `${nonTicketVisibleTasks.filter((task) => task?.status === 'ongoing').length} in progress`,
       icon: FiActivity,
       color: 'blue',
     },
     {
       label: 'Completed',
-      value: nonTicketVisibleTasks.filter((task) => task.status === 'done').length,
+      value: nonTicketVisibleTasks.filter((task) => task?.status === 'done').length,
       helper: 'approved work stream',
       icon: FiCheckCircle,
       color: 'green',
@@ -162,7 +166,7 @@ export default function ITDashboard() {
     },
     {
       label: 'IT users',
-      value: users.filter((user) => String(user.role || '').toLowerCase().includes('it')).length,
+      value: safeUsers.filter((user) => String(user?.role || '').toLowerCase().includes('it')).length,
       helper: persona.canManageUsers ? 'managed directory' : 'team directory',
       icon: FiUsers,
       color: 'purple',
@@ -310,6 +314,8 @@ export default function ITDashboard() {
         );
       case 'profile':
         return <ITProfilePanel user={currentUser} persona={persona} tasks={visibleTasks} />;
+      case 'upload-documents':
+        return <EmployeeFileUploadForm embedded />;
       case 'admin':
         return persona.canManageUsers ? (
           <ITAdminPanel tasks={tasks} users={users} refreshUsers={fetchUsers} />

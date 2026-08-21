@@ -213,25 +213,30 @@ export default function HRProfilePage() {
   const [newActivityText, setNewActivityText] = useState('');
   const [newActivityCategory, setNewActivityCategory] = useState('Workforce');
 
-  // Profile Form State
-  const [formData, setFormData] = useState({
-    fullName: '',
-    username: '',
-    email: '',
-    altEmail: '',
-    phone: '',
-    altPhone: '',
-    jobTitle: '',
-    department: '',
-    location: '',
-    gender: 'male',
-    bio: '',
-    website: '',
-    twitter: '',
-    linkedin: '',
-    facebook: '',
-    telegram: '',
-    photoUrl: '',
+  // Profile Form State - initialized synchronously with cached user to eliminate mount flash
+  const [formData, setFormData] = useState(() => {
+    const user = currentUser || useUserStore.getState().currentUser || {};
+    return {
+      fullName: user.fullName || user.username || 'Dessie Ashagrie',
+      username: user.username || 'dessie_hr',
+      email: user.email || '',
+      altEmail: user.altEmail || '',
+      phone: user.phone || '+251 91 123 4567',
+      altPhone: user.altPhone || '',
+      jobTitle: user.jobTitle || 'Lead HR Specialist & People Operations',
+      department: user.department || 'Human Resources',
+      location: user.location || 'Addis Ababa, Ethiopia',
+      gender: user.gender || 'male',
+      bio:
+        user.bio ||
+        'Lead HR Specialist & People Operations at Trade Ethiopia. Passionate about organizational scaling and employee development.',
+      website: user.website || 'https://tradethiopia.com/hr',
+      twitter: user.twitter || '@tradethiopia_hr',
+      linkedin: user.linkedin || 'in/dessie-ashagrie',
+      facebook: user.facebook || 'TradeEthiopiaHR',
+      telegram: user.telegram || '@dessie_hr',
+      photoUrl: user.photoUrl || user.photo || '',
+    };
   });
 
   // Password Security Form
@@ -256,37 +261,61 @@ export default function HRProfilePage() {
     systemUpdates: false,
   });
 
+  // Compute sanitized photo URL to prevent empty-string image fetch flickering
+  const rawPhotoUrl = formData.photoUrl || currentUser?.photoUrl || currentUser?.photo;
+  const safePhotoUrl =
+    rawPhotoUrl &&
+    typeof rawPhotoUrl === 'string' &&
+    rawPhotoUrl.trim() !== '' &&
+    rawPhotoUrl !== 'null' &&
+    rawPhotoUrl !== 'undefined'
+      ? rawPhotoUrl
+      : undefined;
+
   // Populate form with current user data
   useEffect(() => {
     if (currentUser) {
-      setFormData({
-        fullName: currentUser.fullName || currentUser.username || '',
-        username: currentUser.username || '',
-        email: currentUser.email || '',
-        altEmail: currentUser.altEmail || '',
-        phone: currentUser.phone || '+251 91 123 4567',
-        altPhone: currentUser.altPhone || '',
-        jobTitle: currentUser.jobTitle || 'Lead HR Specialist & People Operations',
-        department: currentUser.department || 'Human Resources',
-        location: currentUser.location || 'Addis Ababa, Ethiopia',
-        gender: currentUser.gender || 'male',
-        bio:
-          currentUser.bio ||
-          'Lead HR Specialist & People Operations at Trade Ethiopia. Experienced in talent acquisition, workforce planning, organizational development, and high-performance culture.',
-        website: currentUser.website || 'https://tradethiopia.com/hr',
-        twitter: currentUser.twitter || '@tradethiopia_hr',
-        linkedin: currentUser.linkedin || 'in/dessie-ashagrie',
-        facebook: currentUser.facebook || 'TradeEthiopiaHR',
-        telegram: currentUser.telegram || '@dessie_hr',
-        photoUrl: currentUser.photoUrl || currentUser.photo || '',
+      setFormData((prev) => {
+        const nextPhoto = currentUser.photoUrl || currentUser.photo || '';
+        if (
+          prev.username === (currentUser.username || '') &&
+          prev.email === (currentUser.email || '') &&
+          prev.fullName === (currentUser.fullName || currentUser.username || '') &&
+          prev.photoUrl === nextPhoto &&
+          prev.jobTitle === (currentUser.jobTitle || 'Lead HR Specialist & People Operations') &&
+          prev.department === (currentUser.department || 'Human Resources')
+        ) {
+          return prev;
+        }
+        return {
+          fullName: currentUser.fullName || currentUser.username || '',
+          username: currentUser.username || '',
+          email: currentUser.email || '',
+          altEmail: currentUser.altEmail || '',
+          phone: currentUser.phone || '+251 91 123 4567',
+          altPhone: currentUser.altPhone || '',
+          jobTitle: currentUser.jobTitle || 'Lead HR Specialist & People Operations',
+          department: currentUser.department || 'Human Resources',
+          location: currentUser.location || 'Addis Ababa, Ethiopia',
+          gender: currentUser.gender || 'male',
+          bio:
+            currentUser.bio ||
+            'Lead HR Specialist & People Operations at Trade Ethiopia. Experienced in talent acquisition, workforce planning, organizational development, and high-performance culture.',
+          website: currentUser.website || 'https://tradethiopia.com/hr',
+          twitter: currentUser.twitter || '@tradethiopia_hr',
+          linkedin: currentUser.linkedin || 'in/dessie-ashagrie',
+          facebook: currentUser.facebook || 'TradeEthiopiaHR',
+          telegram: currentUser.telegram || '@dessie_hr',
+          photoUrl: nextPhoto,
+        };
       });
     }
   }, [currentUser]);
 
-  // Sync fresh data on mount
+  // Sync fresh data once on mount
   useEffect(() => {
     refreshCurrentUser?.();
-  }, [refreshCurrentUser]);
+  }, []);
 
   // Save activities to localStorage
   useEffect(() => {
@@ -640,7 +669,8 @@ export default function HRProfilePage() {
                   <Avatar
                     size="2xl"
                     name={formData.fullName || formData.username}
-                    src={formData.photoUrl}
+                    src={safePhotoUrl}
+                    ignoreFallback={!safePhotoUrl}
                     border="4px solid"
                     borderColor={cardBg}
                     boxShadow="lg"
@@ -947,7 +977,12 @@ export default function HRProfilePage() {
                       Post an Activity / HR Status Update
                     </Text>
                     <HStack spacing={3} align="flex-start">
-                      <Avatar size="sm" name={formData.fullName || formData.username} src={formData.photoUrl} />
+                      <Avatar
+                        size="sm"
+                        name={formData.fullName || formData.username}
+                        src={safePhotoUrl}
+                        ignoreFallback={!safePhotoUrl}
+                      />
                       <VStack flex="1" spacing={2} align="stretch">
                         <Input
                           placeholder="What did you work on or want to share? (e.g. Completed payroll review...)"
@@ -1115,7 +1150,8 @@ export default function HRProfilePage() {
                           <Avatar
                             size="xl"
                             name={formData.fullName || formData.username}
-                            src={formData.photoUrl}
+                            src={safePhotoUrl}
+                            ignoreFallback={!safePhotoUrl}
                             border="3px solid #2d6a4f"
                           />
                           <Box flex="1">
@@ -1867,7 +1903,8 @@ export default function HRProfilePage() {
                 <Avatar
                   size="xl"
                   name={formData.fullName || formData.username}
-                  src={formData.photoUrl}
+                  src={safePhotoUrl}
+                  ignoreFallback={!safePhotoUrl}
                   mb={3}
                   border="3px solid #2d6a4f"
                   boxShadow="md"

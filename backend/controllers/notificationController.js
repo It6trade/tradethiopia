@@ -38,6 +38,15 @@ const getNotifications = async (req, res) => {
           ...(item.metadata || {}),
         };
       }
+      if (item.category === 'onboarding' || item.type === 'onboarding') {
+        item.category = 'onboarding';
+        item.link = item.link || (item.metadata?.employeeId ? `/users?userId=${item.metadata.employeeId}&tab=2` : '/users');
+        item.metadata = {
+          title: item.metadata?.title || 'Employee Onboarding Verification',
+          actionLabel: item.metadata?.actionLabel || 'Review Employee',
+          ...(item.metadata || {}),
+        };
+      }
       if (item.type === 'comment') {
         item.metadata = {
           title: 'New task comment',
