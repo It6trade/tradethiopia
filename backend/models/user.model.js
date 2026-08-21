@@ -144,7 +144,12 @@ const userSchema = new mongoose.Schema({
     },
     trainingStatus: {
         type: String,
-        required: false, // Optional
+        required: false, // Optional: 'off', 'completed', 'on'
+    },
+    examStatus: {
+        type: String,
+        default: 'off',
+        required: false, // Optional: 'off', 'completed', 'on'
     },
     examBypass: {
         type: Boolean,

@@ -20,6 +20,10 @@
 .paper-page input[readonly], .paper-page textarea[readonly] { background: #f5f8fa; color: #263746; }
 .signature-line { border-top: 1px solid #7890a3; padding-top: 10px; }
 .section-action { padding: 14px 16px; border: 1px solid #cfe3e5; border-radius: 12px; background: #f3fbfb; }
+.passport-photo-box {
+  background: #f8fafc;
+  box-shadow: 0 2px 6px rgba(41, 79, 115, 0.08);
+}
 .paper-footer { margin-top: 34px; padding-top: 10px; border-top: 1px solid #e3e9ee; color: #8a9aa8; font-size: 10px; }
 .paper-footer span { float: right; }
 @media (max-width: 767px) {
@@ -40,6 +44,8 @@
   .company-logo { width: 360px; height: 125px; object-fit: cover; object-position: center 38%; }
   .screen-toolbar, .screen-only, button { display: none !important; }
   .field-owner-badge, .field-status-badge { display: none !important; }
+  .passport-photo-container button, .passport-photo-container .screen-only { display: none !important; }
+  .passport-photo-box { width: 30mm !important; height: 38mm !important; border: 1px solid #294f73 !important; }
   .paper-page { width: 100%; min-height: 277mm; border: 0; border-radius: 0; box-shadow: none; padding: 5mm 7mm 12mm; break-after: page; page-break-after: always; font-size: 9pt; }
   .paper-page-two { break-after: auto; page-break-after: auto; }
   .paper-section-heading { margin: 5mm 0 3mm; min-height: 7mm; padding: 2mm 3mm; print-color-adjust: exact; -webkit-print-color-adjust: exact; }

@@ -98,6 +98,8 @@ import {
   FiCheckCircle,
   FiXCircle,
 } from 'react-icons/fi';
+import { useSearchParams } from 'react-router-dom';
+import axiosInstance from '../services/axiosInstance';
 import { useUserStore } from '../store/user.js';
 import { normalizeRole } from '../store/user.js';
 import { getUserDepartment } from '../utils/department.js';
@@ -129,12 +131,50 @@ const HomePage = () => {
   const { fetchUsers, users, loading, error, updateUser, deleteUser, currentUser } = useUserStore();
   const isHrUser = normalizeRole(currentUser?.role || currentUser?.displayRole) === 'hr';
   
+  // URL search params for notification deep-linking to specific user drawer
+  const [searchParams, setSearchParams] = useSearchParams();
+  const targetUserId = searchParams.get('userId') || searchParams.get('employeeId') || searchParams.get('id');
+  const targetTab = searchParams.get('tab');
+
   // Selection & Selection state
   const [selectedUserIds, setSelectedUserIds] = useState(new Set());
   const [selectedUser, setSelectedUser] = useState(null);
   
   // Tab control in Details Panel
   const [activeTabIdx, setActiveTabIdx] = useState(0);
+
+  // Auto-open drawer when navigating from HR notification with userId
+  useEffect(() => {
+    if (!targetUserId) return;
+
+    // Check if user is already present in loaded users
+    if (users && users.length > 0) {
+      const found = users.find(
+        (u) =>
+          String(u._id) === String(targetUserId) ||
+          String(u.digitalId || '').toUpperCase() === String(targetUserId).toUpperCase()
+      );
+      if (found) {
+        setSelectedUser(found);
+        setActiveTabIdx(targetTab !== null ? (parseInt(targetTab, 10) || 0) : 2);
+        return;
+      }
+    }
+
+    // Fetch user directly if not in current page list
+    const loadTargetUser = async () => {
+      try {
+        const { data } = await axiosInstance.get(`/users/${targetUserId}`);
+        if (data?.data) {
+          setSelectedUser(data.data);
+          setActiveTabIdx(targetTab !== null ? (parseInt(targetTab, 10) || 0) : 2);
+        }
+      } catch (err) {
+        console.error('Error loading target user from notification URL:', err);
+      }
+    };
+    loadTargetUser();
+  }, [targetUserId, users, targetTab]);
 
   // Filters & Page options
   const [searchTerm, setSearchTerm] = useState('');
@@ -171,6 +211,7 @@ const HomePage = () => {
   // Toggle Switches state
   const [accountAccess, setAccountAccess] = useState(true);
   const [trainingAccess, setTrainingAccess] = useState(true);
+  const [examAccess, setExamAccess] = useState(true);
   const [examBypass, setExamBypass] = useState(false);
   const [twoFactorAuth, setTwoFactorAuth] = useState(false);
 
@@ -311,6 +352,8 @@ const HomePage = () => {
       setAccountAccess(selectedUser.status === 'active');
       const normalizedTrainingStatus = String(selectedUser.trainingStatus || '').trim().toLowerCase();
       setTrainingAccess(['on', 'active', 'approved', 'enabled', 'true'].includes(normalizedTrainingStatus));
+      const normalizedExamStatus = String(selectedUser.examStatus || '').trim().toLowerCase();
+      setExamAccess(['on', 'active', 'approved', 'enabled', 'true'].includes(normalizedExamStatus));
       setExamBypass(Boolean(selectedUser.examBypass));
       setTwoFactorAuth(selectedUser.twoFactorAuth === true);
     }
@@ -629,6 +672,7 @@ const HomePage = () => {
         role: editRole,
         status: accountAccess ? 'active' : 'inactive',
         trainingStatus: trainingAccess ? 'on' : 'off',
+        examStatus: examAccess ? 'on' : 'off',
         examBypass: Boolean(examBypass),
         twoFactorAuth
       };
@@ -1716,13 +1760,17 @@ const HomePage = () => {
                             <Switch size="sm" isChecked={accountAccess} onChange={handleDeactivateToggle} colorScheme="teal" />
                           </Flex>
                           <Flex justify="space-between" align="center">
-                            <Text color="gray.500" fontWeight="600">Training access</Text>
+                            <Text color="gray.500" fontWeight="600">Tutorial access</Text>
                             <Switch size="sm" isChecked={trainingAccess} onChange={(e) => setTrainingAccess(e.target.checked)} colorScheme="teal" />
                           </Flex>
                           <Flex justify="space-between" align="center">
+                            <Text color="gray.500" fontWeight="600">Exam access</Text>
+                            <Switch size="sm" isChecked={examAccess} onChange={(e) => setExamAccess(e.target.checked)} colorScheme="green" />
+                          </Flex>
+                          <Flex justify="space-between" align="center">
                             <Box>
-                              <Text color="gray.500" fontWeight="600">Pass Exam & Tutorial</Text>
-                              <Text fontSize="9px" color="gray.400">Permit direct dashboard access</Text>
+                              <Text color="gray.500" fontWeight="600">Direct Dashboard Bypass</Text>
+                              <Text fontSize="9px" color="gray.400">Permit direct dashboard access without tests</Text>
                             </Box>
                             <Switch size="sm" isChecked={examBypass} onChange={(e) => setExamBypass(e.target.checked)} colorScheme="purple" />
                           </Flex>
@@ -1904,7 +1952,12 @@ const HomePage = () => {
 
       <UserDetailDrawer
         isOpen={Boolean(selectedUser)}
-        onClose={() => setSelectedUser(null)}
+        onClose={() => {
+          setSelectedUser(null);
+          if (searchParams.get('userId') || searchParams.get('employeeId') || searchParams.get('id')) {
+            setSearchParams({}, { replace: true });
+          }
+        }}
         user={selectedUser}
         initialTab={activeTabIdx}
         onUserUpdated={() => fetchUsers(true)}

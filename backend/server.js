@@ -310,6 +310,7 @@ app.use('/api/assetcategories', assetCategoryRoutes);
 app.use('/api/assets', assetRoutes);
 app.use('/api/categories', CategoryRoutes);
 app.use('/api', infouploadRoutes);
+app.use('/api/infoupload', infouploadRoutes);
 app.use('/api/buyers', buyerRoutes);
 app.use('/api/sellers', sellerRoutes);
 app.use('/api/b2b', b2bMatchingRoutes);
