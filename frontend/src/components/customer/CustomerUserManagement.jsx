@@ -6,9 +6,11 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogOverlay,
+  Avatar,
   Badge,
   Box,
   Button,
+  ButtonGroup,
   Card,
   CardBody,
   CardHeader,
@@ -42,7 +44,7 @@ import {
   VStack,
 } from "@chakra-ui/react";
 import { AddIcon, CheckIcon, CloseIcon, DeleteIcon, EditIcon } from "@chakra-ui/icons";
-import { FiChevronDown, FiChevronRight, FiKey, FiLock, FiPower, FiRefreshCw, FiSearch, FiShield, FiUserCheck, FiUserPlus, FiUsers, FiX } from "react-icons/fi";
+import { FiChevronDown, FiChevronRight, FiGrid, FiKey, FiList, FiLock, FiPower, FiRefreshCw, FiSearch, FiShield, FiUserCheck, FiUserPlus, FiUsers, FiX } from "react-icons/fi";
 import axiosInstance from "../../services/axiosInstance";
 import Layout from "./Layout";
 
@@ -83,6 +85,7 @@ const CustomerUserManagement = () => {
   const [accountSearch, setAccountSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [viewMode, setViewMode] = useState("grid");
   const [isFormOpen, setIsFormOpen] = useState(true);
   const formCardRef = useRef(null);
 
@@ -498,7 +501,7 @@ const CustomerUserManagement = () => {
             </Collapse>
           </Card>
 
-          {/* Directory & Management Table - Full Screen */}
+          {/* Directory & Management Card - Grid and Table Views */}
           <Card bg={cardBg} borderColor={borderColor} borderWidth="1px" borderRadius="2xl" boxShadow="sm" w="100%">
             <CardHeader pb={3} pt={4} px={5}>
               <Flex justify="space-between" align={{ base: "flex-start", sm: "center" }} gap={3} flexWrap="wrap">
@@ -510,6 +513,23 @@ const CustomerUserManagement = () => {
                 </HStack>
 
                 <HStack spacing={2} flexWrap="wrap">
+                  <ButtonGroup size="sm" isAttached variant="outline">
+                    <IconButton
+                      aria-label="Grid View"
+                      icon={<FiGrid />}
+                      colorScheme={viewMode === "grid" ? "blue" : "gray"}
+                      variant={viewMode === "grid" ? "solid" : "outline"}
+                      onClick={() => setViewMode("grid")}
+                    />
+                    <IconButton
+                      aria-label="Table View"
+                      icon={<FiList />}
+                      colorScheme={viewMode === "table" ? "blue" : "gray"}
+                      variant={viewMode === "table" ? "solid" : "outline"}
+                      onClick={() => setViewMode("table")}
+                    />
+                  </ButtonGroup>
+
                   <Select
                     size="sm"
                     w="150px"
@@ -563,40 +583,189 @@ const CustomerUserManagement = () => {
               </Flex>
             </CardHeader>
 
-            <CardBody p={0}>
-              <TableContainer>
-                <Table size="sm" variant="simple">
-                  <Thead bg={sidebarBg}>
-                    <Tr>
-                      <Th>Staff Member</Th>
-                      <Th>Role</Th>
-                      <Th>Status</Th>
-                      <Th>Reset Password</Th>
-                      <Th textAlign="right">Actions</Th>
-                    </Tr>
-                  </Thead>
-                  <Tbody>
-                    {loading ? (
+            <CardBody p={viewMode === "grid" ? 4 : 0}>
+              {loading ? (
+                <Box textAlign="center" py={8}>
+                  <Spinner size="md" color="blue.500" />
+                  <Text fontSize="xs" color={mutedColor} mt={2}>Loading customer service accounts...</Text>
+                </Box>
+              ) : filteredUsers.length === 0 ? (
+                <Box textAlign="center" py={8} color={mutedColor} p={4}>
+                  No accounts found matching your search.
+                </Box>
+              ) : viewMode === "grid" ? (
+                /* Multi-Column Responsive Grid View */
+                <SimpleGrid columns={{ base: 1, md: 2, xl: 3 }} spacing={4}>
+                  {filteredUsers.map((user) => {
+                    const isCSM = normalizeRoleValue(user.role || user.roleName) === "customersuccessmanager";
+                    const isActive = user.status === "active";
+                    const displayName = user.fullName || user.username || "Staff Member";
+
+                    return (
+                      <Card
+                        key={user._id || user.email}
+                        bg={cardBg}
+                        borderColor={borderColor}
+                        borderWidth="1px"
+                        borderRadius="xl"
+                        boxShadow="xs"
+                        transition="all 0.2s ease"
+                        _hover={{
+                          borderColor: "blue.400",
+                          boxShadow: "sm",
+                          transform: "translateY(-1px)",
+                        }}
+                      >
+                        <CardBody p={4} display="flex" flexDirection="column" gap={3}>
+                          {/* User Header Profile */}
+                          <Flex justify="space-between" align="flex-start" gap={2}>
+                            <HStack spacing={2.5}>
+                              <Avatar size="sm" name={displayName} bg={isCSM ? "purple.500" : "blue.500"} color="white" />
+                              <Box minW={0}>
+                                <Text fontWeight="bold" fontSize="xs" isTruncated maxW="160px">
+                                  {displayName}
+                                </Text>
+                                <Text fontSize="2xs" color={mutedColor} isTruncated maxW="160px">
+                                  {user.email}
+                                </Text>
+                              </Box>
+                            </HStack>
+
+                            <Badge
+                              colorScheme={isActive ? "green" : "red"}
+                              fontSize="2xs"
+                              px={2}
+                              py={0.5}
+                              borderRadius="full"
+                            >
+                              {isActive ? "Active" : "Inactive"}
+                            </Badge>
+                          </Flex>
+
+                          {/* Role Badge */}
+                          <HStack spacing={1.5}>
+                            <Badge
+                              colorScheme={isCSM ? "purple" : "blue"}
+                              fontSize="2xs"
+                              px={2}
+                              py={0.5}
+                              borderRadius="md"
+                              fontWeight="bold"
+                            >
+                              {getCustomerRoleLabel(user.role)}
+                            </Badge>
+                            {user.department && (
+                              <Badge variant="outline" fontSize="2xs" colorScheme="gray">
+                                {user.department}
+                              </Badge>
+                            )}
+                          </HStack>
+
+                          {/* Inline Controls */}
+                          <SimpleGrid columns={2} spacing={2} pt={1} borderTop="1px solid" borderColor={borderColor}>
+                            <Box>
+                              <Text fontSize="2xs" color={mutedColor} mb={0.5} fontWeight="bold">Role</Text>
+                              <Select
+                                size="xs"
+                                borderRadius="md"
+                                value={isCSM ? "CustomerSuccessManager" : "customerservice"}
+                                onChange={(e) => updateUserInline(user, { role: e.target.value })}
+                              >
+                                <option value="customerservice">CS Officer</option>
+                                <option value="CustomerSuccessManager">CS Manager</option>
+                              </Select>
+                            </Box>
+
+                            <Box>
+                              <Text fontSize="2xs" color={mutedColor} mb={0.5} fontWeight="bold">Status</Text>
+                              <Select
+                                size="xs"
+                                borderRadius="md"
+                                value={user.status || "active"}
+                                onChange={(e) => updateUserInline(user, { status: e.target.value })}
+                              >
+                                <option value="active">Active</option>
+                                <option value="inactive">Inactive</option>
+                              </Select>
+                            </Box>
+                          </SimpleGrid>
+
+                          {/* Password Reset */}
+                          <Box pt={1} borderTop="1px solid" borderColor={borderColor}>
+                            <Text fontSize="2xs" color={mutedColor} mb={1} fontWeight="bold">Reset Password</Text>
+                            <HStack spacing={1.5}>
+                              <Input
+                                size="xs"
+                                type="password"
+                                placeholder="New password..."
+                                autoComplete="new-password"
+                                borderRadius="md"
+                                value={passwordDrafts[user._id] || ""}
+                                onChange={(e) => setPasswordDrafts({ ...passwordDrafts, [user._id]: e.target.value })}
+                              />
+                              <Button
+                                size="xs"
+                                colorScheme="blue"
+                                onClick={() => handleResetPassword(user)}
+                                isDisabled={!passwordDrafts[user._id]}
+                              >
+                                Set
+                              </Button>
+                            </HStack>
+                          </Box>
+
+                          {/* Action Buttons */}
+                          <Flex justify="flex-end" align="center" gap={1.5} pt={1} borderTop="1px solid" borderColor={borderColor}>
+                            <Button
+                              size="xs"
+                              variant="ghost"
+                              colorScheme="blue"
+                              leftIcon={<EditIcon />}
+                              onClick={() => startUserEdit(user)}
+                            >
+                              Edit
+                            </Button>
+                            <Button
+                              size="xs"
+                              variant="ghost"
+                              colorScheme="red"
+                              leftIcon={<DeleteIcon />}
+                              onClick={() => openDeleteDialog(user)}
+                            >
+                              Delete
+                            </Button>
+                          </Flex>
+                        </CardBody>
+                      </Card>
+                    );
+                  })}
+                </SimpleGrid>
+              ) : (
+                /* Structured Table View */
+                <TableContainer>
+                  <Table size="sm" variant="simple">
+                    <Thead bg={sidebarBg}>
                       <Tr>
-                        <Td colSpan={5} textAlign="center" py={8}>
-                          <Spinner size="md" color="blue.500" />
-                          <Text fontSize="xs" color={mutedColor} mt={2}>Loading customer service accounts...</Text>
-                        </Td>
+                        <Th>Staff Member</Th>
+                        <Th>Role</Th>
+                        <Th>Status</Th>
+                        <Th>Reset Password</Th>
+                        <Th textAlign="right">Actions</Th>
                       </Tr>
-                    ) : filteredUsers.length === 0 ? (
-                      <Tr>
-                        <Td colSpan={5} textAlign="center" py={8} color={mutedColor}>
-                          No accounts found matching your search.
-                        </Td>
-                      </Tr>
-                    ) : (
-                      filteredUsers.map((user) => (
+                    </Thead>
+                    <Tbody>
+                      {filteredUsers.map((user) => (
                         <Tr key={user._id || user.email} _hover={{ bg: tableHoverBg }}>
                           <Td>
-                            <Text fontWeight="semibold" fontSize="xs">
-                              {user.fullName || user.username}
-                            </Text>
-                            <Text fontSize="2xs" color="gray.500">{user.email}</Text>
+                            <HStack spacing={2}>
+                              <Avatar size="xs" name={user.fullName || user.username} bg="blue.500" color="white" />
+                              <Box>
+                                <Text fontWeight="semibold" fontSize="xs">
+                                  {user.fullName || user.username}
+                                </Text>
+                                <Text fontSize="2xs" color="gray.500">{user.email}</Text>
+                              </Box>
+                            </HStack>
                           </Td>
 
                           <Td>
@@ -675,11 +844,11 @@ const CustomerUserManagement = () => {
                             </HStack>
                           </Td>
                         </Tr>
-                      ))
-                    )}
-                  </Tbody>
-                </Table>
-              </TableContainer>
+                      ))}
+                    </Tbody>
+                  </Table>
+                </TableContainer>
+              )}
             </CardBody>
           </Card>
         </VStack>

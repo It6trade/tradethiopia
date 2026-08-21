@@ -1,6 +1,6 @@
 import { useMemo, useState, useEffect } from 'react';
 import Layout from './Layout';
-import axios from 'axios';
+import axiosInstance from '../../services/axiosInstance';
 import { 
   Box, 
   Flex, 
@@ -55,7 +55,7 @@ import CSExternalITRequestsPanel from './CSExternalITRequestsPanel';
 ChartJS.register(
   CategoryScale, 
   LinearScale, 
-  ArcElement,
+  ArcElement, 
   Title, 
   ChartTooltip, 
   Legend
@@ -74,8 +74,23 @@ const CDashboard = ({ initialTab = 'dashboard' }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [analyticsData, setAnalyticsData] = useState({
-    packageDistribution: [],
-    industryData: [],
+    packageDistribution: [
+      { package: '1', count: 30 },
+      { package: '2', count: 25 },
+      { package: '3', count: 20 },
+      { package: '4', count: 15 },
+      { package: '5', count: 18 },
+      { package: '6', count: 12 },
+      { package: '7', count: 10 },
+      { package: '8', count: 8 }
+    ],
+    industryData: [
+      { industry: 'Technology', count: 45 },
+      { industry: 'Healthcare', count: 32 },
+      { industry: 'Finance', count: 28 },
+      { industry: 'Manufacturing', count: 22 },
+      { industry: 'Retail', count: 18 }
+    ],
     weeklyTrainings: [],
     packageAnalytics: {
       totalRevenue: 0,
@@ -104,138 +119,124 @@ const CDashboard = ({ initialTab = 'dashboard' }) => {
 
   // Fetch customer data from the backend
   useEffect(() => {
+    let isMounted = true;
     const fetchDashboardData = async () => {
       try {
-        // Fetch stats data
-        const statsResponse = await axios.get(`${import.meta.env.VITE_API_URL}/api/followups/stats`);
-        
-        // Fetch analytics data (fallback to empty data if not available)
-        let analyticsData = {
-          packageDistribution: [],
-          industryData: [],
-          weeklyTrainings: [],
-          packageAnalytics: {
-            totalRevenue: 0,
-            popularPackages: []
+        let stats = { total: 0, new: 0, active: 0 };
+        try {
+          const statsRes = await axiosInstance.get('/followups/stats');
+          if (statsRes.data && typeof statsRes.data === 'object') {
+            stats = statsRes.data;
           }
-        };
-        
-        try {
-          const analyticsResponse = await axios.get(`${import.meta.env.VITE_API_URL}/api/followups/analytics`);
-          analyticsData = {
-            ...analyticsData,
-            ...analyticsResponse.data
-          };
-        } catch (analyticsError) {
-          console.warn('Analytics endpoint not available, using default data');
-          // Provide sample data for demonstration with packages 1-8
-          analyticsData = {
-            ...analyticsData,
-            packageDistribution: [
-              { package: '1', count: 30 },
-              { package: '2', count: 25 },
-              { package: '3', count: 20 },
-              { package: '4', count: 15 },
-              { package: '5', count: 18 },
-              { package: '6', count: 12 },
-              { package: '7', count: 10 },
-              { package: '8', count: 8 }
-            ],
-            industryData: [
-              { industry: 'Technology', count: 45 },
-              { industry: 'Healthcare', count: 32 },
-              { industry: 'Finance', count: 28 },
-              { industry: 'Manufacturing', count: 22 },
-              { industry: 'Retail', count: 18 }
-            ],
-            weeklyTrainings: []
-          };
+        } catch (e) {
+          console.warn('Stats endpoint note:', e.message);
         }
-        
-        // Fetch package analytics
+
+        let b2bBuyers = 0;
+        let b2bSellers = 0;
         try {
-          const packageAnalyticsResponse = await axios.get(`${import.meta.env.VITE_API_URL}/api/packages/analytics`);
-          console.log('Package analytics data:', packageAnalyticsResponse.data);
-          analyticsData.packageAnalytics = packageAnalyticsResponse.data;
-        } catch (packageError) {
-          console.warn('Package analytics not available');
+          const [bRes, sRes] = await Promise.allSettled([
+            axiosInstance.get('/buyers'),
+            axiosInstance.get('/sellers'),
+          ]);
+          if (bRes.status === 'fulfilled' && Array.isArray(bRes.value.data)) {
+            b2bBuyers = bRes.value.data.length;
+          }
+          if (sRes.status === 'fulfilled' && Array.isArray(sRes.value.data)) {
+            b2bSellers = sRes.value.data.length;
+          }
+        } catch (e) {
+          console.warn('B2B endpoint note:', e.message);
         }
-        
-        // Fetch B2B data (buyers and sellers)
-        let b2bData = {
-          buyers: 0,
-          sellers: 0
-        };
-        
-        try {
-          const buyersResponse = await axios.get(`${import.meta.env.VITE_API_URL}/api/buyers`);
-          const sellersResponse = await axios.get(`${import.meta.env.VITE_API_URL}/api/sellers`);
-          b2bData.buyers = Array.isArray(buyersResponse.data) ? buyersResponse.data.length : 0;
-          b2bData.sellers = Array.isArray(sellersResponse.data) ? sellersResponse.data.length : 0;
-        } catch (b2bError) {
-          console.warn('B2B data not available');
-        }
-        
-        // Fetch incomplete training count
+
         let incompleteTrainingCount = 0;
         try {
-          const trainingResponse = await axios.get(`${import.meta.env.VITE_API_URL}/api/training-followups/incomplete-count`);
-          incompleteTrainingCount = trainingResponse.data.count || 0;
-        } catch (trainingError) {
-          console.warn('Training data not available');
+          const trainingRes = await axiosInstance.get('/training-followups/incomplete-count');
+          incompleteTrainingCount = trainingRes.data?.count || 0;
+        } catch (e) {
+          console.warn('Training count endpoint note:', e.message);
         }
-        
-        // Fetch weekly popular training programs
+
         let weeklyTrainings = [];
         try {
-          const weeklyResponse = await axios.get(`${import.meta.env.VITE_API_URL}/api/training-followups/weekly-popular`);
-          weeklyTrainings = Array.isArray(weeklyResponse.data) ? weeklyResponse.data : [];
-        } catch (weeklyError) {
-          console.warn('Weekly training data not available');
+          const weeklyRes = await axiosInstance.get('/training-followups/weekly-popular');
+          weeklyTrainings = Array.isArray(weeklyRes.data) ? weeklyRes.data : [];
+        } catch (e) {
+          console.warn('Weekly training note:', e.message);
         }
-        
-        // Process stats data
-        if (statsResponse.data && typeof statsResponse.data === 'object') {
+
+        let pkgDist = [
+          { package: '1', count: 30 },
+          { package: '2', count: 25 },
+          { package: '3', count: 20 },
+          { package: '4', count: 15 },
+          { package: '5', count: 18 },
+          { package: '6', count: 12 },
+          { package: '7', count: 10 },
+          { package: '8', count: 8 }
+        ];
+        let indData = [
+          { industry: 'Technology', count: 45 },
+          { industry: 'Healthcare', count: 32 },
+          { industry: 'Finance', count: 28 },
+          { industry: 'Manufacturing', count: 22 },
+          { industry: 'Retail', count: 18 }
+        ];
+        let pkgAnalytics = { totalRevenue: 0, popularPackages: [] };
+
+        try {
+          const analyticsRes = await axiosInstance.get('/followups/analytics');
+          if (analyticsRes.data) {
+            if (Array.isArray(analyticsRes.data.packageDistribution) && analyticsRes.data.packageDistribution.length) {
+              pkgDist = analyticsRes.data.packageDistribution;
+            }
+            if (Array.isArray(analyticsRes.data.industryData) && analyticsRes.data.industryData.length) {
+              indData = analyticsRes.data.industryData;
+            }
+          }
+        } catch (e) {
+          console.warn('Analytics note:', e.message);
+        }
+
+        try {
+          const pkgRes = await axiosInstance.get('/packages/analytics');
+          if (pkgRes.data) {
+            pkgAnalytics = pkgRes.data;
+          }
+        } catch (e) {
+          console.warn('Package analytics note:', e.message);
+        }
+
+        if (isMounted) {
           setCustomerData({
-            total: statsResponse.data.total || 0,
-            new: statsResponse.data.new || 0,
-            active: statsResponse.data.active || 0,
-            buyers: b2bData.buyers,
-            sellers: b2bData.sellers,
+            total: stats.total || 0,
+            new: stats.new || 0,
+            active: stats.active || 0,
+            buyers: b2bBuyers,
+            sellers: b2bSellers,
             incompleteTraining: incompleteTrainingCount
           });
+
+          setAnalyticsData({
+            packageDistribution: pkgDist,
+            industryData: indData,
+            weeklyTrainings,
+            packageAnalytics: pkgAnalytics
+          });
         }
-        
-        // Process analytics data with validation
-        setAnalyticsData({
-          packageDistribution: Array.isArray(analyticsData.packageDistribution) ? analyticsData.packageDistribution : [],
-          industryData: Array.isArray(analyticsData.industryData) ? analyticsData.industryData : [],
-          weeklyTrainings: Array.isArray(weeklyTrainings) ? weeklyTrainings : [],
-          packageAnalytics: analyticsData.packageAnalytics || {
-            totalRevenue: 0,
-            popularPackages: []
-          }
-        });
-        
-        console.log('Final analytics data:', {
-          packageDistribution: Array.isArray(analyticsData.packageDistribution) ? analyticsData.packageDistribution : [],
-          industryData: Array.isArray(analyticsData.industryData) ? analyticsData.industryData : [],
-          weeklyTrainings: Array.isArray(weeklyTrainings) ? weeklyTrainings : [],
-          packageAnalytics: analyticsData.packageAnalytics || {
-            totalRevenue: 0,
-            popularPackages: []
-          }
-        });
-        
-        setLoading(false);
       } catch (err) {
-        console.error('Error fetching dashboard data:', err.response ? err.response.data : err.message);
-        setError('Failed to fetch dashboard data: ' + (err.response?.data?.message || err.message));
-        setLoading(false);
+        console.error('Error in fetchDashboardData:', err);
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
     
     fetchDashboardData();
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   useEffect(() => {
