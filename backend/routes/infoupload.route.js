@@ -15,12 +15,13 @@ function generateAppwriteFileUrl(fileId) {
 
 // Define the upload route for photo and guarantor file
 router.post(
-  '/upload-info',
+  ['/upload-info', '/'],
   protect,
   upload.fields([{ name: 'photo' }, { name: 'guarantorFile' }]),
   async (req, res) => {
     try {
-      const userId = req.user._id;
+      const isHrOrAdmin = ['admin', 'Admin', 'hr', 'HR', 'coo', 'COO'].includes(req.user.role);
+      const userId = (isHrOrAdmin && req.body.userId) ? req.body.userId : req.user._id;
       const { photo, guarantorFile } = req.files || {};
 
       if ((!photo || !photo[0]) && (!guarantorFile || !guarantorFile[0])) {

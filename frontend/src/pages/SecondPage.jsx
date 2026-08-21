@@ -259,21 +259,21 @@ businesses
       </HStack>
 
       {/* Navigation Buttons */}
-      <HStack justify="space-between" mt={6}>
-        {/* <Button
+      <HStack justify="space-between" mt={6} w="full">
+        <Button
           colorScheme="purple"
           variant="outline"
-          onClick={() => navigate(-1)}
+          onClick={() => navigate("/employee-file-upload")}
           _hover={{ backgroundColor: "purple.500", color: "white" }}
         >
-          Back
-        </Button> */}
+          ← Back to Documents
+        </Button>
         <Button
           colorScheme="purple"
           onClick={() => navigate("/thirdpage")}
-          _hover={{ backgroundColor: "purple.500", color: "white" }}
+          _hover={{ backgroundColor: "purple.600", color: "white" }}
         >
-          Next
+          Next →
         </Button>
       </HStack>
     

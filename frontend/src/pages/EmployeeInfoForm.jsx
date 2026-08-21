@@ -2,9 +2,12 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Alert, AlertIcon, Badge, Box, Button, Checkbox, Divider, Flex, FormControl,
   FormErrorMessage, FormLabel, Grid, Heading, HStack, Icon, IconButton, Image, Input, Select,
-  SimpleGrid, Skeleton, Stack, Text, Textarea, Tooltip, useToast,
+  SimpleGrid, Skeleton, Spinner, Stack, Text, Textarea, Tooltip, useToast,
 } from '@chakra-ui/react';
-import { FiCheck, FiChevronLeft, FiFileText, FiPlus, FiPrinter, FiSave, FiSend, FiShield, FiTrash2 } from 'react-icons/fi';
+import {
+  FiCamera, FiCheck, FiChevronLeft, FiFileText, FiPlus, FiPrinter, FiSave,
+  FiSend, FiShield, FiTrash2, FiUploadCloud, FiUser,
+} from 'react-icons/fi';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import axiosInstance from '../services/axiosInstance';
 import { normalizeRole, useUserStore } from '../store/user';
@@ -118,10 +121,103 @@ const EmployeeInfoForm = () => {
   const [working, setWorking] = useState(false);
   const [decisionNote, setDecisionNote] = useState('');
   const [validationMode, setValidationMode] = useState(null);
+  const [photoPreview, setPhotoPreview] = useState(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
   // HR reviews a read-only employee record. For the employee, only final HR
   // approval locks the form; submitted and returned records remain editable.
   const locked = hrView || record.status === 'approved';
   const reviewer = reviewerIdentity(record.hrDecision);
+
+  const handlePhotoUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      toast({
+        title: 'Invalid File Format',
+        description: 'Please select an image file (PNG, JPG, JPEG, WEBP).',
+        status: 'warning',
+        duration: 3500,
+        isClosable: true,
+      });
+      return;
+    }
+
+    if (file.size > 9 * 1024 * 1024) {
+      toast({
+        title: 'File Too Large',
+        description: 'Image file size must be less than 9MB.',
+        status: 'warning',
+        duration: 3500,
+        isClosable: true,
+      });
+      return;
+    }
+
+    const localUrl = URL.createObjectURL(file);
+    setPhotoPreview(localUrl);
+    setUploadingPhoto(true);
+
+    const formData = new FormData();
+    formData.append('photo', file);
+    if (hrView && employeeId) {
+      formData.append('userId', employeeId);
+    }
+
+    try {
+      const { data } = await axiosInstance.post('/upload-info', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+
+      if (data.success && data.user) {
+        setEmployee((prev) => ({
+          ...prev,
+          photo: data.user.photo,
+          photoUrl: data.user.photoUrl,
+        }));
+
+        // If current user is modifying their own record, sync global user store
+        if (!hrView || employeeId === currentUser?._id) {
+          useUserStore.getState().setCurrentUser({
+            ...currentUser,
+            photo: data.user.photo,
+            photoUrl: data.user.photoUrl,
+          });
+        }
+
+        // Check off passport photo in the document checklist
+        setRecord((prev) => ({
+          ...prev,
+          documentChecklist: {
+            ...prev.documentChecklist,
+            passportPhoto: true,
+          },
+        }));
+
+        toast({
+          title: 'Profile Picture Saved',
+          description: 'Your photo has been uploaded and updated across your employee profile.',
+          status: 'success',
+          duration: 3500,
+          isClosable: true,
+        });
+      } else {
+        throw new Error(data.message || 'Upload failed');
+      }
+    } catch (err) {
+      console.error('Error uploading photo:', err);
+      toast({
+        title: 'Upload Failed',
+        description: err.response?.data?.message || err.message || 'Failed to upload profile picture.',
+        status: 'error',
+        duration: 4000,
+        isClosable: true,
+      });
+      setPhotoPreview(null);
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -312,16 +408,169 @@ const EmployeeInfoForm = () => {
 
       <Box className="employee-paper">
         <Box className="paper-page paper-page-one">
-          <Flex className="paper-header" direction="column" align="center">
-            <Image
-              src="/brand/tradethiopia-logo.png"
-              alt="Trade Ethiopia Group"
-              className="company-logo"
-              fallback={<Box h="55px"><Heading size="md" color="#294f73">TradeEthiopia Group</Heading></Box>}
-            />
-            <Heading mt={2} size="md" textAlign="center" letterSpacing="0.04em">NEW EMPLOYEE PERSONAL INFORMATION FORM</Heading>
-            <Text mt={1} fontSize="xs" color="gray.500">To be completed by the new employee and verified by the HR Department upon hire.</Text>
-          </Flex>
+          <Box className="paper-header" position="relative" pb={3}>
+            <Flex
+              direction={{ base: 'column', md: 'row' }}
+              align={{ base: 'center', md: 'flex-start' }}
+              justify="space-between"
+              gap={{ base: 4, md: 6 }}
+              mb={2}
+            >
+              {/* TOP LEFT: Professional Passport / Profile Photo Box */}
+              <Box
+                w={{ base: '130px', md: '135px' }}
+                flexShrink={0}
+                textAlign="center"
+                className="passport-photo-container"
+              >
+                <Box
+                  position="relative"
+                  w="115px"
+                  h="135px"
+                  mx="auto"
+                  border="2px"
+                  borderStyle={employee.photoUrl || photoPreview ? 'solid' : 'dashed'}
+                  borderColor={employee.photoUrl || photoPreview ? '#294f73' : '#b0c4de'}
+                  borderRadius="md"
+                  bg="#f8fafc"
+                  overflow="hidden"
+                  boxShadow="sm"
+                  transition="all 0.2s"
+                  className="passport-photo-box"
+                  _hover={!locked ? { borderColor: 'teal.500', transform: 'translateY(-1px)' } : {}}
+                >
+                  {employee.photoUrl || photoPreview ? (
+                    <Image
+                      src={photoPreview || employee.photoUrl}
+                      alt="Employee Profile Photo"
+                      w="100%"
+                      h="100%"
+                      objectFit="cover"
+                    />
+                  ) : (
+                    <Flex direction="column" align="center" justify="center" h="100%" p={2} color="gray.400">
+                      <Icon as={FiUser} boxSize={7} mb={1} color="#607d8b" />
+                      <Text fontSize="9px" fontWeight="800" color="#455a64" textTransform="uppercase" letterSpacing="0.05em">
+                        Passport Photo
+                      </Text>
+                      <Text fontSize="8px" color="gray.500">3x4 cm Portrait</Text>
+                    </Flex>
+                  )}
+
+                  {/* Uploading Spinner Overlay */}
+                  {uploadingPhoto && (
+                    <Flex
+                      position="absolute"
+                      inset={0}
+                      bg="blackAlpha.700"
+                      color="white"
+                      align="center"
+                      justify="center"
+                      direction="column"
+                      gap={1}
+                      zIndex={2}
+                    >
+                      <Spinner size="sm" color="teal.300" />
+                      <Text fontSize="9px" fontWeight="700">Uploading...</Text>
+                    </Flex>
+                  )}
+                </Box>
+
+                {/* Upload Action Button */}
+                {!locked && (
+                  <Box mt={2} className="screen-only">
+                    <input
+                      type="file"
+                      id="employee-form-photo-input"
+                      accept="image/png,image/jpeg,image/jpg,image/webp"
+                      style={{ display: 'none' }}
+                      onChange={handlePhotoUpload}
+                      disabled={uploadingPhoto || locked}
+                    />
+                    <Button
+                      as="label"
+                      htmlFor="employee-form-photo-input"
+                      size="xs"
+                      colorScheme={employee.photoUrl ? 'teal' : 'teal'}
+                      variant={employee.photoUrl ? 'outline' : 'solid'}
+                      cursor="pointer"
+                      fontSize="10px"
+                      h="24px"
+                      px={2}
+                      isDisabled={uploadingPhoto || locked}
+                      leftIcon={<Icon as={FiCamera} boxSize={3} />}
+                      w="115px"
+                    >
+                      {employee.photoUrl ? 'Change Photo' : 'Upload Photo'}
+                    </Button>
+                  </Box>
+                )}
+
+                {/* Photo Status Badge */}
+                <Box mt={1.5}>
+                  <Badge
+                    colorScheme={employee.photoUrl ? 'green' : 'orange'}
+                    variant="subtle"
+                    borderRadius="full"
+                    fontSize="8px"
+                    px={2}
+                  >
+                    {employee.photoUrl ? 'Photo Uploaded' : 'Photo Required'}
+                  </Badge>
+                </Box>
+              </Box>
+
+              {/* CENTER: Company Logo & Form Title */}
+              <Flex direction="column" align="center" justify="center" flex="1" textAlign="center" pt={1}>
+                <Image
+                  src="/brand/tradethiopia-logo.png"
+                  alt="Trade Ethiopia Group"
+                  className="company-logo"
+                  fallback={<Box h="55px"><Heading size="md" color="#294f73">TradeEthiopia Group</Heading></Box>}
+                />
+                <Heading mt={2} size="md" textAlign="center" letterSpacing="0.04em">
+                  NEW EMPLOYEE PERSONAL INFORMATION FORM
+                </Heading>
+                <Text mt={1} fontSize="xs" color="gray.500">
+                  To be completed by the new employee and verified by the HR Department upon hire.
+                </Text>
+              </Flex>
+
+              {/* TOP RIGHT: Official Document Reference / Meta Box */}
+              <Box
+                w={{ base: '130px', md: '135px' }}
+                flexShrink={0}
+                p={2.5}
+                border="1px solid"
+                borderColor="gray.200"
+                borderRadius="md"
+                bg="#f8fafc"
+                fontSize="xs"
+                textAlign={{ base: 'center', md: 'right' }}
+                className="doc-ref-box"
+              >
+                <Text fontSize="8px" fontWeight="800" color="gray.500" letterSpacing="widest" textTransform="uppercase">
+                  FORM REF
+                </Text>
+                <Text fontSize="11px" fontWeight="800" color="#294f73">
+                  HR-ONB-01
+                </Text>
+                <Divider my={1.5} />
+                <Text fontSize="8px" fontWeight="800" color="gray.500" textTransform="uppercase">
+                  DOC STATUS
+                </Text>
+                <Badge colorScheme={statusColor[record.status] || 'gray'} fontSize="9px" borderRadius="full" px={2}>
+                  {(record.status || 'draft').toUpperCase()}
+                </Badge>
+                {employee.digitalId && (
+                  <>
+                    <Divider my={1.5} />
+                    <Text fontSize="8px" color="gray.500">ID: <strong>{employee.digitalId}</strong></Text>
+                  </>
+                )}
+              </Box>
+            </Flex>
+          </Box>
 
           <SectionHeading code="A" title="PERSONAL INFORMATION" />
           <SimpleGrid columns={{ base: 1, md: 3 }} spacing={4} className="paper-grid">
@@ -461,9 +710,18 @@ const EmployeeInfoForm = () => {
                 <Flex justify="space-between" align={{ base: 'stretch', md: 'center' }} direction={{ base: 'column', md: 'row' }} gap={4}>
                   <Box>
                     <Text fontWeight="800" color="green.800">HR approval complete</Text>
-                    <Text mt={1} fontSize="sm" color="green.700">Your employee record is approved. You may now continue to the company tutorials.</Text>
+                    <Text mt={1} fontSize="sm" color="green.700">
+                      Your employee record is approved. You can now upload your official documents (optional) and continue to the company tutorials.
+                    </Text>
                   </Box>
-                  <Button colorScheme="green" flexShrink={0} onClick={() => navigate('/secondpage')}>Continue to tutorials</Button>
+                  <HStack spacing={3} flexShrink={0} wrap="wrap">
+                    <Button colorScheme="teal" variant="outline" onClick={() => navigate('/secondpage')}>
+                      Skip to tutorials
+                    </Button>
+                    <Button colorScheme="green" onClick={() => navigate('/employee-file-upload')}>
+                      Upload documents & continue →
+                    </Button>
+                  </HStack>
                 </Flex>
               ) : record.status === 'submitted' ? (
                 <Box>
