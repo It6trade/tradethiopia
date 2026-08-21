@@ -4,15 +4,15 @@ const NotificationSchema = new mongoose.Schema({
   user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   text: { type: String, required: true },
   read: { type: Boolean, default: false },
-  type: { type: String, enum: ['general', 'task', 'target', 'chat', 'reminder', 'comment', 'report', 'request', 'warning', 'risk document'], default: 'general' },
-  category: { type: String, default: '' },
+  type: { type: String, default: 'general' },
+  category: { type: String, default: 'general' },
   documentId: { type: mongoose.Schema.Types.ObjectId, ref: 'Document' },
   taskId: { type: mongoose.Schema.Types.ObjectId, ref: 'Task' },
   itTaskId: { type: mongoose.Schema.Types.ObjectId, ref: 'ITTask' },
   commentId: { type: mongoose.Schema.Types.ObjectId },
   link: { type: String, default: '' },
   metadata: { type: mongoose.Schema.Types.Mixed },
-  targetId: { type: mongoose.Schema.Types.ObjectId, ref: 'SalesTarget' },
+  targetId: { type: mongoose.Schema.Types.ObjectId },
   createdAt: { type: Date, default: Date.now },
 });
 

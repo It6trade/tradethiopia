@@ -23,6 +23,11 @@ import { FiEye, FiEyeOff } from 'react-icons/fi';
 import { useUserStore, normalizeRole } from '../store/user'; // Update the path if necessary
 import axiosInstance from '../services/axiosInstance';
 import { consumeReturnPath } from '../utils/authStorage';
+import {
+    isUserPermittedForDashboard,
+    getOnboardingRedirectPath,
+    getRoleDashboardPath,
+} from '../utils/dashboardAccess';
 
 const LoginPage = () => {
     const [email, setEmail] = useState('');
@@ -47,98 +52,26 @@ const handleLogin = async (event) => {
         if (response.data.success) {
             // Extract user data and token correctly
             const { user, token } = response.data;
-            const { _id, role, status, infoStatus, trainingStatus, examBypass, username, email, fullName, jobTitle } = user;
-            console.log('LoginPage - Login Success:', { _id, role, status, infoStatus, examBypass, username, email });
+            const { _id, role, status, infoStatus, trainingStatus, examStatus, examBypass, username, email, fullName, jobTitle } = user;
+            console.log('LoginPage - Login Success:', { _id, role, status, infoStatus, trainingStatus, examStatus, examBypass, username, email });
 
             // Save token and user information in local storage
-            setCurrentUser({ username, role, status, infoStatus, trainingStatus, examBypass, token, _id, email, fullName, jobTitle });
+            setCurrentUser({ username, role, status, infoStatus, trainingStatus, examStatus, examBypass, token, _id, email, fullName, jobTitle });
 
-            const normalizedRole = normalizeRole(role);
+            const userWithToken = { ...user, token };
+            const isPermitted = isUserPermittedForDashboard(userWithToken);
 
-            // Roles like Tessbin Admin bypass HR employee onboarding info checks
-            const bypassHrApprovalRoles = ['tessbinadmin', 'tessbin', 'tessbin_admin', 'admin', 'coo', 'ceo', 'it', 'itadmin'];
-            const isBypassRole = bypassHrApprovalRoles.includes(normalizedRole);
-            const hasExamBypass = Boolean(examBypass) || String(trainingStatus || '').toLowerCase() === 'exempt';
-            const shouldBypassOnboarding = isBypassRole || hasExamBypass;
-
-            // Check user, info statuses, and HR exam/tutorial bypass permission
-            if (!shouldBypassOnboarding && status === 'inactive' && infoStatus === 'active') {
-                console.log('LoginPage - redirecting to /secondpage (inactive status, active infoStatus, no bypass)');
-                redirectAfterLogin('/secondpage');
-            } else if (!shouldBypassOnboarding && (status === 'inactive' || status === 'active') && infoStatus !== 'active')  {
-                console.log('LoginPage - redirecting to /employee-info (infoStatus is not active:', infoStatus, ')');
-                redirectAfterLogin('/employee-info');
+            if (!isPermitted) {
+                const onboardingPath = getOnboardingRedirectPath(userWithToken);
+                console.log(`[LoginPage] User ${email} has no HR dashboard permit yet. Redirecting to: ${onboardingPath}`);
+                redirectAfterLogin(onboardingPath);
             } else {
-                const returnPath = consumeReturnPath({ _id, role: normalizedRole });
-                console.log('LoginPage - redirecting based on normalized role:', normalizedRole);
+                const returnPath = consumeReturnPath({ _id, role: normalizeRole(role) });
+                console.log('[LoginPage] User permitted. Redirecting based on role:', role);
                 if (returnPath) {
                     redirectAfterLogin(returnPath);
                 } else {
-                switch (normalizedRole) {
-                   
-                    case 'admin':
-                    case 'hr':
-                        redirectAfterLogin('/dashboard');
-                        break;
-                    case 'finance':
-                        redirectAfterLogin('/finance-dashboard');
-                        break;
-                    case 'sales':
-                        redirectAfterLogin('/sdashboard');
-                        break;
-                    case 'salesmanager':
-                        redirectAfterLogin('/salesmanager');
-                        break;
-                    case 'customerservice':
-                    case 'customer_service':
-                    case 'customersuccessmanager':
-                    case 'customer_success_manager':
-                        redirectAfterLogin('/Cdashboard');
-                        break;
-                    case 'coo':
-                        redirectAfterLogin('/coo-dashboard');
-                        break;
-                    case 'ceo':
-                        navigate('/ceo-dashboard');
-                        break;
-                    case 'reception':
-                        redirectAfterLogin('/reception-dashboard');
-                        break;
-                    case 'tradextv':
-                    case 'tetv':
-                        redirectAfterLogin('/tradextv-dashboard');
-                        break;
-                    case 'it':
-                    case 'itadmin':
-                    case 'itmanager':
-                    case 'itteamleader':
-                    case 'itleader':
-                    case 'itstaff':
-                    case 'itofficer':
-                        redirectAfterLogin('/it');
-                        break;
-                    case 'socialmediamanager':
-                    case 'socialmedia':
-                        redirectAfterLogin('/social-media'); // Add social media role navigation
-                        break;
-                    case 'supervisor':
-                        redirectAfterLogin('/supervisor');
-                        break;
-                    case 'enisra':
-                        redirectAfterLogin('/enisra/dashboard');
-                        break;
-                    case 'instructor':
-                        redirectAfterLogin('/instructor');
-                        break;
-                    case 'tessbinadmin':
-                    case 'tessbin':
-                    case 'tessbin_admin':
-                        redirectAfterLogin('/tessbin-dashboard');
-                        break;
-                    default:
-                        redirectAfterLogin('/ComingSoonPage'); // Optional: handle unknown roles
-                        break;
-                }
+                    redirectAfterLogin(getRoleDashboardPath(role));
                 }
             }
 

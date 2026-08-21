@@ -12,17 +12,18 @@ const getCategories = async (req, res) => {
 
 // Create a new category
 const createCategory = async (req, res) => {
-  const { name, section, description } = req.body;  // Ensure title is included
+  const { name, section, description, isMandatory } = req.body;
 
   try {
       const newCategory = new Category({
           name,
-          section, // Ensure this is being set
-          description,
+          section,
+          description: description || '',
+          isMandatory: Boolean(isMandatory),
       });
 
-      const savedCategory = await newCategory.save();  // Save the new category to the database
-      res.status(201).json({ success: true, data: savedCategory });  // Send back the newly created category
+      const savedCategory = await newCategory.save();
+      res.status(201).json({ success: true, data: savedCategory });
   } catch (error) {
       res.status(500).json({ success: false, message: 'Failed to create category', error: error.message });
   }

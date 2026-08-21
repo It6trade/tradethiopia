@@ -1,5 +1,6 @@
 import { Suspense, lazy } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
+import { useUserStore } from "./store/user";
 import Dashboard from "./pages/Dashboard";
 import CreatePage from "./pages/CreatePage";
 import CreateQuiz from "./pages/CreateQuiz";
@@ -51,6 +52,7 @@ import ENISRARequestEmbedded from "./components/ENSRA/ENISRARequestEmbedded";
 import ENISRAFollowUp from "./components/ENSRA/ENISRAFollowUp";
 import ProtectedRoute from "./routes/ProtectedRoute";
 import ApprovedOnboardingRoute from "./routes/ApprovedOnboardingRoute";
+import DashboardPermitRoute from "./routes/DashboardPermitRoute";
 import RoleProtectedRoute from "./components/RoleProtectedRoute";
 import InstructorLayout from "./components/instructor/InstructorLayout";
 import InstructorDashboard from "./pages/instructor/Dashboard";
@@ -124,13 +126,26 @@ const IT_ALLOWED_ROLES = [
   "itleader",
   "itstaff",
   "itofficer",
+  "it team leader",
+  "it staff",
+  "it manager",
+  "coo",
+  "ceo",
+  "hr",
 ];
 
 function App() {
   const location = useLocation();
+  const currentUser = useUserStore((state) => state.currentUser);
+  const normalizedRole = (currentUser?.role || currentUser?.normalizedRole || '')
+    .toString()
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '');
+  const isHrOrAdmin = ['admin', 'hr', 'coo', 'ceo'].includes(normalizedRole);
 
   const noNavSidebarRoutes = [
-    "/", "/login", "/secondpage", "/employee-info", "/employee-file-upload", 
+    "/", "/login", "/secondpage", "/employee-info",
+    ...(isHrOrAdmin ? [] : ["/employee-file-upload"]),
     "/thirdpage", "/ttv", "/fourthpage", "/fifthpage", "/exam", "/sdashboard", "/sales", "/sales/dashboard", "/finance-dashboard", "/finance-dashboard/reports",
     "/finance-dashboard/inventory", "/finance-dashboard/orders", "/finance-dashboard/pricing", "/finance-dashboard/revenue", "/finance-dashboard/purchase",
     "/finance/messages", "/finance/team-requests", "/finance/demands", "/finance/payments", "/finance/inventory", "/finance/orders",
@@ -167,32 +182,32 @@ function App() {
       <Route path="/fifthpage" element={<FifthPage />} />
       <Route path="/exam" element={<QuizPage />} />
       <Route path="/WaitingForApproval" element={<WaitingForApproval />} />
-      <Route path="/sdashboard" element={<Sdashboard />} />
-      <Route path="/sales" element={<Sdashboard />} />
-      <Route path="/sales/dashboard" element={<Sdashboard />} />
-      <Route path="/srequest" element={<Srequest />} />
-      <Route path="/finance-dashboard" element={<FinanceLayout><FinanceDashboardPage /></FinanceLayout>} />
-      <Route path="/finance-dashboard/erp" element={<FinanceLayout><FinanceERPPage /></FinanceLayout>} />
-      <Route path="/finance-dashboard/accounting" element={<FinanceLayout><FinanceERPPage /></FinanceLayout>} />
-      <Route path="/finance-dashboard/sales-finance" element={<FinanceLayout><FinanceERPPage /></FinanceLayout>} />
-      <Route path="/finance-dashboard/purchase-finance" element={<FinanceLayout><FinanceERPPage /></FinanceLayout>} />
-      <Route path="/finance-dashboard/bank-cash" element={<FinanceLayout><FinanceERPPage /></FinanceLayout>} />
-      <Route path="/finance-dashboard/expenses" element={<FinanceLayout><FinanceERPPage /></FinanceLayout>} />
-      <Route path="/finance-dashboard/tax" element={<FinanceLayout><FinanceERPPage /></FinanceLayout>} />
-      <Route path="/finance-dashboard/settings" element={<FinanceLayout><FinanceERPPage /></FinanceLayout>} />
-      <Route path="/finance-dashboard/reports" element={<FinanceLayout><FinanceReportsPage /></FinanceLayout>} />
-      <Route path="/finance-dashboard/inventory" element={<FinanceLayout><InventoryPage /></FinanceLayout>} />
-      <Route path="/finance-dashboard/orders" element={<FinanceLayout><OrdersPage /></FinanceLayout>} />
-      <Route path="/finance-dashboard/demands" element={<FinanceLayout><FinanceDemandsPage /></FinanceLayout>} />
-      <Route path="/finance-dashboard/payments" element={<FinanceLayout><FinancePaymentsPage /></FinanceLayout>} />
-      <Route path="/finance-dashboard/pricing" element={<FinanceLayout><PricingPage /></FinanceLayout>} />
-      <Route path="/finance-dashboard/create-course" element={<FinanceLayout><PricingPage /></FinanceLayout>} />
-      <Route path="/finance-dashboard/revenue" element={<FinanceLayout><RevenuePage /></FinanceLayout>} />
-      <Route path="/finance-dashboard/purchase" element={<FinanceLayout><PurchasePage /></FinanceLayout>} />
-      <Route path="/finance-dashboard/costs" element={<FinanceLayout><CostManagementPage /></FinanceLayout>} />
-      <Route path="/finance-dashboard/payroll" element={<FinanceLayout><FinancePayrollPage /></FinanceLayout>} />
-      <Route path="/finance-dashboard/commission-approval" element={<FinanceLayout><CommissionApprovalPage /></FinanceLayout>} />
-      <Route path="/finance-dashboard/forms" element={<FinanceLayout><FinanceFormsPage /></FinanceLayout>} />
+      <Route path="/sdashboard" element={<DashboardPermitRoute><Sdashboard /></DashboardPermitRoute>} />
+      <Route path="/sales" element={<DashboardPermitRoute><Sdashboard /></DashboardPermitRoute>} />
+      <Route path="/sales/dashboard" element={<DashboardPermitRoute><Sdashboard /></DashboardPermitRoute>} />
+      <Route path="/srequest" element={<DashboardPermitRoute><Srequest /></DashboardPermitRoute>} />
+      <Route path="/finance-dashboard" element={<DashboardPermitRoute><FinanceLayout><FinanceDashboardPage /></FinanceLayout></DashboardPermitRoute>} />
+      <Route path="/finance-dashboard/erp" element={<DashboardPermitRoute><FinanceLayout><FinanceERPPage /></FinanceLayout></DashboardPermitRoute>} />
+      <Route path="/finance-dashboard/accounting" element={<DashboardPermitRoute><FinanceLayout><FinanceERPPage /></FinanceLayout></DashboardPermitRoute>} />
+      <Route path="/finance-dashboard/sales-finance" element={<DashboardPermitRoute><FinanceLayout><FinanceERPPage /></FinanceLayout></DashboardPermitRoute>} />
+      <Route path="/finance-dashboard/purchase-finance" element={<DashboardPermitRoute><FinanceLayout><FinanceERPPage /></FinanceLayout></DashboardPermitRoute>} />
+      <Route path="/finance-dashboard/bank-cash" element={<DashboardPermitRoute><FinanceLayout><FinanceERPPage /></FinanceLayout></DashboardPermitRoute>} />
+      <Route path="/finance-dashboard/expenses" element={<DashboardPermitRoute><FinanceLayout><FinanceERPPage /></FinanceLayout></DashboardPermitRoute>} />
+      <Route path="/finance-dashboard/tax" element={<DashboardPermitRoute><FinanceLayout><FinanceERPPage /></FinanceLayout></DashboardPermitRoute>} />
+      <Route path="/finance-dashboard/settings" element={<DashboardPermitRoute><FinanceLayout><FinanceERPPage /></FinanceLayout></DashboardPermitRoute>} />
+      <Route path="/finance-dashboard/reports" element={<DashboardPermitRoute><FinanceLayout><FinanceReportsPage /></FinanceLayout></DashboardPermitRoute>} />
+      <Route path="/finance-dashboard/inventory" element={<DashboardPermitRoute><FinanceLayout><InventoryPage /></FinanceLayout></DashboardPermitRoute>} />
+      <Route path="/finance-dashboard/orders" element={<DashboardPermitRoute><FinanceLayout><OrdersPage /></FinanceLayout></DashboardPermitRoute>} />
+      <Route path="/finance-dashboard/demands" element={<DashboardPermitRoute><FinanceLayout><FinanceDemandsPage /></FinanceLayout></DashboardPermitRoute>} />
+      <Route path="/finance-dashboard/payments" element={<DashboardPermitRoute><FinanceLayout><FinancePaymentsPage /></FinanceLayout></DashboardPermitRoute>} />
+      <Route path="/finance-dashboard/pricing" element={<DashboardPermitRoute><FinanceLayout><PricingPage /></FinanceLayout></DashboardPermitRoute>} />
+      <Route path="/finance-dashboard/create-course" element={<DashboardPermitRoute><FinanceLayout><PricingPage /></FinanceLayout></DashboardPermitRoute>} />
+      <Route path="/finance-dashboard/revenue" element={<DashboardPermitRoute><FinanceLayout><RevenuePage /></FinanceLayout></DashboardPermitRoute>} />
+      <Route path="/finance-dashboard/purchase" element={<DashboardPermitRoute><FinanceLayout><PurchasePage /></FinanceLayout></DashboardPermitRoute>} />
+      <Route path="/finance-dashboard/costs" element={<DashboardPermitRoute><FinanceLayout><CostManagementPage /></FinanceLayout></DashboardPermitRoute>} />
+      <Route path="/finance-dashboard/payroll" element={<DashboardPermitRoute><FinanceLayout><FinancePayrollPage /></FinanceLayout></DashboardPermitRoute>} />
+      <Route path="/finance-dashboard/commission-approval" element={<DashboardPermitRoute><FinanceLayout><CommissionApprovalPage /></FinanceLayout></DashboardPermitRoute>} />
+      <Route path="/finance-dashboard/forms" element={<DashboardPermitRoute><FinanceLayout><FinanceFormsPage /></FinanceLayout></DashboardPermitRoute>} />
       <Route path="/finance/inventory" element={<Navigate to="/finance-dashboard/inventory" replace />} />
       <Route path="/finance/orders" element={<Navigate to="/finance-dashboard/orders" replace />} />
       <Route path="/finance/demands" element={<Navigate to="/finance-dashboard/demands" replace />} />
@@ -208,7 +223,7 @@ function App() {
       />
       <Route path="/resource" element={<Navigate to="/resources" replace />} />
       <Route path="/employee-info" element={<ProtectedRoute><EmployeeInfoPage /></ProtectedRoute>} />
-      <Route path="/employee-file-upload" element={<ProtectedRoute><EmployeeFileUploadForm /></ProtectedRoute>} />
+      <Route path="/employee-file-upload" element={<ProtectedRoute><LayoutWrapper><EmployeeFileUploadForm /></LayoutWrapper></ProtectedRoute>} />
       <Route
         path="/users"
         element={
@@ -329,9 +344,17 @@ function App() {
       <Route
         path="/Cdashboard"
         element={
-          <ProtectedRoute>
+          <DashboardPermitRoute>
             <CDashboard />
-          </ProtectedRoute>
+          </DashboardPermitRoute>
+        }
+      />
+      <Route
+        path="/cdashboard"
+        element={
+          <DashboardPermitRoute>
+            <CDashboard />
+          </DashboardPermitRoute>
         }
       />
       <Route
@@ -405,11 +428,11 @@ function App() {
           </ProtectedRoute>
         }
       />
-      <Route path="/b2b-dashboard" element={<B2BDashboard />} />
+      <Route path="/b2b-dashboard" element={<DashboardPermitRoute><B2BDashboard /></DashboardPermitRoute>} />
       <Route path="/coo-dashboard" element={<COODashboard />} />
       <Route path="/ceo-dashboard" element={<COODashboard />} />
-      <Route path="/tradextv-dashboard" element={<TradexTVDashboard />} />
-      <Route path="/reception-dashboard" element={<LayoutWrapper><ReceptionDashboard /></LayoutWrapper>} />
+      <Route path="/tradextv-dashboard" element={<DashboardPermitRoute><TradexTVDashboard /></DashboardPermitRoute>} />
+      <Route path="/reception-dashboard" element={<DashboardPermitRoute><LayoutWrapper><ReceptionDashboard /></LayoutWrapper></DashboardPermitRoute>} />
       <Route
         path="/customer-settings"
         element={
@@ -441,9 +464,11 @@ function App() {
         path="/social-media"
         element={
           <RoleProtectedRoute allowedRoles={["socialmediamanager", "socialmedia"]}>
-            <LayoutWrapper>
-              <SocialMediaDashboardPage />
-            </LayoutWrapper>
+            <DashboardPermitRoute>
+              <LayoutWrapper>
+                <SocialMediaDashboardPage />
+              </LayoutWrapper>
+            </DashboardPermitRoute>
           </RoleProtectedRoute>
         }
       />
@@ -493,7 +518,9 @@ function App() {
         path="/it"
         element={
           <RoleProtectedRoute allowedRoles={IT_ALLOWED_ROLES}>
-            <ITDashboard />
+            <DashboardPermitRoute>
+              <ITDashboard />
+            </DashboardPermitRoute>
           </RoleProtectedRoute>
         }
       />
@@ -501,7 +528,9 @@ function App() {
         path="/instructor"
         element={
           <RoleProtectedRoute allowedRoles={["instructor"]}>
-            <InstructorLayout />
+            <DashboardPermitRoute>
+              <InstructorLayout />
+            </DashboardPermitRoute>
           </RoleProtectedRoute>
         }
       >
@@ -512,7 +541,7 @@ function App() {
       </Route>
 
       {/* ENISRA section */}
-      <Route path="/enisra" element={<ENISRALayout />}>
+      <Route path="/enisra" element={<DashboardPermitRoute><ENISRALayout /></DashboardPermitRoute>}>
         <Route index element={<ENISRAEnhancedDashboard />} />
         <Route path="dashboard" element={<ENISRAEnhancedDashboard />} />
         <Route path="follow-up" element={<ENISRAFollowUp />} />
@@ -525,7 +554,7 @@ function App() {
       <Route path="/sales/messages" element={<SalesMessagesPage />} />
       <Route path="/customer/messages" element={<CustomerMessagesPage />} />
       <Route path="/customer/kpi" element={<CustomerKPIPage />} />
-      <Route path="/supervisor" element={<SupervisorLayout />}>
+      <Route path="/supervisor" element={<DashboardPermitRoute><SupervisorLayout /></DashboardPermitRoute>}>
         <Route index element={<SupervisorDashboardPage />} />
         <Route path="requests" element={<TeamRequestsPage />} />
         <Route path="employee-requests" element={<EmployeeRequestsPage />} />

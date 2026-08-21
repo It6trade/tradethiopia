@@ -85,6 +85,7 @@ import {
   FiClipboard,
   FiTarget,
   FiAlertTriangle,
+  FiUploadCloud,
 } from 'react-icons/fi';
 import { useNavigate, useLocation, Link as RouterLink } from 'react-router-dom';
 import { normalizeRole, useUserStore } from '../store/user';
@@ -717,6 +718,7 @@ const TradexTVDashboard = () => {
           { icon: FiBarChart2, label: 'Revenue', path: '/tradextv-dashboard?tab=revenue' },
           { icon: FiFileText, label: 'Report', path: '/tradextv-dashboard?tab=report' },
           { icon: FiClipboard, label: 'Requests', path: '/requests' },
+          { icon: FiUploadCloud, label: 'Upload Documents', path: '/employee-file-upload' },
           { icon: FiAlertTriangle, label: 'My Warnings', path: '/my-warnings' },
           { icon: FiMessageSquare, label: 'Notice Board', path: '/tradextv-dashboard?tab=notice-board', unreadCount: unreadCount },
           { icon: FiSettings, label: 'Settings', path: '/tradextv-dashboard?tab=settings' },

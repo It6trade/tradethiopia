@@ -43,7 +43,8 @@ import {
   FaCommentDots,
   FaChartLine,
   FaExclamationTriangle,
-  FaFileAlt
+  FaFileAlt,
+  FaFileUpload
 } from 'react-icons/fa';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useUserStore } from '../../store/user';
@@ -117,6 +118,7 @@ const FinanceLayout = ({ children }) => {
     { label: 'Payroll', icon: FaDollarSign, path: '/finance-dashboard/payroll' },
     { label: 'Commission Approved', icon: FaChartLine, path: '/finance-dashboard/commission-approval' },
     { label: 'Forms', icon: FaFileAlt, path: '/finance-dashboard/forms' },
+    { label: 'Upload Documents', icon: FaFileUpload, path: '/employee-file-upload' },
     { label: 'Requests', icon: FaStickyNote, path: '/finance/requests' },
     { label: 'Team Requests', icon: FaClipboardList, path: '/finance/team-requests' },
     { label: 'Notice Board', icon: FaCommentDots, path: '/finance/messages' },
