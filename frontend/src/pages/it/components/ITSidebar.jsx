@@ -35,18 +35,13 @@ import {
   FiLogOut,
   FiChevronLeft,
   FiChevronRight,
-login
   FiLayers,
   FiTrendingUp,
   FiCpu,
   FiCode,
   FiZap,
-=======
   FiUserCheck,
-  FiBell,
-  FiTool,
   FiUploadCloud,
-  main,
 } from 'react-icons/fi';
 
 const SidebarButton = ({ label, icon: IconComponent, isActive, onClick, tooltip, isCollapsed, badge }) => {

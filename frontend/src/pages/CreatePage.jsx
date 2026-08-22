@@ -110,21 +110,24 @@ return (
                     <VStack spacing={4}>
                         <Input
                             placeholder="Username"
-                            name="name"
+                            name="create_new_username"
+                            autoComplete="off"
                             value={newUser.name}
                             onChange={(e) => setNewUser({ ...newUser, name: e.target.value })}
                         />
                         <Input
                             placeholder="Email"
-                            name="email"
+                            name="create_new_email"
                             type="email"
+                            autoComplete="off"
                             value={newUser.email}
                             onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
                         />
                         <Input
                             placeholder="Password"
-                            name="password"
+                            name="create_new_password"
                             type="password"
+                            autoComplete="new-password"
                             value={newUser.password}
                             onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
                         />

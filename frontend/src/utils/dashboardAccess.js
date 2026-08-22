@@ -17,8 +17,19 @@ export const isBypassRole = (role = '') => {
     'tessbin',
     'tessbin_admin',
     'salesmanager',
+    'it',
     'itadmin',
     'itmanager',
+    'itteamleader',
+    'itleader',
+    'itstaff',
+    'itofficer',
+    'customerservice',
+    'customersuccessmanager',
+    'customer_service',
+    'customer_success_manager',
+    'cs',
+    'csm',
   ];
   return bypassRoles.includes(norm);
 };
