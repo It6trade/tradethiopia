@@ -12,6 +12,8 @@ const Seller = require('../models/Seller');
 const TrainingFollowup = require('../models/TrainingFollowup');
 const InventoryItem = require('../models/InventoryItem');
 const CooKpiTarget = require('../models/CooKpiTarget');
+const HrKpi = require('../models/HrKpi');
+const TessbinKpi = require('../models/TessbinKpi');
 const { calculateRevenueSummary } = require('../utils/revenue');
 const { buildExpenseSummary } = require('./financeController');
 
@@ -38,6 +40,7 @@ const normalizeDepartment = (value) => {
   if (normalized === 'hr' || normalized.includes('human resource')) return 'HR';
   if (normalized.includes('supervisor')) return 'Supervisor';
   if (normalized.includes('enisra') || normalized.includes('ensra')) return 'ENISRA';
+  if (normalized.includes('tessbin') || normalized.includes('tessbinn')) return 'Tessbin';
   if (normalized.includes('operation')) return 'Operations';
   return 'Operations';
 };
@@ -111,12 +114,73 @@ const isoWeekKey = (value) => {
   return `${current.getUTCFullYear()}-W${String(week).padStart(2, '0')}`;
 };
 
+const HR_KPI_DEFINITIONS = [
+  ['postVacancies', 'Vacancies Posted', 'Recruitment'],
+  ['screenCvs', 'CVs Screened', 'Recruitment'],
+  ['conductInterviews', 'Interviews Conducted', 'Recruitment'],
+  ['facilitateInternalTrainings', 'Internal Trainings Facilitated', 'Learning & Development'],
+  ['attendancePunctuality', 'Attendance & Punctuality', 'Workforce Health', { unit: '%', format: 'percent' }],
+  ['checkingJobEnisra', 'ENISRA Job Checks', 'Recruitment'],
+  ['newHires', 'New Hires', 'Recruitment'],
+  ['resignations', 'Resignations', 'Workforce Health', { lowerIsBetter: true }],
+  ['candidatesPool', 'Candidate Pool', 'Recruitment'],
+  ['staffTrainingParticipants', 'Staff Training Participants', 'Learning & Development'],
+];
+
+const addHrKpis = (store, records) => {
+  records.forEach((record) => {
+    if (!['monthly', 'weekly'].includes(record.periodType)) return;
+    const isWeekly = record.periodType === 'weekly';
+    const key = isWeekly ? weekMonthKey(record.periodKey) : periodKey(record.periodKey);
+    HR_KPI_DEFINITIONS.forEach(([field, name, pillar, options = {}]) => {
+      const metric = record[field];
+      if (!metric) return;
+      addMetric(store, {
+        department: 'HR',
+        pillar,
+        name,
+        unit: options.unit || '',
+        format: options.format || 'number',
+        aggregate: 'avg',
+        lowerIsBetter: Boolean(options.lowerIsBetter),
+      }, key, metric.actual, metric.target, {
+        granularity: isWeekly ? 'week' : 'month',
+        period: record.periodKey,
+        source: 'hr-kpi',
+      });
+    });
+  });
+};
+
+const addTessbinKpis = (store, records) => {
+  const now = new Date();
+  const month = currentPeriodKey();
+  const week = isoWeekKey(now);
+  records.forEach((record) => {
+    if (!['monthly', 'weekly'].includes(record.timeframe)) return;
+    const isWeekly = record.timeframe === 'weekly';
+    addMetric(store, {
+      department: 'Tessbin',
+      pillar: record.category || 'Academic Performance',
+      name: record.title,
+      unit: record.unit || '',
+      format: record.unit === '%' ? 'percent' : 'number',
+      aggregate: 'avg',
+    }, isWeekly ? weekMonthKey(week) : month, record.actualValue, record.targetValue, {
+      granularity: isWeekly ? 'week' : 'month',
+      period: isWeekly ? week : month,
+      source: 'tessbin-kpi',
+      weight: numeric(record.weight),
+    });
+  });
+};
+
 exports.getKpis = async (req, res) => {
   try {
     const [
       performances, revenue, social, weekly, salesKpis, completedSales, salesTargets, salesAgents,
       customerFollowups, buyerCount, sellerCount, incompleteTrainingCount,
-      financeRevenue, financeExpenses, inventoryItems, targetOverrides,
+      financeRevenue, financeExpenses, inventoryItems, targetOverrides, hrKpis, tessbinKpis,
     ] = await Promise.all([
       MonthlyPerformance.find({}).populate('employeeId', 'fullName username').lean(),
       RevenueActual.find({ active: { $ne: false } }).lean(),
@@ -134,8 +198,13 @@ exports.getKpis = async (req, res) => {
       buildExpenseSummary(),
       InventoryItem.find({}).select('price quantity').lean(),
       CooKpiTarget.find({}).lean(),
+      HrKpi.find({ periodType: { $in: ['monthly', 'weekly'] } }).lean(),
+      TessbinKpi.find({ timeframe: { $in: ['monthly', 'weekly'] } }).lean(),
     ]);
     const store = { definitions: new Map(), rows: [] };
+
+    addHrKpis(store, hrKpis);
+    addTessbinKpis(store, tessbinKpis);
 
     const completedCustomerCount = customerFollowups.filter((item) => (
       String(item.followupStatus || item.status || '').toLowerCase() === 'completed'
