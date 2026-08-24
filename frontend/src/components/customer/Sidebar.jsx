@@ -10,32 +10,35 @@ import {
   HStack,
   Icon,
   IconButton,
-  Menu,
-  MenuButton,
-  MenuItem,
-  MenuList,
-  Portal,
+  Link,
   Text,
   Tooltip,
   useColorModeValue,
   VStack,
+  Menu,
+  MenuButton,
+  MenuList,
+  MenuItem,
+  MenuDivider,
+  Portal,
 } from "@chakra-ui/react";
 import { useLocation, useNavigate, Link as RouterLink } from "react-router-dom";
 import {
   FiActivity,
+  FiAward,
   FiBarChart2,
   FiBookOpen,
   FiChevronDown,
   FiChevronRight,
   FiChevronsLeft,
   FiChevronsRight,
-  FiChevronUp,
   FiClipboard,
   FiGlobe,
   FiHome,
   FiLayers,
   FiLogOut,
   FiMessageSquare,
+  FiPackage,
   FiSettings,
   FiTool,
   FiTrendingUp,
@@ -125,23 +128,20 @@ const SSidebar = ({ isCollapsed: collapsedProp, toggleCollapse: toggleProp, acti
   const isRequestsActive = activeSection === "requests" || isActive("/requests");
   const isItRequestsActive = activeSection === "it-requests";
 
-  // Realistic deep navy palette
-  const sidebarBg = useColorModeValue(
-    "linear-gradient(180deg, #0b1728 0%, #07101e 100%)",
-    "linear-gradient(180deg, #060e1a 0%, #040810 100%)"
-  );
-  const textColor = "#94a3b8";
-  const headingColor = "#f8fafc";
-  const subtextColor = "#64748b";
-  const iconColor = "#94a3b8";
+  // HR Color tokens (#1a2e22 dark forest green theme)
+  const sidebarBg = "#1a2e22";
+  const textColor = "rgba(255, 255, 255, 0.65)";
+  const headingColor = "#ffffff";
+  const subtextColor = "rgba(255, 255, 255, 0.40)";
+  const iconColor = "rgba(255, 255, 255, 0.65)";
   const sidebarBorderColor = "rgba(255, 255, 255, 0.08)";
   const cardBorderColor = "rgba(255, 255, 255, 0.08)";
-  const userCardBg = "rgba(255, 255, 255, 0.03)";
+  const userCardBg = "#142319";
 
-  // Active item styles (teal & electric sapphire glow on navy)
-  const activeBg = "linear-gradient(90deg, rgba(13, 148, 136, 0.25) 0%, rgba(13, 148, 136, 0.08) 100%)";
+  // Active item styles (HR Emerald #2d6a4f)
+  const activeBg = "#2d6a4f";
   const activeTextColor = "#ffffff";
-  const activeIconColor = "#2dd4bf";
+  const activeIconColor = "#ffffff";
 
   const isCSM = (() => {
     try {
@@ -214,7 +214,7 @@ const SSidebar = ({ isCollapsed: collapsedProp, toggleCollapse: toggleProp, acti
       overflow="hidden"
       borderRight="1px solid"
       borderColor={sidebarBorderColor}
-      boxShadow="4px 0 24px rgba(0, 0, 0, 0.25)"
+      boxShadow="4px 0 20px rgba(0, 0, 0, 0.2)"
     >
       {/* 1. Brand Header */}
       <Flex
@@ -224,23 +224,23 @@ const SSidebar = ({ isCollapsed: collapsedProp, toggleCollapse: toggleProp, acti
         py={3.5}
         flexShrink={0}
         borderBottom="1px solid"
-        borderColor="rgba(255, 255, 255, 0.05)"
+        borderColor="rgba(255, 255, 255, 0.06)"
       >
         <HStack spacing={3} align="center">
-          {/* Circular Teal Brand Logo */}
+          {/* Circular HR Emerald Brand Logo */}
           <Flex
             boxSize={isCollapsed ? "38px" : "36px"}
             borderRadius="full"
-            bg="rgba(13, 148, 136, 0.12)"
+            bg="#2d6a4f"
             border="2px solid"
-            borderColor="#14b8a6"
-            color="#2dd4bf"
+            borderColor="#52b788"
+            color="#ffffff"
             align="center"
             justify="center"
             fontWeight="800"
             fontSize="lg"
             position="relative"
-            boxShadow="0 0 14px rgba(20, 184, 166, 0.25)"
+            boxShadow="0 0 12px rgba(45, 106, 79, 0.35)"
           >
             <Text as="span" fontFamily="system-ui" lineHeight="1" transform="translateY(-1px)">
               C
@@ -251,8 +251,8 @@ const SSidebar = ({ isCollapsed: collapsedProp, toggleCollapse: toggleProp, acti
               right="1px"
               boxSize="6px"
               borderRadius="full"
-              bg="#2dd4bf"
-              boxShadow="0 0 6px #2dd4bf"
+              bg="#52b788"
+              boxShadow="0 0 6px #52b788"
             />
           </Flex>
 
@@ -273,8 +273,8 @@ const SSidebar = ({ isCollapsed: collapsedProp, toggleCollapse: toggleProp, acti
             icon={<FiChevronsLeft size={16} />}
             variant="ghost"
             size="xs"
-            color="gray.400"
-            _hover={{ color: "#2dd4bf", bg: "rgba(255, 255, 255, 0.06)" }}
+            color="rgba(255, 255, 255, 0.5)"
+            _hover={{ color: "#ffffff", bg: "rgba(255, 255, 255, 0.08)" }}
             aria-label="Collapse sidebar"
             onClick={toggleCollapse}
             borderRadius="md"
@@ -285,8 +285,8 @@ const SSidebar = ({ isCollapsed: collapsedProp, toggleCollapse: toggleProp, acti
               icon={<FiChevronsRight size={16} />}
               variant="ghost"
               size="xs"
-              color="gray.400"
-              _hover={{ color: "#2dd4bf", bg: "rgba(255, 255, 255, 0.06)" }}
+              color="rgba(255, 255, 255, 0.5)"
+              _hover={{ color: "#ffffff", bg: "rgba(255, 255, 255, 0.08)" }}
               aria-label="Expand sidebar"
               onClick={toggleCollapse}
               borderRadius="md"
@@ -295,21 +295,20 @@ const SSidebar = ({ isCollapsed: collapsedProp, toggleCollapse: toggleProp, acti
         )}
       </Flex>
 
-      {/* 2. Navigation Scrollable Body */}
+      {/* 2. Scrollable Navigation List */}
       <Box
-        flex="1 1 auto"
-        overflowY="auto"
-        minHeight={0}
         ref={scrollBoxRef}
+        flex="1"
+        overflowY="auto"
+        overflowX="hidden"
+        px={isCollapsed ? 1.5 : 2.5}
+        py={3}
         css={{
           "&::-webkit-scrollbar": { width: "4px" },
-          "&::-webkit-scrollbar-track": { background: "transparent" },
-          "&::-webkit-scrollbar-thumb": { background: "rgba(148, 163, 184, 0.25)", borderRadius: "4px" },
+          "&::-webkit-scrollbar-thumb": { background: "rgba(255, 255, 255, 0.1)", borderRadius: "4px" },
         }}
-        py={1}
-        px={2.5}
       >
-        <VStack align="stretch" spacing={3}>
+        <VStack spacing={3} align="stretch">
           {/* Workspace Group */}
           <SidebarGroup
             title="WORKSPACE"
@@ -321,15 +320,16 @@ const SSidebar = ({ isCollapsed: collapsedProp, toggleCollapse: toggleProp, acti
               isCollapsed={isCollapsed}
               to="/Cdashboard"
               icon={<FiHome size={17} />}
-              label="Dashboard"
+              label="Overview"
               active={isDashboardActive}
               iconColor={iconColor}
               activeIconColor={activeIconColor}
               textColor={textColor}
               activeTextColor={activeTextColor}
               activeBg={activeBg}
-              onClick={() => {
+              onClick={(e) => {
                 if (typeof onSelectSection === "function") {
+                  e.preventDefault();
                   onSelectSection("dashboard");
                 }
               }}
@@ -503,7 +503,7 @@ const SSidebar = ({ isCollapsed: collapsedProp, toggleCollapse: toggleProp, acti
         </VStack>
       </Box>
 
-      {/* 4. Bottom User Profile Section with Clear Logout Option */}
+      {/* 3. Bottom User Profile Section with Clear Logout Option */}
       <Box p={3} flexShrink={0} borderTop="1px solid" borderColor={sidebarBorderColor}>
         {isCollapsed ? (
           <VStack spacing={2} align="center">
@@ -513,29 +513,29 @@ const SSidebar = ({ isCollapsed: collapsedProp, toggleCollapse: toggleProp, acti
                 size="sm"
                 src={userAvatarSrc}
                 name={userDisplayName}
-                bg="#0d9488"
+                bg="#2d6a4f"
                 color="white"
                 cursor="pointer"
-                border="2px solid rgba(45, 212, 191, 0.4)"
+                border="2px solid #52b788"
               />
               <Portal>
                 <MenuList
                   zIndex="1600"
                   shadow="2xl"
                   borderRadius="xl"
-                  bg="#0b1728"
+                  bg="#142319"
                   borderColor="rgba(255, 255, 255, 0.1)"
-                  color="#f8fafc"
+                  color="#ffffff"
                 >
                   <Box px={3.5} py={2}>
                     <Text fontWeight="700" fontSize="xs">{userDisplayName}</Text>
-                    <Badge fontSize="9px" px={2} py={0.5} borderRadius="full" bg="rgba(13, 148, 136, 0.25)" color="#2dd4bf">
+                    <Badge fontSize="9px" px={2} py={0.5} borderRadius="full" bg="rgba(45, 106, 79, 0.45)" color="#95d5b2" border="1px solid rgba(82, 183, 136, 0.3)">
                       {userRoleDisplay}
                     </Badge>
-                    <Text fontSize="2xs" color="#94a3b8" mt={1}>{userEmailDisplay}</Text>
+                    <Text fontSize="2xs" color="rgba(255, 255, 255, 0.5)" mt={1}>{userEmailDisplay}</Text>
                   </Box>
                   <Divider my={1} borderColor="rgba(255, 255, 255, 0.08)" />
-                  <MenuItem as={RouterLink} to="/employee-info" icon={<FiUser />} bg="transparent" _hover={{ bg: "rgba(255,255,255,0.06)", color: "#2dd4bf" }}>Profile</MenuItem>
+                  <MenuItem as={RouterLink} to="/employee-info" icon={<FiUser />} bg="transparent" _hover={{ bg: "rgba(255,255,255,0.08)", color: "#95d5b2" }}>Profile</MenuItem>
                   <MenuItem onClick={handleLogout} color="#f87171" icon={<FiLogOut />} bg="transparent" _hover={{ bg: "rgba(239, 68, 68, 0.15)", color: "#ef4444" }}>Sign out</MenuItem>
                 </MenuList>
               </Portal>
@@ -546,7 +546,7 @@ const SSidebar = ({ isCollapsed: collapsedProp, toggleCollapse: toggleProp, acti
                 icon={<FiLogOut size={14} />}
                 size="xs"
                 variant="ghost"
-                color="#94a3b8"
+                color="rgba(255, 255, 255, 0.6)"
                 _hover={{ bg: "rgba(239, 68, 68, 0.15)", color: "#ef4444" }}
                 onClick={handleLogout}
                 borderRadius="md"
@@ -561,8 +561,8 @@ const SSidebar = ({ isCollapsed: collapsedProp, toggleCollapse: toggleProp, acti
             borderRadius="xl"
             border="1px solid"
             borderColor="rgba(255, 255, 255, 0.08)"
-            bg="rgba(255, 255, 255, 0.03)"
-            _hover={{ borderColor: "rgba(45, 212, 191, 0.35)", bg: "rgba(255, 255, 255, 0.06)" }}
+            bg="#142319"
+            _hover={{ borderColor: "rgba(82, 183, 136, 0.35)", bg: "#172b1e" }}
             transition="all 0.15s ease"
             gap={2}
           >
@@ -579,16 +579,16 @@ const SSidebar = ({ isCollapsed: collapsedProp, toggleCollapse: toggleProp, acti
                 size="sm"
                 src={userAvatarSrc}
                 name={userDisplayName}
-                bg="#0d9488"
+                bg="#2d6a4f"
                 color="white"
                 fontWeight="bold"
-                border="2px solid rgba(45, 212, 191, 0.4)"
+                border="2px solid #52b788"
                 boxSize="36px"
                 flexShrink={0}
               />
               <Box overflow="hidden" flex={1} textAlign="left">
                 <HStack spacing={1.5} align="center">
-                  <Text fontSize="12px" fontWeight="700" color="#f8fafc" noOfLines={1} lineHeight="1.2">
+                  <Text fontSize="12px" fontWeight="700" color="#ffffff" noOfLines={1} lineHeight="1.2">
                     {userDisplayName}
                   </Text>
                   <Badge
@@ -596,16 +596,16 @@ const SSidebar = ({ isCollapsed: collapsedProp, toggleCollapse: toggleProp, acti
                     px={2}
                     py={0.2}
                     borderRadius="full"
-                    bg="rgba(13, 148, 136, 0.22)"
-                    color="#2dd4bf"
+                    bg="rgba(45, 106, 79, 0.45)"
+                    color="#95d5b2"
                     fontWeight="700"
-                    border="1px solid rgba(45, 212, 191, 0.3)"
+                    border="1px solid rgba(82, 183, 136, 0.3)"
                     textTransform="none"
                   >
                     {userRoleDisplay}
                   </Badge>
                 </HStack>
-                <Text fontSize="10px" color="#94a3b8" noOfLines={1} mt={0.5}>
+                <Text fontSize="10px" color="rgba(255, 255, 255, 0.45)" noOfLines={1} mt={0.5}>
                   {userEmailDisplay}
                 </Text>
               </Box>
@@ -618,7 +618,7 @@ const SSidebar = ({ isCollapsed: collapsedProp, toggleCollapse: toggleProp, acti
                 icon={<FiLogOut size={15} />}
                 size="sm"
                 variant="ghost"
-                color="#94a3b8"
+                color="rgba(255, 255, 255, 0.55)"
                 _hover={{ color: "#f87171", bg: "rgba(239, 68, 68, 0.15)" }}
                 onClick={handleLogout}
                 borderRadius="lg"
@@ -644,12 +644,12 @@ const SidebarGroup = ({ title, isCollapsed, isOpen, onToggle, children }) => (
         px={2.5}
         py={1.5}
         cursor="pointer"
-        color="#64748b"
+        color="rgba(255, 255, 255, 0.35)"
         fontSize="10px"
         fontWeight="800"
         textTransform="uppercase"
         letterSpacing="0.8px"
-        _hover={{ color: "#94a3b8" }}
+        _hover={{ color: "rgba(255, 255, 255, 0.65)" }}
         transition="color 0.15s ease"
       >
         <Text>{title}</Text>
@@ -696,10 +696,10 @@ const SidebarLink = ({
         justify={isCollapsed ? "center" : "flex-start"}
         borderRadius="lg"
         bg={active ? activeBg : "transparent"}
-        border={active ? "1px solid rgba(45, 212, 191, 0.25)" : "1px solid transparent"}
-        boxShadow={active ? "0 0 16px rgba(13, 148, 136, 0.15)" : "none"}
+        border={active ? "1px solid rgba(82, 183, 136, 0.3)" : "1px solid transparent"}
+        boxShadow={active ? "0 2px 8px rgba(45, 106, 79, 0.3)" : "none"}
         _hover={{
-          bg: active ? activeBg : "rgba(255, 255, 255, 0.05)",
+          bg: active ? activeBg : "rgba(255, 255, 255, 0.08)",
           transform: "translateX(2px)",
         }}
         transition="all 0.15s ease"
@@ -739,4 +739,3 @@ const SidebarLink = ({
 );
 
 export default SSidebar;
-
