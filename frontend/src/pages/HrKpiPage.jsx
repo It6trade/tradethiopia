@@ -112,8 +112,8 @@ const KPI_CONFIG = [
   },
   {
     key: 'checkingJobEnisra',
-    label: 'Checking job@enisra',
-    description: 'Monitoring & processing job@enisra application inbox',
+    label: 'Checking hr@tradethiopia.com',
+    description: 'Monitoring & processing hr@tradethiopia.com application inbox',
     icon: FiMail,
     color: 'cyan',
     unit: 'checks',
