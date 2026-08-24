@@ -6,9 +6,11 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogOverlay,
+  Avatar,
   Badge,
   Box,
   Button,
+  ButtonGroup,
   Card,
   CardBody,
   CardHeader,
@@ -23,6 +25,7 @@ import {
   Input,
   InputGroup,
   InputLeftElement,
+  InputRightElement,
   Select,
   SimpleGrid,
   Spinner,
@@ -52,6 +55,7 @@ import {
   FiDownload,
   FiGrid,
   FiLayers,
+  FiList,
   FiLock,
   FiPower,
   FiRefreshCw,
@@ -60,6 +64,7 @@ import {
   FiTrash2,
   FiUserPlus,
   FiUsers,
+  FiX,
 } from 'react-icons/fi';
 import axiosInstance from '../../services/axiosInstance';
 import { normalizeRole } from '../../store/user';
@@ -143,6 +148,7 @@ export default function ITAdminPanel({ tasks = [], users = [], refreshUsers, ini
   const [userSearch, setUserSearch] = useState('');
   const [userRoleFilter, setUserRoleFilter] = useState('all');
   const [userStatusFilter, setUserStatusFilter] = useState('all');
+  const [userViewMode, setUserViewMode] = useState('grid');
   const [passwordDrafts, setPasswordDrafts] = useState({});
   const [submittingUser, setSubmittingUser] = useState(false);
   
@@ -784,11 +790,13 @@ export default function ITAdminPanel({ tasks = [], users = [], refreshUsers, ini
                         <Icon as={FiUserPlus} color="blue.500" />
                         <Heading size="sm">Create New Account</Heading>
                       </HStack>
-                      <form onSubmit={createUser}>
+                      <form onSubmit={createUser} autoComplete="off">
                         <SimpleGrid columns={{ base: 1, sm: 2, md: 3, xl: 6 }} spacing={3}>
                           <Input
                             placeholder="Username"
                             size="sm"
+                            name="it_new_username_field"
+                            autoComplete="off"
                             value={newUser.username}
                             onChange={(e) => setNewUser({ ...newUser, username: e.target.value })}
                             required
@@ -796,6 +804,8 @@ export default function ITAdminPanel({ tasks = [], users = [], refreshUsers, ini
                           <Input
                             placeholder="Full Name"
                             size="sm"
+                            name="it_new_fullname_field"
+                            autoComplete="off"
                             value={newUser.fullName}
                             onChange={(e) => setNewUser({ ...newUser, fullName: e.target.value })}
                           />
@@ -803,6 +813,8 @@ export default function ITAdminPanel({ tasks = [], users = [], refreshUsers, ini
                             placeholder="Email"
                             size="sm"
                             type="email"
+                            name="it_new_email_field"
+                            autoComplete="off"
                             value={newUser.email}
                             onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
                             required
@@ -811,12 +823,15 @@ export default function ITAdminPanel({ tasks = [], users = [], refreshUsers, ini
                             placeholder="Password"
                             size="sm"
                             type="password"
+                            name="it_new_password_field"
+                            autoComplete="new-password"
                             value={newUser.password}
                             onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
                             required
                           />
                           <Select
                             size="sm"
+                            name="it_new_role_field"
                             value={newUser.role}
                             onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}
                           >
@@ -834,7 +849,7 @@ export default function ITAdminPanel({ tasks = [], users = [], refreshUsers, ini
                     </CardBody>
                   </Card>
 
-                  {/* User Search & Filters */}
+                  {/* User Search, Filters & View Toggle */}
                   <Card bg={cardBg} borderColor={borderColor} borderWidth="1px" borderRadius="xl">
                     <CardHeader pb={2} pt={4} px={4}>
                       <Flex justify="space-between" align={{ base: 'flex-start', sm: 'center' }} gap={3} flexWrap="wrap">
@@ -844,6 +859,26 @@ export default function ITAdminPanel({ tasks = [], users = [], refreshUsers, ini
                         </HStack>
 
                         <HStack spacing={2} flexWrap="wrap">
+                          {/* Grid & Table View Switcher */}
+                          <ButtonGroup size="xs" isAttached variant="outline">
+                            <Button
+                              leftIcon={<FiGrid />}
+                              colorScheme={userViewMode === 'grid' ? 'blue' : 'gray'}
+                              variant={userViewMode === 'grid' ? 'solid' : 'outline'}
+                              onClick={() => setUserViewMode('grid')}
+                            >
+                              🗂 Grid
+                            </Button>
+                            <Button
+                              leftIcon={<FiList />}
+                              colorScheme={userViewMode === 'table' ? 'blue' : 'gray'}
+                              variant={userViewMode === 'table' ? 'solid' : 'outline'}
+                              onClick={() => setUserViewMode('table')}
+                            >
+                              📋 Table
+                            </Button>
+                          </ButtonGroup>
+
                           <Select
                             size="xs"
                             w="130px"
@@ -877,103 +912,244 @@ export default function ITAdminPanel({ tasks = [], users = [], refreshUsers, ini
                               value={userSearch}
                               onChange={(e) => setUserSearch(e.target.value)}
                             />
+                            {userSearch && (
+                              <InputRightElement>
+                                <IconButton
+                                  aria-label="Clear search"
+                                  icon={<FiX />}
+                                  size="2xs"
+                                  variant="ghost"
+                                  onClick={() => setUserSearch('')}
+                                />
+                              </InputRightElement>
+                            )}
                           </InputGroup>
                         </HStack>
                       </Flex>
                     </CardHeader>
 
-                    <CardBody p={0}>
-                      <TableContainer>
-                        <Table size="sm">
-                          <Thead bg={sidebarBg}>
-                            <Tr>
-                              <Th>Staff Member</Th>
-                              <Th>Role</Th>
-                              <Th>Status</Th>
-                              <Th>Reset Password</Th>
-                              <Th textAlign="right">Actions</Th>
-                            </Tr>
-                          </Thead>
-                          <Tbody>
-                            {filteredUsers.length === 0 ? (
-                              <Tr>
-                                <Td colSpan={5} textAlign="center" py={6} color={mutedColor}>
-                                  No users found matching filters.
-                                </Td>
-                              </Tr>
-                            ) : (
-                              filteredUsers.map((user) => (
-                                <Tr key={user._id || user.email} _hover={{ bg: tableHoverBg }}>
-                                  <Td>
-                                    <Text fontWeight="semibold" fontSize="xs">
-                                      {user.fullName || user.username}
-                                    </Text>
-                                    <Text fontSize="2xs" color="gray.500">{user.email}</Text>
-                                  </Td>
-                                  <Td>
-                                    <Select
-                                      size="xs"
-                                      w="130px"
-                                      value={user.role || 'IT Staff'}
-                                      onChange={(e) => updateUser(user, { role: e.target.value })}
-                                    >
-                                      <option value="IT Staff">IT Staff</option>
-                                      <option value="IT Team Leader">IT Team Leader</option>
-                                      <option value="IT Manager">IT Manager</option>
-                                      <option value="IT Officer">IT Officer</option>
-                                      <option value="admin">admin</option>
-                                      <option value={user.role}>{user.role}</option>
-                                    </Select>
-                                  </Td>
-                                  <Td>
-                                    <Select
-                                      size="xs"
-                                      w="100px"
-                                      value={user.status || 'active'}
-                                      colorScheme={user.status === 'active' ? 'green' : 'red'}
-                                      onChange={(e) => updateUser(user, { status: e.target.value })}
-                                    >
-                                      <option value="active">🟢 active</option>
-                                      <option value="inactive">🔴 inactive</option>
-                                    </Select>
-                                  </Td>
-                                  <Td>
-                                    <HStack spacing={1.5} maxW="200px">
-                                      <Input
-                                        size="xs"
-                                        type="password"
-                                        placeholder="New pass..."
-                                        value={passwordDrafts[user._id] || ''}
-                                        onChange={(e) => setPasswordDrafts({ ...passwordDrafts, [user._id]: e.target.value })}
+                    <CardBody p={userViewMode === 'grid' ? 4 : 0}>
+                      {userViewMode === 'grid' ? (
+                        /* Responsive Grid Card View */
+                        <SimpleGrid columns={{ base: 1, md: 2, xl: 3 }} spacing={4}>
+                          {filteredUsers.length === 0 ? (
+                            <Box colSpan={{ base: 1, md: 2, xl: 3 }} textAlign="center" py={8} color={mutedColor} w="full">
+                              No users found matching filters.
+                            </Box>
+                          ) : (
+                            filteredUsers.map((user) => (
+                              <Card
+                                key={user._id || user.email}
+                                bg={cardBg}
+                                borderColor={borderColor}
+                                borderWidth="1px"
+                                borderRadius="xl"
+                                boxShadow="sm"
+                                _hover={{ boxShadow: 'md', transform: 'translateY(-2px)' }}
+                                transition="all 0.2s"
+                              >
+                                <CardBody p={4}>
+                                  <Flex justify="space-between" align="flex-start" mb={3}>
+                                    <HStack spacing={3}>
+                                      <Avatar
+                                        size="sm"
+                                        name={user.fullName || user.username}
+                                        bg={user.status === 'active' ? 'blue.500' : 'gray.400'}
+                                        color="white"
                                       />
-                                      <Button
-                                        size="xs"
-                                        colorScheme="blue"
-                                        onClick={() => handleResetPassword(user)}
-                                        isDisabled={!passwordDrafts[user._id]}
-                                      >
-                                        Set
-                                      </Button>
+                                      <Box>
+                                        <Text fontWeight="bold" fontSize="sm" isTruncated maxW="140px">
+                                          {user.fullName || user.username}
+                                        </Text>
+                                        <Text fontSize="2xs" color="gray.500" isTruncated maxW="140px">
+                                          {user.email}
+                                        </Text>
+                                      </Box>
                                     </HStack>
-                                  </Td>
-                                  <Td textAlign="right">
-                                    <Tooltip label="Permanently Delete User">
-                                      <IconButton
-                                        aria-label="Delete user"
-                                        icon={<FiTrash2 />}
+                                    <Badge
+                                      colorScheme={user.status === 'active' ? 'green' : 'red'}
+                                      borderRadius="full"
+                                      fontSize="2xs"
+                                      px={2}
+                                    >
+                                      {user.status === 'active' ? 'Active' : 'Inactive'}
+                                    </Badge>
+                                  </Flex>
+
+                                  <Divider mb={3} />
+
+                                  <VStack spacing={2.5} align="stretch">
+                                    <HStack justify="space-between">
+                                      <Text fontSize="xs" fontWeight="medium" color={mutedColor}>Role:</Text>
+                                      <Select
                                         size="xs"
-                                        colorScheme="red"
-                                        variant="ghost"
-                                        onClick={() => openDeleteModal(user)}
-                                      />
-                                    </Tooltip>
+                                        w="140px"
+                                        value={user.role || 'IT Staff'}
+                                        onChange={(e) => updateUser(user, { role: e.target.value })}
+                                      >
+                                        <option value="IT Staff">IT Staff</option>
+                                        <option value="IT Team Leader">IT Team Leader</option>
+                                        <option value="IT Manager">IT Manager</option>
+                                        <option value="IT Officer">IT Officer</option>
+                                        <option value="admin">admin</option>
+                                        <option value={user.role}>{user.role}</option>
+                                      </Select>
+                                    </HStack>
+
+                                    <HStack justify="space-between">
+                                      <Text fontSize="xs" fontWeight="medium" color={mutedColor}>Status:</Text>
+                                      <Select
+                                        size="xs"
+                                        w="140px"
+                                        value={user.status || 'active'}
+                                        colorScheme={user.status === 'active' ? 'green' : 'red'}
+                                        onChange={(e) => updateUser(user, { status: e.target.value })}
+                                      >
+                                        <option value="active">🟢 active</option>
+                                        <option value="inactive">🔴 inactive</option>
+                                      </Select>
+                                    </HStack>
+
+                                    <Box pt={1}>
+                                      <Text fontSize="2xs" fontWeight="bold" color={mutedColor} mb={1}>
+                                        RESET PASSWORD
+                                      </Text>
+                                      <HStack spacing={1.5}>
+                                        <Input
+                                          size="xs"
+                                          type="password"
+                                          placeholder="New pass..."
+                                          name={`it_reset_pwd_grid_${user._id}`}
+                                          autoComplete="new-password"
+                                          value={passwordDrafts[user._id] || ''}
+                                          onChange={(e) => setPasswordDrafts({ ...passwordDrafts, [user._id]: e.target.value })}
+                                        />
+                                        <Button
+                                          size="xs"
+                                          colorScheme="blue"
+                                          onClick={() => handleResetPassword(user)}
+                                          isDisabled={!passwordDrafts[user._id]}
+                                        >
+                                          Set
+                                        </Button>
+                                      </HStack>
+                                    </Box>
+
+                                    <Flex justify="flex-end" pt={1}>
+                                      <Tooltip label="Permanently Delete User">
+                                        <Button
+                                          size="xs"
+                                          colorScheme="red"
+                                          variant="ghost"
+                                          leftIcon={<FiTrash2 />}
+                                          onClick={() => openDeleteModal(user)}
+                                        >
+                                          Delete
+                                        </Button>
+                                      </Tooltip>
+                                    </Flex>
+                                  </VStack>
+                                </CardBody>
+                              </Card>
+                            ))
+                          )}
+                        </SimpleGrid>
+                      ) : (
+                        /* Table View */
+                        <TableContainer>
+                          <Table size="sm">
+                            <Thead bg={sidebarBg}>
+                              <Tr>
+                                <Th>Staff Member</Th>
+                                <Th>Role</Th>
+                                <Th>Status</Th>
+                                <Th>Reset Password</Th>
+                                <Th textAlign="right">Actions</Th>
+                              </Tr>
+                            </Thead>
+                            <Tbody>
+                              {filteredUsers.length === 0 ? (
+                                <Tr>
+                                  <Td colSpan={5} textAlign="center" py={6} color={mutedColor}>
+                                    No users found matching filters.
                                   </Td>
                                 </Tr>
-                              ))
-                            )}
-                          </Tbody>
-                        </Table>
-                      </TableContainer>
+                              ) : (
+                                filteredUsers.map((user) => (
+                                  <Tr key={user._id || user.email} _hover={{ bg: tableHoverBg }}>
+                                    <Td>
+                                      <Text fontWeight="semibold" fontSize="xs">
+                                        {user.fullName || user.username}
+                                      </Text>
+                                      <Text fontSize="2xs" color="gray.500">{user.email}</Text>
+                                    </Td>
+                                    <Td>
+                                      <Select
+                                        size="xs"
+                                        w="130px"
+                                        value={user.role || 'IT Staff'}
+                                        onChange={(e) => updateUser(user, { role: e.target.value })}
+                                      >
+                                        <option value="IT Staff">IT Staff</option>
+                                        <option value="IT Team Leader">IT Team Leader</option>
+                                        <option value="IT Manager">IT Manager</option>
+                                        <option value="IT Officer">IT Officer</option>
+                                        <option value="admin">admin</option>
+                                        <option value={user.role}>{user.role}</option>
+                                      </Select>
+                                    </Td>
+                                    <Td>
+                                      <Select
+                                        size="xs"
+                                        w="100px"
+                                        value={user.status || 'active'}
+                                        colorScheme={user.status === 'active' ? 'green' : 'red'}
+                                        onChange={(e) => updateUser(user, { status: e.target.value })}
+                                      >
+                                        <option value="active">🟢 active</option>
+                                        <option value="inactive">🔴 inactive</option>
+                                      </Select>
+                                    </Td>
+                                    <Td>
+                                      <HStack spacing={1.5} maxW="200px">
+                                        <Input
+                                          size="xs"
+                                          type="password"
+                                          placeholder="New pass..."
+                                          name={`it_reset_pwd_${user._id}`}
+                                          autoComplete="new-password"
+                                          value={passwordDrafts[user._id] || ''}
+                                          onChange={(e) => setPasswordDrafts({ ...passwordDrafts, [user._id]: e.target.value })}
+                                        />
+                                        <Button
+                                          size="xs"
+                                          colorScheme="blue"
+                                          onClick={() => handleResetPassword(user)}
+                                          isDisabled={!passwordDrafts[user._id]}
+                                        >
+                                          Set
+                                        </Button>
+                                      </HStack>
+                                    </Td>
+                                    <Td textAlign="right">
+                                      <Tooltip label="Permanently Delete User">
+                                        <IconButton
+                                          aria-label="Delete user"
+                                          icon={<FiTrash2 />}
+                                          size="xs"
+                                          colorScheme="red"
+                                          variant="ghost"
+                                          onClick={() => openDeleteModal(user)}
+                                        />
+                                      </Tooltip>
+                                    </Td>
+                                  </Tr>
+                                ))
+                              )}
+                            </Tbody>
+                          </Table>
+                        </TableContainer>
+                      )}
                     </CardBody>
                   </Card>
                 </VStack>

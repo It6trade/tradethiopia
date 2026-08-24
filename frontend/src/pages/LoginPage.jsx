@@ -58,21 +58,8 @@ const handleLogin = async (event) => {
             // Save token and user information in local storage
             setCurrentUser({ username, role, status, infoStatus, trainingStatus, examStatus, examBypass, token, _id, email, fullName, jobTitle });
 
- login
-            // Roles that bypass HR employee onboarding info checks
-            const bypassHrApprovalRoles = [
-                'tessbinadmin', 'tessbin', 'tessbin_admin', 
-                'admin', 'coo', 'ceo', 
-                'it', 'itadmin', 'itmanager',
-                'customerservice', 'customersuccessmanager', 'customer_service', 'customer_success_manager', 'cs', 'csm'
-            ];
-            const isBypassRole = bypassHrApprovalRoles.includes(normalizedRole);
-            const hasExamBypass = Boolean(examBypass) || String(trainingStatus || '').toLowerCase() === 'exempt';
-            const shouldBypassOnboarding = isBypassRole || hasExamBypass;
-=======
             const userWithToken = { ...user, token };
             const isPermitted = isUserPermittedForDashboard(userWithToken);
- main
 
             if (!isPermitted) {
                 const onboardingPath = getOnboardingRedirectPath(userWithToken);
