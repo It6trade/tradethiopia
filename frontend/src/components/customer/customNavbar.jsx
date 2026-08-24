@@ -1,45 +1,60 @@
+import React, { useState } from "react";
 import {
+  Avatar,
+  Badge,
   Box,
+  Button,
+  Drawer,
+  DrawerBody,
+  DrawerCloseButton,
+  DrawerContent,
+  DrawerOverlay,
   Flex,
-  IconButton,
   HStack,
-  Spacer,
+  Icon,
+  IconButton,
+  Input,
+  InputGroup,
+  InputLeftElement,
+  InputRightElement,
+  Kbd,
   Menu,
   MenuButton,
-  MenuList,
-  MenuItem,
-  Text,
   MenuDivider,
-  Drawer,
-  DrawerOverlay,
-  DrawerContent,
-  DrawerCloseButton,
-  DrawerBody,
-  VStack,
-  useDisclosure,
-  Link,
+  MenuItem,
+  MenuList,
+  Portal,
+  Spacer,
+  Text,
   Tooltip,
   useColorMode,
   useColorModeValue,
-  Badge,
+  useDisclosure,
+  VStack,
 } from "@chakra-ui/react";
 import {
-  FiMenu,
-  FiHome,
-  FiUsers,
+  FiBell,
   FiBookOpen,
-  FiUser,
+  FiCalendar,
+  FiChevronDown,
+  FiClipboard,
   FiFileText,
   FiGlobe,
+  FiHelpCircle,
+  FiHome,
+  FiLogOut,
+  FiMenu,
   FiMessageSquare,
-  FiClipboard,
-  FiBarChart2,
+  FiMoon,
+  FiSearch,
   FiSettings,
+  FiSun,
+  FiUser,
+  FiUsers,
 } from "react-icons/fi";
-import NotesLauncher from "../notes/NotesLauncher";
-import { Link as RouterLink, useNavigate } from "react-router-dom";
+import { Link as RouterLink, useNavigate, useLocation } from "react-router-dom";
 import { useUserStore } from "../../store/user";
-import { MoonIcon, SunIcon } from "@chakra-ui/icons";
+import NotesLauncher from "../notes/NotesLauncher";
 import ChatLauncher from "../chat/ChatLauncher";
 import NotificationBall from "../notifications/NotificationBall";
 
@@ -49,30 +64,24 @@ const normalizeRoleValue = (value = "") =>
 const isCustomerSuccessManagerRole = (role) =>
   normalizeRoleValue(role) === "customersuccessmanager";
 
-const Cnavbar = () => {
+const Cnavbar = ({ onToggleSidebar, activeSectionTitle = "Overview" }) => {
   const navigate = useNavigate();
-  const { isOpen, onOpen, onClose } = useDisclosure(); // For Drawer
+  const location = useLocation();
+  const { isOpen, onOpen, onClose } = useDisclosure(); // For mobile drawer
   const { colorMode, toggleColorMode } = useColorMode();
-  const navbarBg = useColorModeValue(
-    "linear-gradient(90deg, #e9f2ff, #dfe9ff, #d6e1ff)",
-    "linear-gradient(90deg, #0b1224, #0f1e3a, #0b284a)"
-  );
-  const accentBar = useColorModeValue("linear(to-b, blue.400, purple.400)", "linear(to-b, teal.300, cyan.400)");
-  const textPrimary = useColorModeValue("gray.800", "white");
-  const textSecondary = useColorModeValue("gray.600", "teal.100");
-  const actionHoverColor = useColorModeValue("blue.600", "teal.200");
-  const actionActiveBg = useColorModeValue("rgba(0,0,0,0.04)", "rgba(255,255,255,0.08)");
-
-  const actionButtonProps = {
-    size: "md",
-    variant: "ghost",
-    color: textPrimary,
-    _hover: { color: actionHoverColor, bg: actionActiveBg },
-    _active: { bg: actionActiveBg },
-  };
+  const [dateRange, setDateRange] = useState("This month");
+  const [searchQuery, setSearchQuery] = useState("");
 
   const currentUser = useUserStore((state) => state.currentUser);
   const clearUser = useUserStore((state) => state.clearUser);
+
+  // Design tokens matching screenshot
+  const navbarBg = useColorModeValue("#ffffff", "#0b1329");
+  const borderColor = useColorModeValue("#e2e8f0", "#1e293b");
+  const textPrimary = useColorModeValue("#0f172a", "#f8fafc");
+  const textSecondary = useColorModeValue("#64748b", "#94a3b8");
+  const searchBg = useColorModeValue("#f8fafc", "#0f172a");
+  const searchBorder = useColorModeValue("#e2e8f0", "#1e293b");
 
   const isCSM = (() => {
     try {
@@ -110,140 +119,327 @@ const Cnavbar = () => {
     navigate("/login");
   };
 
+  // Compute breadcrumb text
+  const getBreadcrumbTitle = () => {
+    if (activeSectionTitle && activeSectionTitle !== "dashboard") {
+      return activeSectionTitle.charAt(0).toUpperCase() + activeSectionTitle.slice(1);
+    }
+    const path = location.pathname.toLowerCase();
+    if (path.includes("b2b")) return "B2B Marketplace";
+    if (path.includes("customerfollowup")) return "Customer Follow-up";
+    if (path.includes("messages")) return "Notice Board";
+    if (path.includes("requests")) return "Requests";
+    if (path.includes("training")) return "Training Academy";
+    if (path.includes("customerreport")) return "Executive Report";
+    if (path.includes("kpi")) return "KPI Dashboard";
+    if (path.includes("followup-report")) return "Follow-up Report";
+    if (path.includes("customer-settings")) return "Settings";
+    if (path.includes("customer-user-management")) return "User Management";
+    return "Overview";
+  };
+
+  // Real user profile details
+  const userDisplayName =
+    currentUser?.fullName ||
+    currentUser?.name ||
+    (currentUser?.firstName && currentUser?.lastName ? `${currentUser.firstName} ${currentUser.lastName}` : null) ||
+    localStorage.getItem("userName") ||
+    "Sara Alemu";
+
+  const rawRole = (currentUser?.displayRole || currentUser?.role || localStorage.getItem("userRole") || "CS Manager")
+    .toString()
+    .toLowerCase();
+
+  const userRoleDisplay = rawRole.includes("manager") || rawRole.includes("admin")
+    ? "CS Manager"
+    : rawRole.includes("agent") || rawRole.includes("success") || rawRole.includes("customer")
+    ? "CS Specialist"
+    : "Customer Success";
+
+  const userEmailDisplay =
+    currentUser?.email ||
+    localStorage.getItem("userEmail") ||
+    "sara.alemu@tradethiopia.com";
+
+  const userAvatarSrc =
+    currentUser?.profileImage ||
+    currentUser?.avatar ||
+    currentUser?.photo ||
+    currentUser?.avatarUrl ||
+    "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?q=80&w=256&auto=format&fit=crop";
+
   return (
     <>
       <Box
-        bgGradient={navbarBg}
-        px={5}
-        py={3}
-        shadow="xl"
+        bg={navbarBg}
+        px={{ base: 3, md: 6 }}
+        py={2.5}
         borderBottom="1px solid"
-        borderColor={useColorModeValue("rgba(0,0,0,0.06)", "rgba(255,255,255,0.08)")}
-        zIndex="1000"
-        position="relative"
+        borderColor={borderColor}
+        position="sticky"
+        top={0}
+        zIndex="900"
+        transition="background 0.2s ease"
       >
-        <Flex alignItems="center" gap={3}>
-          {/* Menu button for mobile view */}
-          <IconButton
-            icon={<FiMenu />}
-            aria-label="Open Menu"
-            variant="ghost"
-            color={useColorModeValue("blue.500", "teal.200")}
-            display={{ base: "block", md: "none" }} // Show only on small screens
-            onClick={onOpen}
-          />
-
-          {/* Title */}
-          <Flex align="center" gap={3}>
-            <Box
-              w="12px"
-              h="36px"
-              bgGradient={accentBar}
-              borderRadius="full"
+        <Flex alignItems="center" justify="space-between" gap={3}>
+          {/* Left: Mobile Toggle & Breadcrumbs */}
+          <HStack spacing={3} align="center" minW={{ base: "auto", md: "260px" }}>
+            <IconButton
+              icon={<FiMenu size={18} />}
+              aria-label="Open Menu"
+              variant="ghost"
+              size="sm"
+              color={textPrimary}
+              display={{ base: "inline-flex", md: "none" }}
+              onClick={onToggleSidebar || onOpen}
             />
-            <Box>
-              <Text fontWeight="bold" fontSize="lg" color={textPrimary}>
+
+            <HStack spacing={2} fontSize="sm" display={{ base: "none", sm: "flex" }}>
+              <Text color={textSecondary} fontWeight="500">
                 Customer Success
               </Text>
-              <Text fontSize="xs" color={textSecondary} letterSpacing="0.5px">
-                Follow-up & Engagement
+              <Text color="gray.300">/</Text>
+              <Text color={textPrimary} fontWeight="700">
+                {getBreadcrumbTitle()}
               </Text>
+            </HStack>
+          </HStack>
+
+          {/* Center/Right: Universal Search Input */}
+          <Box flex="1" maxW={{ base: "100%", md: "420px" }} mx={{ base: 1, md: 4 }}>
+            <InputGroup size="sm">
+              <InputLeftElement pointerEvents="none">
+                <Icon as={FiSearch} color="gray.400" boxSize={3.5} />
+              </InputLeftElement>
+              <Input
+                placeholder="Search customers, packages, follow-ups..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                bg={searchBg}
+                border="1px solid"
+                borderColor={searchBorder}
+                borderRadius="lg"
+                fontSize="xs"
+                _placeholder={{ color: "gray.400" }}
+                _focus={{
+                  borderColor: "teal.400",
+                  bg: useColorModeValue("#ffffff", "#1e293b"),
+                  boxShadow: "0 0 0 1px #0d9488",
+                }}
+              />
+              <InputRightElement width="32px">
+                <Kbd
+                  fontSize="10px"
+                  bg={useColorModeValue("gray.100", "gray.700")}
+                  color="gray.500"
+                  borderColor={useColorModeValue("gray.200", "gray.600")}
+                  borderRadius="sm"
+                  px={1.5}
+                >
+                  /
+                </Kbd>
+              </InputRightElement>
+            </InputGroup>
+          </Box>
+
+          {/* Right: Date Range Selector + Quick Actions + User Profile */}
+          <HStack spacing={{ base: 1.5, md: 3 }} align="center" flexShrink={0}>
+            {/* Date Range Selector Dropdown */}
+            <Menu>
+              <MenuButton
+                as={Button}
+                size="sm"
+                variant="outline"
+                borderColor={borderColor}
+                borderRadius="lg"
+                bg={useColorModeValue("#ffffff", "#0f172a")}
+                color={textPrimary}
+                fontSize="xs"
+                fontWeight="600"
+                leftIcon={<Icon as={FiCalendar} color="gray.500" boxSize={3.5} />}
+                rightIcon={<Icon as={FiChevronDown} color="gray.400" boxSize={3} />}
+                px={3}
+                h="32px"
+                _hover={{ bg: useColorModeValue("gray.50", "gray.800") }}
+                display={{ base: "none", md: "inline-flex" }}
+              >
+                {dateRange}
+              </MenuButton>
+              <Portal>
+                <MenuList zIndex="1600" shadow="lg" borderRadius="xl" fontSize="xs" minW="160px">
+                  {["Today", "This week", "This month", "Last 6 months", "This year"].map((item) => (
+                    <MenuItem
+                      key={item}
+                      onClick={() => setDateRange(item)}
+                      fontWeight={dateRange === item ? "bold" : "normal"}
+                      color={dateRange === item ? "teal.600" : textPrimary}
+                    >
+                      {item}
+                    </MenuItem>
+                  ))}
+                </MenuList>
+              </Portal>
+            </Menu>
+
+            {/* Quick Chat Launcher */}
+            <ChatLauncher
+              icon={<FiMessageSquare size={16} />}
+              iconButtonProps={{
+                size: "sm",
+                variant: "ghost",
+                color: textSecondary,
+                borderRadius: "lg",
+                _hover: { color: "teal.600", bg: "teal.50" },
+              }}
+            />
+
+            {/* Quick Notes Launcher */}
+            <NotesLauncher
+              buttonProps={{
+                size: "sm",
+                variant: "ghost",
+                color: textSecondary,
+                borderRadius: "lg",
+                _hover: { color: "teal.600", bg: "teal.50" },
+                icon: <FiFileText size={16} />,
+                "aria-label": "Notes",
+              }}
+              tooltipLabel="Scratchpad & Notes"
+            />
+
+            {/* Notification Bell with Badge Count */}
+            <Box position="relative">
+              <NotificationBall iconColor={textSecondary} />
             </Box>
-          </Flex>
 
-          <Spacer />
-
-           {/* Icons and Profile */}
-          <HStack spacing={4} align="center">
-            <Tooltip label={`Switch to ${colorMode === "light" ? "dark" : "light"} mode`}>
+            {/* Help Button */}
+            <Tooltip label="Support & Help Center" hasArrow placement="bottom">
               <IconButton
-                aria-label="Toggle color mode"
-                icon={colorMode === "light" ? <MoonIcon /> : <SunIcon />}
-                onClick={toggleColorMode}
+                aria-label="Help"
+                icon={<Icon as={FiHelpCircle} boxSize={4} />}
+                size="sm"
                 variant="ghost"
-                color={useColorModeValue("blue.600", "yellow.300")}
-                size="md"
-                _hover={{ bg: "transparent" }}
+                color={textSecondary}
+                borderRadius="full"
+                _hover={{ color: "teal.600", bg: "teal.50" }}
               />
             </Tooltip>
-            <HStack spacing={3} align="center">
-              <ChatLauncher
-                icon={<FiMessageSquare size={20} />}
-                iconButtonProps={actionButtonProps}
-              />
-              <NotificationBall iconColor={textPrimary} />
 
-              {/* Notes Launcher */}
-              <NotesLauncher
-                buttonProps={{
-                  ...actionButtonProps,
-                  icon: <FiFileText size={20} />,
-                  "aria-label": "Notes",
-                }}
-                tooltipLabel="Notes"
+            {/* Dark / Light Toggle */}
+            <Tooltip label={`Switch to ${colorMode === "light" ? "dark" : "light"} mode`} hasArrow placement="bottom">
+              <IconButton
+                aria-label="Toggle color mode"
+                icon={colorMode === "light" ? <FiMoon size={15} /> : <FiSun size={15} />}
+                onClick={toggleColorMode}
+                size="sm"
+                variant="ghost"
+                color={textSecondary}
+                borderRadius="full"
+                _hover={{ color: "teal.600", bg: "teal.50" }}
               />
+            </Tooltip>
 
-              {/* Profile Dropdown */}
-              <Menu>
-                <MenuButton
-                  as={IconButton}
-                  icon={<FiUser size={20} />}
-                  aria-label="User Profile"
-                  {...actionButtonProps}
+            {/* User Circular Avatar */}
+            <Menu placement="bottom-end">
+              <MenuButton
+                as={Flex}
+                align="center"
+                justify="center"
+                cursor="pointer"
+                borderRadius="full"
+                p={0.5}
+                _hover={{ opacity: 0.85 }}
+              >
+                <Avatar
+                  size="sm"
+                  src={userAvatarSrc}
+                  name={userDisplayName}
+                  bg="#0d9488"
+                  color="white"
+                  fontWeight="bold"
+                  boxSize="34px"
+                  border="2px solid rgba(13, 148, 136, 0.4)"
                 />
-                <MenuList>
-                  <Box p={4}>
-                    <Text fontWeight="bold" fontSize="lg">
-                      {currentUser?.username || "User"}
-                    </Text>
-                    <Text fontSize="sm" color="gray.500">
-                      {currentUser?.role || "Role not available"}
+              </MenuButton>
+              <Portal>
+                <MenuList zIndex="1600" shadow="xl" borderRadius="xl" borderColor={borderColor} py={1}>
+                  <Box px={3.5} py={2.5}>
+                    <HStack spacing={2} align="center" mb={1}>
+                      <Text fontWeight="700" fontSize="xs" color={textPrimary}>
+                        {userDisplayName}
+                      </Text>
+                      <Badge
+                        fontSize="9px"
+                        px={1.5}
+                        py={0.2}
+                        borderRadius="full"
+                        bg="teal.50"
+                        color="teal.700"
+                        fontWeight="700"
+                      >
+                        {userRoleDisplay}
+                      </Badge>
+                    </HStack>
+                    <Text fontSize="2xs" color="gray.500">
+                      {userEmailDisplay}
                     </Text>
                   </Box>
                   <MenuDivider />
-                  <MenuItem onClick={handleLogout}>Logout</MenuItem>
+                  <MenuItem as={RouterLink} to="/employee-info" icon={<FiUser size={14} />} fontSize="xs">
+                    My Profile
+                  </MenuItem>
+                  <MenuItem as={RouterLink} to="/customer-settings" icon={<FiSettings size={14} />} fontSize="xs">
+                    Account Settings
+                  </MenuItem>
+                  <MenuDivider />
+                  <MenuItem onClick={handleLogout} color="red.500" icon={<FiLogOut size={14} />} fontSize="xs">
+                    Sign out
+                  </MenuItem>
                 </MenuList>
-              </Menu>
-            </HStack>
+              </Portal>
+            </Menu>
           </HStack>
         </Flex>
       </Box>
 
-      {/* Drawer for Mobile Menu (Only Navigation Links) */}
+      {/* Mobile Menu Drawer */}
       <Drawer isOpen={isOpen} placement="left" onClose={onClose}>
         <DrawerOverlay />
-        <DrawerContent>
+        <DrawerContent bg={navbarBg}>
           <DrawerCloseButton />
-          <DrawerBody>
-            <VStack align="start" spacing={4} mt={8}>
+          <DrawerBody p={4} mt={6}>
+            <VStack align="stretch" spacing={2}>
               {[
                 { to: "/Cdashboard", icon: <FiHome />, label: "Dashboard" },
                 { to: "/b2b-dashboard", icon: <FiGlobe />, label: "B2B Marketplace" },
-                { to: "/customerfollowup", icon: <FiUsers />, label: "Customer Followup" },
-                {
-                  to: "/customer/messages",
-                  icon: <FiMessageSquare />,
-                  label: "Notice Board",
-                },
-                { to: "/requests", icon: <FiClipboard />, label: "Requests" },
-                { to: "/training", icon: <FiBookOpen />, label: "Training" },
+                { to: "/customerfollowup", icon: <FiUsers />, label: "Customer Follow-up" },
+                { to: "/customer/messages", icon: <FiMessageSquare />, label: "Notice Board" },
+                { to: "/requests", icon: <FiClipboard />, label: "Internal Requests" },
+                { to: "/training", icon: <FiBookOpen />, label: "Training Academy" },
                 ...(isCSM
                   ? [
-                      { to: "/customerreport", icon: <FiBarChart2 />, label: "Reports" },
-                      { to: "/followup-report", icon: <FiFileText />, label: "Follow Up Report" },
-                      { to: "/customer-settings", icon: <FiSettings />, label: "Settings" },
+                      { to: "/customerreport", icon: <FiFileText />, label: "Executive Report" },
+                      { to: "/customer/kpi", icon: <FiFileText />, label: "KPI Dashboard" },
+                      { to: "/followup-report", icon: <FiFileText />, label: "Follow-up Report" },
+                      { to: "/customer-settings", icon: <FiSettings />, label: "Service Settings" },
                       { to: "/customer-user-management", icon: <FiUsers />, label: "User Management" },
                     ]
                   : []),
-              ].map(({ to, icon, label, badgeCount }) => (
-                <NavItem
+              ].map(({ to, icon, label }) => (
+                <Button
                   key={label}
+                  as={RouterLink}
                   to={to}
-                  icon={icon}
-                  label={label}
-                  badgeCount={badgeCount}
-                  onClose={onClose}
-                />
+                  leftIcon={icon}
+                  variant="ghost"
+                  justifyContent="flex-start"
+                  size="sm"
+                  onClick={onClose}
+                  borderRadius="lg"
+                  fontSize="xs"
+                >
+                  {label}
+                </Button>
               ))}
             </VStack>
           </DrawerBody>
@@ -253,47 +449,5 @@ const Cnavbar = () => {
   );
 };
 
-// Individual Nav Item Component
-const NavItem = ({ to, icon, label, onClose, badgeCount = 0 }) => (
-  <Tooltip label={label} placement="right" hasArrow>
-    <Link
-      as={RouterLink}
-      to={to}
-      _hover={{ textDecoration: "none", color: "blue.500" }}
-      onClick={onClose}
-      style={{ width: "100%" }}
-    >
-      <Flex
-        align="center"
-        p={2}
-        borderRadius="md"
-        _hover={{ bg: "gray.100" }}
-        position="relative"
-      >
-        {icon}
-        <Text ml={3} whiteSpace="nowrap" fontSize="16px">
-          {label}
-        </Text>
-        {badgeCount > 0 && (
-          <Badge
-            colorScheme="red"
-            borderRadius="full"
-            position="absolute"
-            top="6px"
-            right="8px"
-            fontSize="10px"
-            w="18px"
-            h="18px"
-            display="flex"
-            alignItems="center"
-            justifyContent="center"
-          >
-            {badgeCount}
-          </Badge>
-        )}
-      </Flex>
-    </Link>
-  </Tooltip>
-);
-
 export default Cnavbar;
+

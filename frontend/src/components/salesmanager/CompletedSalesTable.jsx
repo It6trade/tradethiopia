@@ -82,9 +82,11 @@ export default function CompletedSalesTable({
   const [tableEndDate, setTableEndDate] = useState(() => toDateInputValue(dateTo));
 
   const cardBg = useColorModeValue('white', 'gray.800');
-  const borderColor = useColorModeValue('gray.200', 'gray.700');
-  const rowHoverBg = useColorModeValue('gray.50', 'gray.700');
-  const muted = useColorModeValue('gray.600', 'gray.400');
+  const borderColor = useColorModeValue('#e2e8f0', '#1e293b');
+  const rowHoverBg = useColorModeValue('gray.50', 'whiteAlpha.50');
+  const muted = useColorModeValue('#64748b', '#94a3b8');
+  const headingColor = useColorModeValue('#0f172a', '#f8fafc');
+  const textColor = useColorModeValue('#334155', '#cbd5e1');
 
   const tableDateRange = useMemo(() => {
     const start = tableStartDate ? new Date(`${tableStartDate}T00:00:00`) : null;
@@ -197,35 +199,58 @@ export default function CompletedSalesTable({
   }, [page, totalPages]);
 
   return (
-    <Card bg={cardBg} borderWidth="1px" borderColor={borderColor} boxShadow="sm">
+    <Card bg={cardBg} borderWidth="1px" borderColor={borderColor} borderRadius="xl" boxShadow="xs">
       <CardBody p={{ base: 3, md: 4 }}>
-        <Flex justify="space-between" align={{ base: 'stretch', md: 'center' }} direction={{ base: 'column', md: 'row' }} gap={3} mb={4}>
+        <Flex justify="space-between" align={{ base: 'stretch', md: 'center' }} direction={{ base: 'column', md: 'row' }} gap={2} mb={3}>
           <Box>
-            <Text fontSize={compact ? 'lg' : 'xl'} fontWeight="800">
+            <Text fontSize="sm" fontWeight="700" color={headingColor}>
               {title}
             </Text>
-            <Text fontSize="sm" color={muted}>
+            <Text fontSize="xs" color={muted}>
               {tableDateRange.dateFrom && tableDateRange.dateTo
                 ? `Completed follow-ups from ${formatDate(tableDateRange.dateFrom)} through ${formatDate(tableDateRange.dateTo)}.`
                 : 'Full table of sales follow-ups marked Completed.'}
             </Text>
           </Box>
-          <Badge colorScheme="green" borderRadius="full" px={3} py={1} alignSelf={{ base: 'flex-start', md: 'center' }}>
-            {total} completed
+          <Badge
+            bg="#dcfce7"
+            color="#16a34a"
+            fontSize="10px"
+            fontWeight="600"
+            borderRadius="full"
+            px={2.5}
+            py={0.5}
+            alignSelf={{ base: 'flex-start', md: 'center' }}
+          >
+            {total} COMPLETED
           </Badge>
         </Flex>
 
-        <Flex gap={3} direction={{ base: 'column', md: 'row' }} align={{ md: 'center' }} flexWrap="wrap" mb={4}>
-          <InputGroup maxW={{ md: '360px' }}>
+        <Flex gap={2.5} direction={{ base: 'column', md: 'row' }} align={{ md: 'center' }} flexWrap="wrap" mb={3}>
+          <InputGroup size="sm" maxW={{ md: '300px' }}>
             <InputLeftElement pointerEvents="none">
-              <FiSearch color="#94A3B8" />
+              <FiSearch color="#94A3B8" size={13} />
             </InputLeftElement>
-            <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search customer, course, agent" />
+            <Input
+              size="sm"
+              fontSize="xs"
+              borderRadius="lg"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Search customer, course, agent"
+            />
           </InputGroup>
-          <Select maxW={{ md: '240px' }} value={agentFilter} onChange={(event) => {
-            setAgentFilter(event.target.value);
-            setPage(1);
-          }}>
+          <Select
+            size="sm"
+            fontSize="xs"
+            borderRadius="lg"
+            maxW={{ md: '180px' }}
+            value={agentFilter}
+            onChange={(event) => {
+              setAgentFilter(event.target.value);
+              setPage(1);
+            }}
+          >
             <option value="">All agents</option>
             {agents.map((agent) => (
               <option key={agent.id} value={agent.id}>
@@ -236,20 +261,24 @@ export default function CompletedSalesTable({
           {(dateFrom || dateTo) && (
             <HStack spacing={2} flexWrap="wrap">
               <Box>
-                <Text fontSize="xs" color={muted} mb={1}>Table Start Date</Text>
+                <Text fontSize="10px" color={muted} mb={0.5}>Table Start Date</Text>
                 <Input
                   type="date"
-                  size="sm"
+                  size="xs"
+                  fontSize="xs"
+                  borderRadius="md"
                   value={tableStartDate}
                   max={tableEndDate || undefined}
                   onChange={(event) => setTableStartDate(event.target.value)}
                 />
               </Box>
               <Box>
-                <Text fontSize="xs" color={muted} mb={1}>Table End Date</Text>
+                <Text fontSize="10px" color={muted} mb={0.5}>Table End Date</Text>
                 <Input
                   type="date"
-                  size="sm"
+                  size="xs"
+                  fontSize="xs"
+                  borderRadius="md"
                   value={tableEndDate}
                   min={tableStartDate || undefined}
                   max={toDateInputValue(new Date())}
@@ -258,13 +287,15 @@ export default function CompletedSalesTable({
               </Box>
             </HStack>
           )}
-          <HStack ml={{ md: 'auto' }} flexWrap="wrap">
-            <Text fontSize="sm" color={muted}>
+          <HStack ml={{ md: 'auto' }} flexWrap="wrap" spacing={2}>
+            <Text fontSize="xs" color={muted}>
               Page {page} of {totalPages}
             </Text>
             <Select
-              size="sm"
-              w="120px"
+              size="xs"
+              fontSize="xs"
+              borderRadius="md"
+              w="105px"
               value={pageSize}
               onChange={(event) => {
                 setPageSize(Number(event.target.value));
@@ -279,64 +310,81 @@ export default function CompletedSalesTable({
         </Flex>
 
         {loading ? (
-          <Flex align="center" justify="center" minH="160px" gap={3}>
-            <Spinner />
-            <Text color={muted}>Loading completed sales...</Text>
+          <Flex align="center" justify="center" minH="120px" gap={2}>
+            <Spinner size="sm" color="teal.500" />
+            <Text fontSize="xs" color={muted}>Loading completed sales...</Text>
           </Flex>
         ) : error ? (
-          <Alert status="error" borderRadius="md">
+          <Alert status="error" borderRadius="md" size="sm" fontSize="xs">
             <AlertIcon />
             {error}
           </Alert>
         ) : (
-          <VStack align="stretch" spacing={4}>
+          <VStack align="stretch" spacing={3}>
             <Box overflowX="auto">
               <Table size="sm" variant="simple">
                 <Thead>
-                  <Tr>
-                    <Th>Agent Name</Th>
-                    <Th>Customer</Th>
-                    <Th>Phone</Th>
-                    <Th>Email</Th>
-                    <Th>Course / Interest</Th>
-                    <Th>Call</Th>
-                    <Th>Schedule</Th>
-                    <Th>Date</Th>
-                    <Th isNumeric>Price</Th>
-                    <Th isNumeric>Net Commission</Th>
-                    <Th>Source</Th>
-                    <Th>Supervisor Comment</Th>
+                  <Tr borderBottom="1px solid" borderColor={borderColor}>
+                    <Th fontSize="10px" fontWeight="600" color={muted} textTransform="uppercase" letterSpacing="0.04em" py={2} px={3}>Agent Name</Th>
+                    <Th fontSize="10px" fontWeight="600" color={muted} textTransform="uppercase" letterSpacing="0.04em" py={2} px={3}>Customer</Th>
+                    <Th fontSize="10px" fontWeight="600" color={muted} textTransform="uppercase" letterSpacing="0.04em" py={2} px={3}>Phone</Th>
+                    <Th fontSize="10px" fontWeight="600" color={muted} textTransform="uppercase" letterSpacing="0.04em" py={2} px={3}>Email</Th>
+                    <Th fontSize="10px" fontWeight="600" color={muted} textTransform="uppercase" letterSpacing="0.04em" py={2} px={3}>Course / Interest</Th>
+                    <Th fontSize="10px" fontWeight="600" color={muted} textTransform="uppercase" letterSpacing="0.04em" py={2} px={3}>Call</Th>
+                    <Th fontSize="10px" fontWeight="600" color={muted} textTransform="uppercase" letterSpacing="0.04em" py={2} px={3}>Schedule</Th>
+                    <Th fontSize="10px" fontWeight="600" color={muted} textTransform="uppercase" letterSpacing="0.04em" py={2} px={3}>Date</Th>
+                    <Th fontSize="10px" fontWeight="600" color={muted} textTransform="uppercase" letterSpacing="0.04em" py={2} px={3} isNumeric>Price</Th>
+                    <Th fontSize="10px" fontWeight="600" color={muted} textTransform="uppercase" letterSpacing="0.04em" py={2} px={3} isNumeric>Net Commission</Th>
+                    <Th fontSize="10px" fontWeight="600" color={muted} textTransform="uppercase" letterSpacing="0.04em" py={2} px={3}>Source</Th>
+                    <Th fontSize="10px" fontWeight="600" color={muted} textTransform="uppercase" letterSpacing="0.04em" py={2} px={3}>Supervisor Comment</Th>
                   </Tr>
                 </Thead>
                 <Tbody>
                   {filteredSales.length ? (
                     filteredSales.map((sale) => (
-                      <Tr key={sale._id} _hover={{ bg: rowHoverBg }}>
-                        <Td fontWeight="700">{getAgentName(sale)}</Td>
-                        <Td>
-                          <Text fontWeight="700">{sale.customerName || '-'}</Text>
-                          <Badge mt={1} colorScheme="green" size="sm">Completed</Badge>
+                      <Tr key={sale._id} _hover={{ bg: rowHoverBg }} borderBottom="1px solid" borderColor={borderColor}>
+                        <Td fontSize="xs" fontWeight="500" color={headingColor} py={2.5} px={3} whiteSpace="nowrap">
+                          {getAgentName(sale)}
                         </Td>
-                        <Td>{sale.phone || '-'}</Td>
-                        <Td>{sale.email || '-'}</Td>
-                        <Td>
-                          <Text fontWeight="600">{sale.courseName || sale.contactTitle || sale.productInterest || '-'}</Text>
-                          {sale.note ? <Text color={muted} fontSize="xs" noOfLines={2}>{sale.note}</Text> : null}
+                        <Td fontSize="xs" py={2.5} px={3} whiteSpace="nowrap">
+                          <Text fontSize="xs" fontWeight="500" color={headingColor} lineHeight="1.2">
+                            {sale.customerName || '-'}
+                          </Text>
+                          <Badge
+                            mt={0.5}
+                            fontSize="9px"
+                            fontWeight="600"
+                            borderRadius="full"
+                            px={1.5}
+                            py={0.2}
+                            bg="#dcfce7"
+                            color="#16a34a"
+                          >
+                            COMPLETED
+                          </Badge>
                         </Td>
-                        <Td>{sale.callStatus || '-'}</Td>
-                        <Td>{sale.schedulePreference || '-'}</Td>
-                        <Td>{formatDate(sale.date || sale.updatedAt)}</Td>
-                        <Td isNumeric>{formatCurrency(sale.coursePrice)}</Td>
-                        <Td isNumeric>{formatCurrency(sale.commission?.netCommission)}</Td>
-                        <Td>{sale.source || '-'}</Td>
-                        <Td>
-                          <Text maxW="240px" noOfLines={2}>{sale.supervisorComment || '-'}</Text>
+                        <Td fontSize="xs" color={textColor} py={2.5} px={3} whiteSpace="nowrap">{sale.phone || '-'}</Td>
+                        <Td fontSize="xs" color={muted} py={2.5} px={3}>{sale.email || '-'}</Td>
+                        <Td fontSize="xs" py={2.5} px={3}>
+                          <Text fontSize="xs" fontWeight="400" color={textColor} lineHeight="1.2">
+                            {sale.courseName || sale.contactTitle || sale.productInterest || '-'}
+                          </Text>
+                          {sale.note ? <Text color={muted} fontSize="10px" noOfLines={1} mt={0.5}>{sale.note}</Text> : null}
+                        </Td>
+                        <Td fontSize="xs" color={textColor} py={2.5} px={3}>{sale.callStatus || '-'}</Td>
+                        <Td fontSize="xs" color={textColor} py={2.5} px={3}>{sale.schedulePreference || '-'}</Td>
+                        <Td fontSize="xs" color={textColor} py={2.5} px={3} whiteSpace="nowrap">{formatDate(sale.date || sale.updatedAt)}</Td>
+                        <Td fontSize="xs" color={textColor} py={2.5} px={3} isNumeric whiteSpace="nowrap">{formatCurrency(sale.coursePrice)}</Td>
+                        <Td fontSize="xs" color={textColor} py={2.5} px={3} isNumeric whiteSpace="nowrap">{formatCurrency(sale.commission?.netCommission)}</Td>
+                        <Td fontSize="xs" color={textColor} py={2.5} px={3}>{sale.source || '-'}</Td>
+                        <Td fontSize="xs" color={muted} py={2.5} px={3}>
+                          <Text maxW="200px" noOfLines={1}>{sale.supervisorComment || '-'}</Text>
                         </Td>
                       </Tr>
                     ))
                   ) : (
                     <Tr>
-                      <Td colSpan={12} textAlign="center" py={8} color={muted}>
+                      <Td colSpan={12} textAlign="center" py={6} color={muted} fontSize="xs">
                         No completed sales match the current filters.
                       </Td>
                     </Tr>
@@ -346,22 +394,23 @@ export default function CompletedSalesTable({
             </Box>
 
             <HStack justify="flex-end" spacing={1} pt={1}>
-              <Button size="sm" onClick={() => setPage((value) => Math.max(1, value - 1))} isDisabled={page <= 1}>
+              <Button size="xs" fontSize="xs" onClick={() => setPage((value) => Math.max(1, value - 1))} isDisabled={page <= 1}>
                 Previous
               </Button>
               {visiblePages.map((pageNumber) => (
                 <Button
                   key={pageNumber}
-                  size="sm"
-                  minW="34px"
+                  size="xs"
+                  fontSize="xs"
+                  minW="28px"
                   variant={pageNumber === page ? 'solid' : 'outline'}
-                  colorScheme={pageNumber === page ? 'blue' : 'gray'}
+                  colorScheme={pageNumber === page ? 'teal' : 'gray'}
                   onClick={() => setPage(pageNumber)}
                 >
                   {pageNumber}
                 </Button>
               ))}
-              <Button size="sm" onClick={() => setPage((value) => Math.min(totalPages, value + 1))} isDisabled={page >= totalPages}>
+              <Button size="xs" fontSize="xs" onClick={() => setPage((value) => Math.min(totalPages, value + 1))} isDisabled={page >= totalPages}>
                 Next
               </Button>
             </HStack>

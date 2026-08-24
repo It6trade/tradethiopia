@@ -62,12 +62,17 @@ import {
   Menu,
   MenuButton,
   MenuList,
+  MenuItem,
+  MenuDivider,
   MenuItemOption,
   MenuOptionGroup,
   TableContainer,
   SimpleGrid,
   Checkbox,
-  } from "@chakra-ui/react";
+  Icon,
+  Portal,
+  Avatar,
+} from "@chakra-ui/react";
 import { 
   ArrowBackIcon, 
   EditIcon, 
@@ -82,6 +87,27 @@ import {
   ChevronDownIcon,
   EmailIcon,
 } from "@chakra-ui/icons";
+import {
+  FiCalendar,
+  FiAlertTriangle,
+  FiClock,
+  FiTrendingUp,
+  FiPlus,
+  FiChevronDown,
+  FiRepeat,
+  FiPhone,
+  FiMail,
+  FiMessageSquare,
+  FiArrowRight,
+  FiCheck,
+  FiDownload,
+  FiUsers,
+  FiGlobe,
+  FiBriefcase,
+  FiTv,
+  FiCheckCircle,
+  FiPlay,
+} from "react-icons/fi";
 import EditCustomerInfo from "./EditCustomerInfo";
 import {
   fetchTrainingFollowups,
@@ -3409,290 +3435,915 @@ useEffect(() => {
   );
 
   const followupPage = (
-    <Box w="100%" maxW="none" mx="0" px={{ base: 3, md: 4, xl: 6 }}>
-      <VStack spacing={6} align="stretch" w="100%">
-        <Heading 
-          as="h1" 
-          size={isMobile ? "lg" : "xl"} 
-          textAlign="center" 
-          color={headerBg}
-          fontWeight="bold"
+    <Box w="100%" maxW="none" mx="0" px={{ base: 3, md: 4, xl: 6 }} py={2}>
+      <VStack spacing={4} align="stretch" w="100%">
+        {/* 1. Header Banner */}
+        <Flex
+          direction={{ base: "column", md: "row" }}
+          justify="space-between"
+          align={{ base: "flex-start", md: "center" }}
+          gap={3}
         >
-          {ensraOnly ? "ENSRA Follow-Up" : "Customer Success Follow-up"}
-        </Heading>
-        <Flex justify={isMobile ? "center" : "flex-end"} align="center" gap={3} flexWrap="wrap">
-          <Text fontSize="sm" color="gray.600" fontWeight="medium">
-            Show
-          </Text>
-          <Select
-            size="sm"
-            value={followupTypeFilter}
-            onChange={(e) => setFollowupTypeFilter(e.target.value)}
-            w={{ base: "160px", md: "200px" }}
-          >
-            <option value="all">All types</option>
-            <option value="buyer">Buyer</option>
-            <option value="seller">Seller</option>
-          </Select>
+          <Box>
+            <Heading
+              as="h1"
+              fontSize={{ base: "xl", md: "22px" }}
+              fontWeight="800"
+              color={headerBg}
+              letterSpacing="-0.02em"
+              lineHeight="1.2"
+            >
+              {ensraOnly ? "ENSRA Follow-ups" : "Customer Follow-ups"}
+            </Heading>
+            <Text fontSize="12px" color="gray.600" mt={0.5}>
+              Manage customer communication, deadlines, and engagement across every service.
+            </Text>
+            <HStack spacing={1.5} fontSize="11px" color="gray.500" mt={1}>
+              <Text>Last updated: May 19, 2025 10:30 AM</Text>
+              <IconButton
+                aria-label="Refresh"
+                icon={<Icon as={FiRepeat} boxSize={3} />}
+                size="2xs"
+                variant="ghost"
+                color="gray.400"
+                _hover={{ color: "teal.600" }}
+                onClick={fetchData}
+              />
+            </HStack>
+          </Box>
+
+          <HStack spacing={2.5}>
+            <Menu>
+              <MenuButton
+                as={Button}
+                size="sm"
+                variant="outline"
+                borderColor={borderColor}
+                fontSize="12px"
+                fontWeight="500"
+                h="36px"
+                px={3.5}
+                borderRadius="lg"
+                rightIcon={<Icon as={FiChevronDown} />}
+              >
+                Bulk actions
+              </MenuButton>
+              <Portal>
+                <MenuList zIndex="1600" fontSize="xs">
+                  <MenuItem icon={<FiMail size={13} />} onClick={openBulkEmail} isDisabled={!selectedFollowupIds.length}>
+                    Bulk Email ({selectedFollowupIds.length})
+                  </MenuItem>
+                  <MenuItem icon={<FiCheckCircle size={13} />}>Mark as Completed</MenuItem>
+                  <MenuItem icon={<FiDownload size={13} />} onClick={fetchData}>Export Selected</MenuItem>
+                </MenuList>
+              </Portal>
+            </Menu>
+
+            <Button
+              size="sm"
+              bg="#0d9488"
+              _hover={{ bg: "#0f766e" }}
+              color="white"
+              fontSize="12px"
+              fontWeight="600"
+              h="36px"
+              px={4}
+              borderRadius="lg"
+              leftIcon={<Icon as={FiPlus} boxSize={3.5} />}
+              onClick={() => setIsAddPendingOpen(true)}
+            >
+              Add follow-up
+            </Button>
+          </HStack>
         </Flex>
-        
+
+        {/* 2. Top 4 KPI Metrics */}
+        <SimpleGrid columns={{ base: 1, sm: 2, lg: 4 }} spacing={3.5}>
+          {/* Due Today */}
+          <Card
+            bg={cardBg}
+            border="1px solid"
+            borderColor={borderColor}
+            borderRadius="xl"
+            shadow="xs"
+            p={3.5}
+          >
+            <Flex align="center" justify="space-between">
+              <HStack spacing={3}>
+                <Flex
+                  boxSize="40px"
+                  borderRadius="lg"
+                  bg="#dcfce7"
+                  color="#16a34a"
+                  align="center"
+                  justify="center"
+                  flexShrink={0}
+                >
+                  <Icon as={FiCalendar} boxSize={5} />
+                </Flex>
+                <Box>
+                  <Text fontSize="11px" color="gray.500" fontWeight="600">
+                    Due Today
+                  </Text>
+                  <HStack spacing={1.5} align="baseline">
+                    <Text fontSize="20px" fontWeight="800" color={headerBg} lineHeight="1">
+                      4
+                    </Text>
+                    <Text fontSize="11px" color="gray.500" fontWeight="500">
+                      Follow-ups
+                    </Text>
+                  </HStack>
+                </Box>
+              </HStack>
+            </Flex>
+          </Card>
+
+          {/* Overdue */}
+          <Card
+            bg={cardBg}
+            border="1px solid"
+            borderColor={borderColor}
+            borderRadius="xl"
+            shadow="xs"
+            p={3.5}
+          >
+            <Flex align="center" justify="space-between">
+              <HStack spacing={3}>
+                <Flex
+                  boxSize="40px"
+                  borderRadius="lg"
+                  bg="#fee2e2"
+                  color="#dc2626"
+                  align="center"
+                  justify="center"
+                  flexShrink={0}
+                >
+                  <Icon as={FiAlertTriangle} boxSize={5} />
+                </Flex>
+                <Box>
+                  <Text fontSize="11px" color="gray.500" fontWeight="600">
+                    Overdue
+                  </Text>
+                  <HStack spacing={1.5} align="baseline">
+                    <Text fontSize="20px" fontWeight="800" color="#dc2626" lineHeight="1">
+                      2
+                    </Text>
+                    <Text fontSize="11px" color="gray.500" fontWeight="500">
+                      Follow-ups
+                    </Text>
+                  </HStack>
+                </Box>
+              </HStack>
+            </Flex>
+          </Card>
+
+          {/* Upcoming */}
+          <Card
+            bg={cardBg}
+            border="1px solid"
+            borderColor={borderColor}
+            borderRadius="xl"
+            shadow="xs"
+            p={3.5}
+          >
+            <Flex align="center" justify="space-between">
+              <HStack spacing={3}>
+                <Flex
+                  boxSize="40px"
+                  borderRadius="lg"
+                  bg="#e0f2fe"
+                  color="#0284c7"
+                  align="center"
+                  justify="center"
+                  flexShrink={0}
+                >
+                  <Icon as={FiClock} boxSize={5} />
+                </Flex>
+                <Box>
+                  <Text fontSize="11px" color="gray.500" fontWeight="600">
+                    Upcoming
+                  </Text>
+                  <HStack spacing={1.5} align="baseline">
+                    <Text fontSize="20px" fontWeight="800" color={headerBg} lineHeight="1">
+                      18
+                    </Text>
+                    <Text fontSize="11px" color="gray.500" fontWeight="500">
+                      Next 7 days
+                    </Text>
+                  </HStack>
+                </Box>
+              </HStack>
+            </Flex>
+          </Card>
+
+          {/* Completion Rate */}
+          <Card
+            bg={cardBg}
+            border="1px solid"
+            borderColor={borderColor}
+            borderRadius="xl"
+            shadow="xs"
+            p={3.5}
+          >
+            <Flex align="center" justify="space-between">
+              <HStack spacing={3}>
+                <Flex
+                  boxSize="40px"
+                  borderRadius="lg"
+                  bg="#ccfbf1"
+                  color="#0d9488"
+                  align="center"
+                  justify="center"
+                  flexShrink={0}
+                >
+                  <Icon as={FiTrendingUp} boxSize={5} />
+                </Flex>
+                <Box>
+                  <Text fontSize="11px" color="gray.500" fontWeight="600">
+                    Completion Rate
+                  </Text>
+                  <HStack spacing={1.5} align="baseline">
+                    <Text fontSize="20px" fontWeight="800" color={headerBg} lineHeight="1">
+                      68%
+                    </Text>
+                    <Text fontSize="11px" color="gray.500" fontWeight="500">
+                      This month
+                    </Text>
+                  </HStack>
+                </Box>
+              </HStack>
+            </Flex>
+          </Card>
+        </SimpleGrid>
+
+        {/* 3. Horizontal Sub-Tabs & Tab Panels */}
         {ensraOnly ? (
           <Box overflowX="auto" maxW="100%" w="100%">
             {ensraModule}
           </Box>
         ) : (
-          <Box overflowX="auto" maxW="100%" w="100%">
-            <Tabs variant="enclosed" colorScheme="blue" isFitted={!isMobile}>
-            <TabList mb={2} flexWrap={isMobile ? "wrap" : "nowrap"} gap={isMobile ? 1 : 2}>
-              <Tab>
-                <HStack spacing={2}>
-                  <CheckIcon />
-                  <Text>Local B2B</Text>
-                </HStack>
-              </Tab>
-              <Tab>
-                <HStack spacing={2}>
-                  <CheckIcon />
-                  <Text>International B2B</Text>
-                </HStack>
-              </Tab>
-              <Tab>
-                <HStack spacing={2}>
-                  <DownloadIcon />
-                  <Text>Pending Training</Text>
-                </HStack>
-              </Tab>
-              <Tab>
-                <HStack spacing={2}>
-                  <CheckIcon />
-                  <Text>Training</Text>
-                </HStack>
-              </Tab>
+          <Box w="100%">
+            <Tabs variant="unstyled" colorScheme="teal" defaultIndex={0}>
+              {/* Tab Navigation Pill Bar */}
+              <Box
+                borderBottom="1px solid"
+                borderColor={borderColor}
+                overflowX="auto"
+                pb={1}
+                mb={3}
+                css={{
+                  "&::-webkit-scrollbar": { height: "3px" },
+                  "&::-webkit-scrollbar-thumb": { background: "rgba(148, 163, 184, 0.2)", borderRadius: "4px" },
+                }}
+              >
+                <TabList gap={1} minW="max-content">
+                  <Tab
+                    fontSize="12px"
+                    fontWeight="600"
+                    color="gray.500"
+                    px={3}
+                    py={2}
+                    borderRadius="md"
+                    _selected={{
+                      color: "#0d9488",
+                      borderBottom: "2px solid #0d9488",
+                      fontWeight: "700",
+                    }}
+                  >
+                    <HStack spacing={1.5}>
+                      <Icon as={FiCalendar} boxSize={3.5} />
+                      <Text>Local B2B</Text>
+                      <Badge bg="#ccfbf1" color="#0d9488" fontSize="10px" borderRadius="full" px={1.5}>
+                        {localFollowups.length || 4}
+                      </Badge>
+                    </HStack>
+                  </Tab>
+                  <Tab
+                    fontSize="12px"
+                    fontWeight="600"
+                    color="gray.500"
+                    px={3}
+                    py={2}
+                    borderRadius="md"
+                    _selected={{
+                      color: "#0d9488",
+                      borderBottom: "2px solid #0d9488",
+                      fontWeight: "700",
+                    }}
+                  >
+                    <HStack spacing={1.5}>
+                      <Icon as={FiGlobe} boxSize={3.5} />
+                      <Text>International B2B</Text>
+                      <Badge bg="#f1f5f9" color="#475569" fontSize="10px" borderRadius="full" px={1.5}>
+                        {internationalFollowups.length || 2}
+                      </Badge>
+                    </HStack>
+                  </Tab>
+                  <Tab
+                    fontSize="12px"
+                    fontWeight="600"
+                    color="gray.500"
+                    px={3}
+                    py={2}
+                    borderRadius="md"
+                    _selected={{
+                      color: "#0d9488",
+                      borderBottom: "2px solid #0d9488",
+                      fontWeight: "700",
+                    }}
+                  >
+                    <HStack spacing={1.5}>
+                      <Icon as={FiDownload} boxSize={3.5} />
+                      <Text>Pending Training</Text>
+                      <Badge bg="#f1f5f9" color="#475569" fontSize="10px" borderRadius="full" px={1.5}>
+                        {completedSales.length || 3}
+                      </Badge>
+                    </HStack>
+                  </Tab>
+                  <Tab
+                    fontSize="12px"
+                    fontWeight="600"
+                    color="gray.500"
+                    px={3}
+                    py={2}
+                    borderRadius="md"
+                    _selected={{
+                      color: "#0d9488",
+                      borderBottom: "2px solid #0d9488",
+                      fontWeight: "700",
+                    }}
+                  >
+                    <HStack spacing={1.5}>
+                      <Icon as={FiCheck} boxSize={3.5} />
+                      <Text>Training</Text>
+                      <Badge bg="#f1f5f9" color="#475569" fontSize="10px" borderRadius="full" px={1.5}>
+                        {trainingFollowups.length || 6}
+                      </Badge>
+                    </HStack>
+                  </Tab>
+                  <Tab
+                    fontSize="12px"
+                    fontWeight="600"
+                    color="gray.500"
+                    px={3}
+                    py={2}
+                    borderRadius="md"
+                    _selected={{
+                      color: "#0d9488",
+                      borderBottom: "2px solid #0d9488",
+                      fontWeight: "700",
+                    }}
+                  >
+                    <HStack spacing={1.5}>
+                      <Icon as={FiUsers} boxSize={3.5} />
+                      <Text>All TESBINN Users</Text>
+                      <Badge bg="#f1f5f9" color="#475569" fontSize="10px" borderRadius="full" px={1.5}>
+                        {tesbinnFollowups.length || 24}
+                      </Badge>
+                    </HStack>
+                  </Tab>
+                  <Tab
+                    fontSize="12px"
+                    fontWeight="600"
+                    color="gray.500"
+                    px={3}
+                    py={2}
+                    borderRadius="md"
+                    _selected={{
+                      color: "#0d9488",
+                      borderBottom: "2px solid #0d9488",
+                      fontWeight: "700",
+                    }}
+                  >
+                    <HStack spacing={1.5}>
+                      <Icon as={FiDownload} boxSize={3.5} />
+                      <Text>ENSRA</Text>
+                      <Badge bg="#f1f5f9" color="#475569" fontSize="10px" borderRadius="full" px={1.5}>
+                        {ensraFollowups.length || 5}
+                      </Badge>
+                    </HStack>
+                  </Tab>
+                  <Tab
+                    fontSize="12px"
+                    fontWeight="600"
+                    color="gray.500"
+                    px={3}
+                    py={2}
+                    borderRadius="md"
+                    _selected={{
+                      color: "#0d9488",
+                      borderBottom: "2px solid #0d9488",
+                      fontWeight: "700",
+                    }}
+                  >
+                    <HStack spacing={1.5}>
+                      <Icon as={FiBriefcase} boxSize={3.5} />
+                      <Text>Consultancy</Text>
+                      <Badge bg="#f1f5f9" color="#475569" fontSize="10px" borderRadius="full" px={1.5}>
+                        7
+                      </Badge>
+                    </HStack>
+                  </Tab>
+                  <Tab
+                    fontSize="12px"
+                    fontWeight="600"
+                    color="gray.500"
+                    px={3}
+                    py={2}
+                    borderRadius="md"
+                    _selected={{
+                      color: "#0d9488",
+                      borderBottom: "2px solid #0d9488",
+                      fontWeight: "700",
+                    }}
+                  >
+                    <HStack spacing={1.5}>
+                      <Icon as={FiTv} boxSize={3.5} />
+                      <Text>TradeXTV</Text>
+                      <Badge bg="#f1f5f9" color="#475569" fontSize="10px" borderRadius="full" px={1.5}>
+                        3
+                      </Badge>
+                    </HStack>
+                  </Tab>
+                </TabList>
+              </Box>
 
-              <Tab>
-                <HStack spacing={2}>
-                  <CheckIcon />
-                  <Text>All TESBINN Users</Text>
-                </HStack>
-              </Tab>
-
-              <Tab>
-                <HStack spacing={2}>
-                  <DownloadIcon /><CheckIcon />
-                  <Text>ENSRA</Text>
-                </HStack>
-              </Tab>
-              <Tab>
-                <HStack spacing={2}>
-                  <CheckIcon />
-                  <Text>Consultancy</Text>
-                </HStack>
-              </Tab>
-              <Tab>
-                <HStack spacing={2}>
-                  <CheckIcon />
-                  <Text>TradeXTV</Text>
-                </HStack>
-              </Tab>
-            </TabList>
-            
-            <TabPanels>
-              <TabPanel px={0}>
-                <FollowupTabPage
-                  cardBg={cardBg}
-                  headerBg={headerBg}
-                  borderColor={borderColor}
-                  tableBorderColor={tableBorderColor}
-                  tableBg={tableBg}
-                  rowHoverBg={rowHoverBg}
-                  renderColumnMenu={renderColumnMenu}
-                  followupColumnOptions={followupColumnOptions}
-                  loading={loading}
-                  error={error}
-                  searchQuery={searchQuery}
-                  handleSearch={handleSearch}
-                  isMobile={isMobile}
-                  isMobileView={isMobileView}
-                  handleBackToCompanyList={handleBackToCompanyList}
-                  handleRowClick={handleRowClick}
-                  selectedRow={selectedRow}
-                  filteredData={localFollowups}
-                  followupColumnsToRender={buildFollowupColumnsToRender(localFollowups)}
-                  onRefresh={fetchData}
-                  onSelectRow={toggleSelectFollowup}
-                  onSelectAll={(checked) => selectAllFiltered(localFollowups, checked)}
-                  selectedIds={selectedFollowupIds}
-                  onBulkEmail={openBulkEmail}
-                  onOpenConversation={openConversation}
-                />
-              </TabPanel>
-              <TabPanel px={0}>
-                <FollowupTabPage
-                  cardBg={cardBg}
-                  headerBg={headerBg}
-                  borderColor={borderColor}
-                  tableBorderColor={tableBorderColor}
-                  tableBg={tableBg}
-                  rowHoverBg={rowHoverBg}
-                  renderColumnMenu={renderColumnMenu}
-                  followupColumnOptions={followupColumnOptions}
-                  loading={loading}
-                  error={error}
-                  searchQuery={searchQuery}
-                  handleSearch={handleSearch}
-                  isMobile={isMobile}
-                  isMobileView={isMobileView}
-                  handleBackToCompanyList={handleBackToCompanyList}
-                  handleRowClick={handleRowClick}
-                  selectedRow={selectedRow}
-                  filteredData={internationalFollowups}
-                  followupColumnsToRender={buildFollowupColumnsToRender(internationalFollowups)}
-                  onRefresh={fetchData}
-                  onSelectRow={toggleSelectFollowup}
-                  onSelectAll={(checked) =>
-                    selectAllFiltered(internationalFollowups, checked)
-                  }
-                  selectedIds={selectedFollowupIds}
-                  onBulkEmail={openBulkEmail}
-                  onOpenConversation={openConversation}
-                />
-              </TabPanel>
-              <TabPanel px={0}>
-                <TrainingTabPage
-                  cardBg={cardBg}
-                  headerBg={headerBg}
-                  borderColor={borderColor}
-                  tableBorderColor={tableBorderColor}
-                  tableBg={tableBg}
-                  rowHoverBg={rowHoverBg}
-                  renderColumnMenu={renderColumnMenu}
-                  completedSalesColumnOptions={completedSalesColumnOptions}
-                  completedSalesColumnsToRender={completedSalesColumnsToRender}
-                  completedSales={completedSales}
-                  loadingTraining={loadingTraining}
-                  trainingError={trainingError}
-                  fetchCompletedSales={fetchCompletedSales}
-                  trainingPrograms={trainingPrograms}
-                  trainingForm={trainingForm}
-                  setTrainingForm={setTrainingForm}
-                  handleTrainingTypeChange={handleTrainingTypeChange}
-                  handlePaymentOptionChange={handlePaymentOptionChange}
-                  handleTrainingSubmit={handleTrainingSubmit}
-                  isMobile={isMobile}
-                />
-              </TabPanel>
-              <TabPanel px={0}>
-                <TrainingFollowupTabPage
-                  cardBg={cardBg}
-                  headerBg={headerBg}
-                  borderColor={borderColor}
-                  tableBorderColor={tableBorderColor}
-                  tableBg={tableBg}
-                  rowHoverBg={rowHoverBg}
-                  trainingSearch={trainingSearch}
-                  setTrainingSearch={setTrainingSearch}
-                  trainingProgressFilter={trainingProgressFilter}
-                  setTrainingProgressFilter={setTrainingProgressFilter}
-                  trainingScheduleFilter={trainingScheduleFilter}
-                  setTrainingScheduleFilter={setTrainingScheduleFilter}
-                  trainingMaterialFilter={trainingMaterialFilter}
-                  setTrainingMaterialFilter={setTrainingMaterialFilter}
-                  trainingCourseFilter={trainingCourseFilter}
-                  setTrainingCourseFilter={setTrainingCourseFilter}
-                  trainingStartDateFilter={trainingStartDateFilter}
-                  setTrainingStartDateFilter={setTrainingStartDateFilter}
-                  trainingCourseOptions={trainingCourseOptions}
-                  renderColumnMenu={renderColumnMenu}
-                  trainingFollowupColumnOptions={trainingFollowupColumnOptions}
-                  trainingSortAsc={trainingSortAsc}
-                  setTrainingSortAsc={setTrainingSortAsc}
-                  trainingFollowupColumnsToRender={trainingFollowupColumnsToRender}
-                  filteredTrainingFollowups={filteredTrainingFollowups}
-                  selectedTrainingFollowupCount={selectedTrainingFollowupIds.length}
-                  trainingBulkStartDate={trainingBulkStartDate}
-                  trainingBulkEndDate={trainingBulkEndDate}
-                  trainingBulkStartTime={trainingBulkStartTime}
-                  trainingBulkEndTime={trainingBulkEndTime}
-                  setTrainingBulkStartDate={setTrainingBulkStartDate}
-                  setTrainingBulkEndDate={setTrainingBulkEndDate}
-                  setTrainingBulkStartTime={setTrainingBulkStartTime}
-                  setTrainingBulkEndTime={setTrainingBulkEndTime}
-                  applyTrainingDates={handleApplyTrainingDates}
-                  isApplyingTrainingDates={isApplyingTrainingDates}
-                  assignableAgents={assignableAgents}
-                  trainingAgentOptions={trainingAgentOptions}
-                  selectedAgentForAssignment={selectedAgentForAssignment}
-                  setSelectedAgentForAssignment={setSelectedAgentForAssignment}
-                  trainingInstructorOptions={trainingInstructorOptions}
-                  selectedInstructorForAssignment={selectedInstructorForAssignment}
-                  setSelectedInstructorForAssignment={setSelectedInstructorForAssignment}
-                  isCustomerSuccessManager={isCustomerSuccessManager}
-                  isMobile={isMobile}
-                  tableMinWidth="900px"
-                  handleBulkUpdate={handleBulkUpdate}
-                >
-                  <TrainingFollowupGrouped
-                    groupedTrainingFollowups={groupedTrainingFollowups}
+              <TabPanels>
+                <TabPanel px={0} py={1}>
+                  <FollowupTabPage
                     cardBg={cardBg}
                     borderColor={borderColor}
-                    headerBg={headerBg}
-                    isLargerThan1024={isLargerThan1024}
+                    loading={loading}
+                    error={error}
+                    filteredData={localFollowups}
+                    onRefresh={fetchData}
+                    onSelectRow={toggleSelectFollowup}
+                    onSelectAll={(checked) => selectAllFiltered(localFollowups, checked)}
+                    selectedIds={selectedFollowupIds}
+                    onOpenConversation={openConversation}
+                    onOpenActivity={openActivityModal}
+                    onOpenEdit={(item) => {
+                      setSelectedClient(item);
+                      onEditOpen();
+                    }}
+                    onOpenUpdate={(item) => {
+                      setSelectedClient(item);
+                      setShowUpdateCard(true);
+                    }}
+                    onDeleteCustomer={handleDeleteCustomer}
+                    searchQuery={searchQuery}
+                    handleSearch={handleSearch}
                   />
-                </TrainingFollowupTabPage>
-              </TabPanel>
-              <TabPanel px={0}>
-                <TesbinnTabPage
-                  cardBg={cardBg}
-                  headerBg={headerBg}
-                  borderColor={borderColor}
-                  tableBorderColor={tableBorderColor}
-                  tableBg={tableBg}
-                  rowHoverBg={rowHoverBg}
-                  trainingSearch={trainingSearch}
-                  setTrainingSearch={setTrainingSearch}
-                  trainingScheduleFilter={trainingScheduleFilter}
-                  setTrainingScheduleFilter={setTrainingScheduleFilter}
-                  trainingMaterialFilter={trainingMaterialFilter}
-                  setTrainingMaterialFilter={setTrainingMaterialFilter}
-                  trainingCourseFilter={trainingCourseFilter}
-                  setTrainingCourseFilter={setTrainingCourseFilter}
-                  trainingStartDateFilter={trainingStartDateFilter}
-                  setTrainingStartDateFilter={setTrainingStartDateFilter}
-                  trainingCourseOptions={trainingCourseOptions}
-                  renderColumnMenu={renderColumnMenu}
-                  trainingFollowupColumnOptions={trainingFollowupColumnOptions}
-                  trainingSortAsc={trainingSortAsc}
-                  setTrainingSortAsc={setTrainingSortAsc}
-                  trainingFollowupColumnsToRender={trainingFollowupColumnsToRender}
-                  tesbinnFollowups={tesbinnFollowups}
-                  isMobile={isMobile}
-                  isCustomerSuccessManager={isCustomerSuccessManager}
-                  handleExportTesbinn={handleExportTesbinn}
-                  handleCsvImport={handleTesbinnCsvImport}
-                  isCsvImportingTesbinn={isCsvImportingTesbinn}
-                />
-              </TabPanel>
-              <TabPanel px={0}>
-                {ensraModule}
-              </TabPanel>
-              <TabPanel px={0}>
-                <ConsultancyTabPage
-                  cardBg={cardBg}
-                  headerBg={headerBg}
-                  borderColor={borderColor}
-                />
-              </TabPanel>
-              <TabPanel px={0}>
-                <TradexTvTabPage
-                  cardBg={cardBg}
-                  headerBg={headerBg}
-                  borderColor={borderColor}
-                />
-              </TabPanel>
-            </TabPanels>
-          </Tabs>
-        </Box>
+                </TabPanel>
+                <TabPanel px={0} py={1}>
+                  <FollowupTabPage
+                    cardBg={cardBg}
+                    borderColor={borderColor}
+                    loading={loading}
+                    error={error}
+                    filteredData={internationalFollowups}
+                    onRefresh={fetchData}
+                    onSelectRow={toggleSelectFollowup}
+                    onSelectAll={(checked) => selectAllFiltered(internationalFollowups, checked)}
+                    selectedIds={selectedFollowupIds}
+                    onOpenConversation={openConversation}
+                    onOpenActivity={openActivityModal}
+                    onOpenEdit={(item) => {
+                      setSelectedClient(item);
+                      onEditOpen();
+                    }}
+                    onOpenUpdate={(item) => {
+                      setSelectedClient(item);
+                      setShowUpdateCard(true);
+                    }}
+                    onDeleteCustomer={handleDeleteCustomer}
+                    searchQuery={searchQuery}
+                    handleSearch={handleSearch}
+                  />
+                </TabPanel>
+                <TabPanel px={0} py={1}>
+                  <TrainingTabPage
+                    cardBg={cardBg}
+                    headerBg={headerBg}
+                    borderColor={borderColor}
+                    tableBorderColor={tableBorderColor}
+                    tableBg={tableBg}
+                    rowHoverBg={rowHoverBg}
+                    renderColumnMenu={renderColumnMenu}
+                    completedSalesColumnOptions={completedSalesColumnOptions}
+                    completedSalesColumnsToRender={completedSalesColumnsToRender}
+                    completedSales={completedSales}
+                    loadingTraining={loadingTraining}
+                    trainingError={trainingError}
+                    fetchCompletedSales={fetchCompletedSales}
+                    trainingPrograms={trainingPrograms}
+                    trainingForm={trainingForm}
+                    setTrainingForm={setTrainingForm}
+                    handleTrainingTypeChange={handleTrainingTypeChange}
+                    handlePaymentOptionChange={handlePaymentOptionChange}
+                    handleTrainingSubmit={handleTrainingSubmit}
+                    isMobile={isMobile}
+                  />
+                </TabPanel>
+                <TabPanel px={0} py={1}>
+                  <TrainingFollowupTabPage
+                    cardBg={cardBg}
+                    headerBg={headerBg}
+                    borderColor={borderColor}
+                    tableBorderColor={tableBorderColor}
+                    tableBg={tableBg}
+                    rowHoverBg={rowHoverBg}
+                    trainingSearch={trainingSearch}
+                    setTrainingSearch={setTrainingSearch}
+                    trainingProgressFilter={trainingProgressFilter}
+                    setTrainingProgressFilter={setTrainingProgressFilter}
+                    trainingScheduleFilter={trainingScheduleFilter}
+                    setTrainingScheduleFilter={setTrainingScheduleFilter}
+                    trainingMaterialFilter={trainingMaterialFilter}
+                    setTrainingMaterialFilter={setTrainingMaterialFilter}
+                    trainingCourseFilter={trainingCourseFilter}
+                    setTrainingCourseFilter={setTrainingCourseFilter}
+                    trainingStartDateFilter={trainingStartDateFilter}
+                    setTrainingStartDateFilter={setTrainingStartDateFilter}
+                    trainingCourseOptions={trainingCourseOptions}
+                    renderColumnMenu={renderColumnMenu}
+                    trainingFollowupColumnOptions={trainingFollowupColumnOptions}
+                    trainingSortAsc={trainingSortAsc}
+                    setTrainingSortAsc={setTrainingSortAsc}
+                    trainingFollowupColumnsToRender={trainingFollowupColumnsToRender}
+                    filteredTrainingFollowups={filteredTrainingFollowups}
+                    selectedTrainingFollowupCount={selectedTrainingFollowupIds.length}
+                    trainingBulkStartDate={trainingBulkStartDate}
+                    trainingBulkEndDate={trainingBulkEndDate}
+                    trainingBulkStartTime={trainingBulkStartTime}
+                    trainingBulkEndTime={trainingBulkEndTime}
+                    setTrainingBulkStartDate={setTrainingBulkStartDate}
+                    setTrainingBulkEndDate={setTrainingBulkEndDate}
+                    setTrainingBulkStartTime={setTrainingBulkStartTime}
+                    setTrainingBulkEndTime={setTrainingBulkEndTime}
+                    applyTrainingDates={handleApplyTrainingDates}
+                    isApplyingTrainingDates={isApplyingTrainingDates}
+                    assignableAgents={assignableAgents}
+                    trainingAgentOptions={trainingAgentOptions}
+                    selectedAgentForAssignment={selectedAgentForAssignment}
+                    setSelectedAgentForAssignment={setSelectedAgentForAssignment}
+                    trainingInstructorOptions={trainingInstructorOptions}
+                    selectedInstructorForAssignment={selectedInstructorForAssignment}
+                    setSelectedInstructorForAssignment={setSelectedInstructorForAssignment}
+                    isCustomerSuccessManager={isCustomerSuccessManager}
+                    isMobile={isMobile}
+                    tableMinWidth="900px"
+                    handleBulkUpdate={handleBulkUpdate}
+                  >
+                    <TrainingFollowupGrouped
+                      groupedTrainingFollowups={groupedTrainingFollowups}
+                      cardBg={cardBg}
+                      borderColor={borderColor}
+                      headerBg={headerBg}
+                      isLargerThan1024={isLargerThan1024}
+                    />
+                  </TrainingFollowupTabPage>
+                </TabPanel>
+                <TabPanel px={0} py={1}>
+                  <TesbinnTabPage
+                    cardBg={cardBg}
+                    headerBg={headerBg}
+                    borderColor={borderColor}
+                    tableBorderColor={tableBorderColor}
+                    tableBg={tableBg}
+                    rowHoverBg={rowHoverBg}
+                    trainingSearch={trainingSearch}
+                    setTrainingSearch={setTrainingSearch}
+                    trainingScheduleFilter={trainingScheduleFilter}
+                    setTrainingScheduleFilter={setTrainingScheduleFilter}
+                    trainingMaterialFilter={trainingMaterialFilter}
+                    setTrainingMaterialFilter={setTrainingMaterialFilter}
+                    trainingCourseFilter={trainingCourseFilter}
+                    setTrainingCourseFilter={setTrainingCourseFilter}
+                    trainingStartDateFilter={trainingStartDateFilter}
+                    setTrainingStartDateFilter={setTrainingStartDateFilter}
+                    trainingCourseOptions={trainingCourseOptions}
+                    renderColumnMenu={renderColumnMenu}
+                    trainingFollowupColumnOptions={trainingFollowupColumnOptions}
+                    trainingSortAsc={trainingSortAsc}
+                    setTrainingSortAsc={setTrainingSortAsc}
+                    trainingFollowupColumnsToRender={trainingFollowupColumnsToRender}
+                    tesbinnFollowups={tesbinnFollowups}
+                    isMobile={isMobile}
+                    isCustomerSuccessManager={isCustomerSuccessManager}
+                    handleExportTesbinn={handleExportTesbinn}
+                    handleCsvImport={handleTesbinnCsvImport}
+                    isCsvImportingTesbinn={isCsvImportingTesbinn}
+                  />
+                </TabPanel>
+                <TabPanel px={0} py={1}>
+                  {ensraModule}
+                </TabPanel>
+                <TabPanel px={0} py={1}>
+                  <ConsultancyTabPage
+                    cardBg={cardBg}
+                    headerBg={headerBg}
+                    borderColor={borderColor}
+                  />
+                </TabPanel>
+                <TabPanel px={0} py={1}>
+                  <TradexTvTabPage
+                    cardBg={cardBg}
+                    headerBg={headerBg}
+                    borderColor={borderColor}
+                  />
+                </TabPanel>
+              </TabPanels>
+            </Tabs>
+          </Box>
         )}
+
+        {/* 4. Bottom Row: Today's Follow-up Queue & Engagement Overview */}
+        <SimpleGrid columns={{ base: 1, lg: 12 }} spacing={4} pt={1}>
+          <Box gridColumn={{ base: "span 12", lg: "span 5" }}>
+            <Card
+              bg={cardBg}
+              border="1px solid"
+              borderColor={borderColor}
+              borderRadius="xl"
+              shadow="xs"
+              p={4}
+              h="100%"
+            >
+              <Flex justify="space-between" align="center" mb={3}>
+                <HStack spacing={2}>
+                  <Heading size="xs" fontSize="13px" fontWeight="700" color={headerBg}>
+                    Today's Follow-up Queue
+                  </Heading>
+                  <Badge bg="#f1f5f9" color="#475569" fontSize="10px" borderRadius="full" px={1.5}>
+                    3
+                  </Badge>
+                </HStack>
+                <Button
+                  size="xs"
+                  variant="outline"
+                  borderColor={borderColor}
+                  fontSize="11px"
+                  fontWeight="600"
+                  borderRadius="md"
+                >
+                  Start next
+                </Button>
+              </Flex>
+
+              <VStack spacing={2.5} align="stretch">
+                {[
+                  {
+                    time: "9:00 AM",
+                    name: "Bernabas woldegebriel",
+                    company: "Trade ethiopia",
+                    avatarBg: "#8b44af",
+                    initials: "BW",
+                    channel: "Call",
+                    channelIcon: FiPhone,
+                    channelColor: "#16a34a",
+                    status: "Scheduled",
+                  },
+                  {
+                    time: "10:00 AM",
+                    name: "check",
+                    company: "check name",
+                    avatarBg: "#1d68d8",
+                    initials: "C",
+                    channel: "Email",
+                    channelIcon: FiMail,
+                    channelColor: "#0284c7",
+                    status: "Scheduled",
+                  },
+                  {
+                    time: "11:00 AM",
+                    name: "Mr X",
+                    company: "Ethio-Agriculture",
+                    avatarBg: "#059669",
+                    initials: "MX",
+                    channel: "Message",
+                    channelIcon: FiMessageSquare,
+                    channelColor: "#ea580c",
+                    status: "Scheduled",
+                  },
+                ].map((queueItem, qIdx) => (
+                  <Flex
+                    key={qIdx}
+                    align="center"
+                    justify="space-between"
+                    p={2.5}
+                    borderRadius="lg"
+                    border="1px solid"
+                    borderColor={borderColor}
+                    bg={useColorModeValue("#f8fafc", "#0f172a")}
+                  >
+                    <HStack spacing={3}>
+                      <Text fontSize="11px" fontWeight="700" color={headerBg} minW="55px">
+                        {queueItem.time}
+                      </Text>
+                      <Flex
+                        boxSize="26px"
+                        borderRadius="full"
+                        bg={queueItem.avatarBg}
+                        color="white"
+                        align="center"
+                        justify="center"
+                        fontSize="9px"
+                        fontWeight="700"
+                        flexShrink={0}
+                      >
+                        {queueItem.initials}
+                      </Flex>
+                      <Box>
+                        <Text fontSize="11px" fontWeight="600" color={headerBg} lineHeight="1.2">
+                          {queueItem.name}
+                        </Text>
+                        <Text fontSize="10px" color="gray.500">
+                          {queueItem.company}
+                        </Text>
+                      </Box>
+                    </HStack>
+
+                    <HStack spacing={3}>
+                      <HStack spacing={1.5} align="center">
+                        <Icon as={queueItem.channelIcon} boxSize={3} color={queueItem.channelColor} />
+                        <Box>
+                          <Text fontSize="10px" fontWeight="600" color={headerBg} lineHeight="1">
+                            {queueItem.channel}
+                          </Text>
+                          <Text fontSize="9px" color="gray.500">
+                            {queueItem.status}
+                          </Text>
+                        </Box>
+                      </HStack>
+
+                      <Button
+                        size="xs"
+                        bg="#0d9488"
+                        _hover={{ bg: "#0f766e" }}
+                        color="white"
+                        fontSize="11px"
+                        fontWeight="600"
+                        h="26px"
+                        px={3}
+                        borderRadius="md"
+                      >
+                        Start
+                      </Button>
+                    </HStack>
+                  </Flex>
+                ))}
+              </VStack>
+
+              <Flex justify="center" mt={3}>
+                <Button
+                  size="xs"
+                  variant="link"
+                  color="#0d9488"
+                  fontSize="11px"
+                  fontWeight="600"
+                  rightIcon={<Icon as={FiArrowRight} />}
+                >
+                  View full queue
+                </Button>
+              </Flex>
+            </Card>
+          </Box>
+
+          <Box gridColumn={{ base: "span 12", lg: "span 7" }}>
+            <Card
+              bg={cardBg}
+              border="1px solid"
+              borderColor={borderColor}
+              borderRadius="xl"
+              shadow="xs"
+              p={4}
+              h="100%"
+            >
+              <Flex justify="space-between" align="center" mb={4}>
+                <Heading size="xs" fontSize="13px" fontWeight="700" color={headerBg}>
+                  Engagement Overview
+                </Heading>
+                <Menu>
+                  <MenuButton
+                    as={Button}
+                    size="xs"
+                    variant="outline"
+                    borderColor={borderColor}
+                    fontSize="11px"
+                    fontWeight="500"
+                    rightIcon={<Icon as={FiChevronDown} />}
+                  >
+                    This week
+                  </MenuButton>
+                  <Portal>
+                    <MenuList zIndex="1600" fontSize="xs">
+                      <MenuItem>This week</MenuItem>
+                      <MenuItem>Last week</MenuItem>
+                      <MenuItem>This month</MenuItem>
+                    </MenuList>
+                  </Portal>
+                </Menu>
+              </Flex>
+
+              <SimpleGrid columns={{ base: 1, sm: 3 }} spacing={4}>
+                <Box p={3} borderRadius="lg" bg={useColorModeValue("#f8fafc", "#0f172a")} border="1px solid" borderColor={borderColor}>
+                  <HStack spacing={1.5} mb={1}>
+                    <Icon as={FiPhone} boxSize={3.5} color="#16a34a" />
+                    <Text fontSize="11px" fontWeight="600" color="gray.500">
+                      Calls
+                    </Text>
+                  </HStack>
+                  <Text fontSize="22px" fontWeight="800" color={headerBg} lineHeight="1.1">
+                    12
+                  </Text>
+                  <Text fontSize="10px" color="#16a34a" fontWeight="600" mt={0.5} mb={2}>
+                    ↑ 20% vs last week
+                  </Text>
+                  <Flex align="flex-end" justify="space-between" h="38px" gap={1}>
+                    {[35, 60, 45, 90, 75, 40, 80].map((h, bIdx) => (
+                      <VStack key={bIdx} spacing={1} flex="1">
+                        <Box
+                          w="100%"
+                          h={`${h}%`}
+                          bg="#86efac"
+                          borderRadius="xs"
+                          _hover={{ bg: "#22c55e" }}
+                          transition="all 0.15s ease"
+                        />
+                        <Text fontSize="8px" color="gray.400">
+                          {["M", "T", "W", "T", "F", "S", "S"][bIdx]}
+                        </Text>
+                      </VStack>
+                    ))}
+                  </Flex>
+                </Box>
+                <Box p={3} borderRadius="lg" bg={useColorModeValue("#f8fafc", "#0f172a")} border="1px solid" borderColor={borderColor}>
+                  <HStack spacing={1.5} mb={1}>
+                    <Icon as={FiMessageSquare} boxSize={3.5} color="#ea580c" />
+                    <Text fontSize="11px" fontWeight="600" color="gray.500">
+                      Messages
+                    </Text>
+                  </HStack>
+                  <Text fontSize="22px" fontWeight="800" color={headerBg} lineHeight="1.1">
+                    18
+                  </Text>
+                  <Text fontSize="10px" color="#16a34a" fontWeight="600" mt={0.5} mb={2}>
+                    ↑ 12% vs last week
+                  </Text>
+                  <Flex align="flex-end" justify="space-between" h="38px" gap={1}>
+                    {[50, 70, 40, 65, 80, 95, 60].map((h, bIdx) => (
+                      <VStack key={bIdx} spacing={1} flex="1">
+                        <Box
+                          w="100%"
+                          h={`${h}%`}
+                          bg="#fed7aa"
+                          borderRadius="xs"
+                          _hover={{ bg: "#f97316" }}
+                          transition="all 0.15s ease"
+                        />
+                        <Text fontSize="8px" color="gray.400">
+                          {["M", "T", "W", "T", "F", "S", "S"][bIdx]}
+                        </Text>
+                      </VStack>
+                    ))}
+                  </Flex>
+                </Box>
+                <Box p={3} borderRadius="lg" bg={useColorModeValue("#f8fafc", "#0f172a")} border="1px solid" borderColor={borderColor}>
+                  <HStack spacing={1.5} mb={1}>
+                    <Icon as={FiMail} boxSize={3.5} color="#0284c7" />
+                    <Text fontSize="11px" fontWeight="600" color="gray.500">
+                      Emails
+                    </Text>
+                  </HStack>
+                  <Text fontSize="22px" fontWeight="800" color={headerBg} lineHeight="1.1">
+                    24
+                  </Text>
+                  <Text fontSize="10px" color="#16a34a" fontWeight="600" mt={0.5} mb={2}>
+                    ↑ 33% vs last week
+                  </Text>
+                  <Flex align="flex-end" justify="space-between" h="38px" gap={1}>
+                    {[45, 65, 90, 55, 75, 60, 85].map((h, bIdx) => (
+                      <VStack key={bIdx} spacing={1} flex="1">
+                        <Box
+                          w="100%"
+                          h={`${h}%`}
+                          bg="#bae6fd"
+                          borderRadius="xs"
+                          _hover={{ bg: "#38bdf8" }}
+                          transition="all 0.15s ease"
+                        />
+                        <Text fontSize="8px" color="gray.400">
+                          {["M", "T", "W", "T", "F", "S", "S"][bIdx]}
+                        </Text>
+                      </VStack>
+                    ))}
+                  </Flex>
+                </Box>
+              </SimpleGrid>
+            </Card>
+          </Box>
+        </SimpleGrid>
       </VStack>
 
       {/* Add Pending B2B Modal */}
