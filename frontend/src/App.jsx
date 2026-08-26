@@ -43,8 +43,10 @@ import AdminTrainingUpload from "./pages/AdminTrainingUpload";
 import AdminCustomerReport from './components/AdminCSReport.jsx';
 import CustomerSettings from "./components/customer/CustomerSettings";
 import CustomerUserManagement from "./components/customer/CustomerUserManagement";
-import CSManagerTaskMonitor from "./components/customer/CSManagerTaskMonitor";
+const StudentRegistrationPage = lazy(() => import("./components/customer/StudentRegistrationPage"));
+const CSManagerTaskMonitor = lazy(() => import("./components/customer/CSManagerTaskMonitor"));
 import ReceptionDashboard from './pages/ReceptionDashboard';
+
 import HRTrainingPage from './pages/HRTrainingPage.jsx';
 import ENISRALayout from "./components/ENSRA/ENSRALayout";
 import ENISRAEnhancedDashboard from "./components/ENSRA/ENISRAEnhancedDashboard";
@@ -152,7 +154,7 @@ function App() {
     "/finance/messages", "/finance/team-requests", "/finance/demands", "/finance/payments", "/finance/inventory", "/finance/orders",
     "/addcustomer", "/resource", "/videolist", "/uploadpage", "/my-payroll",
     "/cdashboard", "/waitingforapproval", "/training", "/comingsoonpage", "/customerreport", "/followup-report", "/customerfollowup", "/b2b-dashboard",
-    "/coo-dashboard", "/ceo-dashboard", "/tradextv-dashboard", "/customer-settings", "/customer-user-management", "/customer/manager-tasks", "/customer-manager-tasks", "/admincustomerreport", "/it", "/salesmanager", "/social-media", "/requests", "/finance-dashboard/payroll", "/finance-dashboard/commission-approval", "/finance-dashboard/forms", "/supervisor", "/supervisor/account", "/finance/requests", "/reception-dashboard",
+    "/coo-dashboard", "/ceo-dashboard", "/tradextv-dashboard", "/customer-settings", "/customer-user-management", "/customer/student-registration", "/customer/manager-tasks", "/customer-manager-tasks", "/admincustomerreport", "/it", "/salesmanager", "/social-media", "/requests", "/finance-dashboard/payroll", "/finance-dashboard/commission-approval", "/finance-dashboard/forms", "/supervisor", "/supervisor/account", "/finance/requests", "/reception-dashboard",
     "/tessbin-dashboard", "/tessbin"
   ].map((path) => path.toLowerCase());
 
@@ -506,6 +508,14 @@ function App() {
         element={
           <ProtectedRoute>
             <CustomerUserManagement />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/customer/student-registration"
+        element={
+          <ProtectedRoute>
+            <StudentRegistrationPage />
           </ProtectedRoute>
         }
       />

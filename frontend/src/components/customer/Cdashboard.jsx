@@ -360,11 +360,14 @@ const CDashboard = ({ initialTab = 'dashboard' }) => {
     return (
       <Layout {...layoutProps}>
         <Box p={{ base: 4, md: 6 }} bg={pageBg} minHeight="100vh">
-          <CSExternalITRequestsPanel
-            focusedTaskId={urlFocus.taskId}
-            focusedCommentId={urlFocus.commentId}
-            focusedNotification={urlFocus}
-          />
+          <VStack spacing={6} align="stretch">
+            <CSExternalITRequestsPanel
+              focusedTaskId={urlFocus.taskId}
+              focusedCommentId={urlFocus.commentId}
+              focusedNotification={urlFocus}
+            />
+            <CustomerSupportRequestPanel />
+          </VStack>
         </Box>
       </Layout>
     );

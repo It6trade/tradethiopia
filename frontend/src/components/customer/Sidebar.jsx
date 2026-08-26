@@ -1,31 +1,26 @@
-import React, { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   Avatar,
   Badge,
   Box,
-  Button,
   Collapse,
   Divider,
   Flex,
   HStack,
   Icon,
   IconButton,
-  Link,
   Text,
   Tooltip,
-  useColorModeValue,
   VStack,
   Menu,
   MenuButton,
   MenuList,
   MenuItem,
-  MenuDivider,
   Portal,
 } from "@chakra-ui/react";
 import { useLocation, useNavigate, Link as RouterLink } from "react-router-dom";
 import {
   FiActivity,
-  FiAward,
   FiBarChart2,
   FiBookOpen,
   FiChevronDown,
@@ -35,14 +30,13 @@ import {
   FiClipboard,
   FiGlobe,
   FiHome,
-  FiLayers,
   FiLogOut,
   FiMessageSquare,
-  FiPackage,
   FiSettings,
   FiTool,
   FiTrendingUp,
   FiUser,
+  FiUserPlus,
   FiUsers,
 } from "react-icons/fi";
 import { getNotifications } from "../../services/notificationService";
@@ -135,9 +129,6 @@ const SSidebar = ({ isCollapsed: collapsedProp, toggleCollapse: toggleProp, acti
   const subtextColor = "rgba(255, 255, 255, 0.40)";
   const iconColor = "rgba(255, 255, 255, 0.65)";
   const sidebarBorderColor = "rgba(255, 255, 255, 0.08)";
-  const cardBorderColor = "rgba(255, 255, 255, 0.08)";
-  const userCardBg = "#142319";
-
   // Active item styles (HR Emerald #2d6a4f)
   const activeBg = "#2d6a4f";
   const activeTextColor = "#ffffff";
@@ -422,6 +413,18 @@ const SSidebar = ({ isCollapsed: collapsedProp, toggleCollapse: toggleProp, acti
               icon={<FiBookOpen size={17} />}
               label="Training Academy"
               active={isActive("/training")}
+              iconColor={iconColor}
+              activeIconColor={activeIconColor}
+              textColor={textColor}
+              activeTextColor={activeTextColor}
+              activeBg={activeBg}
+            />
+            <SidebarLink
+              isCollapsed={isCollapsed}
+              to="/customer/student-registration"
+              icon={<FiUserPlus size={17} />}
+              label="Student Registration"
+              active={isActive("/customer/student-registration")}
               iconColor={iconColor}
               activeIconColor={activeIconColor}
               textColor={textColor}

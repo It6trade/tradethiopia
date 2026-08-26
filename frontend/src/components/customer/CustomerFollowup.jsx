@@ -73,10 +73,10 @@ import {
   Portal,
   Avatar,
 } from "@chakra-ui/react";
-import { 
-  ArrowBackIcon, 
-  EditIcon, 
-  DeleteIcon, 
+import {
+  ArrowBackIcon,
+  EditIcon,
+  DeleteIcon,
   DownloadIcon,
   SearchIcon,
   RepeatIcon,
@@ -200,6 +200,8 @@ const CustomerFollowup = ({ embedLayout = false, ensraOnly = false }) => {
     industry: "",
     packageScope: "Local",
     packageType: "",
+    followUpDate: "",
+    status: "Pending",
     products: "",
     notes: "",
   });
@@ -239,6 +241,30 @@ const CustomerFollowup = ({ embedLayout = false, ensraOnly = false }) => {
     const type = resolveFollowupType(customer);
     if (!type) return "N/A";
     return type.charAt(0).toUpperCase() + type.slice(1);
+  };
+
+  const shouldShowFollowupInCurrentList = (followup = {}) => {
+    const query = searchQuery.toLowerCase().trim();
+    const matchesSearch =
+      !query ||
+      (followup.clientName || "").toLowerCase().includes(query) ||
+      (followup.companyName || "").toLowerCase().includes(query);
+    const matchesType =
+      followupTypeFilter === "all" ||
+      resolveFollowupType(followup) === followupTypeFilter;
+
+    return matchesSearch && matchesType;
+  };
+
+  const prependFollowupToLists = (followup = {}) => {
+    const normalized = {
+      ...followup,
+      packageScope: resolvePackageScope(followup),
+    };
+    setData((prev) => [normalized, ...(Array.isArray(prev) ? prev : [])]);
+    if (shouldShowFollowupInCurrentList(normalized)) {
+      setFilteredData((prev) => [normalized, ...(Array.isArray(prev) ? prev : [])]);
+    }
   };
 
   const updateFollowupPackageScope = (id, scope) => {
@@ -426,8 +452,8 @@ const CustomerFollowup = ({ embedLayout = false, ensraOnly = false }) => {
     () =>
       normalizeRoleValue(
         localStorage.getItem("userRole") ||
-          localStorage.getItem("userRoleRaw") ||
-          ""
+        localStorage.getItem("userRoleRaw") ||
+        ""
       ),
     []
   );
@@ -481,12 +507,12 @@ const CustomerFollowup = ({ embedLayout = false, ensraOnly = false }) => {
     () => assignmentFilteredData.filter((item) => resolvePackageScope(item) === "International"),
     [assignmentFilteredData]
   );
- const toast = useToast();
-  
+  const toast = useToast();
+
   // Responsive breakpoints
   const [isLargerThan768] = useMediaQuery("(min-width: 768px)");
   const [isLargerThan1024] = useMediaQuery("(min-width: 1024px)");
-  
+
   // Color mode values for consistent theming
   const cardBg = useColorModeValue("white", "gray.700");
   const headerBg = useColorModeValue("blue.500", "blue.600");
@@ -496,14 +522,16 @@ const CustomerFollowup = ({ embedLayout = false, ensraOnly = false }) => {
   const rowHoverBg = useColorModeValue("gray.50", "gray.700");
 
   const [isMobile] = useMediaQuery("(max-width: 768px)");
-  const { 
-    isOpen: isEditOpen, 
-    onOpen: onEditOpen, 
-    onClose: onEditClose 
+  const {
+    isOpen: isEditOpen,
+    onOpen: onEditOpen,
+    onClose: onEditClose
   } = useDisclosure();
 
-  const fetchData = async () => {
-    setLoading(true);
+  const fetchData = async ({ silent = false } = {}) => {
+    if (!silent) {
+      setLoading(true);
+    }
     try {
       const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/followups`);
       if (Array.isArray(response.data)) {
@@ -518,13 +546,19 @@ const CustomerFollowup = ({ embedLayout = false, ensraOnly = false }) => {
         setFilteredData([]);
         setError("Invalid data format received from server");
       }
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+      }
     } catch (err) {
       console.error("API Error:", err);
-      setData([]);
-      setFilteredData([]);
-      setError("Failed to fetch data: " + (err.response?.data?.message || err.message));
-      setLoading(false);
+      if (!silent) {
+        setData([]);
+        setFilteredData([]);
+        setError("Failed to fetch data: " + (err.response?.data?.message || err.message));
+      }
+      if (!silent) {
+        setLoading(false);
+      }
     }
   };
 
@@ -538,14 +572,14 @@ const CustomerFollowup = ({ embedLayout = false, ensraOnly = false }) => {
         setLoadingTraining(false);
         return;
       }
-      
+
       // First try to get completed sales from SalesCustomer collection
       let completedSalesData = [];
       let hasSalesCustomerData = false;
-      
+
       try {
         const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/sales-customers`, {
-          params: { 
+          params: {
             followupStatus: "Completed"
           },
           headers: token ? { Authorization: `Bearer ${token}` } : {},
@@ -558,17 +592,17 @@ const CustomerFollowup = ({ embedLayout = false, ensraOnly = false }) => {
       } catch (err) {
         console.warn("Failed to fetch from sales-customers, trying followups:", err);
       }
-      
+
       // If no data from SalesCustomer, try Followup collection
       if (!hasSalesCustomerData) {
         try {
           const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/followups`, {
             headers: token ? { Authorization: `Bearer ${token}` } : {},
           });
-          
+
           if (Array.isArray(response.data)) {
             // Filter for completed status in Followup collection
-            completedSalesData = response.data.filter(item => 
+            completedSalesData = response.data.filter(item =>
               (item.followupStatus || "").toLowerCase() === "completed"
             );
           }
@@ -581,9 +615,9 @@ const CustomerFollowup = ({ embedLayout = false, ensraOnly = false }) => {
         const completed = completedSalesData
           .map((item) => {
             // The backend should now include agentName and agentUsername in the response
-            const agentName = item.agentName || 
-                            item.agentUsername || 
-                            (item.agentId ? String(item.agentId) : "Unknown Agent");
+            const agentName = item.agentName ||
+              item.agentUsername ||
+              (item.agentId ? String(item.agentId) : "Unknown Agent");
 
             return {
               id: item._id || item.id,
@@ -635,6 +669,8 @@ const CustomerFollowup = ({ embedLayout = false, ensraOnly = false }) => {
       industry: "",
       packageScope: "Local",
       packageType: "",
+      followUpDate: "",
+      status: "Pending",
       products: "",
       notes: "",
     });
@@ -650,6 +686,9 @@ const CustomerFollowup = ({ embedLayout = false, ensraOnly = false }) => {
     setIsSavingPending(true);
     const isBuyer = pendingForm.type === "buyer";
     const endpoint = `${import.meta.env.VITE_API_URL}/api/${isBuyer ? "buyers" : "sellers"}`;
+    const followupEndpoint = `${import.meta.env.VITE_API_URL}/api/followups`;
+    const defaultDeadline = new Date();
+    defaultDeadline.setDate(defaultDeadline.getDate() + 7);
     const payload = {
       companyName: pendingForm.companyName,
       contactPerson: pendingForm.contactPerson,
@@ -663,19 +702,45 @@ const CustomerFollowup = ({ embedLayout = false, ensraOnly = false }) => {
       ...(isBuyer ? { requirements: pendingForm.notes } : { certifications: pendingForm.notes }),
       agentId: currentUserId,
     };
+    const followupPayload = {
+      clientName: pendingForm.contactPerson,
+      companyName: pendingForm.companyName,
+      customerType: pendingForm.type,
+      phoneNumber: pendingForm.phoneNumber,
+      email: pendingForm.email,
+      packageType: pendingForm.packageType || `${pendingForm.packageScope} B2B`,
+      country: pendingForm.country,
+      packageScope: pendingForm.packageScope,
+      serviceProvided: "Pending follow-up",
+      serviceNotProvided: pendingForm.notes || pendingForm.products || "Pending service review",
+      createdBy: currentUserId || currentUserEmail || currentUserName || "Customer Service",
+      deadline: pendingForm.followUpDate || defaultDeadline.toISOString(),
+      followupStatus: pendingForm.status || "Pending",
+      notes: pendingForm.notes ? [{ text: pendingForm.notes }] : [],
+      agentId: currentUserId || null,
+    };
 
     try {
-      await axios.post(endpoint, payload);
+      const followupResponse = await axios.post(followupEndpoint, followupPayload);
+      prependFollowupToLists(followupResponse.data);
       toast({
-        title: "Pending B2B added",
-        description: "Customer added to pending list. Refreshing table...",
+        title: "Follow-up added",
+        description: "The customer follow-up was created successfully.",
         status: "success",
         duration: 4000,
         isClosable: true,
       });
       resetPendingForm();
       setIsAddPendingOpen(false);
-      await fetchData();
+      setIsSavingPending(false);
+
+      axios.post(endpoint, payload).catch((b2bErr) => {
+        console.warn("Follow-up created, but B2B pending sync failed", b2bErr);
+      });
+
+      fetchData({ silent: true }).catch((refreshErr) => {
+        console.warn("Follow-up created, but refresh failed", refreshErr);
+      });
     } catch (err) {
       console.error("Failed to add pending B2B customer", err);
       toast({
@@ -685,7 +750,6 @@ const CustomerFollowup = ({ embedLayout = false, ensraOnly = false }) => {
         duration: 5000,
         isClosable: true,
       });
-    } finally {
       setIsSavingPending(false);
     }
   };
@@ -698,7 +762,7 @@ const CustomerFollowup = ({ embedLayout = false, ensraOnly = false }) => {
         (item) =>
           item.clientName && item.companyName &&
           (item.clientName.toLowerCase().includes(query) ||
-          item.companyName.toLowerCase().includes(query))
+            item.companyName.toLowerCase().includes(query))
       );
       setFilteredData(filtered);
     }
@@ -778,320 +842,320 @@ const CustomerFollowup = ({ embedLayout = false, ensraOnly = false }) => {
   const handleEnsraSubmit = async (e) => {
     e.preventDefault();
     try {
-    await createEnsraFollowup({
-      ...ensraForm,
-      type: ensraForm.type === "individual" ? "jobSeeker" : ensraForm.type, // legacy safety
-    });
+      await createEnsraFollowup({
+        ...ensraForm,
+        type: ensraForm.type === "individual" ? "jobSeeker" : ensraForm.type, // legacy safety
+      });
 
-    toast({
-      title: "ENSRA customer added",
-      description: "ENSRA follow-up record has been created.",
-      status: "success",
-      duration: 4000,
-      isClosable: true,
-    });
+      toast({
+        title: "ENSRA customer added",
+        description: "ENSRA follow-up record has been created.",
+        status: "success",
+        duration: 4000,
+        isClosable: true,
+      });
 
-    setEnsraForm({
-      type: "company",
-      packageType: "",
-      companyName: "",
-      positionsOffered: "",
-      salaryRange: "",
-      jobRequirements: "",
-      jobSeekerName: "",
-      jobSeekerSkills: "",
-      jobSeekerExperience: "",
-      jobSeekerEducation: "",
-      jobSeekerExpectedSalary: "",
-    });
+      setEnsraForm({
+        type: "company",
+        packageType: "",
+        companyName: "",
+        positionsOffered: "",
+        salaryRange: "",
+        jobRequirements: "",
+        jobSeekerName: "",
+        jobSeekerSkills: "",
+        jobSeekerExperience: "",
+        jobSeekerEducation: "",
+        jobSeekerExpectedSalary: "",
+      });
 
-    setShowEnsraFormCard(false);
-    await loadEnsraFollowups();
-  } catch (err) {
-    console.error("Failed to save ENSRA follow-up", err);
-    toast({
-      title: "Error",
-      description: err.response?.data?.message || err.message,
-      status: "error",
-      duration: 4000,
-      isClosable: true,
-    });
-  }
-};
+      setShowEnsraFormCard(false);
+      await loadEnsraFollowups();
+    } catch (err) {
+      console.error("Failed to save ENSRA follow-up", err);
+      toast({
+        title: "Error",
+        description: err.response?.data?.message || err.message,
+        status: "error",
+        duration: 4000,
+        isClosable: true,
+      });
+    }
+  };
 
-const mergeDateTimeToIso = (dateValue, timeValue) => {
-  if (!dateValue) return null;
-  const timePart = timeValue || "00:00";
-  const combined = `${dateValue}T${timePart}`;
-  const parsed = Date.parse(combined);
-  return Number.isNaN(parsed) ? null : new Date(parsed).toISOString();
-};
+  const mergeDateTimeToIso = (dateValue, timeValue) => {
+    if (!dateValue) return null;
+    const timePart = timeValue || "00:00";
+    const combined = `${dateValue}T${timePart}`;
+    const parsed = Date.parse(combined);
+    return Number.isNaN(parsed) ? null : new Date(parsed).toISOString();
+  };
 
-const handleTrainingSubmit = async (e) => {
-  e.preventDefault();
-  try {
-    await createTrainingFollowup(trainingForm);
+  const handleTrainingSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      await createTrainingFollowup(trainingForm);
 
-    // Show success toast
-    toast({
-      title: "Training data captured",
-      description: "Training registration data has been recorded.",
-      status: "success",
-      duration: 4000,
-      isClosable: true,
-    });
+      // Show success toast
+      toast({
+        title: "Training data captured",
+        description: "Training registration data has been recorded.",
+        status: "success",
+        duration: 4000,
+        isClosable: true,
+      });
 
-    // Reset form
-    setTrainingForm({
-      trainingType: "",
-      batch: "",
-      startDate: "",
-      startTime: "",
-      endDate: "",
-      endTime: "",
-      duration: "",
-      paymentOption: "full",
-      paymentAmount: 0,
-      totalAmount: 0,
-      specialRequirements: "",
-      previousTraining: "",
-      agentName: "",
-      customerName: "",
-      email: "",
-      phoneNumber: "",
-      fieldOfWork: "",
-      scheduleShift: "",
-      materialStatus: "",
-      progress: "",
-      idInfo: "",
-      packageStatus: "",
-    });
+      // Reset form
+      setTrainingForm({
+        trainingType: "",
+        batch: "",
+        startDate: "",
+        startTime: "",
+        endDate: "",
+        endTime: "",
+        duration: "",
+        paymentOption: "full",
+        paymentAmount: 0,
+        totalAmount: 0,
+        specialRequirements: "",
+        previousTraining: "",
+        agentName: "",
+        customerName: "",
+        email: "",
+        phoneNumber: "",
+        fieldOfWork: "",
+        scheduleShift: "",
+        materialStatus: "",
+        progress: "",
+        idInfo: "",
+        packageStatus: "",
+      });
 
-    // Refresh the training follow-ups list
-    await loadTrainingFollowups();
-  } catch (err) {
-    console.error("Failed to save training follow-up", err);
-    toast({
-      title: "Error",
-      description: err.response?.data?.message || err.message,
-      status: "error",
-      duration: 4000,
-      isClosable: true,
-    });
-  }
-};
+      // Refresh the training follow-ups list
+      await loadTrainingFollowups();
+    } catch (err) {
+      console.error("Failed to save training follow-up", err);
+      toast({
+        title: "Error",
+        description: err.response?.data?.message || err.message,
+        status: "error",
+        duration: 4000,
+        isClosable: true,
+      });
+    }
+  };
   const handleInlineTrainingChange = async (id, field, value) => {
-  // optimistic update
-  setTrainingFollowups((prev) =>
-    prev.map((item) =>
-      item._id === id
-        ? { ...item, [field]: value }
-        : item
-    )
-  );
-
-  try {
-    await updateTrainingFollowup(id, { [field]: value });
-  } catch (err) {
-    console.error("Failed to update training follow-up", err);
-    toast({
-      title: "Error updating training",
-      description: err.response?.data?.message || err.message,
-      status: "error",
-      duration: 4000,
-      isClosable: true,
-    });
-    loadTrainingFollowups();
-  }
-};
-
-const loadTrainingFollowups = async () => {
-  try {
-    const result = await fetchTrainingFollowups();
-    setTrainingFollowups(Array.isArray(result) ? result : []);
-  } catch (err) {
-    console.error("Failed to load training follow-ups", err);
-    setTrainingFollowups([]);
-  }
-};
-
-const handleApplyTrainingDates = async () => {
-  if (selectedTrainingFollowupIds.length === 0) {
-    toast({
-      title: "No trainings selected",
-      description: "Select at least one training to update dates.",
-      status: "warning",
-      duration: 3000,
-      isClosable: true,
-    });
-    return false;
-  }
-  if (!trainingBulkStartDate && !trainingBulkEndDate) {
-    toast({
-      title: "Missing dates",
-      description: "Provide at least a start or end date to apply.",
-      status: "warning",
-      duration: 3000,
-      isClosable: true,
-    });
-    return false;
-  }
-
-  const payload = {};
-  if (trainingBulkStartDate) {
-    const startIso = mergeDateTimeToIso(trainingBulkStartDate, trainingBulkStartTime);
-    if (startIso) payload.startDate = startIso;
-  }
-  if (trainingBulkEndDate) {
-    const endIso = mergeDateTimeToIso(trainingBulkEndDate, trainingBulkEndTime);
-    if (endIso) payload.endDate = endIso;
-  }
-  if (trainingBulkStartTime) {
-    payload.startTime = trainingBulkStartTime;
-  }
-  if (trainingBulkEndTime) {
-    payload.endTime = trainingBulkEndTime;
-  }
-
-  setIsApplyingTrainingDates(true);
-  try {
-    await Promise.all(
-      selectedTrainingFollowupIds.map((id) => updateTrainingFollowup(id, payload))
+    // optimistic update
+    setTrainingFollowups((prev) =>
+      prev.map((item) =>
+        item._id === id
+          ? { ...item, [field]: value }
+          : item
+      )
     );
-    toast({
-      title: "Training dates saved",
-      description: `Updated ${selectedTrainingFollowupIds.length} record(s).`,
-      status: "success",
-      duration: 4000,
-      isClosable: true,
-    });
-    await loadTrainingFollowups();
-    resetTrainingSelection();
-    setTrainingBulkStartDate("");
-    setTrainingBulkEndDate("");
-    setTrainingBulkStartTime("");
-    setTrainingBulkEndTime("");
-    return true;
-  } catch (err) {
-    console.error("Failed to apply training dates", err);
-    toast({
-      title: "Failed to update training dates",
-      description: err.response?.data?.message || err.message,
-      status: "error",
-      duration: 4000,
-      isClosable: true,
-    });
-    return false;
-  } finally {
-    setIsApplyingTrainingDates(false);
-  }
-};
 
-const handleBulkUpdate = async () => {
-  if (selectedTrainingFollowupIds.length === 0) {
-    toast({
-      title: "No trainings selected",
-      description: "Select at least one training to update.",
-      status: "warning",
-      duration: 3000,
-      isClosable: true,
-    });
-    return false;
-  }
+    try {
+      await updateTrainingFollowup(id, { [field]: value });
+    } catch (err) {
+      console.error("Failed to update training follow-up", err);
+      toast({
+        title: "Error updating training",
+        description: err.response?.data?.message || err.message,
+        status: "error",
+        duration: 4000,
+        isClosable: true,
+      });
+      loadTrainingFollowups();
+    }
+  };
 
-  const payload = {};
-  if (trainingBulkStartDate) {
-    const startIso = mergeDateTimeToIso(trainingBulkStartDate, trainingBulkStartTime);
-    if (startIso) payload.startDate = startIso;
-  }
-  if (trainingBulkEndDate) {
-    const endIso = mergeDateTimeToIso(trainingBulkEndDate, trainingBulkEndTime);
-    if (endIso) payload.endDate = endIso;
-  }
-  if (trainingBulkStartTime) {
-    payload.startTime = trainingBulkStartTime;
-  }
-  if (trainingBulkEndTime) {
-    payload.endTime = trainingBulkEndTime;
-  }
+  const loadTrainingFollowups = async () => {
+    try {
+      const result = await fetchTrainingFollowups();
+      setTrainingFollowups(Array.isArray(result) ? result : []);
+    } catch (err) {
+      console.error("Failed to load training follow-ups", err);
+      setTrainingFollowups([]);
+    }
+  };
 
-  if (selectedAgentForAssignment) {
-    const matchedAgent = trainingAgentOptions.find(
-      (option) => option.value === selectedAgentForAssignment
-    );
-    payload.agentName =
-      matchedAgent?.label || selectedAgentForAssignment || "Customer Success Agent";
-  }
-  if (selectedInstructorForAssignment) {
-    const matchedInstructor = trainingInstructorOptions.find(
-      (option) => option.value === selectedInstructorForAssignment
-    );
-    payload.assignedInstructor =
-      matchedInstructor?.label || selectedInstructorForAssignment || "Instructor";
-  }
+  const handleApplyTrainingDates = async () => {
+    if (selectedTrainingFollowupIds.length === 0) {
+      toast({
+        title: "No trainings selected",
+        description: "Select at least one training to update dates.",
+        status: "warning",
+        duration: 3000,
+        isClosable: true,
+      });
+      return false;
+    }
+    if (!trainingBulkStartDate && !trainingBulkEndDate) {
+      toast({
+        title: "Missing dates",
+        description: "Provide at least a start or end date to apply.",
+        status: "warning",
+        duration: 3000,
+        isClosable: true,
+      });
+      return false;
+    }
 
-  if (Object.keys(payload).length === 0) {
-    toast({
-      title: "No updates specified",
-      description: "Provide dates, times, or assignments before saving.",
-      status: "info",
-      duration: 3000,
-      isClosable: true,
-    });
-    return false;
-  }
+    const payload = {};
+    if (trainingBulkStartDate) {
+      const startIso = mergeDateTimeToIso(trainingBulkStartDate, trainingBulkStartTime);
+      if (startIso) payload.startDate = startIso;
+    }
+    if (trainingBulkEndDate) {
+      const endIso = mergeDateTimeToIso(trainingBulkEndDate, trainingBulkEndTime);
+      if (endIso) payload.endDate = endIso;
+    }
+    if (trainingBulkStartTime) {
+      payload.startTime = trainingBulkStartTime;
+    }
+    if (trainingBulkEndTime) {
+      payload.endTime = trainingBulkEndTime;
+    }
 
-  setIsApplyingTrainingDates(true);
-  try {
-    await Promise.all(
-      selectedTrainingFollowupIds.map((id) => updateTrainingFollowup(id, payload))
-    );
-    toast({
-      title: "Bulk update applied",
-      description: `Updated ${selectedTrainingFollowupIds.length} training(s).`,
-      status: "success",
-      duration: 4000,
-      isClosable: true,
-    });
-    await loadTrainingFollowups();
-    resetTrainingSelection();
-    setTrainingBulkStartDate("");
-    setTrainingBulkEndDate("");
-    setTrainingBulkStartTime("");
-    setTrainingBulkEndTime("");
-    setSelectedAgentForAssignment("");
-    setSelectedInstructorForAssignment("");
-    return true;
-  } catch (err) {
-    console.error("Failed to apply bulk updates", err);
-    toast({
-      title: "Failed to apply updates",
-      description: err.response?.data?.message || err.message,
-      status: "error",
-      duration: 4000,
-      isClosable: true,
-    });
-    return false;
-  } finally {
-    setIsApplyingTrainingDates(false);
-  }
-};
+    setIsApplyingTrainingDates(true);
+    try {
+      await Promise.all(
+        selectedTrainingFollowupIds.map((id) => updateTrainingFollowup(id, payload))
+      );
+      toast({
+        title: "Training dates saved",
+        description: `Updated ${selectedTrainingFollowupIds.length} record(s).`,
+        status: "success",
+        duration: 4000,
+        isClosable: true,
+      });
+      await loadTrainingFollowups();
+      resetTrainingSelection();
+      setTrainingBulkStartDate("");
+      setTrainingBulkEndDate("");
+      setTrainingBulkStartTime("");
+      setTrainingBulkEndTime("");
+      return true;
+    } catch (err) {
+      console.error("Failed to apply training dates", err);
+      toast({
+        title: "Failed to update training dates",
+        description: err.response?.data?.message || err.message,
+        status: "error",
+        duration: 4000,
+        isClosable: true,
+      });
+      return false;
+    } finally {
+      setIsApplyingTrainingDates(false);
+    }
+  };
 
-const loadEnsraFollowups = async () => {
-  try {
-    const result = await fetchEnsraFollowups();
-    const normalized = Array.isArray(result)
-      ? result.map((item) => ({
+  const handleBulkUpdate = async () => {
+    if (selectedTrainingFollowupIds.length === 0) {
+      toast({
+        title: "No trainings selected",
+        description: "Select at least one training to update.",
+        status: "warning",
+        duration: 3000,
+        isClosable: true,
+      });
+      return false;
+    }
+
+    const payload = {};
+    if (trainingBulkStartDate) {
+      const startIso = mergeDateTimeToIso(trainingBulkStartDate, trainingBulkStartTime);
+      if (startIso) payload.startDate = startIso;
+    }
+    if (trainingBulkEndDate) {
+      const endIso = mergeDateTimeToIso(trainingBulkEndDate, trainingBulkEndTime);
+      if (endIso) payload.endDate = endIso;
+    }
+    if (trainingBulkStartTime) {
+      payload.startTime = trainingBulkStartTime;
+    }
+    if (trainingBulkEndTime) {
+      payload.endTime = trainingBulkEndTime;
+    }
+
+    if (selectedAgentForAssignment) {
+      const matchedAgent = trainingAgentOptions.find(
+        (option) => option.value === selectedAgentForAssignment
+      );
+      payload.agentName =
+        matchedAgent?.label || selectedAgentForAssignment || "Customer Success Agent";
+    }
+    if (selectedInstructorForAssignment) {
+      const matchedInstructor = trainingInstructorOptions.find(
+        (option) => option.value === selectedInstructorForAssignment
+      );
+      payload.assignedInstructor =
+        matchedInstructor?.label || selectedInstructorForAssignment || "Instructor";
+    }
+
+    if (Object.keys(payload).length === 0) {
+      toast({
+        title: "No updates specified",
+        description: "Provide dates, times, or assignments before saving.",
+        status: "info",
+        duration: 3000,
+        isClosable: true,
+      });
+      return false;
+    }
+
+    setIsApplyingTrainingDates(true);
+    try {
+      await Promise.all(
+        selectedTrainingFollowupIds.map((id) => updateTrainingFollowup(id, payload))
+      );
+      toast({
+        title: "Bulk update applied",
+        description: `Updated ${selectedTrainingFollowupIds.length} training(s).`,
+        status: "success",
+        duration: 4000,
+        isClosable: true,
+      });
+      await loadTrainingFollowups();
+      resetTrainingSelection();
+      setTrainingBulkStartDate("");
+      setTrainingBulkEndDate("");
+      setTrainingBulkStartTime("");
+      setTrainingBulkEndTime("");
+      setSelectedAgentForAssignment("");
+      setSelectedInstructorForAssignment("");
+      return true;
+    } catch (err) {
+      console.error("Failed to apply bulk updates", err);
+      toast({
+        title: "Failed to apply updates",
+        description: err.response?.data?.message || err.message,
+        status: "error",
+        duration: 4000,
+        isClosable: true,
+      });
+      return false;
+    } finally {
+      setIsApplyingTrainingDates(false);
+    }
+  };
+
+  const loadEnsraFollowups = async () => {
+    try {
+      const result = await fetchEnsraFollowups();
+      const normalized = Array.isArray(result)
+        ? result.map((item) => ({
           ...item,
           type: item.type === "individual" ? "jobSeeker" : item.type,
         }))
-      : [];
-    setEnsraFollowups(normalized);
-  } catch (err) {
-    console.error("Failed to load ENSRA follow-ups", err);
-    setEnsraFollowups([]);
-  }
-};
+        : [];
+      setEnsraFollowups(normalized);
+    } catch (err) {
+      console.error("Failed to load ENSRA follow-ups", err);
+      setEnsraFollowups([]);
+    }
+  };
 
   useEffect(() => {
     const fetchPackagesList = async () => {
@@ -1211,123 +1275,123 @@ const loadEnsraFollowups = async () => {
     setTrainingInstructorOptions([...primaryOptions, ...fallbackNames]);
   }, [assignableInstructors, trainingFollowups]);
 
-const handleDeleteTrainingFollowup = async (id) => {
-  if (!window.confirm("Delete this training follow-up?")) return;
-  try {
-    await deleteTrainingFollowup(id);
-    toast({
-      title: "Training follow-up deleted",
-      status: "success",
-      duration: 3000,
-      isClosable: true,
-    });
-    await loadTrainingFollowups();
-  } catch (err) {
-    console.error("Failed to delete training follow-up", err);
-    toast({
-      title: "Error deleting training follow-up",
-      description: err.response?.data?.message || err.message,
-      status: "error",
-      duration: 4000,
-      isClosable: true,
-    });
-  }
-};
+  const handleDeleteTrainingFollowup = async (id) => {
+    if (!window.confirm("Delete this training follow-up?")) return;
+    try {
+      await deleteTrainingFollowup(id);
+      toast({
+        title: "Training follow-up deleted",
+        status: "success",
+        duration: 3000,
+        isClosable: true,
+      });
+      await loadTrainingFollowups();
+    } catch (err) {
+      console.error("Failed to delete training follow-up", err);
+      toast({
+        title: "Error deleting training follow-up",
+        description: err.response?.data?.message || err.message,
+        status: "error",
+        duration: 4000,
+        isClosable: true,
+      });
+    }
+  };
 
-const handleDeleteEnsraFollowup = async (id) => {
-  if (!window.confirm("Delete this ENSRA follow-up?")) return;
-  try {
-    await deleteEnsraFollowup(id);
-    toast({
-      title: "ENSRA follow-up deleted",
-      status: "success",
-      duration: 3000,
-      isClosable: true,
-    });
-    await loadEnsraFollowups();
-  } catch (err) {
-    console.error("Failed to delete ENSRA follow-up", err);
-    toast({
-      title: "Error deleting ENSRA follow-up",
-      description: err.response?.data?.message || err.message,
-      status: "error",
-      duration: 4000,
-      isClosable: true,
-    });
-  }
-};
+  const handleDeleteEnsraFollowup = async (id) => {
+    if (!window.confirm("Delete this ENSRA follow-up?")) return;
+    try {
+      await deleteEnsraFollowup(id);
+      toast({
+        title: "ENSRA follow-up deleted",
+        status: "success",
+        duration: 3000,
+        isClosable: true,
+      });
+      await loadEnsraFollowups();
+    } catch (err) {
+      console.error("Failed to delete ENSRA follow-up", err);
+      toast({
+        title: "Error deleting ENSRA follow-up",
+        description: err.response?.data?.message || err.message,
+        status: "error",
+        duration: 4000,
+        isClosable: true,
+      });
+    }
+  };
 
-const openTrainingEdit = (item) => {
-  setTrainingEditData({ ...item });
-  setIsTrainingEditOpen(true);
-};
+  const openTrainingEdit = (item) => {
+    setTrainingEditData({ ...item });
+    setIsTrainingEditOpen(true);
+  };
 
-const handleTrainingEditChange = (field, value) => {
-  setTrainingEditData((prev) => ({ ...prev, [field]: value }));
-};
+  const handleTrainingEditChange = (field, value) => {
+    setTrainingEditData((prev) => ({ ...prev, [field]: value }));
+  };
 
-const saveTrainingEdit = async () => {
-  if (!trainingEditData?._id) return;
-  try {
-    await updateTrainingFollowup(trainingEditData._id, trainingEditData);
-    toast({
-      title: "Training follow-up updated",
-      status: "success",
-      duration: 3000,
-      isClosable: true,
+  const saveTrainingEdit = async () => {
+    if (!trainingEditData?._id) return;
+    try {
+      await updateTrainingFollowup(trainingEditData._id, trainingEditData);
+      toast({
+        title: "Training follow-up updated",
+        status: "success",
+        duration: 3000,
+        isClosable: true,
+      });
+      setIsTrainingEditOpen(false);
+      setTrainingEditData(null);
+      await loadTrainingFollowups();
+    } catch (err) {
+      console.error("Failed to update training follow-up", err);
+      toast({
+        title: "Error updating training follow-up",
+        description: err.response?.data?.message || err.message,
+        status: "error",
+        duration: 4000,
+        isClosable: true,
+      });
+    }
+  };
+
+  const openEnsraEdit = (item) => {
+    setEnsraEditData({
+      ...item,
+      type: item.type === "individual" ? "jobSeeker" : item.type,
     });
-    setIsTrainingEditOpen(false);
-    setTrainingEditData(null);
-    await loadTrainingFollowups();
-  } catch (err) {
-    console.error("Failed to update training follow-up", err);
-    toast({
-      title: "Error updating training follow-up",
-      description: err.response?.data?.message || err.message,
-      status: "error",
-      duration: 4000,
-      isClosable: true,
-    });
-  }
-};
+    setIsEnsraEditOpen(true);
+  };
 
-const openEnsraEdit = (item) => {
-  setEnsraEditData({
-    ...item,
-    type: item.type === "individual" ? "jobSeeker" : item.type,
-  });
-  setIsEnsraEditOpen(true);
-};
+  const handleEnsraEditChange = (field, value) => {
+    setEnsraEditData((prev) => ({ ...prev, [field]: value }));
+  };
 
-const handleEnsraEditChange = (field, value) => {
-  setEnsraEditData((prev) => ({ ...prev, [field]: value }));
-};
-
-const saveEnsraEdit = async () => {
-  const id = ensraEditData?._id || ensraEditData?.id;
-  if (!id) return;
-  try {
-    await updateEnsraFollowup(id, ensraEditData);
-    toast({
-      title: "ENSRA follow-up updated",
-      status: "success",
-      duration: 3000,
-      isClosable: true,
-    });
-    setIsEnsraEditOpen(false);
-    setEnsraEditData(null);
-    await loadEnsraFollowups();
-  } catch (err) {
-    console.error("Failed to update ENSRA follow-up", err);
-    toast({
-      title: "Error updating ENSRA follow-up",
-      description: err.response?.data?.message || err.message,
-      status: "error",
-      duration: 4000,
-      isClosable: true,
-    });
-  }
-};
+  const saveEnsraEdit = async () => {
+    const id = ensraEditData?._id || ensraEditData?.id;
+    if (!id) return;
+    try {
+      await updateEnsraFollowup(id, ensraEditData);
+      toast({
+        title: "ENSRA follow-up updated",
+        status: "success",
+        duration: 3000,
+        isClosable: true,
+      });
+      setIsEnsraEditOpen(false);
+      setEnsraEditData(null);
+      await loadEnsraFollowups();
+    } catch (err) {
+      console.error("Failed to update ENSRA follow-up", err);
+      toast({
+        title: "Error updating ENSRA follow-up",
+        description: err.response?.data?.message || err.message,
+        status: "error",
+        duration: 4000,
+        isClosable: true,
+      });
+    }
+  };
   // Derived, filtered, and sorted arrays for Training Follow-Up
   const trainingCourseOptions = useMemo(
     () =>
@@ -1759,20 +1823,20 @@ const saveEnsraEdit = async () => {
       prev.map((item) =>
         item.id === id
           ? {
-              ...item,
-              [field]: value,
-            }
+            ...item,
+            [field]: value,
+          }
           : item
       )
     );
   };
 
-useEffect(() => {
-  fetchData();
-  fetchCompletedSales();
-  loadTrainingFollowups();
-  loadEnsraFollowups();
-}, []);
+  useEffect(() => {
+    fetchData();
+    fetchCompletedSales();
+    loadTrainingFollowups();
+    loadEnsraFollowups();
+  }, []);
 
   const handleUpdateServices = async (id) => {
     try {
@@ -2236,9 +2300,9 @@ useEffect(() => {
 
   // Compact table cell component for better spacing
   const CompactCell = ({ children, isHeader = false }) => (
-    <Td 
-      py={isHeader ? 3 : 2} 
-      px={3} 
+    <Td
+      py={isHeader ? 3 : 2}
+      px={3}
       fontSize={isHeader ? "sm" : "sm"}
       fontWeight={isHeader ? "bold" : "normal"}
       borderBottom="1px solid"
@@ -2251,9 +2315,9 @@ useEffect(() => {
 
   // Compact header cell component
   const CompactHeaderCell = ({ children }) => (
-    <Th 
-      py={3} 
-      px={3} 
+    <Th
+      py={3}
+      px={3}
       fontSize="sm"
       color="white"
       textTransform="none"
@@ -2614,10 +2678,10 @@ useEffect(() => {
 
       // Call the API to create a new training follow-up
       await createTrainingFollowup(trainingData);
-      
+
       // Remove the imported entry from the completedSales state
       setCompletedSales(prevSales => prevSales.filter(item => item.id !== sale.id));
-      
+
       // Show success message
       toast({
         title: 'Success',
@@ -4354,8 +4418,7 @@ useEffect(() => {
           <ModalCloseButton />
           <ModalBody>
             <VStack spacing={3} align="stretch">
-              <Input
-                as="select"
+              <Select
                 value={pendingForm.type}
                 onChange={(e) =>
                   setPendingForm((prev) => ({ ...prev, type: e.target.value }))
@@ -4363,7 +4426,7 @@ useEffect(() => {
               >
                 <option value="buyer">Buyer</option>
                 <option value="seller">Seller</option>
-              </Input>
+              </Select>
               <Input
                 placeholder="Company Name"
                 value={pendingForm.companyName}
@@ -4418,8 +4481,7 @@ useEffect(() => {
                   setPendingForm((prev) => ({ ...prev, packageType: e.target.value }))
                 }
               />
-              <Input
-                as="select"
+              <Select
                 value={pendingForm.packageScope}
                 onChange={(e) =>
                   setPendingForm((prev) => ({ ...prev, packageScope: e.target.value }))
@@ -4427,7 +4489,24 @@ useEffect(() => {
               >
                 <option value="Local">Local Package</option>
                 <option value="International">International Package</option>
-              </Input>
+              </Select>
+              <Input
+                type="date"
+                value={pendingForm.followUpDate}
+                onChange={(e) =>
+                  setPendingForm((prev) => ({ ...prev, followUpDate: e.target.value }))
+                }
+              />
+              <Select
+                value={pendingForm.status}
+                onChange={(e) =>
+                  setPendingForm((prev) => ({ ...prev, status: e.target.value }))
+                }
+              >
+                <option value="Pending">Pending</option>
+                <option value="Scheduled">Scheduled</option>
+                <option value="Prospect">Prospect</option>
+              </Select>
               <Textarea
                 placeholder="Products / Items of interest"
                 value={pendingForm.products}
@@ -4473,12 +4552,12 @@ useEffect(() => {
           <DrawerHeader>Edit Customer</DrawerHeader>
           <DrawerBody>
             {selectedClient && (
-              <EditCustomerInfo 
-                customer={selectedClient} 
-                onSuccess={() => { 
-                  fetchData(); 
-                  onEditClose(); 
-                }} 
+              <EditCustomerInfo
+                customer={selectedClient}
+                onSuccess={() => {
+                  fetchData();
+                  onEditClose();
+                }}
               />
             )}
           </DrawerBody>
@@ -4928,26 +5007,26 @@ useEffect(() => {
         </ModalContent>
       </Modal>
 
-    
+
 
       {/* Update card for services */}
       {showUpdateCard && (
         <>
-          <Box 
-            position="fixed" 
-            top={0} 
-            left={0} 
-            right={0} 
-            bottom={0} 
-            bg="rgba(0,0,0,0.5)" 
+          <Box
+            position="fixed"
+            top={0}
+            left={0}
+            right={0}
+            bottom={0}
+            bg="rgba(0,0,0,0.5)"
             zIndex={1000}
             onClick={() => setShowUpdateCard(false)}
           />
-          <Card 
-            position="fixed" 
-            top="50%" 
-            left="50%" 
-            transform="translate(-50%, -50%)" 
+          <Card
+            position="fixed"
+            top="50%"
+            left="50%"
+            transform="translate(-50%, -50%)"
             zIndex={1001}
             width={isMobile ? "95%" : "520px"}
             maxH={{ base: "90vh", md: "80vh" }}
