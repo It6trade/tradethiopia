@@ -98,6 +98,7 @@ const roleOptions = [
   'supervisor',
   'reception',
   'COO',
+  'COO2',
   'CEO',
   'tessbinadmin',
 ];
@@ -112,6 +113,9 @@ const departmentRoleMap = {
   Tradex: 'tradextv',
   'Academic Administrative': 'HR',
   Tessbin: 'tessbinadmin',
+  Operations: 'COO2',
+  'COO 2': 'COO2',
+  COO: 'COO',
 };
 
 const normalize = (value) => String(value || '').toLowerCase().replace(/[^a-z0-9]/g, '');

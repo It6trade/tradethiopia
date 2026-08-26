@@ -13,7 +13,7 @@ router.post('/social-actuals', metricController.upsertSocial);
 router.get('/social-weekly-kpis', metricController.listSocialWeeklyKpis);
 router.post('/social-weekly-kpis', metricController.upsertSocialWeeklyKpi);
 router.get('/coo-dashboard/kpis', protect, getKpis);
-router.put('/coo-dashboard/kpi-target', protect, authorize('COO', 'CEO', 'admin'), upsertKpiTarget);
+router.put('/coo-dashboard/kpi-target', protect, authorize('COO', 'coo', 'COO2', 'coo2', 'CEO', 'admin'), upsertKpiTarget);
 
 module.exports = router;
 

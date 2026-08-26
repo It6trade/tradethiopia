@@ -32,8 +32,12 @@ axiosInstance.interceptors.request.use(
     }
 
     const token = getAuthItem('userToken');
-    if (token) {
+    // Authentication requests must never inherit a token from a previous user.
+    // Some deployments reject a login carrying an expired/foreign bearer token.
+    if (token && !config.skipAuth) {
       config.headers.Authorization = `Bearer ${token}`;
+    } else if (config.skipAuth && config.headers) {
+      delete config.headers.Authorization;
     }
     return config;
   },
@@ -55,7 +59,7 @@ axiosInstance.interceptors.response.use(
       message: error.response?.data?.message || error.message,
       data: error.response?.data,
     });
-    if (error.response?.status === 401) {
+    if (error.response?.status === 401 && !error.config?.skipAuthRedirect) {
       // Token expired or invalid
       removeAuthItem('userToken');
       removeAuthItem('userRole');

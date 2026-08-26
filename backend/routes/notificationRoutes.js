@@ -15,7 +15,7 @@ router.get("/", protect, getNotifications);
 router.put("/mark-all-read", protect, markAllAsRead);
 router.put("/:id", protect, markAsRead);
 router.post("/notify-hr", protect, notifyHR);
-// Allow admins/COO to send broadcasts
-router.post("/broadcast", protect, authorize('admin', 'COO'), broadcastNotification);
+// Allow admins/COO/COO2 to send broadcasts
+router.post("/broadcast", protect, authorize('admin', 'COO', 'coo', 'COO2', 'coo2'), broadcastNotification);
 
 module.exports = router;

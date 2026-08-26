@@ -302,6 +302,7 @@ const UserCard = ({ user, isSelectionMode = false, isSelected = false, onSelectT
                             <option value="Enisra">Enisra</option>
                             <option value="HR">HR</option>
                             <option value="COO">COO</option>
+                            <option value="COO2">COO 2</option>
                             <option value="reception">Reception</option>
                             <option value="tessbinadmin">Tessbin Admin</option>
                             </Select>

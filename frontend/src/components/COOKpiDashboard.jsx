@@ -675,30 +675,49 @@ const COOKpiDashboard = () => {
             </Text>
           </Box>
           <VStack align={{ base: 'stretch', xl: 'flex-end' }} spacing={2.5} pt={{ base: 10, md: 12 }}>
-            <Button
+            <HStack
               position="absolute"
               top={{ base: 3, md: 4 }}
               right={{ base: 3, md: 4 }}
               zIndex={2}
-              leftIcon={<FiLogOut />}
-              h="34px"
-              px={3.5}
-              fontSize="13px"
-              fontWeight="700"
-              bg="red.50"
-              color="red.600"
-              border="1px solid"
-              borderColor="red.200"
-              borderRadius="7px"
-              boxShadow="none"
-              _hover={{ bg: 'red.100', borderColor: 'red.300' }}
-              _active={{ bg: 'red.200' }}
-              _focusVisible={{ boxShadow: '0 0 0 3px rgba(239, 68, 68, 0.22)' }}
-              transition="all 0.16s ease"
-              onClick={handleLogout}
+              spacing={2}
             >
-              Log out
-            </Button>
+              <Button
+                h="34px"
+                px={3.5}
+                fontSize="13px"
+                fontWeight="700"
+                bg="blue.50"
+                color="blue.600"
+                border="1px solid"
+                borderColor="blue.200"
+                borderRadius="7px"
+                _hover={{ bg: 'blue.100', borderColor: 'blue.300' }}
+                onClick={() => navigate('/2-coo')}
+              >
+                ✨ Switch to 2 COO Hub
+              </Button>
+              <Button
+                leftIcon={<FiLogOut />}
+                h="34px"
+                px={3.5}
+                fontSize="13px"
+                fontWeight="700"
+                bg="red.50"
+                color="red.600"
+                border="1px solid"
+                borderColor="red.200"
+                borderRadius="7px"
+                boxShadow="none"
+                _hover={{ bg: 'red.100', borderColor: 'red.300' }}
+                _active={{ bg: 'red.200' }}
+                _focusVisible={{ boxShadow: '0 0 0 3px rgba(239, 68, 68, 0.22)' }}
+                transition="all 0.16s ease"
+                onClick={handleLogout}
+              >
+                Log out
+              </Button>
+            </HStack>
             <HStack spacing={2.5} flexWrap="wrap" justify="flex-end">
               {['Charts', 'Cards', 'Table'].map((item) => (
                 <Button

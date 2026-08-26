@@ -1,15 +1,11 @@
-import React from 'react';
 import { Navigate, Link as RouterLink } from 'react-router-dom';
 import { Box, Text, Button } from '@chakra-ui/react';
-import { useUserStore } from '../store/user.js';
-
-const normalizeRoleValue = (value = '') =>
-  value?.toString().trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+import { normalizeRole, useUserStore } from '../store/user.js';
 
 const RoleProtectedRoute = ({ allowedRoles = [], children }) => {
   const currentUser = useUserStore((s) => s.currentUser);
-  const normalizedAllowed = allowedRoles.map(normalizeRoleValue);
-  const normalizedUserRole = normalizeRoleValue(
+  const normalizedAllowed = allowedRoles.map(normalizeRole);
+  const normalizedUserRole = normalizeRole(
     currentUser?.role || currentUser?.normalizedRole
   );
 

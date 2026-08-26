@@ -2289,6 +2289,8 @@ const UserDetailDrawer = ({ isOpen, onClose, user: summaryUser, initialTab = 0, 
                     <option value="it">IT Staff</option>
                     <option value="finance">Finance</option>
                     <option value="supervisor">Supervisor</option>
+                    <option value="COO">COO</option>
+                    <option value="COO2">COO 2</option>
                     <option value="tessbinadmin">Tessbin Admin</option>
                   </Select>
                 </FormControl>

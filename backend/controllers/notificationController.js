@@ -161,7 +161,7 @@ const notifyHR = async (req, res) => {
 
     // Find all HR, Admin, COO users
     const hrUsers = await User.find({
-      role: { $in: ['admin', 'Admin', 'hr', 'HR', 'coo', 'COO'] }
+      role: { $in: ['admin', 'Admin', 'hr', 'HR', 'coo', 'COO', 'coo2', 'COO2', 'coo_2', '2coo'] }
     }).select('_id fullName username role');
 
     const notificationText = title ? `${title}: ${message}` : message;
