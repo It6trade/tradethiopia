@@ -45,18 +45,22 @@ const handleLogin = async (event) => {
 
     try {
         setIsLoggingIn(true);
-        const response = await axiosInstance.post('/users/login', { email: email.trim(), password });
+        const response = await axiosInstance.post(
+            '/users/login',
+            { email: email.trim(), password },
+            { skipAuth: true, skipAuthRedirect: true }
+        );
 
         console.log('Login response:', response.data); // Debugging line
 
         if (response.data.success) {
             // Extract user data and token correctly
             const { user, token } = response.data;
-            const { _id, role, status, infoStatus, trainingStatus, examStatus, examBypass, username, email, fullName, jobTitle } = user;
+            const { _id, role, status, infoStatus, trainingStatus, examStatus, examBypass, username, email } = user;
             console.log('LoginPage - Login Success:', { _id, role, status, infoStatus, trainingStatus, examStatus, examBypass, username, email });
 
             // Save token and user information in local storage
-            setCurrentUser({ username, role, status, infoStatus, trainingStatus, examStatus, examBypass, token, _id, email, fullName, jobTitle });
+            setCurrentUser({ ...user, token });
 
             const userWithToken = { ...user, token };
             const isPermitted = isUserPermittedForDashboard(userWithToken);
@@ -258,8 +262,9 @@ const handleLogin = async (event) => {
                         <FaMicrosoft color="#00A4EF" />
                     </Button>
                 </HStack>
+
                 <Text textAlign="center" mt="auto" pb={{ base: 8, md: 7 }} pt={16} fontSize="12px" color="rgba(255,255,255,0.78)" fontWeight="700">
-                    Don't have an account? <Box as="span" color="#D99A00" fontWeight="900">Sign Up</Box>
+                    Don&apos;t have an account? <Box as="span" color="#D99A00" fontWeight="900">Sign Up</Box>
                 </Text>
             </Flex>
             </Flex>

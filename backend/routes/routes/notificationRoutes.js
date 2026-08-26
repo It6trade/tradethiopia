@@ -8,7 +8,7 @@ const router = express.Router();
 router.get("/", protect, getNotifications);
 router.put("/:id", protect, markAsRead);
 router.put("/mark-all-read", protect, markAllAsRead);
-// Allow admins/COO to send broadcasts
-router.post("/broadcast", protect, authorize('admin', 'COO'), broadcastNotification);
+// Allow admins/COO/COO2 to send broadcasts
+router.post("/broadcast", protect, authorize('admin', 'COO', 'coo', 'COO2', 'coo2'), broadcastNotification);
 
 module.exports = router;

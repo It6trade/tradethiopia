@@ -49,8 +49,9 @@ const CreateOrUpdatePage = ({ userId, onClose, onCreated }) => {
     
             // Set the default status based on the selected role
             let status = "inactive"; // Default status
-            if (newUser.role === "admin" || newUser.role === "HR") {
-                status = "active"; // Set to active for admin or HR roles
+            const defaultActiveRoles = ["admin", "HR", "COO", "COO2", "coo2", "CEO"];
+            if (defaultActiveRoles.includes(newUser.role)) {
+                status = "active"; // Set to active for admin, HR, COO, COO2, CEO roles
             }
     
             const salaryValue = newUser.salary !== "" ? Number(newUser.salary) : undefined;
@@ -152,6 +153,7 @@ return (
                             <option value="salesmanager">Sales Manager</option>
                             <option value="reception">Reception</option>
                             <option value="COO">COO</option>
+                            <option value="COO2">COO 2 (2 COO)</option>
                             <option value="CEO">CEO</option>
                             <option value="tessbinadmin">Tessbin Admin</option>
                         </Select>

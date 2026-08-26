@@ -119,7 +119,7 @@ const CATEGORIES = [
 ];
 
 const MANAGER_ROLES = new Set([
-  'admin', 'coo', 'ceo', 'supervisor', 'salesmanager',
+  'admin', 'coo', 'coo2', 'coo_2', '2coo', 'cootwo', 'ceo', 'supervisor', 'salesmanager',
   'customersuccessmanager', 'socialmediamanager', 'itmanager', 'itadmin',
 ]);
 const STATUS = {

@@ -28,7 +28,7 @@ const userSchema = new mongoose.Schema({
     },
     role: {
         type: String,
-        enum: ['admin', 'HR', 'Enisra', 'Enisra', 'sales', 'salesmanager', 'tradextv', 'customerservice', 'SocialmediaManager', 'socialmedia', 'Socialmedia', 'CustomerSuccessManager', 'TETV', 'IT', 'ITAdmin', 'ITManager', 'ITTeamLeader', 'ITLeader', 'ITStaff', 'ITOfficer', 'IT Team Leader', 'IT Staff', 'IT Manager', 'itadmin', 'itmanager', 'itteamleader', 'itleader', 'itstaff', 'itofficer', 'HR', 'supervisor', 'Instructor', 'EventManager', 'COO', 'CEO', 'TradeXTV', 'finance', 'reception', 'TessbinAdmin', 'tessbinadmin', 'Tessbin', 'tessbin', 'Tessbin Admin'],
+        enum: ['admin', 'HR', 'hr', 'Enisra', 'sales', 'salesmanager', 'tradextv', 'customerservice', 'SocialmediaManager', 'socialmedia', 'Socialmedia', 'CustomerSuccessManager', 'TETV', 'IT', 'ITAdmin', 'ITManager', 'ITTeamLeader', 'ITLeader', 'ITStaff', 'ITOfficer', 'IT Team Leader', 'IT Staff', 'IT Manager', 'itadmin', 'itmanager', 'itteamleader', 'itleader', 'itstaff', 'itofficer', 'supervisor', 'Instructor', 'EventManager', 'COO', 'coo', 'COO2', 'coo2', 'COO 2', 'coo_2', '2coo', 'CEO', 'ceo', 'TradeXTV', 'finance', 'reception', 'TessbinAdmin', 'tessbinadmin', 'Tessbin', 'tessbin', 'Tessbin Admin', 'employee'],
         default: 'sales',
         index: true, // Add index for faster queries
     },

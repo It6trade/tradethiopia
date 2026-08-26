@@ -12,6 +12,9 @@ export const isBypassRole = (role = '') => {
     'admin',
     'hr',
     'coo',
+    'coo2',
+    '2coo',
+    'cootwo',
     'ceo',
     'tessbinadmin',
     'tessbin',
@@ -71,6 +74,10 @@ export const getRoleDashboardPath = (role = '') => {
       return '/Cdashboard';
     case 'coo':
       return '/coo-dashboard';
+    case 'coo2':
+    case '2coo':
+    case 'cootwo':
+      return '/2-coo';
     case 'ceo':
       return '/ceo-dashboard';
     case 'reception':
