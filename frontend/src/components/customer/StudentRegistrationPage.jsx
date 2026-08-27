@@ -63,9 +63,6 @@ import {
 } from "../../services/studentRegistrationService";
 import Layout from "./Layout";
 
-const STORAGE_KEY = "customerStudentRegistrations";
-const MIGRATION_KEY = "customerStudentRegistrationsMigratedToDatabase";
-
 const learningDepartments = [
   "Import and Export",
   "Digital Marketing",
@@ -233,8 +230,10 @@ const getStateColor = (status) => {
   return "gray";
 };
 
-const getClassOutcome = (student = {}) =>
-  student.classCompletionStatus || (student.classCompleted ? "Completed" : "Not Completed");
+const getClassOutcome = (student) => {
+  const record = student || {};
+  return record.classCompletionStatus || (record.classCompleted ? "Completed" : "Not Completed");
+};
 
 const studentExportHeaders = [
   "Student ID",
@@ -299,6 +298,7 @@ const StudentRegistrationPage = () => {
   const [registrarUsers, setRegistrarUsers] = useState([]);
   const [isLoadingStudents, setIsLoadingStudents] = useState(true);
   const [isSavingStudent, setIsSavingStudent] = useState(false);
+  const [studentLoadError, setStudentLoadError] = useState("");
   const [departmentFilter, setDepartmentFilter] = useState("All");
   const [statusFilter, setStatusFilter] = useState("All");
   const [readinessFilter, setReadinessFilter] = useState("All");
@@ -379,13 +379,6 @@ const StudentRegistrationPage = () => {
 
     const loadStudents = async () => {
       if (isMounted) setIsLoadingStudents(true);
-      let localStudents = [];
-      try {
-        const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
-        localStudents = Array.isArray(saved) ? saved.map(normalizeStudent) : [];
-      } catch (error) {
-        localStudents = [];
-      }
 
       try {
         const databaseStudents = await getStudentRegistrations();
@@ -395,41 +388,16 @@ const StudentRegistrationPage = () => {
 
         if (isMounted) {
           setStudents(normalizedDatabaseStudents);
-        }
-
-        const alreadyMigrated = localStorage.getItem(MIGRATION_KEY) === "true";
-        if (!alreadyMigrated && localStudents.length) {
-          const databaseLocalIds = new Set(normalizedDatabaseStudents.map((student) => student.clientLocalId).filter(Boolean));
-          const recordsToMigrate = localStudents.filter((student) => !databaseLocalIds.has(student.id) && !databaseLocalIds.has(student.clientLocalId));
-          const migrated = [];
-
-          for (const student of recordsToMigrate) {
-            const created = await createStudentRegistration({
-              ...student,
-              clientLocalId: student.clientLocalId || student.id,
-            });
-            migrated.push(normalizeStudent(created));
-          }
-
-          localStorage.setItem(MIGRATION_KEY, "true");
-          if (isMounted && migrated.length) {
-            setStudents([...migrated, ...normalizedDatabaseStudents]);
-            toast({
-              title: "Local student records moved to database",
-              description: `${migrated.length} existing records were preserved in MongoDB.`,
-              status: "success",
-              duration: 3500,
-              isClosable: true,
-            });
-          }
+          setStudentLoadError("");
         }
       } catch (error) {
         if (isMounted) {
-          setStudents(localStudents);
+          setStudents([]);
+          setStudentLoadError(error.response?.data?.message || error.message || "Database is not reachable.");
           toast({
-            title: "Using local student records",
-            description: "Database is not reachable right now, so local saved records are shown.",
-            status: "warning",
+            title: "Student database unavailable",
+            description: "Student registration only uses the database. Please check the backend and MongoDB connection.",
+            status: "error",
             duration: 3500,
             isClosable: true,
           });
@@ -462,14 +430,6 @@ const StudentRegistrationPage = () => {
       isMounted = false;
     };
   }, []);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(students));
-    } catch (error) {
-      // Browser storage can fail in private mode; the current page state still works.
-    }
-  }, [students]);
 
   const groupedStudents = useMemo(() => {
     return students.reduce((groups, student) => {
@@ -672,14 +632,15 @@ const StudentRegistrationPage = () => {
           setIsSavingStudent(false);
           return;
         }
-        setStudents((prev) => prev.map((student) => (student.id === editingId ? { ...student, ...updatedPayload } : student)));
         toast({
           title: "Database update failed",
-          description: "The update was kept locally. Please check the backend connection.",
-          status: "warning",
+          description: error.response?.data?.message || "Student records are database-only. The update was not saved.",
+          status: "error",
           duration: 3500,
           isClosable: true,
         });
+        setIsSavingStudent(false);
+        return;
       }
 
       toast({ title: "Student registration updated", status: "success", duration: 2500, isClosable: true });
@@ -727,14 +688,15 @@ const StudentRegistrationPage = () => {
         setIsSavingStudent(false);
         return;
       }
-      setStudents((prev) => [newStudent, ...prev]);
       toast({
         title: "Database save failed",
-        description: "The student was kept locally. Please check the backend connection.",
-        status: "warning",
+        description: error.response?.data?.message || "Student records are database-only. The student was not saved.",
+        status: "error",
         duration: 3500,
         isClosable: true,
       });
+      setIsSavingStudent(false);
+      return;
     }
 
     setDepartmentFilter("All");
@@ -974,8 +936,22 @@ const StudentRegistrationPage = () => {
               <CardBody py={3}>
                 <HStack justify="space-between" gap={3} flexWrap="wrap">
                   <Text fontWeight="800" color={headingColor}>Loading student registrations...</Text>
-                  <Text fontSize="sm" color={mutedText}>If the database is slow, local saved records will be shown automatically.</Text>
+                  <Text fontSize="sm" color={mutedText}>Reading student records from the database.</Text>
                 </HStack>
+              </CardBody>
+            </Card>
+          )}
+
+          {!isLoadingStudents && studentLoadError && (
+            <Card bg="red.50" border="1px solid" borderColor="red.200" borderRadius="16px">
+              <CardBody py={4}>
+                <VStack align="stretch" spacing={2}>
+                  <Text fontWeight="900" color="red.700">Student database is not reachable</Text>
+                  <Text fontSize="sm" color="red.700">
+                    Student Registration is database-only. No local browser records are being used.
+                  </Text>
+                  <Text fontSize="xs" color="red.600">{studentLoadError}</Text>
+                </VStack>
               </CardBody>
             </Card>
           )}

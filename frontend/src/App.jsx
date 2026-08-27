@@ -43,8 +43,7 @@ import AdminTrainingUpload from "./pages/AdminTrainingUpload";
 import AdminCustomerReport from './components/AdminCSReport.jsx';
 import CustomerSettings from "./components/customer/CustomerSettings";
 import CustomerUserManagement from "./components/customer/CustomerUserManagement";
-const StudentRegistrationPage = lazy(() => import("./components/customer/StudentRegistrationPage"));
-const CSManagerTaskMonitor = lazy(() => import("./components/customer/CSManagerTaskMonitor"));
+import StudentRegistrationPage from "./components/customer/StudentRegistrationPage";
 import ReceptionDashboard from './pages/ReceptionDashboard';
 
 import HRTrainingPage from './pages/HRTrainingPage.jsx';
@@ -81,12 +80,14 @@ import EmployeeWarningsPage from "./pages/EmployeeWarningsPage.jsx";
 import AttendancePage from "./pages/AttendancePage.jsx";
 import LeaveManagementPage from "./pages/LeaveManagementPage.jsx";
 import AppLayout from "./components/AppLayout";
+import ErrorBoundary from "./components/ErrorBoundary";
 import SupervisorLayout from "./pages/supervisor/SupervisorLayout.jsx";
 import SupervisorDashboardPage from "./pages/supervisor/SupervisorDashboardPage.jsx";
 import SupervisorAccountPage from "./pages/supervisor/SupervisorAccountPage.jsx";
 
 const CandidatePoolPage = lazy(() => import('./pages/CandidatePoolPage.jsx'));
 const AwardsPage = lazy(() => import('./pages/AwardsPage.jsx'));
+const CSManagerTaskMonitor = lazy(() => import("./components/customer/CSManagerTaskMonitor"));
 const FinanceERPPage = lazy(() => import("./pages/sales/FinanceERPPage.jsx"));
 const FinanceDashboardPage = lazy(() => import("./pages/sales/FinanceDashboardPage.jsx"));
 const FinanceReportsPage = lazy(() => import("./pages/sales/FinanceReportsPage.jsx"));
@@ -515,7 +516,9 @@ function App() {
         path="/customer/student-registration"
         element={
           <ProtectedRoute>
-            <StudentRegistrationPage />
+            <ErrorBoundary>
+              <StudentRegistrationPage />
+            </ErrorBoundary>
           </ProtectedRoute>
         }
       />
