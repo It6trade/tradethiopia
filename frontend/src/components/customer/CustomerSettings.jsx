@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Badge,
   Box,
@@ -6,19 +6,22 @@ import {
   Card,
   CardBody,
   CardHeader,
-  Divider,
+  Drawer,
+  DrawerBody,
+  DrawerCloseButton,
+  DrawerContent,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerOverlay,
   Flex,
   Heading,
   HStack,
   Icon,
   IconButton,
   Input,
-  NumberInput,
-  NumberInputField,
   Select,
   SimpleGrid,
   Spinner,
-  Stack,
   Table,
   TableContainer,
   Tag,
@@ -37,8 +40,8 @@ import {
   Wrap,
   WrapItem,
 } from "@chakra-ui/react";
-import { AddIcon, CheckIcon, CloseIcon, DeleteIcon, EditIcon } from "@chakra-ui/icons";
-import { FiBox, FiCheckCircle, FiEdit3, FiGlobe, FiPackage, FiPlus, FiRefreshCw, FiSearch, FiSettings, FiUserCheck, FiUsers } from "react-icons/fi";
+import { AddIcon, CheckIcon, DeleteIcon, EditIcon } from "@chakra-ui/icons";
+import { FiCheckCircle, FiEdit3, FiEye, FiPackage, FiRefreshCw, FiSettings, FiUserCheck } from "react-icons/fi";
 import axiosInstance from "../../services/axiosInstance";
 import Layout from "./Layout";
 
@@ -55,6 +58,10 @@ const CustomerSettings = () => {
   const [selectedAgent, setSelectedAgent] = useState({});
   const [searchQuery, setSearchQuery] = useState("");
   const [marketFilter, setMarketFilter] = useState("all");
+  const [packagePageSize, setPackagePageSize] = useState(5);
+  const [packagePage, setPackagePage] = useState(1);
+  const [detailPackage, setDetailPackage] = useState(null);
+  const [isPackageFormOpen, setIsPackageFormOpen] = useState(false);
 
   const [form, setForm] = useState({
     packageNumber: "",
@@ -173,6 +180,17 @@ const CustomerSettings = () => {
     setEditingId(null);
   };
 
+  const openCreatePackageDrawer = () => {
+    resetForm();
+    setDetailPackage(null);
+    setIsPackageFormOpen(true);
+  };
+
+  const closePackageFormDrawer = () => {
+    resetForm();
+    setIsPackageFormOpen(false);
+  };
+
   const handleAdd = async () => {
     const services = form.services || [];
     const market = form.market || "Local";
@@ -208,7 +226,7 @@ const CustomerSettings = () => {
       };
       const res = await axiosInstance.post("/packages", payload);
       setPackages((prev) => [...prev, res.data]);
-      resetForm();
+      closePackageFormDrawer();
       toast({ title: "Package created successfully", status: "success" });
     } catch (err) {
       toast({
@@ -220,6 +238,7 @@ const CustomerSettings = () => {
   };
 
   const handleEdit = (p) => {
+    setDetailPackage(null);
     setEditingId(p._id);
     setForm({
       packageNumber: p.packageNumber,
@@ -229,6 +248,7 @@ const CustomerSettings = () => {
       description: p.description || "",
       market: p.market || "Local",
     });
+    setIsPackageFormOpen(true);
   };
 
   const handleUpdate = async () => {
@@ -254,7 +274,7 @@ const CustomerSettings = () => {
       };
       const res = await axiosInstance.put(`/packages/${editingId}`, payload);
       setPackages((prev) => prev.map((p) => (p._id === editingId ? res.data : p)));
-      resetForm();
+      closePackageFormDrawer();
       toast({ title: "Package updated successfully", status: "success" });
     } catch (err) {
       toast({
@@ -320,6 +340,17 @@ const CustomerSettings = () => {
     return true;
   });
 
+  const packagePageCount = Math.max(1, Math.ceil(filteredPackages.length / packagePageSize));
+  const currentPackagePage = Math.min(packagePage, packagePageCount);
+  const pagedPackages = filteredPackages.slice(
+    (currentPackagePage - 1) * packagePageSize,
+    currentPackagePage * packagePageSize
+  );
+
+  useEffect(() => {
+    setPackagePage(1);
+  }, [marketFilter, packagePageSize, searchQuery]);
+
   return (
     <Layout>
       <Box w="100%" minH="100vh" p={{ base: 4, md: 6 }}>
@@ -339,6 +370,14 @@ const CustomerSettings = () => {
             </HStack>
 
             <HStack spacing={3}>
+              <Button
+                size="sm"
+                colorScheme="blue"
+                leftIcon={<AddIcon />}
+                onClick={openCreatePackageDrawer}
+              >
+                New Package
+              </Button>
               <IconButton
                 aria-label="Refresh settings"
                 icon={<FiRefreshCw />}
@@ -433,121 +472,6 @@ const CustomerSettings = () => {
             </CardBody>
           </Card>
 
-          {/* Package Configuration Form */}
-          <Card bg={cardBg} borderColor={borderColor} borderWidth="1px" borderRadius="2xl" boxShadow="sm">
-            <CardHeader pb={2} pt={4} px={5}>
-              <HStack justify="space-between">
-                <HStack spacing={2}>
-                  <Icon as={editingId ? FiEdit3 : FiPackage} color="blue.500" />
-                  <Heading size="md">{editingId ? "Edit Service Package" : "Create New Service Package"}</Heading>
-                </HStack>
-                {editingId && (
-                  <Button size="xs" variant="ghost" onClick={resetForm} leftIcon={<CloseIcon />}>
-                    Cancel Edit
-                  </Button>
-                )}
-              </HStack>
-            </CardHeader>
-            <CardBody px={5} pt={2} pb={5}>
-              <VStack spacing={4} align="stretch">
-                <SimpleGrid columns={{ base: 1, sm: 2, md: 4 }} spacing={3}>
-                  <Box>
-                    <Text fontSize="xs" fontWeight="bold" mb={1} color={mutedColor}>PACKAGE NUMBER / TIER *</Text>
-                    <Input
-                      size="sm"
-                      placeholder="e.g. 1, 2, Silver, Gold"
-                      value={form.packageNumber}
-                      onChange={(e) => handleChange("packageNumber", e.target.value)}
-                    />
-                  </Box>
-
-                  <Box>
-                    <Text fontSize="xs" fontWeight="bold" mb={1} color={mutedColor}>MARKET SCOPE *</Text>
-                    <Select
-                      size="sm"
-                      value={form.market}
-                      onChange={(e) => handleChange("market", e.target.value)}
-                    >
-                      <option value="Local">Local (Ethiopia)</option>
-                      <option value="International">International</option>
-                    </Select>
-                  </Box>
-
-                  <Box>
-                    <Text fontSize="xs" fontWeight="bold" mb={1} color={mutedColor}>PRICE *</Text>
-                    <Input
-                      size="sm"
-                      placeholder="e.g. 2500 ETB or $150 USD"
-                      value={form.price}
-                      onChange={(e) => handleChange("price", e.target.value)}
-                    />
-                  </Box>
-
-                  <Box>
-                    <Text fontSize="xs" fontWeight="bold" mb={1} color={mutedColor}>DESCRIPTION</Text>
-                    <Input
-                      size="sm"
-                      placeholder="Optional brief description"
-                      value={form.description}
-                      onChange={(e) => handleChange("description", e.target.value)}
-                    />
-                  </Box>
-                </SimpleGrid>
-
-                {/* Services Tags Builder */}
-                <Box>
-                  <Text fontSize="xs" fontWeight="bold" mb={1} color={mutedColor}>PACKAGE SERVICES INCLUDED *</Text>
-                  <HStack spacing={2} mb={2}>
-                    <Input
-                      size="sm"
-                      placeholder="Type a service name and click Add (e.g., Training, Export Consultancy)..."
-                      value={form.serviceInput}
-                      onChange={(e) => handleChange("serviceInput", e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault();
-                          handleAddService();
-                        }
-                      }}
-                    />
-                    <Button size="sm" colorScheme="blue" variant="outline" onClick={handleAddService} leftIcon={<AddIcon />}>
-                      Add
-                    </Button>
-                  </HStack>
-
-                  {form.services && form.services.length > 0 && (
-                    <Wrap spacing={2} p={2} bg={sidebarBg} borderRadius="lg" border="1px solid" borderColor={borderColor}>
-                      {form.services.map((svc, idx) => (
-                        <WrapItem key={idx}>
-                          <Tag size="md" borderRadius="full" variant="solid" colorScheme={getServiceColor(svc)}>
-                            <TagLabel>{svc}</TagLabel>
-                            <TagCloseButton onClick={() => handleRemoveService(svc)} />
-                          </Tag>
-                        </WrapItem>
-                      ))}
-                    </Wrap>
-                  )}
-                </Box>
-
-                <HStack justify="flex-end" spacing={2}>
-                  {editingId && (
-                    <Button size="sm" variant="ghost" onClick={resetForm}>
-                      Cancel
-                    </Button>
-                  )}
-                  <Button
-                    size="sm"
-                    colorScheme="blue"
-                    onClick={editingId ? handleUpdate : handleAdd}
-                    leftIcon={editingId ? <CheckIcon /> : <AddIcon />}
-                  >
-                    {editingId ? "Update Package" : "Save Package"}
-                  </Button>
-                </HStack>
-              </VStack>
-            </CardBody>
-          </Card>
-
           {/* Existing Packages Table */}
           <Card bg={cardBg} borderColor={borderColor} borderWidth="1px" borderRadius="2xl" boxShadow="sm">
             <CardHeader pb={3} pt={4} px={5}>
@@ -560,6 +484,18 @@ const CustomerSettings = () => {
                 </HStack>
 
                 <HStack spacing={2} flexWrap="wrap">
+                  <Select
+                    size="sm"
+                    w="110px"
+                    value={packagePageSize}
+                    onChange={(e) => setPackagePageSize(Number(e.target.value))}
+                  >
+                    <option value={5}>5 items</option>
+                    <option value={10}>10 items</option>
+                    <option value={15}>15 items</option>
+                    <option value={20}>20 items</option>
+                  </Select>
+
                   <Select
                     size="sm"
                     w="150px"
@@ -590,7 +526,6 @@ const CustomerSettings = () => {
                       <Th>Package Tier</Th>
                       <Th>Market</Th>
                       <Th>Price</Th>
-                      <Th>Included Services</Th>
                       <Th>Description</Th>
                       <Th textAlign="right">Actions</Th>
                     </Tr>
@@ -598,19 +533,19 @@ const CustomerSettings = () => {
                   <Tbody>
                     {loading ? (
                       <Tr>
-                        <Td colSpan={6} textAlign="center" py={8}>
+                        <Td colSpan={5} textAlign="center" py={8}>
                           <Spinner size="md" color="blue.500" />
                           <Text fontSize="xs" color={mutedColor} mt={2}>Loading service packages...</Text>
                         </Td>
                       </Tr>
                     ) : filteredPackages.length === 0 ? (
                       <Tr>
-                        <Td colSpan={6} textAlign="center" py={8} color={mutedColor}>
+                        <Td colSpan={5} textAlign="center" py={8} color={mutedColor}>
                           No service packages defined yet. Use the form above to add your first package.
                         </Td>
                       </Tr>
                     ) : (
-                      filteredPackages.map((pkg) => (
+                      pagedPackages.map((pkg) => (
                         <Tr key={pkg._id} _hover={{ bg: tableHoverBg }}>
                           <Td fontWeight="bold">Package {pkg.packageNumber}</Td>
                           <Td>
@@ -619,20 +554,19 @@ const CustomerSettings = () => {
                             </Badge>
                           </Td>
                           <Td fontWeight="semibold">{pkg.price}</Td>
-                          <Td>
-                            <Wrap spacing={1}>
-                              {(pkg.services || []).map((s, idx) => (
-                                <WrapItem key={idx}>
-                                  <Tag size="xs" colorScheme={getServiceColor(s)} borderRadius="md">
-                                    {s}
-                                  </Tag>
-                                </WrapItem>
-                              ))}
-                            </Wrap>
-                          </Td>
                           <Td fontSize="xs" color="gray.500">{pkg.description || "-"}</Td>
                           <Td textAlign="right">
                             <HStack justify="flex-end" spacing={1}>
+                              <Tooltip label="View Package Details">
+                                <IconButton
+                                  aria-label="View package details"
+                                  icon={<FiEye />}
+                                  size="xs"
+                                  variant="ghost"
+                                  colorScheme="teal"
+                                  onClick={() => setDetailPackage(pkg)}
+                                />
+                              </Tooltip>
                               <Tooltip label="Edit Package">
                                 <IconButton
                                   aria-label="Edit package"
@@ -661,10 +595,291 @@ const CustomerSettings = () => {
                   </Tbody>
                 </Table>
               </TableContainer>
+              {!loading && filteredPackages.length > 0 && (
+                <Flex
+                  justify="space-between"
+                  align={{ base: "flex-start", sm: "center" }}
+                  gap={3}
+                  flexWrap="wrap"
+                  px={5}
+                  py={4}
+                  borderTop="1px solid"
+                  borderColor={borderColor}
+                >
+                  <Text fontSize="xs" color={mutedColor}>
+                    Showing {(currentPackagePage - 1) * packagePageSize + 1}
+                    {" - "}
+                    {Math.min(currentPackagePage * packagePageSize, filteredPackages.length)}
+                    {" of "}
+                    {filteredPackages.length} packages
+                  </Text>
+                  <HStack spacing={2}>
+                    <Button
+                      size="xs"
+                      variant="outline"
+                      isDisabled={currentPackagePage === 1}
+                      onClick={() => setPackagePage((prev) => Math.max(1, prev - 1))}
+                    >
+                      Previous
+                    </Button>
+                    <Badge colorScheme="blue" borderRadius="full" px={2.5}>
+                      {currentPackagePage} / {packagePageCount}
+                    </Badge>
+                    <Button
+                      size="xs"
+                      variant="outline"
+                      isDisabled={currentPackagePage === packagePageCount}
+                      onClick={() => setPackagePage((prev) => Math.min(packagePageCount, prev + 1))}
+                    >
+                      Next
+                    </Button>
+                  </HStack>
+                </Flex>
+              )}
             </CardBody>
           </Card>
         </VStack>
       </Box>
+
+      <Drawer isOpen={isPackageFormOpen} placement="right" onClose={closePackageFormDrawer} size="lg">
+        <DrawerOverlay />
+        <DrawerContent>
+          <DrawerCloseButton />
+          <DrawerHeader borderBottomWidth="1px" borderColor={borderColor}>
+            <HStack spacing={3}>
+              <Box p={2} bg="blue.500" color="white" borderRadius="lg">
+                <Icon as={editingId ? FiEdit3 : FiPackage} boxSize={5} />
+              </Box>
+              <Box>
+                <Heading size="md">{editingId ? "Edit Service Package" : "Create New Service Package"}</Heading>
+                <Text fontSize="xs" color={mutedColor}>
+                  {editingId
+                    ? "Update package ownership, market scope, services, price, and description."
+                    : "Create a new customer service package using the current settings style."}
+                </Text>
+              </Box>
+            </HStack>
+          </DrawerHeader>
+
+          <DrawerBody py={5}>
+            <VStack spacing={5} align="stretch">
+              <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}>
+                <Box>
+                  <Text fontSize="xs" fontWeight="bold" mb={1.5} color={mutedColor}>
+                    PACKAGE NUMBER / TIER *
+                  </Text>
+                  <Input
+                    size="sm"
+                    placeholder="e.g. 1, 2, Silver, Gold"
+                    value={form.packageNumber}
+                    onChange={(e) => handleChange("packageNumber", e.target.value)}
+                  />
+                </Box>
+
+                <Box>
+                  <Text fontSize="xs" fontWeight="bold" mb={1.5} color={mutedColor}>
+                    MARKET SCOPE *
+                  </Text>
+                  <Select
+                    size="sm"
+                    value={form.market}
+                    onChange={(e) => handleChange("market", e.target.value)}
+                  >
+                    <option value="Local">Local (Ethiopia)</option>
+                    <option value="International">International</option>
+                  </Select>
+                </Box>
+
+                <Box>
+                  <Text fontSize="xs" fontWeight="bold" mb={1.5} color={mutedColor}>
+                    PRICE *
+                  </Text>
+                  <Input
+                    size="sm"
+                    placeholder="e.g. 2500 ETB or $150 USD"
+                    value={form.price}
+                    onChange={(e) => handleChange("price", e.target.value)}
+                  />
+                </Box>
+
+                <Box>
+                  <Text fontSize="xs" fontWeight="bold" mb={1.5} color={mutedColor}>
+                    DESCRIPTION
+                  </Text>
+                  <Input
+                    size="sm"
+                    placeholder="Optional brief description"
+                    value={form.description}
+                    onChange={(e) => handleChange("description", e.target.value)}
+                  />
+                </Box>
+              </SimpleGrid>
+
+              <Box p={4} bg={sidebarBg} borderRadius="xl" border="1px solid" borderColor={borderColor}>
+                <Text fontSize="xs" fontWeight="bold" mb={2} color={mutedColor}>
+                  PACKAGE SERVICES INCLUDED *
+                </Text>
+                <HStack spacing={2} mb={3} align="stretch">
+                  <Input
+                    size="sm"
+                    placeholder="Type a service name and click Add"
+                    value={form.serviceInput}
+                    onChange={(e) => handleChange("serviceInput", e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        handleAddService();
+                      }
+                    }}
+                  />
+                  <Button size="sm" colorScheme="blue" variant="outline" onClick={handleAddService} leftIcon={<AddIcon />}>
+                    Add
+                  </Button>
+                </HStack>
+
+                {form.services && form.services.length > 0 ? (
+                  <Wrap spacing={2}>
+                    {form.services.map((svc, idx) => (
+                      <WrapItem key={`${svc}-${idx}`}>
+                        <Tag size="md" borderRadius="full" variant="solid" colorScheme={getServiceColor(svc)}>
+                          <TagLabel>{svc}</TagLabel>
+                          <TagCloseButton onClick={() => handleRemoveService(svc)} />
+                        </Tag>
+                      </WrapItem>
+                    ))}
+                  </Wrap>
+                ) : (
+                  <Text fontSize="sm" color={mutedColor}>
+                    Add at least one included service before saving this package.
+                  </Text>
+                )}
+              </Box>
+            </VStack>
+          </DrawerBody>
+
+          <DrawerFooter borderTopWidth="1px" borderColor={borderColor}>
+            <HStack spacing={2}>
+              <Button size="sm" variant="ghost" onClick={closePackageFormDrawer}>
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                colorScheme="blue"
+                onClick={editingId ? handleUpdate : handleAdd}
+                leftIcon={editingId ? <CheckIcon /> : <AddIcon />}
+              >
+                {editingId ? "Update Package" : "Save Package"}
+              </Button>
+            </HStack>
+          </DrawerFooter>
+        </DrawerContent>
+      </Drawer>
+
+      <Drawer isOpen={Boolean(detailPackage)} placement="right" onClose={() => setDetailPackage(null)} size="md">
+        <DrawerOverlay />
+        <DrawerContent>
+          <DrawerCloseButton />
+          <DrawerHeader borderBottomWidth="1px" borderColor={borderColor}>
+            <HStack spacing={3}>
+              <Box p={2} bg="blue.500" color="white" borderRadius="lg">
+                <Icon as={FiPackage} boxSize={5} />
+              </Box>
+              <Box>
+                <Heading size="md">Package {detailPackage?.packageNumber || "-"}</Heading>
+                <Text fontSize="xs" color={mutedColor}>Complete package information and included services.</Text>
+              </Box>
+            </HStack>
+          </DrawerHeader>
+
+          <DrawerBody py={5}>
+            {detailPackage && (
+              <VStack align="stretch" spacing={5}>
+                <SimpleGrid columns={2} spacing={3}>
+                  <Box p={3} bg={sidebarBg} borderRadius="xl" border="1px solid" borderColor={borderColor}>
+                    <Text fontSize="2xs" fontWeight="bold" color={mutedColor} textTransform="uppercase">
+                      Package Tier
+                    </Text>
+                    <Text fontWeight="800">Package {detailPackage.packageNumber || "-"}</Text>
+                  </Box>
+                  <Box p={3} bg={sidebarBg} borderRadius="xl" border="1px solid" borderColor={borderColor}>
+                    <Text fontSize="2xs" fontWeight="bold" color={mutedColor} textTransform="uppercase">
+                      Market
+                    </Text>
+                    <Badge colorScheme={detailPackage.market === "International" ? "purple" : "blue"} mt={1}>
+                      {detailPackage.market || "Local"}
+                    </Badge>
+                  </Box>
+                  <Box p={3} bg={sidebarBg} borderRadius="xl" border="1px solid" borderColor={borderColor}>
+                    <Text fontSize="2xs" fontWeight="bold" color={mutedColor} textTransform="uppercase">
+                      Price
+                    </Text>
+                    <Text fontWeight="800">{detailPackage.price || "-"}</Text>
+                  </Box>
+                  <Box p={3} bg={sidebarBg} borderRadius="xl" border="1px solid" borderColor={borderColor}>
+                    <Text fontSize="2xs" fontWeight="bold" color={mutedColor} textTransform="uppercase">
+                      Services
+                    </Text>
+                    <Text fontWeight="800">{(detailPackage.services || []).length}</Text>
+                  </Box>
+                </SimpleGrid>
+
+                <Box>
+                  <Text fontSize="xs" fontWeight="bold" color={mutedColor} mb={2}>
+                    DESCRIPTION
+                  </Text>
+                  <Box p={4} bg={sidebarBg} borderRadius="xl" border="1px solid" borderColor={borderColor}>
+                    <Text fontSize="sm" color={detailPackage.description ? "inherit" : mutedColor}>
+                      {detailPackage.description || "No description added for this package."}
+                    </Text>
+                  </Box>
+                </Box>
+
+                <Box>
+                  <Text fontSize="xs" fontWeight="bold" color={mutedColor} mb={2}>
+                    INCLUDED SERVICES
+                  </Text>
+                  {(detailPackage.services || []).length > 0 ? (
+                    <Wrap spacing={2}>
+                      {(detailPackage.services || []).map((service, index) => (
+                        <WrapItem key={`${service}-${index}`}>
+                          <Tag size="md" borderRadius="full" colorScheme={getServiceColor(service)} variant="subtle">
+                            <TagLabel>{service}</TagLabel>
+                          </Tag>
+                        </WrapItem>
+                      ))}
+                    </Wrap>
+                  ) : (
+                    <Box p={4} bg={sidebarBg} borderRadius="xl" border="1px solid" borderColor={borderColor}>
+                      <Text fontSize="sm" color={mutedColor}>No included services recorded.</Text>
+                    </Box>
+                  )}
+                </Box>
+              </VStack>
+            )}
+          </DrawerBody>
+
+          <DrawerFooter borderTopWidth="1px" borderColor={borderColor}>
+            <HStack spacing={2}>
+              <Button size="sm" variant="ghost" onClick={() => setDetailPackage(null)}>
+                Close
+              </Button>
+              {detailPackage && (
+                <Button
+                  size="sm"
+                  colorScheme="blue"
+                  leftIcon={<EditIcon />}
+                  onClick={() => {
+                    handleEdit(detailPackage);
+                    setDetailPackage(null);
+                  }}
+                >
+                  Edit Package
+                </Button>
+              )}
+            </HStack>
+          </DrawerFooter>
+        </DrawerContent>
+      </Drawer>
     </Layout>
   );
 };
