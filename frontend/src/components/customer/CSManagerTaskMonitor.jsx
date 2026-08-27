@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Avatar,
   Badge,
@@ -7,7 +7,6 @@ import {
   ButtonGroup,
   Card,
   CardBody,
-  Divider,
   Flex,
   Heading,
   HStack,
@@ -48,13 +47,10 @@ import {
   VStack,
 } from "@chakra-ui/react";
 import {
-  FiActivity,
   FiAlertCircle,
-  FiCheckCircle,
   FiClock,
   FiDownload,
   FiEye,
-  FiFilter,
   FiGrid,
   FiLayers,
   FiList,
@@ -64,13 +60,10 @@ import {
   FiSend,
   FiStar,
   FiTrash2,
-  FiTrendingUp,
-  FiUser,
   FiUserCheck,
 } from "react-icons/fi";
 import Layout from "./Layout";
 import axiosInstance from "../../services/axiosInstance";
-import { useUserStore, normalizeRole } from "../../store/user";
 
 const isSupportTicket = (task) => {
   if (!task || typeof task !== "object") return false;
@@ -126,7 +119,6 @@ const getLatestWorkRecord = (task) => {
 
 export default function CSManagerTaskMonitor() {
   const toast = useToast();
-  const currentUser = useUserStore((state) => state.currentUser);
 
   // Styling Tokens
   const pageBgGradient = useColorModeValue(

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import {
   Avatar,
   Badge,
@@ -24,7 +24,6 @@ import {
   MenuItem,
   MenuList,
   Portal,
-  Spacer,
   Text,
   Tooltip,
   useColorMode,
@@ -33,7 +32,6 @@ import {
   VStack,
 } from "@chakra-ui/react";
 import {
-  FiBell,
   FiBookOpen,
   FiCalendar,
   FiChevronDown,
@@ -414,7 +412,7 @@ const Cnavbar = ({ onToggleSidebar, activeSectionTitle = "Overview" }) => {
                 { to: "/b2b-dashboard", icon: <FiGlobe />, label: "B2B Marketplace" },
                 { to: "/customerfollowup", icon: <FiUsers />, label: "Customer Follow-up" },
                 { to: "/customer/messages", icon: <FiMessageSquare />, label: "Notice Board" },
-                { to: "/requests", icon: <FiClipboard />, label: "Internal Requests" },
+                { to: "/Cdashboard?section=requests", icon: <FiClipboard />, label: "Internal Requests" },
                 { to: "/training", icon: <FiBookOpen />, label: "Training Academy" },
                 ...(isCSM
                   ? [

@@ -72,6 +72,7 @@ const getRequestStatusColor = (status) => {
 };
 
 export default function RequestPage({
+  embedded = false,
   maxWidth,
   departmentOverride,
   backRouteOverride,
@@ -100,6 +101,7 @@ export default function RequestPage({
   const detailTextColor = useColorModeValue("gray.600", "gray.300");
   const cardDividerColor = useColorModeValue("gray.200", "gray.600");
   const recentItemBg = useColorModeValue("gray.50", "gray.600");
+  const pageBg = useColorModeValue("gray.100", "gray.900");
 
   const [form, setForm] = useState(() => ({
     department: initialDepartment || "",
@@ -239,7 +241,7 @@ export default function RequestPage({
 
   if (!navigateUser) {
     return (
-      <Center minH="100vh" bg={useColorModeValue("gray.100", "gray.900")} px={4}>
+      <Center minH="100vh" bg={pageBg} px={4}>
         <VStack spacing={4} bg={cardBg} color={cardTextColor} p={6} borderRadius="xl" boxShadow="lg">
           <Heading size="md">Sign in to submit requests</Heading>
           <Text textAlign="center" color={cardHelperColor}>
@@ -255,13 +257,13 @@ export default function RequestPage({
 
   return (
     <Box
-      minH="100vh"
+      minH={embedded ? "auto" : "100vh"}
       w="100%"
       maxW={maxWidth || "100%"}
       mx={maxWidth ? "auto" : undefined}
-      bg={useColorModeValue("gray.100", "gray.900")}
-      px={{ base: 4, md: 6 }}
-      py={{ base: 6, md: 10 }}
+      bg={embedded ? "transparent" : pageBg}
+      px={embedded ? 0 : { base: 4, md: 6 }}
+      py={embedded ? 0 : { base: 6, md: 10 }}
     >
       <Flex justify="space-between" align="flex-start" mb={6} wrap="wrap" gap={3}>
         <Flex align="flex-start" gap={4} flex="1" minW={0}>

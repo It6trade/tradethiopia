@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertDialog,
   AlertDialogBody,
@@ -15,7 +15,6 @@ import {
   CardBody,
   CardHeader,
   Collapse,
-  Divider,
   Flex,
   Heading,
   HStack,
@@ -28,7 +27,6 @@ import {
   Select,
   SimpleGrid,
   Spinner,
-  Stack,
   Table,
   TableContainer,
   Tbody,
@@ -44,7 +42,7 @@ import {
   VStack,
 } from "@chakra-ui/react";
 import { AddIcon, CheckIcon, CloseIcon, DeleteIcon, EditIcon } from "@chakra-ui/icons";
-import { FiChevronDown, FiChevronRight, FiGrid, FiKey, FiList, FiLock, FiPower, FiRefreshCw, FiSearch, FiShield, FiUserCheck, FiUserPlus, FiUsers, FiX } from "react-icons/fi";
+import { FiChevronDown, FiChevronRight, FiGrid, FiList, FiRefreshCw, FiSearch, FiUserPlus, FiUsers, FiX } from "react-icons/fi";
 import axiosInstance from "../../services/axiosInstance";
 import Layout from "./Layout";
 
@@ -862,7 +860,7 @@ const CustomerUserManagement = () => {
               Permanently Delete Account
             </AlertDialogHeader>
             <AlertDialogBody>
-              Are you sure you want to delete customer service account <strong>"{deletingUser?.fullName || deletingUser?.username || deletingUser?.email}"</strong>? This will revoke all system access.
+              Are you sure you want to delete customer service account <strong>{deletingUser?.fullName || deletingUser?.username || deletingUser?.email}</strong>? This will revoke all system access.
             </AlertDialogBody>
             <AlertDialogFooter gap={2}>
               <Button ref={cancelDeleteRef} onClick={onDeleteClose}>Cancel</Button>
