@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Box,
   Flex,
   Table,
+  TableContainer,
   Thead,
   Tbody,
   Tr,
@@ -32,7 +33,7 @@ import {
   Wrap,
   WrapItem
 } from '@chakra-ui/react';
-import { FiSearch, FiFilter, FiPlus, FiCalendar, FiUser, FiCheckCircle, FiXCircle, FiChevronDown, FiChevronRight, FiPaperclip } from 'react-icons/fi';
+import { FiSearch, FiFilter, FiPlus, FiUser, FiCheckCircle, FiXCircle, FiChevronDown, FiChevronRight, FiPaperclip } from 'react-icons/fi';
 import axios from 'axios';
 import AddTaskForm from './AddTaskForm';
 import ITTaskProgressControl from './ITTaskProgressControl';
@@ -50,16 +51,14 @@ const statusColor = (s) => {
   }
 };
 
-const ExternalTasksTab = ({ search, tasks, loading, fetchTasks, permissions = {}, focusedTaskId = '', focusedCommentId = '' }) => {
+const ExternalTasksTab = ({ tasks, loading, fetchTasks, permissions = {}, focusedTaskId = '', focusedCommentId = '' }) => {
   const [filter, setFilter] = useState('all');
   const [sort, setSort] = useState('newest');
   const [showAdd, setShowAdd] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [editingTaskId, setEditingTaskId] = useState(null);
   const [editingTask, setEditingTask] = useState(null);
   const [viewingTask, setViewingTask] = useState(null);
   const [expandedReviewIds, setExpandedReviewIds] = useState({});
-  const [editingPoints, setEditingPoints] = useState(1);
   const [showCompleted, setShowCompleted] = useState(true);
   const [pageSize, setPageSize] = useState(10);
   const [page, setPage] = useState(1);
@@ -255,45 +254,6 @@ const ExternalTasksTab = ({ search, tasks, loading, fetchTasks, permissions = {}
         status: 'error',
       });
     }
-  };
-
-  const startEditingPoints = (taskId, currentPoints) => {
-    setEditingTaskId(taskId);
-    setEditingPoints(currentPoints || 1);
-  };
-
-  const savePoints = async (taskId) => {
-    try {
-      const points = parseInt(editingPoints);
-      if (isNaN(points) || points < 1) {
-        toast({ title: 'Invalid input', description: 'Please enter a valid number of points (minimum 1)', status: 'error' });
-        return;
-      }
-
-      const response = await axios.put(`${import.meta.env.VITE_API_URL}/api/it/${taskId}`, {
-        featureCount: points
-      }, {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
-      });
-
-      if (response.data.success) {
-        fetchTasks();
-        setEditingTaskId(null);
-        setEditingPoints(1);
-        toast({ title: 'Points updated successfully', status: 'success' });
-      } else {
-        toast({ title: 'Update failed', description: response.data.message || 'Failed to update points', status: 'error' });
-      }
-    } catch (err) {
-      toast({ title: 'Update failed', description: err.response?.data?.message || err.message || 'Failed to update points', status: 'error' });
-    }
-  };
-
-  const cancelEditingPoints = () => {
-    setEditingTaskId(null);
-    setEditingPoints(1);
   };
 
   const filtered = (tasks || [])
@@ -639,16 +599,31 @@ const ExternalTasksTab = ({ search, tasks, loading, fetchTasks, permissions = {}
       {filtered.length > 0 ? (
         <Card bg={bg} borderRadius="2xl" boxShadow="sm" borderWidth="1px" borderColor={borderColor}>
           <CardBody>
-            <Table variant="simple">
+            <TableContainer w="100%" overflowX="auto">
+            <Table
+              variant="simple"
+              size="sm"
+              minW="1080px"
+              sx={{
+                'th:last-of-type, td:last-of-type': {
+                  position: 'sticky',
+                  right: 0,
+                  zIndex: 1,
+                  bg,
+                  boxShadow: '-10px 0 18px -16px rgba(15, 23, 42, 0.35)',
+                },
+                'th:last-of-type': {
+                  zIndex: 2,
+                },
+              }}
+            >
               <Thead>
                 <Tr>
                   <Th>Client</Th>
                   <Th>Category</Th>
-                  <Th>Timeline</Th>
                   <Th>Status</Th>
                   <Th>Progress</Th>
                   <Th>Priority</Th>
-                  <Th>Points</Th>
                   <Th>Assignee</Th>
                   <Th>Actions</Th>
                 </Tr>
@@ -679,14 +654,6 @@ const ExternalTasksTab = ({ search, tasks, loading, fetchTasks, permissions = {}
                       </Wrap>
                     </Td>
                     <Td>
-                      <HStack spacing={1}>
-                        <Icon as={FiCalendar} color={iconColor} boxSize={4} />
-                        <Text fontSize="sm">
-                          {new Date(task.startDate).toLocaleDateString()} - {new Date(task.endDate).toLocaleDateString()}
-                        </Text>
-                      </HStack>
-                    </Td>
-                    <Td>
                       <VStack align="flex-start" spacing={1}>
                         <Badge colorScheme={statusColor(task.status)}>
                           {task.status}
@@ -703,42 +670,6 @@ const ExternalTasksTab = ({ search, tasks, loading, fetchTasks, permissions = {}
                       <Badge colorScheme={task.priority === 'High' ? 'red' : task.priority === 'Medium' ? 'orange' : 'green'}>
                         {task.priority}
                       </Badge>
-                    </Td>
-                    <Td>
-                      {editingTaskId === (task._id || task.id) ? (
-                        <HStack spacing={2}>
-                          <Input
-                            type="number"
-                            min="1"
-                            value={editingPoints}
-                            onChange={(e) => setEditingPoints(e.target.value)}
-                            width="80px"
-                            size="sm"
-                          />
-                          <Button size="sm" colorScheme="green" onClick={() => savePoints(task._id || task.id)}>
-                            Save
-                          </Button>
-                          <Button size="sm" onClick={cancelEditingPoints}>
-                            Cancel
-                          </Button>
-                        </HStack>
-                      ) : (
-                        <HStack spacing={2}>
-                          <Badge colorScheme={task.status === 'done' ? 'green' : 'gray'}>
-                            {task.featureCount || (task.status === 'done' ? 1 : 0)} pts
-                          </Badge>
-                          {task.status === 'done' && (
-                            <Button
-                              size="sm"
-                              colorScheme="blue"
-                              variant="outline"
-                              onClick={() => startEditingPoints(task._id || task.id, task.featureCount || 1)}
-                            >
-                              Edit
-                            </Button>
-                          )}
-                        </HStack>
-                      )}
                     </Td>
                     <Td>
                       <VStack align="flex-start" spacing={2}>
@@ -759,8 +690,8 @@ const ExternalTasksTab = ({ search, tasks, loading, fetchTasks, permissions = {}
                         </Wrap>
                       </VStack>
                     </Td>
-                    <Td>
-                      <HStack spacing={2}>
+                    <Td minW="300px">
+                      <HStack spacing={2} justify="flex-end" flexWrap="wrap">
                         <Button
                           size="sm"
                           variant="outline"
@@ -824,6 +755,7 @@ const ExternalTasksTab = ({ search, tasks, loading, fetchTasks, permissions = {}
                 ))}
               </Tbody>
             </Table>
+            </TableContainer>
             <Flex justify="space-between" align={{ base: 'stretch', md: 'center' }} direction={{ base: 'column', md: 'row' }} gap={3} mt={4}>
               <Text fontSize="sm" color={mutedColor}>
                 Showing {(safePage - 1) * pageSize + 1}-{Math.min(safePage * pageSize, filtered.length)} of {filtered.length}
