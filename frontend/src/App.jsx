@@ -135,7 +135,7 @@ const IT_ALLOWED_ROLES = [
   "hr",
 ];
 
-function App() {
+function LayoutWrapper({ children }) {
   const location = useLocation();
   const currentUser = useUserStore((state) => state.currentUser);
   const normalizedRole = (currentUser?.role || currentUser?.normalizedRole || '')
@@ -164,12 +164,13 @@ function App() {
     return normalizedPath === route || normalizedPath.startsWith(`${route}/`);
   });
 
-  const LayoutWrapper = ({ children }) => {
-    if (showNavAndSidebar) {
-      return <AppLayout>{children}</AppLayout>;
-    }
-    return children;
-  };
+  if (showNavAndSidebar) {
+    return <AppLayout>{children}</AppLayout>;
+  }
+  return children;
+}
+
+function App() {
 
   return (
     <Suspense fallback={<div style={{ padding: "24px" }}>Loading...</div>}>
