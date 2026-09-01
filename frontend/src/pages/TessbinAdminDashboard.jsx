@@ -100,25 +100,35 @@ import {
   FiSave,
   FiZap,
   FiLogOut,
+  FiGlobe,
 } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import axiosInstance from '../services/axiosInstance';
+import { fetchExternalCourses } from '../services/api';
 import { useUserStore } from '../store/user';
+import TessbinDataAnalyticsView from '../components/tessbin/TessbinDataAnalyticsView';
 
 const COURSE_OPTIONS = [
-  'General Business Program',
-  'Accounting & Finance Program',
-  'International Trade Program',
-  'Marketing Management Program',
-  'Digital Marketing for International Trade',
-  'Stock Market & Investment Strategies',
-  'Artificial Intelligence for Marketing',
-  'Cyber Security Essentials',
-  'Customer Service Excellence',
-  'Netpreneurship & Online Business',
-  'International Trade Brokerage',
-  'Data Science & Analytics',
+  'Digital Marketing',
+  'Barista',
+  'International Import and Export',
+  'Coffee Cupping',
 ];
+
+const canonicalCourseName = (name = '') => {
+  const normalized = name.toLowerCase().replace(/[^a-z0-9]/g, '');
+  const aliases = {
+    digitalmarketing: 'Digital Marketing',
+    digitalmarketingforinternationaltrade: 'Digital Marketing',
+    barista: 'Barista',
+    internationalimportandexport: 'International Import and Export',
+    internationaltradeimportexport: 'International Import and Export',
+    internationaltradeandimportexport: 'International Import and Export',
+    coffeecupping: 'Coffee Cupping',
+    coffeeindustrycuppingandqualityassessment: 'Coffee Cupping',
+  };
+  return aliases[normalized] || null;
+};
 
 const TessbinAdminDashboard = () => {
   const { colorMode, toggleColorMode } = useColorMode();
@@ -162,6 +172,7 @@ const TessbinAdminDashboard = () => {
 
   const [records, setRecords] = useState([]);
   const [kpiList, setKpiList] = useState([]);
+  const [courseOptions, setCourseOptions] = useState(COURSE_OPTIONS);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [examTypeFilter, setExamTypeFilter] = useState('All');
@@ -270,6 +281,41 @@ const TessbinAdminDashboard = () => {
     fetchData();
   }, [searchQuery, examTypeFilter, statusFilter, activeTab, kpiTimeframe]);
 
+  // Keep Tessbin course choices synchronized with the shared external-course API.
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadExternalCourses = async () => {
+      try {
+        const externalCourses = await fetchExternalCourses();
+        const availableCourses = new Set(
+          (Array.isArray(externalCourses) ? externalCourses : [])
+            .filter((course) => course?.isActive !== false)
+            .map((course) => canonicalCourseName(course?.name))
+            .filter(Boolean)
+        );
+        const approvedCourses = COURSE_OPTIONS.filter((course) => availableCourses.has(course));
+
+        if (isMounted && approvedCourses.length > 0) {
+          setCourseOptions(approvedCourses);
+          setFormData((current) => (
+            approvedCourses.includes(current.courseName)
+              ? current
+              : { ...current, courseName: approvedCourses[0] }
+          ));
+        }
+      } catch (error) {
+        // The approved local list remains available when the external API is offline.
+        console.error('Failed to load Tessbin courses from the external-course API:', error);
+      }
+    };
+
+    loadExternalCourses();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   // Create Record Submit
   const handleAddSubmit = async (e) => {
     e.preventDefault();
@@ -305,7 +351,7 @@ const TessbinAdminDashboard = () => {
       studentName: record.studentName || '',
       email: record.email || '',
       phone: record.phone || '',
-      courseName: record.courseName || COURSE_OPTIONS[0],
+      courseName: record.courseName || courseOptions[0] || COURSE_OPTIONS[0],
       session: record.session || 'Regular',
       examType: record.examType || 'COC Exam',
       examMode: record.examMode || 'Online',
@@ -381,7 +427,7 @@ const TessbinAdminDashboard = () => {
       studentName: '',
       email: '',
       phone: '',
-      courseName: COURSE_OPTIONS[0],
+      courseName: courseOptions[0] || COURSE_OPTIONS[0],
       session: 'Regular',
       examType: defaultExamType,
       examMode: defaultExamType === 'COC Exam' ? 'On-Site' : 'Online',
@@ -540,31 +586,31 @@ const TessbinAdminDashboard = () => {
     {
       name: 'COC Exam Student Takes',
       Target: masterKpiFormData.coc[kpiTimeframe === 'weekly' ? 'weekly' : kpiTimeframe === 'quarterly' ? 'quarterly' : 'monthly'],
-      Actual: stats.cocExamStudentsCount || 6,
+      Actual: stats.cocExamStudentsCount ?? 0,
     },
     {
       name: 'Online Final Exam Takes',
       Target: masterKpiFormData.online[kpiTimeframe === 'weekly' ? 'weekly' : kpiTimeframe === 'quarterly' ? 'quarterly' : 'monthly'],
-      Actual: stats.onlineFinalExamStudentsCount || 6,
+      Actual: stats.onlineFinalExamStudentsCount ?? 0,
     },
     {
       name: 'Number of Registered Students',
       Target: masterKpiFormData.students[kpiTimeframe === 'weekly' ? 'weekly' : kpiTimeframe === 'quarterly' ? 'quarterly' : 'monthly'],
-      Actual: stats.totalStudentsCount || 12,
+      Actual: stats.totalStudentsCount ?? 0,
     },
   ];
 
   const pieData = [
-    { name: 'COC Exam Takes', value: stats.cocExamStudentsCount || 6, color: '#6366F1' },
-    { name: 'Online Final Exams', value: stats.onlineFinalExamStudentsCount || 6, color: '#2563EB' },
-    { name: 'Total Registered Students', value: stats.totalStudentsCount || 12, color: '#10B981' },
+    { name: 'COC Exam Takes', value: stats.cocExamStudentsCount ?? 0, color: '#6366F1' },
+    { name: 'Online Final Exams', value: stats.onlineFinalExamStudentsCount ?? 0, color: '#2563EB' },
+    { name: 'Total Registered Students', value: stats.totalStudentsCount ?? 0, color: '#10B981' },
   ];
 
   const trendData = [
     { period: 'Week 1', COC: 2, Online: 2, TotalStudents: 4 },
     { period: 'Week 2', COC: 3, Online: 3, TotalStudents: 7 },
     { period: 'Week 3', COC: 5, Online: 4, TotalStudents: 10 },
-    { period: 'Week 4', COC: stats.cocExamStudentsCount || 6, Online: stats.onlineFinalExamStudentsCount || 6, TotalStudents: stats.totalStudentsCount || 12 },
+    { period: 'Week 4', COC: stats.cocExamStudentsCount ?? 0, Online: stats.onlineFinalExamStudentsCount ?? 0, TotalStudents: stats.totalStudentsCount ?? 0 },
   ];
 
   // ── OVERALL KPI PERCENTAGE ACHIEVEMENTS CALCULATIONS ──
@@ -576,12 +622,11 @@ const TessbinAdminDashboard = () => {
   // Sidebar Navigation Definition
   const sidebarItems = [
     { id: 'overview', label: 'Dashboard Overview', icon: FiGrid, badge: null },
-    { id: 'coc_exams', label: 'COC Exam Takes', icon: FiAward, badge: stats.cocExamStudentsCount || 6 },
-    { id: 'online_exams', label: 'Online Final Exams', icon: FiMonitor, badge: stats.onlineFinalExamStudentsCount || 6 },
-    { id: 'all_students', label: 'Students & Records', icon: FiUsers, badge: stats.totalStudentsCount || 12 },
-    { id: 'course_analytics', label: 'Course Analytics', icon: FiPieChart, badge: stats.courseBreakdown?.length || 12 },
+    { id: 'data_analysis', label: 'Data Analysis', icon: FiTrendingUp, badge: 'Live' },
+    { id: 'coc_exams', label: 'COC Exam Takes', icon: FiAward, badge: stats.cocExamStudentsCount ?? 0 },
     { id: 'kpi_metrics', label: 'KPI Targets & Scorecard', icon: FiBarChart2, badge: `${kpiList.length || 4} KPIs` },
   ];
+
 
   // Render Sidebar Component
   const SidebarContent = () => (
@@ -669,8 +714,6 @@ const TessbinAdminDashboard = () => {
             );
           })}
         </VStack>
-
-
       </Box>
 
       {/* Admin Profile Footer */}
@@ -765,20 +808,17 @@ const TessbinAdminDashboard = () => {
                 </HStack>
                 <Heading size="lg" fontWeight="900" mt={0.5} color={textColor} fontSize="22px">
                   {activeTab === 'overview' && 'Business & Examination Cockpit'}
+                  {(activeTab === 'data_analysis' || activeTab === 'data_analytics') && 'Data Analysis & Performance Insights'}
                   {activeTab === 'coc_exams' && 'COC Examination Management'}
-                  {activeTab === 'online_exams' && 'Online Final Exams Hub'}
-                  {activeTab === 'all_students' && 'Student Records Directory'}
-                  {activeTab === 'course_analytics' && 'Course Program Analytics'}
                   {activeTab === 'kpi_metrics' && 'Master KPI Target & Scorecard Manager'}
                 </Heading>
                 <Text fontSize="12px" color={mutedText} mt={0.5}>
                   {activeTab === 'overview' && 'Real-time overview of examinations, academic performance, and graphical analytics'}
+                  {(activeTab === 'data_analysis' || activeTab === 'data_analytics') && 'Real-time course examination outcomes, qualification rates, and student training applications'}
                   {activeTab === 'coc_exams' && 'National Certificate of Competency (COC) evaluation tracking'}
-                  {activeTab === 'online_exams' && 'E-learning digital final examination scoring'}
-                  {activeTab === 'all_students' && 'Complete student database, transcript, and TVET certificate records'}
-                  {activeTab === 'course_analytics' && 'Performance distribution across TESSBINN training programs'}
                   {activeTab === 'kpi_metrics' && 'Overall KPI Form & Interactive Charts: Configure and track Weekly, Monthly, and Quarterly targets'}
                 </Text>
+
               </Box>
             </HStack>
 
@@ -841,9 +881,17 @@ const TessbinAdminDashboard = () => {
         <Box p={{ base: 4, md: 8 }}>
           
           {/* ========================================================================= */}
+          {/* TAB: DATA ANALYSIS (EXCLUSIVELY EXTERNAL READ-ONLY API DATA) */}
+          {/* ========================================================================= */}
+          {(activeTab === 'data_analysis' || activeTab === 'data_analytics') && (
+            <TessbinDataAnalyticsView />
+          )}
+
+          {/* ========================================================================= */}
           {/* TAB 1: OVERVIEW PAGE & GRAPHICAL CHARTS */}
           {/* ========================================================================= */}
           {activeTab === 'overview' && (
+
             <Box>
               <SimpleGrid columns={{ base: 1, sm: 2, lg: 4 }} spacing={5} mb={8}>
                 <Card bg={cardBg} borderColor={borderColor} borderWidth="1px" borderRadius="2xl" p={5}>
@@ -853,7 +901,7 @@ const TessbinAdminDashboard = () => {
                         REQUIRED KPI #1
                       </Badge>
                       <Text fontSize="13px" fontWeight="800" color={textColor}>COC Exam Student Takes</Text>
-                      <Text fontSize="32px" fontWeight="900" color="#6366F1" mt={1}>{stats.cocExamStudentsCount || 6}</Text>
+                      <Text fontSize="32px" fontWeight="900" color="#6366F1" mt={1}>{stats.cocExamStudentsCount ?? 0}</Text>
                     </Box>
                     <Flex w="46px" h="46px" bg="#F3E8FF" borderRadius="full" align="center" justify="center">
                       <Icon as={FiAward} boxSize="22px" color="#9333EA" />
@@ -869,7 +917,7 @@ const TessbinAdminDashboard = () => {
                         REQUIRED KPI #2
                       </Badge>
                       <Text fontSize="13px" fontWeight="800" color={textColor}>Online Final Exams</Text>
-                      <Text fontSize="32px" fontWeight="900" color="#2563EB" mt={1}>{stats.onlineFinalExamStudentsCount || 6}</Text>
+                      <Text fontSize="32px" fontWeight="900" color="#2563EB" mt={1}>{stats.onlineFinalExamStudentsCount ?? 0}</Text>
                     </Box>
                     <Flex w="46px" h="46px" bg="#E0F2FE" borderRadius="full" align="center" justify="center">
                       <Icon as={FiMonitor} boxSize="22px" color="#0284C7" />
@@ -885,7 +933,7 @@ const TessbinAdminDashboard = () => {
                         REQUIRED KPI #3
                       </Badge>
                       <Text fontSize="13px" fontWeight="800" color={textColor}>Number of Registered Students</Text>
-                      <Text fontSize="32px" fontWeight="900" color="#059669" mt={1}>{stats.totalStudentsCount || 12}</Text>
+                      <Text fontSize="32px" fontWeight="900" color="#059669" mt={1}>{stats.totalStudentsCount ?? 0}</Text>
                     </Box>
                     <Flex w="46px" h="46px" bg="#E6F4EA" borderRadius="full" align="center" justify="center">
                       <Icon as={FiUsers} boxSize="22px" color="#10B981" />
@@ -1108,7 +1156,7 @@ const TessbinAdminDashboard = () => {
                   <HStack justify="space-between">
                     <Box>
                       <Text fontSize="12px" fontWeight="800" color="#4338CA">Total COC Exam Takers</Text>
-                      <Text fontSize="30px" fontWeight="900" color="#312E81" mt={1}>{stats.cocExamStudentsCount || 6}</Text>
+                      <Text fontSize="30px" fontWeight="900" color="#312E81" mt={1}>{stats.cocExamStudentsCount ?? 0}</Text>
                       <Text fontSize="11px" color="#6366F1" fontWeight="700" mt={1}>National Certification Level</Text>
                     </Box>
                     <Flex w="48px" h="48px" bg="#6366F1" color="white" borderRadius="full" align="center" justify="center">
@@ -1147,169 +1195,7 @@ const TessbinAdminDashboard = () => {
           )}
 
           {/* ========================================================================= */}
-          {/* TAB 3: DEDICATED ONLINE FINAL EXAMS VIEW */}
-          {/* ========================================================================= */}
-          {activeTab === 'online_exams' && (
-            <Box>
-              <SimpleGrid columns={{ base: 1, sm: 3 }} spacing={5} mb={6}>
-                <Card bg="#EFF6FF" borderColor="#2563EB" borderWidth="1.5px" borderRadius="2xl" p={5}>
-                  <HStack justify="space-between">
-                    <Box>
-                      <Text fontSize="12px" fontWeight="800" color="#1E40AF">Online Exam Student Takes</Text>
-                      <Text fontSize="30px" fontWeight="900" color="#1E3A8A" mt={1}>{stats.onlineFinalExamStudentsCount || 6}</Text>
-                      <Text fontSize="11px" color="#2563EB" fontWeight="700" mt={1}>Digital E-Learning Portal</Text>
-                    </Box>
-                    <Flex w="48px" h="48px" bg="#2563EB" color="white" borderRadius="full" align="center" justify="center">
-                      <Icon as={FiMonitor} boxSize="24px" />
-                    </Flex>
-                  </HStack>
-                </Card>
-
-                <Card bg="#ECFDF5" borderColor="#059669" borderWidth="1.5px" borderRadius="2xl" p={5}>
-                  <HStack justify="space-between">
-                    <Box>
-                      <Text fontSize="12px" fontWeight="800" color="#065F46">Digital Pass Rate</Text>
-                      <Text fontSize="30px" fontWeight="900" color="#064E3B" mt={1}>100%</Text>
-                      <Text fontSize="11px" color="#059669" fontWeight="700" mt={1}>All 6 Students Passed</Text>
-                    </Box>
-                    <Flex w="48px" h="48px" bg="#059669" color="white" borderRadius="full" align="center" justify="center">
-                      <Icon as={FiCheckSquare} boxSize="24px" />
-                    </Flex>
-                  </HStack>
-                </Card>
-
-                <Card bg="#F5F3FF" borderColor="#8B5CF6" borderWidth="1.5px" borderRadius="2xl" p={5}>
-                  <HStack justify="space-between">
-                    <Box>
-                      <Text fontSize="12px" fontWeight="800" color="#5B21B6">Average Score</Text>
-                      <Text fontSize="30px" fontWeight="900" color="#4C1D95" mt={1}>88.5%</Text>
-                      <Text fontSize="11px" color="#8B5CF6" fontWeight="700" mt={1}>High Academic Standard</Text>
-                    </Box>
-                    <Flex w="48px" h="48px" bg="#8B5CF6" color="white" borderRadius="full" align="center" justify="center">
-                      <Icon as={FiTrendingUp} boxSize="24px" />
-                    </Flex>
-                  </HStack>
-                </Card>
-              </SimpleGrid>
-            </Box>
-          )}
-
-          {/* ========================================================================= */}
-          {/* TAB 4: DEDICATED STUDENTS & RECORDS DIRECTORY VIEW */}
-          {/* ========================================================================= */}
-          {activeTab === 'all_students' && (
-            <Box mb={6}>
-              <SimpleGrid columns={{ base: 1, sm: 3 }} spacing={5}>
-                <Card bg={cardBg} borderColor={borderColor} borderWidth="1px" borderRadius="2xl" p={5}>
-                  <HStack justify="space-between">
-                    <Box>
-                      <Text fontSize="12px" fontWeight="800" color={mutedText}>Total Registered Students</Text>
-                      <Text fontSize="28px" fontWeight="900" color="#059669" mt={1}>{stats.totalStudentsCount || 12}</Text>
-                      <Text fontSize="11px" color="#059669" fontWeight="700" mt={1}>Active Directory Records</Text>
-                    </Box>
-                    <Flex w="44px" h="44px" bg="#E6F4EA" borderRadius="full" align="center" justify="center">
-                      <Icon as={FiUsers} boxSize="20px" color="#10B981" />
-                    </Flex>
-                  </HStack>
-                </Card>
-
-                <Card bg={cardBg} borderColor={borderColor} borderWidth="1px" borderRadius="2xl" p={5}>
-                  <HStack justify="space-between">
-                    <Box>
-                      <Text fontSize="12px" fontWeight="800" color={mutedText}>Certificates Issued</Text>
-                      <Text fontSize="28px" fontWeight="900" color="#6366F1" mt={1}>{stats.certificatesIssuedCount || 8}</Text>
-                      <Text fontSize="11px" color="#6366F1" fontWeight="700" mt={1}>Verified Qualifications</Text>
-                    </Box>
-                    <Flex w="44px" h="44px" bg="#EEF2FF" borderRadius="full" align="center" justify="center">
-                      <Icon as={FiAward} boxSize="20px" color="#6366F1" />
-                    </Flex>
-                  </HStack>
-                </Card>
-
-                <Card bg={cardBg} borderColor={borderColor} borderWidth="1px" borderRadius="2xl" p={5}>
-                  <HStack justify="space-between">
-                    <Box>
-                      <Text fontSize="12px" fontWeight="800" color={mutedText}>Academic Transcript Status</Text>
-                      <Text fontSize="28px" fontWeight="900" color="#3B82F6" mt={1}>100%</Text>
-                      <Text fontSize="11px" color="#3B82F6" fontWeight="700" mt={1}>Complete Records Available</Text>
-                    </Box>
-                    <Flex w="44px" h="44px" bg="#EFF6FF" borderRadius="full" align="center" justify="center">
-                      <Icon as={FiFileText} boxSize="20px" color="#3B82F6" />
-                    </Flex>
-                  </HStack>
-                </Card>
-              </SimpleGrid>
-            </Box>
-          )}
-
-          {/* ========================================================================= */}
-          {/* TAB 5: DEDICATED COURSE ANALYTICS VIEW */}
-          {/* ========================================================================= */}
-          {activeTab === 'course_analytics' && (
-            <Card bg={cardBg} borderColor={borderColor} borderWidth="1px" borderRadius="2xl" mb={8} p={6}>
-              <HStack justify="space-between" mb={5}>
-                <HStack spacing={3}>
-                  <Icon as={FiPieChart} color="#9333EA" boxSize="22px" />
-                  <Box>
-                    <Heading size="md" fontWeight="800">TESSBINN 12 Program Course Performance Analytics</Heading>
-                    <Text fontSize="12px" color={mutedText}>
-                      Real-time breakdown of examination scores and enrollment counts for each academic discipline
-                    </Text>
-                  </Box>
-                </HStack>
-                <Badge colorScheme="purple" fontSize="11px" px={3} py={1} borderRadius="md" fontWeight="800">
-                  12 ACTIVE COURSES
-                </Badge>
-              </HStack>
-
-              <Table variant="simple" size="sm">
-                <Thead bg={useColorModeValue('gray.50', 'gray.900')}>
-                  <Tr>
-                    <Th>Course Program Name</Th>
-                    <Th textStyle="center">COC Exams</Th>
-                    <Th textStyle="center">Online Finals</Th>
-                    <Th textStyle="center">Assessments</Th>
-                    <Th textStyle="center">Total Students</Th>
-                    <Th textStyle="center">Passing Rate</Th>
-                  </Tr>
-                </Thead>
-                <Tbody>
-                  {COURSE_OPTIONS.map((courseName, idx) => {
-                    const found = stats.courseBreakdown?.find((c) => c._id === courseName || c.courseName === courseName);
-                    const coc = found?.cocCount || (idx % 3 === 0 ? 1 : 0);
-                    const online = found?.onlineCount || (idx % 2 === 0 ? 1 : 0);
-                    const assess = found?.assessmentCount || 0;
-                    const total = found?.totalStudents || (coc + online + assess) || 1;
-                    const passPercent = found?.passedCount ? Math.round((found.passedCount / total) * 100) : (idx % 2 === 0 ? 92 : 85);
-                    return (
-                      <Tr key={idx} _hover={{ bg: useColorModeValue('gray.50', 'gray.750') }}>
-                        <Td fontWeight="700" fontSize="12px">{courseName}</Td>
-                        <Td textStyle="center">
-                          <Tag bg="#EEF2FF" color="#6366F1" size="sm" borderRadius="md" fontWeight="800">{coc}</Tag>
-                        </Td>
-                        <Td textStyle="center">
-                          <Tag bg="#EFF6FF" color="#2563EB" size="sm" borderRadius="md" fontWeight="800">{online}</Tag>
-                        </Td>
-                        <Td textStyle="center">
-                          <Tag bg="#F0FDF4" color="#059669" size="sm" borderRadius="md" fontWeight="800">{assess}</Tag>
-                        </Td>
-                        <Td textStyle="center" fontWeight="900" fontSize="13px">{total}</Td>
-                        <Td textStyle="center">
-                          <HStack justify="center" spacing={2}>
-                            <Text fontSize="12px" fontWeight="800" color="#10B981">{passPercent}%</Text>
-                            <Progress value={passPercent} size="xs" w="60px" colorScheme="green" borderRadius="full" />
-                          </HStack>
-                        </Td>
-                      </Tr>
-                    );
-                  })}
-                </Tbody>
-              </Table>
-            </Card>
-          )}
-
-          {/* ========================================================================= */}
-          {/* TAB 6: FULL KPI TARGETS, TIMEFRAME MANAGER & GRAPHICAL CHARTS */}
+          {/* TAB 3: FULL KPI TARGETS, TIMEFRAME MANAGER & GRAPHICAL CHARTS */}
           {/* ========================================================================= */}
           {activeTab === 'kpi_metrics' && (
             <Box mb={8}>
@@ -1671,7 +1557,7 @@ const TessbinAdminDashboard = () => {
                       </Tr>
                     </Thead>
                     <Tbody>
-                      {COURSE_OPTIONS.map((courseName, idx) => {
+                      {courseOptions.map((courseName, idx) => {
                         const found = stats.courseBreakdown?.find((c) => c._id === courseName || c.courseName === courseName);
                         const totalCoc = found?.cocCount || (idx % 3 === 0 ? 3 + idx : 0);
                         if (totalCoc === 0) return null;
@@ -1734,7 +1620,7 @@ const TessbinAdminDashboard = () => {
                       </Tr>
                     </Thead>
                     <Tbody>
-                      {COURSE_OPTIONS.map((courseName, idx) => {
+                      {courseOptions.map((courseName, idx) => {
                         const found = stats.courseBreakdown?.find((c) => c._id === courseName || c.courseName === courseName);
                         const totalOnline = found?.onlineCount || (idx % 2 === 0 ? 5 + idx : 0);
                         if (totalOnline === 0) return null;
@@ -1769,15 +1655,13 @@ const TessbinAdminDashboard = () => {
           {/* ========================================================================= */}
           {/* EXAM RECORDS TABLE (Exclusively shown for tabs that manage student lists) */}
           {/* ========================================================================= */}
-          {activeTab !== 'course_analytics' && activeTab !== 'kpi_metrics' && activeTab !== 'all_students' && (
+          {(activeTab === 'overview' || activeTab === 'coc_exams') && (
             <Card bg={cardBg} borderColor={borderColor} borderWidth="1px" borderRadius="2xl" boxShadow="0 2px 10px rgba(0,0,0,0.03)">
               <CardBody p={6}>
                 <Flex direction={{ base: 'column', md: 'row' }} justify="space-between" align={{ base: 'start', md: 'center' }} gap={4} mb={6}>
                   <Box>
                     <Heading size="md" fontWeight="800" fontSize="16px">
                       {activeTab === 'coc_exams' && 'COC Exam Students List'}
-                      {activeTab === 'online_exams' && 'Online Final Exam Students List'}
-                      {activeTab === 'all_students' && 'Complete Student Directory'}
                       {activeTab === 'overview' && 'Student Examination Records'}
                     </Heading>
                     <Text fontSize="12px" color={mutedText} mt={0.5}>
@@ -2149,7 +2033,7 @@ const TessbinAdminDashboard = () => {
                       value={formData.courseName}
                       onChange={(e) => setFormData({ ...formData, courseName: e.target.value })}
                     >
-                      {COURSE_OPTIONS.map((c, idx) => (
+                      {courseOptions.map((c, idx) => (
                         <option key={idx} value={c}>{c}</option>
                       ))}
                     </Select>
@@ -2265,7 +2149,7 @@ const TessbinAdminDashboard = () => {
                       value={formData.courseName}
                       onChange={(e) => setFormData({ ...formData, courseName: e.target.value })}
                     >
-                      {COURSE_OPTIONS.map((c, idx) => (
+                      {courseOptions.map((c, idx) => (
                         <option key={idx} value={c}>{c}</option>
                       ))}
                     </Select>
