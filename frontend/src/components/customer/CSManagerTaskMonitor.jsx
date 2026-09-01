@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Avatar,
   Badge,
@@ -7,7 +7,13 @@ import {
   ButtonGroup,
   Card,
   CardBody,
-  Divider,
+  Drawer,
+  DrawerBody,
+  DrawerCloseButton,
+  DrawerContent,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerOverlay,
   Flex,
   Heading,
   HStack,
@@ -16,14 +22,6 @@ import {
   Input,
   InputGroup,
   InputLeftElement,
-  Modal,
-  ModalBody,
-  ModalCloseButton,
-  ModalContent,
-  ModalFooter,
-  ModalHeader,
-  ModalOverlay,
-  Progress,
   Select,
   SimpleGrid,
   Spinner,
@@ -48,13 +46,10 @@ import {
   VStack,
 } from "@chakra-ui/react";
 import {
-  FiActivity,
   FiAlertCircle,
-  FiCheckCircle,
   FiClock,
   FiDownload,
   FiEye,
-  FiFilter,
   FiGrid,
   FiLayers,
   FiList,
@@ -64,13 +59,9 @@ import {
   FiSend,
   FiStar,
   FiTrash2,
-  FiTrendingUp,
-  FiUser,
-  FiUserCheck,
 } from "react-icons/fi";
 import Layout from "./Layout";
 import axiosInstance from "../../services/axiosInstance";
-import { useUserStore, normalizeRole } from "../../store/user";
 
 const isSupportTicket = (task) => {
   if (!task || typeof task !== "object") return false;
@@ -126,7 +117,6 @@ const getLatestWorkRecord = (task) => {
 
 export default function CSManagerTaskMonitor() {
   const toast = useToast();
-  const currentUser = useUserStore((state) => state.currentUser);
 
   // Styling Tokens
   const pageBgGradient = useColorModeValue(
@@ -144,7 +134,7 @@ export default function CSManagerTaskMonitor() {
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("all"); // 'all' | 'tickets' | 'projects'
-  const [viewMode, setViewMode] = useState("grid"); // 'grid' | 'table'
+  const [viewMode, setViewMode] = useState("table"); // 'grid' | 'table'
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [priorityFilter, setPriorityFilter] = useState("all");
@@ -758,8 +748,8 @@ export default function CSManagerTaskMonitor() {
               const taskId = task._id || task.id;
               const isTicket = isSupportTicket(task);
               const status = task.supportStatus || task.workflowStatus || task.status || "pending";
-              const progress = task.progressPercent || (status === "approved" || status === "completed" ? 100 : 0);
               const senderName = String(task.requestedBy || task.createdBy?.fullName || task.createdBy?.username || "CS Officer");
+              const assignedIt = (Array.isArray(task.assignedTo) ? task.assignedTo : []).join(", ") || "Waiting IT assignment";
               const dateStr = task.createdAt || task.requestedAt || task.date;
 
               return (
@@ -825,44 +815,34 @@ export default function CSManagerTaskMonitor() {
                       </HStack>
                     </Flex>
 
-                    {/* Title & Description */}
+                    {/* Task Title */}
                     <Box>
                       <Heading size="xs" color={textColor} mb={1} noOfLines={1}>
                         {getTaskTitle(task)}
                       </Heading>
-                      <Text fontSize="xs" color={muted} noOfLines={2}>
-                        {task.supportRequestNote || task.description || "No specific instructions."}
-                      </Text>
                     </Box>
 
-                    {/* Sender Profile Box */}
-                    <HStack spacing={2} p={2} bg={panelBg} borderRadius="lg" border="1px solid" borderColor={cardBorder}>
-                      <Avatar size="xs" name={senderName} bg="blue.500" color="white" />
-                      <Box minW={0} flex={1}>
-                        <Text fontSize="xs" fontWeight="bold" color={textColor} isTruncated>
-                          {senderName}
+                    <SimpleGrid columns={{ base: 1, sm: 2 }} spacing={2}>
+                      <HStack spacing={2} p={2} bg={panelBg} borderRadius="lg" border="1px solid" borderColor={cardBorder}>
+                        <Avatar size="xs" name={senderName} bg="blue.500" color="white" />
+                        <Box minW={0} flex={1}>
+                          <Text fontSize="2xs" color={muted} fontWeight="bold" textTransform="uppercase">
+                            Sender
+                          </Text>
+                          <Text fontSize="xs" fontWeight="bold" color={textColor} isTruncated>
+                            {senderName}
+                          </Text>
+                        </Box>
+                      </HStack>
+                      <Box p={2} bg={panelBg} borderRadius="lg" border="1px solid" borderColor={cardBorder}>
+                        <Text fontSize="2xs" color={muted} fontWeight="bold" textTransform="uppercase">
+                          Assigned IT
                         </Text>
-                        <Text fontSize="2xs" color={muted} isTruncated>
-                          {task.requestedDepartment || "Customer Service"}
+                        <Text fontSize="xs" fontWeight="bold" color={textColor} isTruncated>
+                          {assignedIt}
                         </Text>
                       </Box>
-                    </HStack>
-
-                    {/* IT Progress */}
-                    <Box>
-                      <Flex justify="space-between" align="center" mb={1} fontSize="2xs">
-                        <HStack spacing={1} color={muted}>
-                          <Icon as={FiUserCheck} color="teal.500" />
-                          <Text isTruncated maxW="150px">
-                            {(Array.isArray(task.assignedTo) ? task.assignedTo : []).join(", ") || "Waiting IT assignment"}
-                          </Text>
-                        </HStack>
-                        <Text fontWeight="bold" color="teal.600">
-                          {progress}%
-                        </Text>
-                      </Flex>
-                      <Progress value={progress} size="xs" colorScheme="teal" borderRadius="full" />
-                    </Box>
+                    </SimpleGrid>
 
                     {/* Footer Meta */}
                     <Flex justify="space-between" align="center" pt={1} borderTop="1px solid" borderColor={cardBorder} fontSize="2xs" color={muted}>
@@ -903,10 +883,7 @@ export default function CSManagerTaskMonitor() {
                     <Th fontSize="2xs">Task Title</Th>
                     <Th fontSize="2xs">Sender (Officer)</Th>
                     <Th fontSize="2xs">Assigned IT</Th>
-                    <Th fontSize="2xs">Progress</Th>
-                    <Th fontSize="2xs">Priority</Th>
                     <Th fontSize="2xs">Status</Th>
-                    <Th fontSize="2xs">Submitted</Th>
                     <Th fontSize="2xs" textAlign="right">Actions</Th>
                   </Tr>
                 </Thead>
@@ -916,9 +893,7 @@ export default function CSManagerTaskMonitor() {
                     const taskId = task._id || task.id;
                     const isTicket = isSupportTicket(task);
                     const status = task.supportStatus || task.workflowStatus || task.status || "pending";
-                    const progress = task.progressPercent || (status === "approved" || status === "completed" ? 100 : 0);
                     const senderName = String(task.requestedBy || task.createdBy?.fullName || task.createdBy?.username || "CS Officer");
-                    const dateStr = task.createdAt || task.requestedAt || task.date;
 
                     return (
                       <Tr
@@ -944,24 +919,10 @@ export default function CSManagerTaskMonitor() {
                         <Td fontSize="xs" color={muted} maxW="140px" isTruncated>
                           {(Array.isArray(task.assignedTo) ? task.assignedTo : []).join(", ") || "Waiting assignment"}
                         </Td>
-                        <Td minW="90px">
-                          <HStack spacing={1.5}>
-                            <Progress value={progress} size="xs" colorScheme="teal" borderRadius="full" flex={1} />
-                            <Text fontSize="2xs" fontWeight="bold">{progress}%</Text>
-                          </HStack>
-                        </Td>
-                        <Td>
-                          <Badge colorScheme={getPriorityColor(task.priority)} fontSize="2xs">
-                            {task.priority || "normal"}
-                          </Badge>
-                        </Td>
                         <Td>
                           <Badge colorScheme={getStatusColor(status)} fontSize="2xs" borderRadius="full">
                             {String(status).replace(/_/g, " ").toUpperCase()}
                           </Badge>
-                        </Td>
-                        <Td fontSize="xs" color={muted}>
-                          {dateStr ? new Date(dateStr).toLocaleDateString() : "-"}
                         </Td>
                         <Td textAlign="right">
                           <HStack spacing={1} justify="flex-end" onClick={(e) => e.stopPropagation()}>
@@ -993,54 +954,54 @@ export default function CSManagerTaskMonitor() {
           </Box>
         )}
 
-        {/* Detailed Inspection & Management Modal */}
-        <Modal isOpen={isInspectOpen} onClose={onInspectClose} size="4xl" scrollBehavior="inside">
-          <ModalOverlay backdropFilter="blur(4px)" />
-          <ModalContent borderRadius="2xl">
-            <ModalHeader borderBottom="1px solid" borderColor={cardBorder}>
-              <HStack spacing={2.5}>
+        {/* Detailed Inspection & Management Drawer */}
+        <Drawer isOpen={isInspectOpen} onClose={onInspectClose} placement="right" size="md">
+          <DrawerOverlay backdropFilter="blur(3px)" />
+          <DrawerContent maxW={{ base: "100vw", md: "520px" }} bg={cardBg}>
+            <DrawerCloseButton />
+            <DrawerHeader borderBottom="1px solid" borderColor={cardBorder} px={4} py={3}>
+              <HStack spacing={2} pr={8}>
                 <Badge
                   colorScheme={isSupportTicket(selectedTask) ? "blue" : "purple"}
-                  fontSize="xs"
-                  px={2.5}
-                  py={0.8}
+                  fontSize="2xs"
+                  px={2}
+                  py={0.5}
                   borderRadius="full"
                 >
                   {isSupportTicket(selectedTask) ? "🛡️ Support Ticket" : "🚀 External Project"}
                 </Badge>
-                <Heading size="md" noOfLines={1}>
+                <Heading size="sm" noOfLines={2} color={textColor}>
                   {getTaskTitle(selectedTask)}
                 </Heading>
               </HStack>
-            </ModalHeader>
-            <ModalCloseButton />
+            </DrawerHeader>
 
-            <ModalBody py={4}>
+            <DrawerBody px={4} py={3}>
               {selectedTask && (
-                <VStack align="stretch" spacing={4}>
+                <VStack align="stretch" spacing={3}>
                   {/* Sender Profile Header */}
-                  <Card bg={panelBg} border="1px solid" borderColor={cardBorder} borderRadius="xl">
-                    <CardBody p={3.5}>
-                      <Flex justify="space-between" align={{ base: "stretch", md: "center" }} direction={{ base: "column", md: "row" }} gap={3}>
-                        <HStack spacing={3}>
-                          <Box bg="blue.500" color="white" borderRadius="full" p={2} boxSize="38px" display="flex" alignItems="center" justifyContent="center" fontWeight="bold">
+                  <Card bg={panelBg} border="1px solid" borderColor={cardBorder} borderRadius="lg" boxShadow="none">
+                    <CardBody p={3}>
+                      <Flex justify="space-between" align={{ base: "stretch", md: "center" }} direction={{ base: "column", md: "row" }} gap={2.5}>
+                        <HStack spacing={2.5}>
+                          <Box bg="blue.500" color="white" borderRadius="full" boxSize="32px" display="flex" alignItems="center" justifyContent="center" fontSize="xs" fontWeight="bold" flexShrink={0}>
                             {String(selectedTask.requestedBy || selectedTask.createdBy?.fullName || selectedTask.createdBy?.username || "CS")[0] || "C"}
                           </Box>
                           <Box>
-                            <Text fontSize="sm" fontWeight="extrabold" color={textColor}>
+                            <Text fontSize="xs" fontWeight="extrabold" color={textColor}>
                               {String(selectedTask.requestedBy || selectedTask.createdBy?.fullName || "Customer Service Officer")}
                             </Text>
-                            <Text fontSize="xs" color={muted}>
+                            <Text fontSize="2xs" color={muted}>
                               Department: {selectedTask.requestedDepartment || "Customer Service"} | Sender Email: {selectedTask.createdBy?.email || "customer.service@tradethiopia.com"}
                             </Text>
                           </Box>
                         </HStack>
 
-                        <HStack spacing={2}>
-                          <Badge colorScheme={getPriorityColor(selectedTask.priority)} fontSize="xs" px={2.5} py={0.8} borderRadius="full">
+                        <HStack spacing={1.5} flexWrap="wrap">
+                          <Badge colorScheme={getPriorityColor(selectedTask.priority)} fontSize="2xs" px={2} py={0.5} borderRadius="full">
                             {selectedTask.priority || "normal"} priority
                           </Badge>
-                          <Badge colorScheme={getStatusColor(selectedTask.supportStatus || selectedTask.workflowStatus || selectedTask.status)} fontSize="xs" px={2.5} py={0.8} borderRadius="full">
+                          <Badge colorScheme={getStatusColor(selectedTask.supportStatus || selectedTask.workflowStatus || selectedTask.status)} fontSize="2xs" px={2} py={0.5} borderRadius="full">
                             {String(selectedTask.supportStatus || selectedTask.workflowStatus || selectedTask.status || "pending").replace(/_/g, " ").toUpperCase()}
                           </Badge>
                         </HStack>
@@ -1053,7 +1014,7 @@ export default function CSManagerTaskMonitor() {
                     <Text fontSize="xs" fontWeight="bold" color={muted} textTransform="uppercase" mb={1}>
                       Request Description & Details
                     </Text>
-                    <Box p={3} bg={cardBg} border="1px solid" borderColor={cardBorder} borderRadius="xl">
+                    <Box p={2.5} bg={cardBg} border="1px solid" borderColor={cardBorder} borderRadius="lg">
                       <Text fontSize="xs" whiteSpace="pre-wrap" color={textColor}>
                         {selectedTask.supportRequestNote || selectedTask.description || "No description provided."}
                       </Text>
@@ -1061,12 +1022,12 @@ export default function CSManagerTaskMonitor() {
                   </Box>
 
                   {/* IT Workflow & Assignments */}
-                  <SimpleGrid columns={{ base: 1, md: 2 }} spacing={3}>
-                    <Box p={3} bg={panelBg} borderRadius="xl" border="1px solid" borderColor={cardBorder}>
+                  <SimpleGrid columns={{ base: 1, md: 2 }} spacing={2.5}>
+                    <Box p={2.5} bg={panelBg} borderRadius="lg" border="1px solid" borderColor={cardBorder}>
                       <Text fontSize="xs" fontWeight="bold" color={muted} textTransform="uppercase" mb={1.5}>
                         IT Staff Assignment
                       </Text>
-                      <VStack align="stretch" spacing={1} fontSize="xs">
+                      <VStack align="stretch" spacing={1} fontSize="2xs">
                         <HStack justify="space-between">
                           <Text color={muted}>Assigned IT Staff:</Text>
                           <Text fontWeight="bold">{(Array.isArray(selectedTask.assignedTo) ? selectedTask.assignedTo : []).join(", ") || "Waiting assignment"}</Text>
@@ -1082,11 +1043,11 @@ export default function CSManagerTaskMonitor() {
                       </VStack>
                     </Box>
 
-                    <Box p={3} bg={panelBg} borderRadius="xl" border="1px solid" borderColor={cardBorder}>
+                    <Box p={2.5} bg={panelBg} borderRadius="lg" border="1px solid" borderColor={cardBorder}>
                       <Text fontSize="xs" fontWeight="bold" color={muted} textTransform="uppercase" mb={1.5}>
                         Submission & Timeline
                       </Text>
-                      <VStack align="stretch" spacing={1} fontSize="xs">
+                      <VStack align="stretch" spacing={1} fontSize="2xs">
                         <HStack justify="space-between">
                           <Text color={muted}>Submitted At:</Text>
                           <Text fontWeight="bold">{selectedTask.createdAt ? new Date(selectedTask.createdAt).toLocaleString() : "Recently"}</Text>
@@ -1105,7 +1066,7 @@ export default function CSManagerTaskMonitor() {
 
                   {/* Latest Work Report by IT Staff */}
                   {getLatestWorkRecord(selectedTask) && (
-                    <Box p={3} bg={panelBg} borderRadius="xl" border="1px solid" borderColor={cardBorder}>
+                    <Box p={2.5} bg={panelBg} borderRadius="lg" border="1px solid" borderColor={cardBorder}>
                       <HStack justify="space-between" mb={1}>
                         <Text fontSize="xs" fontWeight="bold" color={muted} textTransform="uppercase">
                           Latest IT Work Report
@@ -1128,7 +1089,7 @@ export default function CSManagerTaskMonitor() {
 
                   {/* Sender Feedback */}
                   {selectedTask.requesterFeedback?.submittedAt && (
-                    <Box p={3} bg="yellow.50" _dark={{ bg: "yellow.900" }} borderRadius="xl" border="1px solid" borderColor="yellow.200">
+                    <Box p={2.5} bg="yellow.50" _dark={{ bg: "yellow.900" }} borderRadius="lg" border="1px solid" borderColor="yellow.200">
                       <HStack justify="space-between" mb={1}>
                         <HStack>
                           <Icon as={FiStar} color="yellow.500" />
@@ -1163,12 +1124,12 @@ export default function CSManagerTaskMonitor() {
                       </Badge>
                     </HStack>
 
-                    <VStack align="stretch" spacing={1.5} maxH="200px" overflowY="auto" mb={2.5} p={2} bg={panelBg} borderRadius="xl">
+                    <VStack align="stretch" spacing={1.5} maxH="160px" overflowY="auto" mb={2.5} p={2} bg={panelBg} borderRadius="lg">
                       {(!Array.isArray(selectedTask.comments) || selectedTask.comments.length === 0) ? (
                         <Text fontSize="xs" color={muted} p={2}>No comments or manager notes posted yet.</Text>
                       ) : (
                         selectedTask.comments.map((c, idx) => (
-                          <Box key={c._id || idx} p={2} bg={cardBg} borderRadius="lg" border="1px solid" borderColor={cardBorder}>
+                          <Box key={c._id || idx} p={2} bg={cardBg} borderRadius="md" border="1px solid" borderColor={cardBorder}>
                             <HStack justify="space-between" mb={0.5}>
                               <HStack spacing={1}>
                                 <Text fontSize="xs" fontWeight="bold">{c.authorName || "Manager / Staff"}</Text>
@@ -1204,12 +1165,12 @@ export default function CSManagerTaskMonitor() {
                   </Box>
                 </VStack>
               )}
-            </ModalBody>
+            </DrawerBody>
 
-            <ModalFooter borderTop="1px solid" borderColor={cardBorder} justify="space-between">
+            <DrawerFooter borderTop="1px solid" borderColor={cardBorder} justifyContent="space-between" px={4} py={3}>
               {selectedTask && (
                 <Button
-                  size="sm"
+                  size="xs"
                   colorScheme="red"
                   variant="ghost"
                   leftIcon={<FiTrash2 />}
@@ -1219,12 +1180,12 @@ export default function CSManagerTaskMonitor() {
                   Delete Request
                 </Button>
               )}
-              <Button size="sm" onClick={onInspectClose}>
+              <Button size="xs" onClick={onInspectClose}>
                 Close
               </Button>
-            </ModalFooter>
-          </ModalContent>
-        </Modal>
+            </DrawerFooter>
+          </DrawerContent>
+        </Drawer>
       </Box>
     </Layout>
   );

@@ -43,8 +43,9 @@ import AdminTrainingUpload from "./pages/AdminTrainingUpload";
 import AdminCustomerReport from './components/AdminCSReport.jsx';
 import CustomerSettings from "./components/customer/CustomerSettings";
 import CustomerUserManagement from "./components/customer/CustomerUserManagement";
-import CSManagerTaskMonitor from "./components/customer/CSManagerTaskMonitor";
+import StudentRegistrationPage from "./components/customer/StudentRegistrationPage";
 import ReceptionDashboard from './pages/ReceptionDashboard';
+
 import HRTrainingPage from './pages/HRTrainingPage.jsx';
 import ENISRALayout from "./components/ENSRA/ENSRALayout";
 import ENISRAEnhancedDashboard from "./components/ENSRA/ENISRAEnhancedDashboard";
@@ -79,12 +80,14 @@ import EmployeeWarningsPage from "./pages/EmployeeWarningsPage.jsx";
 import AttendancePage from "./pages/AttendancePage.jsx";
 import LeaveManagementPage from "./pages/LeaveManagementPage.jsx";
 import AppLayout from "./components/AppLayout";
+import ErrorBoundary from "./components/ErrorBoundary";
 import SupervisorLayout from "./pages/supervisor/SupervisorLayout.jsx";
 import SupervisorDashboardPage from "./pages/supervisor/SupervisorDashboardPage.jsx";
 import SupervisorAccountPage from "./pages/supervisor/SupervisorAccountPage.jsx";
 
 const CandidatePoolPage = lazy(() => import('./pages/CandidatePoolPage.jsx'));
 const AwardsPage = lazy(() => import('./pages/AwardsPage.jsx'));
+const CSManagerTaskMonitor = lazy(() => import("./components/customer/CSManagerTaskMonitor"));
 const FinanceERPPage = lazy(() => import("./pages/sales/FinanceERPPage.jsx"));
 const FinanceDashboardPage = lazy(() => import("./pages/sales/FinanceDashboardPage.jsx"));
 const FinanceReportsPage = lazy(() => import("./pages/sales/FinanceReportsPage.jsx"));
@@ -152,7 +155,7 @@ function LayoutWrapper({ children }) {
     "/finance/messages", "/finance/team-requests", "/finance/demands", "/finance/payments", "/finance/inventory", "/finance/orders",
     "/addcustomer", "/resource", "/videolist", "/uploadpage", "/my-payroll",
     "/cdashboard", "/waitingforapproval", "/training", "/comingsoonpage", "/customerreport", "/followup-report", "/customerfollowup", "/b2b-dashboard",
-    "/coo-dashboard", "/ceo-dashboard", "/tradextv-dashboard", "/customer-settings", "/customer-user-management", "/customer/manager-tasks", "/customer-manager-tasks", "/admincustomerreport", "/it", "/salesmanager", "/social-media", "/requests", "/finance-dashboard/payroll", "/finance-dashboard/commission-approval", "/finance-dashboard/forms", "/supervisor", "/supervisor/account", "/finance/requests", "/reception-dashboard",
+    "/coo-dashboard", "/ceo-dashboard", "/tradextv-dashboard", "/customer-settings", "/customer-user-management", "/customer/student-registration", "/customer/manager-tasks", "/customer-manager-tasks", "/admincustomerreport", "/it", "/salesmanager", "/social-media", "/requests", "/finance-dashboard/payroll", "/finance-dashboard/commission-approval", "/finance-dashboard/forms", "/supervisor", "/supervisor/account", "/finance/requests", "/reception-dashboard",
     "/tessbin-dashboard", "/tessbin"
   ].map((path) => path.toLowerCase());
 
@@ -507,6 +510,16 @@ function App() {
         element={
           <ProtectedRoute>
             <CustomerUserManagement />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/customer/student-registration"
+        element={
+          <ProtectedRoute>
+            <ErrorBoundary>
+              <StudentRegistrationPage />
+            </ErrorBoundary>
           </ProtectedRoute>
         }
       />

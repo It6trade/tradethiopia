@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Avatar,
   Badge,
@@ -6,7 +6,6 @@ import {
   Button,
   Card,
   CardBody,
-  CardHeader,
   Flex,
   Heading,
   HStack,
@@ -33,7 +32,6 @@ import {
   VStack,
   useColorModeValue,
   IconButton,
-  Icon,
 } from '@chakra-ui/react';
 import {
   FiChevronRight,
@@ -65,7 +63,6 @@ const TaskTable = ({
   onToggleStatus,
   onWorkflowAction,
   onRejectTask,
-  onUpdatePoints,
   onAddComment,
   onAddReminder,
   onReassignTask,
@@ -75,53 +72,46 @@ const TaskTable = ({
   emptyMessage,
   isCompact
 }) => {
-  const [editingTaskId, setEditingTaskId] = useState(null);
-  const [editingPoints, setEditingPoints] = useState(1);
-
+  const stickyActionBg = useColorModeValue('white', 'gray.800');
   const statusColor = (status) => {
     if (status === 'done') return 'green';
     if (status === 'ongoing') return 'blue';
     return 'yellow';
   };
 
-  const startEditing = (taskId, currentPoints) => {
-    setEditingTaskId(taskId);
-    setEditingPoints(currentPoints || 1);
-  };
-
-  const savePoints = (taskId) => {
-    const points = parseInt(editingPoints);
-    if (!isNaN(points) && points >= 1 && onUpdatePoints) {
-      onUpdatePoints(taskId, points);
-      setEditingTaskId(null);
-      setEditingPoints(1);
-    }
-  };
-
-  const cancelEditing = () => {
-    setEditingTaskId(null);
-    setEditingPoints(1);
-  };
-
   return (
-    <TableContainer>
-      <Table variant="simple" size={isCompact ? 'sm' : 'md'}>
+    <TableContainer w="100%" overflowX="auto">
+      <Table
+        variant="simple"
+        size={isCompact ? 'sm' : 'md'}
+        minW="980px"
+        sx={{
+          'th:last-of-type, td:last-of-type': {
+            position: 'sticky',
+            right: 0,
+            zIndex: 1,
+            bg: stickyActionBg,
+            boxShadow: '-10px 0 18px -16px rgba(15, 23, 42, 0.35)',
+          },
+          'th:last-of-type': {
+            zIndex: 2,
+          },
+        }}
+      >
         <Thead>
           <Tr>
             <Th>Task</Th>
             <Th>Type</Th>
             <Th>Category</Th>
-            <Th>Points</Th>
             <Th>Status</Th>
             <Th>Assignee</Th>
-            <Th>Due</Th>
             <Th textAlign="right">Actions</Th>
           </Tr>
         </Thead>
         <Tbody>
           {!tasks || tasks.length === 0 ? (
             <Tr>
-              <Td colSpan={8} textAlign="center" py={10}>
+              <Td colSpan={6} textAlign="center" py={10}>
                 <Text color="gray.500">{emptyMessage}</Text>
               </Td>
             </Tr>
@@ -143,43 +133,6 @@ const TaskTable = ({
                 </Td>
                 <Td>{task.category || task.platform || 'N/A'}</Td>
                 <Td>
-                  {editingTaskId === (task._id || task.id) && task.status === 'done' ? (
-                    <HStack spacing={2}>
-                      <NumberInput
-                        size="sm"
-                        value={editingPoints}
-                        min={1}
-                        max={100}
-                        w="80px"
-                        onChange={(_, valueAsNumber) => setEditingPoints(valueAsNumber || 1)}
-                      >
-                        <NumberInputField />
-                      </NumberInput>
-                      <Button size="xs" colorScheme="green" onClick={() => savePoints(task._id || task.id)}>
-                        Save
-                      </Button>
-                      <Button size="xs" variant="ghost" onClick={cancelEditing}>
-                        Cancel
-                      </Button>
-                    </HStack>
-                  ) : (
-                    <>
-                      <Text fontWeight="bold">{task.featureCount || (task.status === 'done' ? 1 : 0)}</Text>
-                      {task.status === 'done' && onUpdatePoints && (
-                        <Button
-                          size="xs"
-                          variant="link"
-                          colorScheme="blue"
-                          mt={1}
-                          onClick={() => startEditing(task._id || task.id, task.featureCount || 1)}
-                        >
-                          Edit
-                        </Button>
-                      )}
-                    </>
-                  )}
-                </Td>
-                <Td>
                   <VStack align="flex-start" spacing={1}>
                     <Badge colorScheme={statusColor(task.status)}>{task.status}</Badge>
                     <Badge colorScheme={getWorkflowMeta(task.workflowStatus, task.status).color} variant="subtle">
@@ -200,9 +153,8 @@ const TaskTable = ({
                     </HStack>
                   </VStack>
                 </Td>
-                <Td>{task.endDate ? new Date(task.endDate).toLocaleDateString() : 'N/A'}</Td>
-                <Td textAlign="right">
-                  <HStack justify="flex-end" spacing={2}>
+                <Td textAlign="right" minW="320px">
+                  <HStack justify="flex-end" spacing={2} flexWrap="wrap">
                     <Button size="sm" variant="outline" onClick={() => onViewTask(task)}>
                       Details
                     </Button>
@@ -288,7 +240,6 @@ export default function OverviewTab({ tasks, weeklyTarget, setWeeklyTarget, fetc
       .filter(Boolean)
   ), [users]);
 
-  const cardBg = useColorModeValue('white', 'gray.800');
   const borderColor = useColorModeValue('gray.200', 'gray.700');
   const filterInputBg = useColorModeValue('gray.50', 'gray.700');
   const subtleBg = useColorModeValue('blue.50', 'whiteAlpha.50');
@@ -353,22 +304,6 @@ export default function OverviewTab({ tasks, weeklyTarget, setWeeklyTarget, fetc
       fetchTasks();
     } catch (err) {
       console.error('Add comment error', err);
-    }
-  };
-
-  const handleApproveTask = async (taskId) => {
-    const note = prompt('Approval note (optional):', 'Approved by IT leadership');
-    if (note === null) return;
-    try {
-      await axios.post(`${import.meta.env.VITE_API_URL}/api/it/${taskId}/approve`, {
-        approvalStatus: 'approved',
-        approvalNote: note
-      }, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      fetchTasks();
-    } catch (err) {
-      console.error('Approve task error', err);
     }
   };
 
@@ -668,7 +603,9 @@ export default function OverviewTab({ tasks, weeklyTarget, setWeeklyTarget, fetc
             </Box>
             <HStack spacing={2} flexWrap="wrap" justify={{ base: 'flex-start', xl: 'flex-end' }}>
               <InputGroup>
-                <InputLeftElement pointerEvents="none" children={<FiSearch color="gray" />} />
+                <InputLeftElement pointerEvents="none">
+                  <FiSearch color="gray" />
+                </InputLeftElement>
                 <Input
                   placeholder="Search tasks"
                   value={filters.query}

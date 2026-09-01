@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Badge,
   Box,
@@ -13,13 +13,13 @@ import {
   Heading,
   HStack,
   Icon,
-  Modal,
-  ModalBody,
-  ModalCloseButton,
-  ModalContent,
-  ModalFooter,
-  ModalHeader,
-  ModalOverlay,
+  Drawer,
+  DrawerBody,
+  DrawerCloseButton,
+  DrawerContent,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerOverlay,
   SimpleGrid,
   Select,
   Text,
@@ -28,7 +28,7 @@ import {
   useColorModeValue,
   useToast,
 } from '@chakra-ui/react';
-import { FiUser, FiUsers, FiClock, FiShield } from 'react-icons/fi';
+import { FiUser, FiUsers, FiClock } from 'react-icons/fi';
 import axios from 'axios';
 import { normalizeRole, useUserStore } from '../../../store/user';
 import { getTaskTitle, getWorkflowMeta } from '../utils/itWorkflow';
@@ -49,7 +49,6 @@ export default function ITTaskDetailModal({ isOpen, task, onClose, onDone, focus
   const { currentUser } = useUserStore();
   const token = currentUser?.token;
   const normalizedRole = normalizeRole(currentUser?.role || currentUser?.displayRole || '');
-  const canEditProgress = normalizedRole === 'it' || normalizedRole === 'itstaff';
   const isManager = ['admin', 'itmanager', 'itadmin'].includes(normalizedRole);
   const toast = useToast();
   const borderColor = useColorModeValue('gray.200', 'gray.700');
@@ -185,10 +184,10 @@ export default function ITTaskDetailModal({ isOpen, task, onClose, onDone, focus
   const canPostComment = Boolean(currentTask);
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} size="5xl" scrollBehavior="inside">
-      <ModalOverlay bg="blackAlpha.500" backdropFilter="blur(5px)" />
-      <ModalContent borderRadius="22px" bg={modalBg} maxW={{ base: '94vw', lg: '1040px' }} maxH="92vh" overflow="hidden">
-        <ModalHeader bg={headerBg} borderBottom="1px solid" borderColor={borderColor}>
+    <Drawer isOpen={isOpen} onClose={onClose} placement="right" size="xl">
+      <DrawerOverlay bg="blackAlpha.500" backdropFilter="blur(5px)" />
+      <DrawerContent bg={modalBg} maxW={{ base: '100vw', lg: '1040px' }} overflow="hidden">
+        <DrawerHeader bg={headerBg} borderBottom="1px solid" borderColor={borderColor}>
           <VStack align="stretch" spacing={2}>
             <HStack spacing={2} wrap="wrap">
               <Badge colorScheme={currentTask.projectType === 'external' ? 'purple' : 'blue'}>
@@ -199,10 +198,10 @@ export default function ITTaskDetailModal({ isOpen, task, onClose, onDone, focus
             </HStack>
             <Heading size={{ base: 'md', md: 'lg' }}>{getTaskTitle(currentTask)}</Heading>
           </VStack>
-        </ModalHeader>
-        <ModalCloseButton />
+        </DrawerHeader>
+        <DrawerCloseButton />
 
-        <ModalBody py={5}>
+        <DrawerBody py={5}>
           <VStack align="stretch" spacing={4}>
             <Card borderColor={borderColor} borderWidth="1px" borderRadius="18px" boxShadow="sm">
               <CardBody>
@@ -277,6 +276,14 @@ export default function ITTaskDetailModal({ isOpen, task, onClose, onDone, focus
                     <Text color={muted} fontSize="sm">Action Type</Text>
                     <Text fontWeight="700">{currentTask.actionType || 'N/A'}</Text>
                   </GridItem>
+                  <GridItem>
+                    <Text color={muted} fontSize="sm">Priority</Text>
+                    <Text fontWeight="700">{currentTask.priority || 'N/A'}</Text>
+                  </GridItem>
+                  <GridItem>
+                    <Text color={muted} fontSize="sm">Score / Points</Text>
+                    <Text fontWeight="700">{currentTask.featureCount || (currentTask.status === 'done' ? 1 : 0)}</Text>
+                  </GridItem>
                 </Grid>
               </CardBody>
             </Card>
@@ -349,17 +356,17 @@ export default function ITTaskDetailModal({ isOpen, task, onClose, onDone, focus
               </CardBody>
             </Card>
           </VStack>
-        </ModalBody>
+        </DrawerBody>
 
-        <ModalFooter borderTop="1px solid" borderColor={borderColor}>
+        <DrawerFooter borderTop="1px solid" borderColor={borderColor}>
           <Button variant="ghost" mr={3} onClick={onClose}>Close</Button>
           {canPostComment && (
             <Button colorScheme="blue" onClick={submitComment} isLoading={isSaving} isDisabled={!comment.trim()}>
               Add Comment
             </Button>
           )}
-        </ModalFooter>
-      </ModalContent>
-    </Modal>
+        </DrawerFooter>
+      </DrawerContent>
+    </Drawer>
   );
 }

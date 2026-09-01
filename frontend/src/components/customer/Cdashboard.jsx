@@ -1,20 +1,16 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import Layout from './Layout';
 import axiosInstance from '../../services/axiosInstance';
 import {
-  Avatar,
   Badge,
   Box,
   Button,
   Card,
-  CardBody,
-  Divider,
   Flex,
   Grid,
   Heading,
   HStack,
   Icon,
-  IconButton,
   Menu,
   MenuButton,
   MenuItem,
@@ -22,15 +18,12 @@ import {
   Portal,
   Progress,
   SimpleGrid,
-  Skeleton,
-  SkeletonCircle,
   Table,
   Tbody,
   Td,
   Text,
   Th,
   Thead,
-  Tooltip,
   Tr,
   useColorModeValue,
   useToast,
@@ -44,7 +37,6 @@ import {
   FiChevronDown,
   FiClock,
   FiDownload,
-  FiExternalLink,
   FiPlus,
   FiRefreshCw,
   FiShoppingBag,
@@ -84,7 +76,7 @@ const CDashboard = ({ initialTab = 'dashboard' }) => {
     incompleteTraining: 287,
   });
 
-  const [loading, setLoading] = useState(true);
+  const [, setLoading] = useState(true);
   const [revenueRange, setRevenueRange] = useState('Last 6 months');
   const [healthRange, setHealthRange] = useState('This month');
   const [lastUpdatedTime, setLastUpdatedTime] = useState('Today, 10:24 AM');
@@ -190,6 +182,13 @@ const CDashboard = ({ initialTab = 'dashboard' }) => {
   const headingColor = useColorModeValue('#0f172a', '#f8fafc');
   const textColor = useColorModeValue('#334155', '#cbd5e1');
   const subtextColor = useColorModeValue('#64748b', '#94a3b8');
+  const subtleHoverBg = useColorModeValue('gray.50', 'gray.800');
+  const chartGridColor = useColorModeValue('#f1f5f9', '#1e293b');
+  const metricBoxBg = useColorModeValue('#f8fafc', '#1e293b');
+  const progressTrackBg = useColorModeValue('#e2e8f0', '#334155');
+  const successBannerBg = useColorModeValue('#f0fdf4', 'rgba(22, 163, 74, 0.1)');
+  const successBannerBorder = useColorModeValue('#bbf7d0', 'rgba(22, 163, 74, 0.2)');
+  const tableRowHoverBg = useColorModeValue('gray.50', 'whiteAlpha.50');
 
   // Fetch real data while seamlessly providing exact mock analytics
   useEffect(() => {
@@ -324,8 +323,8 @@ const CDashboard = ({ initialTab = 'dashboard' }) => {
   }, [location.search]);
 
   useEffect(() => {
-    if (urlFocus.section === 'it-requests') {
-      setActiveTab('it-requests');
+    if (['it-requests', 'requests', 'notice-board'].includes(urlFocus.section)) {
+      setActiveTab(urlFocus.section);
     }
   }, [urlFocus.section, urlFocus.taskId, urlFocus.commentId]);
 
@@ -360,11 +359,14 @@ const CDashboard = ({ initialTab = 'dashboard' }) => {
     return (
       <Layout {...layoutProps}>
         <Box p={{ base: 4, md: 6 }} bg={pageBg} minHeight="100vh">
-          <CSExternalITRequestsPanel
-            focusedTaskId={urlFocus.taskId}
-            focusedCommentId={urlFocus.commentId}
-            focusedNotification={urlFocus}
-          />
+          <VStack spacing={6} align="stretch">
+            <CSExternalITRequestsPanel
+              focusedTaskId={urlFocus.taskId}
+              focusedCommentId={urlFocus.commentId}
+              focusedNotification={urlFocus}
+            />
+            <CustomerSupportRequestPanel />
+          </VStack>
         </Box>
       </Layout>
     );
@@ -376,7 +378,6 @@ const CDashboard = ({ initialTab = 'dashboard' }) => {
         <Box p={{ base: 4, md: 6 }} bg={pageBg} minHeight="100vh">
           <VStack spacing={6} align="stretch">
             <RequestPage embedded hideBackButton />
-            <CustomerSupportRequestPanel />
           </VStack>
         </Box>
       </Layout>
@@ -437,7 +438,7 @@ const CDashboard = ({ initialTab = 'dashboard' }) => {
               px={3.5}
               h="36px"
               bg={cardBg}
-              _hover={{ bg: useColorModeValue('gray.50', 'gray.800'), borderColor: 'teal.400' }}
+              _hover={{ bg: subtleHoverBg, borderColor: 'teal.400' }}
               onClick={handleExportReport}
             >
               Export report
@@ -674,7 +675,7 @@ const CDashboard = ({ initialTab = 'dashboard' }) => {
                       <stop offset="95%" stopColor="#0d9488" stopOpacity={0.0} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={useColorModeValue('#f1f5f9', '#1e293b')} />
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={chartGridColor} />
                   <XAxis
                     dataKey="month"
                     tickLine={false}
@@ -751,7 +752,7 @@ const CDashboard = ({ initialTab = 'dashboard' }) => {
 
             {/* 4 Health Mini Boxes */}
             <SimpleGrid columns={4} spacing={2.5} mb={5}>
-              <Box p={2.5} borderRadius="lg" bg={useColorModeValue('#f8fafc', '#1e293b')} border="1px solid" borderColor={cardBorder}>
+              <Box p={2.5} borderRadius="lg" bg={metricBoxBg} border="1px solid" borderColor={cardBorder}>
                 <Text fontSize="10px" color={subtextColor} fontWeight="600">
                   Due today
                 </Text>
@@ -763,7 +764,7 @@ const CDashboard = ({ initialTab = 'dashboard' }) => {
                 </Flex>
               </Box>
 
-              <Box p={2.5} borderRadius="lg" bg={useColorModeValue('#f8fafc', '#1e293b')} border="1px solid" borderColor={cardBorder}>
+              <Box p={2.5} borderRadius="lg" bg={metricBoxBg} border="1px solid" borderColor={cardBorder}>
                 <Text fontSize="10px" color={subtextColor} fontWeight="600">
                   Overdue
                 </Text>
@@ -775,7 +776,7 @@ const CDashboard = ({ initialTab = 'dashboard' }) => {
                 </Flex>
               </Box>
 
-              <Box p={2.5} borderRadius="lg" bg={useColorModeValue('#f8fafc', '#1e293b')} border="1px solid" borderColor={cardBorder}>
+              <Box p={2.5} borderRadius="lg" bg={metricBoxBg} border="1px solid" borderColor={cardBorder}>
                 <Text fontSize="10px" color={subtextColor} fontWeight="600">
                   Upcoming
                 </Text>
@@ -787,7 +788,7 @@ const CDashboard = ({ initialTab = 'dashboard' }) => {
                 </Flex>
               </Box>
 
-              <Box p={2.5} borderRadius="lg" bg={useColorModeValue('#f8fafc', '#1e293b')} border="1px solid" borderColor={cardBorder}>
+              <Box p={2.5} borderRadius="lg" bg={metricBoxBg} border="1px solid" borderColor={cardBorder}>
                 <Text fontSize="10px" color={subtextColor} fontWeight="600">
                   Completed
                 </Text>
@@ -815,7 +816,7 @@ const CDashboard = ({ initialTab = 'dashboard' }) => {
                 size="sm"
                 borderRadius="full"
                 colorScheme="teal"
-                bg={useColorModeValue('#e2e8f0', '#334155')}
+                bg={progressTrackBg}
               />
             </Box>
 
@@ -825,13 +826,13 @@ const CDashboard = ({ initialTab = 'dashboard' }) => {
               gap={2}
               p={3}
               borderRadius="lg"
-              bg={useColorModeValue('#f0fdf4', 'rgba(22, 163, 74, 0.1)')}
+              bg={successBannerBg}
               border="1px solid"
-              borderColor={useColorModeValue('#bbf7d0', 'rgba(22, 163, 74, 0.2)')}
+              borderColor={successBannerBorder}
             >
               <Icon as={FiTrendingUp} color="#16a34a" boxSize={4} />
               <Text fontSize="xs" color="#15803d" fontWeight="600">
-                Keep up the momentum! You're performing above average.
+                Keep up the momentum! You are performing above average.
               </Text>
             </Flex>
           </Card>
@@ -855,7 +856,7 @@ const CDashboard = ({ initialTab = 'dashboard' }) => {
                       {item.count}
                     </Text>
                   </Flex>
-                  <Box w="100%" h="6px" bg={useColorModeValue('#f1f5f9', '#1e293b')} borderRadius="full" overflow="hidden">
+                  <Box w="100%" h="6px" bg={chartGridColor} borderRadius="full" overflow="hidden">
                     <Box
                       h="100%"
                       w={`${(item.count / 10) * 100}%`}
@@ -896,7 +897,7 @@ const CDashboard = ({ initialTab = 'dashboard' }) => {
                       {item.count}
                     </Text>
                   </Flex>
-                  <Box w="100%" h="6px" bg={useColorModeValue('#f1f5f9', '#1e293b')} borderRadius="full" overflow="hidden">
+                  <Box w="100%" h="6px" bg={chartGridColor} borderRadius="full" overflow="hidden">
                     <Box
                       h="100%"
                       w={`${(item.count / 20) * 100}%`}
@@ -936,7 +937,7 @@ const CDashboard = ({ initialTab = 'dashboard' }) => {
                       {item.count}
                     </Text>
                   </Flex>
-                  <Box w="100%" h="7px" bg={useColorModeValue('#f1f5f9', '#1e293b')} borderRadius="full" overflow="hidden">
+                  <Box w="100%" h="7px" bg={chartGridColor} borderRadius="full" overflow="hidden">
                     <Box
                       h="100%"
                       w={`${(item.count / 150) * 100}%`}
@@ -1013,7 +1014,7 @@ const CDashboard = ({ initialTab = 'dashboard' }) => {
                 {analyticsData.priorityFollowups.map((row) => (
                   <Tr
                     key={row.id}
-                    _hover={{ bg: useColorModeValue('gray.50', 'whiteAlpha.50') }}
+                    _hover={{ bg: tableRowHoverBg }}
                     borderBottom="1px solid"
                     borderColor={cardBorder}
                     transition="background 0.15s ease"

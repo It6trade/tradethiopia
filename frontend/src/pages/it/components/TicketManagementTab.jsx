@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   Badge,
   Box,
@@ -7,6 +7,13 @@ import {
   CardBody,
   Collapse,
   Divider,
+  Drawer,
+  DrawerBody,
+  DrawerCloseButton,
+  DrawerContent,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerOverlay,
   Flex,
   FormControl,
   FormLabel,
@@ -294,11 +301,9 @@ export default function TicketManagementTab({
   users = [],
   currentUser,
   persona,
-  permissions: permissionsProp,
   focusedTaskId = '',
   fetchTasks,
 }) {
-  const permissions = permissionsProp || persona || {};
   const toast = useToast();
   const [selectedTaskId, setSelectedTaskId] = useState(focusedTaskId || '');
   const [recordDraft, setRecordDraft] = useState({
@@ -322,9 +327,15 @@ export default function TicketManagementTab({
   const [managerNotes, setManagerNotes] = useState({});
   const [commentDrafts, setCommentDrafts] = useState({});
   const [feedbackDrafts, setFeedbackDrafts] = useState({});
-  const [managerTicketFilter, setManagerTicketFilter] = useState('undone');
+  const [managerTicketFilter, setManagerTicketFilter] = useState('all');
+  const [acceptedTicketPageSize, setAcceptedTicketPageSize] = useState(5);
+  const [acceptedTicketPage, setAcceptedTicketPage] = useState(1);
   const [expandedRankingKey, setExpandedRankingKey] = useState('');
   const [selectedDetailTaskId, setSelectedDetailTaskId] = useState(focusedTaskId || '');
+  const [isTicketDetailDrawerOpen, setIsTicketDetailDrawerOpen] = useState(Boolean(focusedTaskId));
+  const [selectedWorkRecordId, setSelectedWorkRecordId] = useState('');
+  const [recordsPageSize, setRecordsPageSize] = useState(5);
+  const [recordsPage, setRecordsPage] = useState(1);
   const [isTicketManagementExpanded, setIsTicketManagementExpanded] = useState(true);
   const [isDetailExpanded, setIsDetailExpanded] = useState(true);
   const [expandedSentSupportIds, setExpandedSentSupportIds] = useState({});
@@ -337,6 +348,7 @@ export default function TicketManagementTab({
   const panelBg = useColorModeValue('gray.50', 'whiteAlpha.100');
   const borderColor = useColorModeValue('gray.200', 'whiteAlpha.200');
   const muted = useColorModeValue('gray.600', 'gray.400');
+  const declinedBg = useColorModeValue('red.50', 'rgba(254, 178, 178, 0.12)');
 
   const visibleTicketTasks = useMemo(() => tasks.filter(isSupportTicketTask), [tasks]);
   const activeTicketTasks = useMemo(() => visibleTicketTasks.filter((task) => (
@@ -390,6 +402,16 @@ export default function TicketManagementTab({
     || sentSupportRequests[0]
     || visibleTicketTasks[0];
   const selectedTimeline = useMemo(() => buildTicketTimeline(selectedDetailTask), [selectedDetailTask]);
+  const totalAcceptedTicketPages = Math.max(1, Math.ceil(managerAcceptedTickets.length / acceptedTicketPageSize));
+  const safeAcceptedTicketPage = Math.min(acceptedTicketPage, totalAcceptedTicketPages);
+  const pagedManagerAcceptedTickets = managerAcceptedTickets.slice(
+    (safeAcceptedTicketPage - 1) * acceptedTicketPageSize,
+    safeAcceptedTicketPage * acceptedTicketPageSize
+  );
+  const totalRecordPages = Math.max(1, Math.ceil(records.length / recordsPageSize));
+  const safeRecordsPage = Math.min(recordsPage, totalRecordPages);
+  const pagedRecords = records.slice((safeRecordsPage - 1) * recordsPageSize, safeRecordsPage * recordsPageSize);
+  const selectedWorkRecord = records.find((record) => String(record._id || record.id) === String(selectedWorkRecordId));
   const canEditRequesterFeedback = selectedDetailTask && (canApprove || isAssignedLeader(selectedDetailTask, currentUser));
   const itStaffOptions = users.filter((user) => {
     const role = String(user.role || '').toLowerCase();
@@ -501,12 +523,7 @@ export default function TicketManagementTab({
   const handleViewDetails = (taskId) => {
     setSelectedDetailTaskId(taskId);
     setIsDetailExpanded(true);
-    setTimeout(() => {
-      const el = document.getElementById('ticket-detail-card');
-      if (el) {
-        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }
-    }, 50);
+    setIsTicketDetailDrawerOpen(true);
   };
 
   const saveRecord = async () => {
@@ -799,7 +816,7 @@ export default function TicketManagementTab({
                         </HStack>
                         <Text fontSize="sm" color={muted}>{task.supportRequestNote || task.description}</Text>
                         {isDeclined && (task.staffRejectedByName || task.staffRejectedReason) && (
-                          <Box mt={2} p={2} bg={useColorModeValue('red.50', 'rgba(254, 178, 178, 0.12)')} color="red.500" borderRadius="md" fontSize="xs">
+                          <Box mt={2} p={2} bg={declinedBg} color="red.500" borderRadius="md" fontSize="xs">
                             <Text fontWeight="700">Declined by: {task.staffRejectedByName || 'Staff'}</Text>
                             {task.staffRejectedReason && <Text>Reason: {task.staffRejectedReason}</Text>}
                           </Box>
@@ -1150,18 +1167,55 @@ export default function TicketManagementTab({
               <Flex justify="space-between" align={{ base: 'stretch', md: 'center' }} gap={3} direction={{ base: 'column', md: 'row' }} mb={4}>
                 <Box>
                   <Heading size="md">Accepted Ticket Register</Heading>
-                  <Text color={muted}>Manager record of accepted and assigned support tickets.</Text>
+                  <Text color={muted}>Daily manager record of accepted and assigned support tickets.</Text>
                 </Box>
-                <RadioGroup value={managerTicketFilter} onChange={setManagerTicketFilter}>
-                  <HStack spacing={4}>
-                    <Radio value="undone">Undone</Radio>
-                    <Radio value="done">Done</Radio>
-                    <Radio value="all">All</Radio>
-                  </HStack>
-                </RadioGroup>
+                <HStack spacing={3} flexWrap="wrap">
+                  <Select
+                    size="sm"
+                    w="140px"
+                    value={acceptedTicketPageSize}
+                    onChange={(event) => {
+                      setAcceptedTicketPageSize(Number(event.target.value));
+                      setAcceptedTicketPage(1);
+                    }}
+                  >
+                    <option value={5}>5 tickets</option>
+                    <option value={10}>10 tickets</option>
+                    <option value={15}>15 tickets</option>
+                    <option value={20}>20 tickets</option>
+                  </Select>
+                  <RadioGroup
+                    value={managerTicketFilter}
+                    onChange={(value) => {
+                      setManagerTicketFilter(value);
+                      setAcceptedTicketPage(1);
+                    }}
+                  >
+                    <HStack spacing={4}>
+                      <Radio value="all">All</Radio>
+                      <Radio value="undone">Undone</Radio>
+                      <Radio value="done">Done</Radio>
+                    </HStack>
+                  </RadioGroup>
+                </HStack>
               </Flex>
-              <TableContainer>
-                <Table size="sm">
+              <TableContainer w="100%" overflowX="auto">
+                <Table
+                  size="sm"
+                  minW="1080px"
+                  sx={{
+                    'th:last-of-type, td:last-of-type': {
+                      position: 'sticky',
+                      right: 0,
+                      zIndex: 1,
+                      bg: cardBg,
+                      boxShadow: '-10px 0 18px -16px rgba(15, 23, 42, 0.35)',
+                    },
+                    'th:last-of-type': {
+                      zIndex: 2,
+                    },
+                  }}
+                >
                   <Thead>
                     <Tr>
                       <Th>Ticket</Th>
@@ -1181,7 +1235,7 @@ export default function TicketManagementTab({
                           No accepted tickets in this view.
                         </Td>
                       </Tr>
-                    ) : managerAcceptedTickets.map((task) => {
+                    ) : pagedManagerAcceptedTickets.map((task) => {
                       const slaState = getSlaState(task);
                       const taskId = task._id || task.id;
                       return (
@@ -1200,9 +1254,9 @@ export default function TicketManagementTab({
                               {task.isDone ? 'Done' : task.hasOutstanding ? 'Undone - outstanding' : String(task.supportStatus || 'assigned').replace('_', ' ')}
                             </Badge>
                           </Td>
-                          <Td>
-                            <HStack>
-                              <Button size="xs" variant="outline" onClick={() => setSelectedDetailTaskId(taskId)}>Open</Button>
+                          <Td minW="190px">
+                            <HStack justify="flex-end" flexWrap="wrap">
+                              <Button size="xs" variant="outline" onClick={() => handleViewDetails(taskId)}>Open</Button>
                               {canDeleteAcceptedTickets && (
                                 <Button
                                   size="xs"
@@ -1222,14 +1276,70 @@ export default function TicketManagementTab({
                   </Tbody>
                 </Table>
               </TableContainer>
+              {managerAcceptedTickets.length > 0 && (
+                <Flex
+                  justify="space-between"
+                  align={{ base: 'stretch', md: 'center' }}
+                  direction={{ base: 'column', md: 'row' }}
+                  gap={3}
+                  mt={4}
+                >
+                  <Text fontSize="sm" color={muted}>
+                    Showing {(safeAcceptedTicketPage - 1) * acceptedTicketPageSize + 1}-{Math.min(safeAcceptedTicketPage * acceptedTicketPageSize, managerAcceptedTickets.length)} of {managerAcceptedTickets.length} tickets
+                  </Text>
+                  <HStack>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      isDisabled={safeAcceptedTicketPage <= 1}
+                      onClick={() => setAcceptedTicketPage((page) => Math.max(1, page - 1))}
+                    >
+                      Previous
+                    </Button>
+                    <Badge colorScheme="cyan" borderRadius="full" px={3} py={1}>
+                      Page {safeAcceptedTicketPage} / {totalAcceptedTicketPages}
+                    </Badge>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      isDisabled={safeAcceptedTicketPage >= totalAcceptedTicketPages}
+                      onClick={() => setAcceptedTicketPage((page) => Math.min(totalAcceptedTicketPages, page + 1))}
+                    >
+                      Next
+                    </Button>
+                  </HStack>
+                </Flex>
+              )}
             </CardBody>
           </Card>
         )}
       </SimpleGrid>
 
       {selectedDetailTask && (
-        <Card id="ticket-detail-card" bg={cardBg} borderColor={borderColor} borderWidth="1px" borderRadius="2xl">
+        <Card bg={cardBg} borderColor={borderColor} borderWidth="1px" borderRadius="2xl">
           <CardBody>
+            <Flex justify="space-between" align={{ base: 'stretch', md: 'center' }} gap={4} direction={{ base: 'column', md: 'row' }}>
+              <Box>
+                <HStack spacing={2} flexWrap="wrap" mb={1}>
+                  <Icon as={FiClock} color="cyan.500" />
+                  <Heading size="md">Ticket Detail, Timeline & Comments</Heading>
+                </HStack>
+                <Text fontSize="sm" color={muted}>Open the selected ticket details, timeline, feedback, and comments in a focused drawer.</Text>
+              </Box>
+              <Button colorScheme="cyan" variant="outline" onClick={() => setIsTicketDetailDrawerOpen(true)}>
+                Open Ticket Detail
+              </Button>
+            </Flex>
+          </CardBody>
+        </Card>
+      )}
+
+      {selectedDetailTask && (
+        <Drawer isOpen={isTicketDetailDrawerOpen} onClose={() => setIsTicketDetailDrawerOpen(false)} placement="right" size="xl">
+          <DrawerOverlay bg="blackAlpha.500" backdropFilter="blur(5px)" />
+          <DrawerContent maxW={{ base: '100vw', lg: '1040px' }}>
+            <DrawerCloseButton />
+            <DrawerBody py={5}>
             <Flex justify="space-between" align={{ base: 'stretch', md: 'start' }} gap={4} direction={{ base: 'column', md: 'row' }} mb={4}>
               <Box>
                 <HStack spacing={2} flexWrap="wrap" mb={2}>
@@ -1415,37 +1525,67 @@ export default function TicketManagementTab({
               </Box>
             </SimpleGrid>
             </Collapse>
-          </CardBody>
-        </Card>
+            </DrawerBody>
+          </DrawerContent>
+        </Drawer>
       )}
 
       <Card bg={cardBg} borderColor={borderColor} borderWidth="1px" borderRadius="2xl">
         <CardBody>
-          <HStack mb={4}>
-            <Icon as={FiCpu} color="cyan.500" />
-            <Heading size="md">Ticket Work Records</Heading>
-          </HStack>
-          <TableContainer>
-            <Table size="sm">
+          <Flex justify="space-between" align={{ base: 'flex-start', md: 'center' }} gap={3} mb={4} direction={{ base: 'column', md: 'row' }}>
+            <HStack>
+              <Icon as={FiCpu} color="cyan.500" />
+              <Box>
+                <Heading size="md">Ticket Work Records</Heading>
+                <Text fontSize="sm" color={muted}>Approved, pending, and rejected worker records.</Text>
+              </Box>
+            </HStack>
+            <Select
+              size="sm"
+              w={{ base: '100%', sm: '150px' }}
+              value={recordsPageSize}
+              onChange={(event) => {
+                setRecordsPageSize(Number(event.target.value));
+                setRecordsPage(1);
+              }}
+            >
+              <option value={5}>5 records</option>
+              <option value={10}>10 records</option>
+              <option value={15}>15 records</option>
+              <option value={20}>20 records</option>
+            </Select>
+          </Flex>
+          <TableContainer w="100%" overflowX="auto">
+            <Table
+              size="sm"
+              minW="960px"
+              sx={{
+                'th:last-of-type, td:last-of-type': {
+                  position: 'sticky',
+                  right: 0,
+                  zIndex: 1,
+                  bg: cardBg,
+                  boxShadow: '-10px 0 18px -16px rgba(15, 23, 42, 0.35)',
+                },
+                'th:last-of-type': {
+                  zIndex: 2,
+                },
+              }}
+            >
               <Thead>
                 <Tr>
                   <Th>Task</Th>
                   <Th>Priority</Th>
                   <Th>Workers</Th>
-                  <Th>Work</Th>
-                  <Th>SLA</Th>
                   <Th>Support Stage</Th>
-                  <Th>Completed</Th>
                   <Th>Status</Th>
-                  <Th>Manager Review</Th>
                   <Th>Action</Th>
                 </Tr>
               </Thead>
               <Tbody>
                 {records.length === 0 ? (
-                  <Tr><Td colSpan={10} textAlign="center" py={8} color={muted}>No ticket work has been recorded yet.</Td></Tr>
-                ) : records.map((record) => {
-                  const slaState = getSlaState(record);
+                  <Tr><Td colSpan={6} textAlign="center" py={8} color={muted}>No ticket work has been recorded yet.</Td></Tr>
+                ) : pagedRecords.map((record) => {
                   return (
                     <Tr key={record._id}>
                       <Td>
@@ -1463,48 +1603,18 @@ export default function TicketManagementTab({
                         )}
                       </Td>
                       <Td>
-                        <Badge mb={1}>{record.workType}</Badge>
-                        <Text noOfLines={2}>{record.summary}</Text>
-                        {record.outstandingTasks && (
-                          <Text mt={1} fontSize="xs" color="orange.500" noOfLines={2}>
-                            Outstanding: {record.outstandingTasks}
-                          </Text>
-                        )}
-                        {(record.attachments || []).length > 0 && (
-                          <HStack mt={1} color="purple.600" fontSize="xs">
-                            <Icon as={FiPaperclip} />
-                            <Text>{record.attachments.length} attachment reference{record.attachments.length > 1 ? 's' : ''}</Text>
-                          </HStack>
-                        )}
-                      </Td>
-                      <Td><Badge colorScheme={slaState.color}>{slaState.label}</Badge></Td>
-                      <Td>
                         <Badge colorScheme={record.supportStatus === 'approved' ? 'green' : record.supportStatus === 'reported' ? 'purple' : 'blue'}>
                           {String(record.supportStatus || 'assigned').replace('_', ' ')}
                         </Badge>
                       </Td>
-                      <Td>{record.completedAt ? new Date(record.completedAt).toLocaleDateString() : '-'}</Td>
                       <Td>
                         <Badge colorScheme={record.approvalStatus === 'approved' ? 'green' : record.approvalStatus === 'rejected' ? 'red' : 'orange'}>
                           {String(record.approvalStatus || 'pending_approval').replace('_', ' ')}
                         </Badge>
                       </Td>
-                      <Td>
-                        {canApprove && record.approvalStatus === 'pending_approval' ? (
-                          <VStack align="stretch" spacing={2}>
-                            <Input size="sm" placeholder="Manager note" value={managerNotes[record._id] || ''} onChange={(event) => setManagerNotes({ ...managerNotes, [record._id]: event.target.value })} />
-                            <HStack>
-                              <Button size="xs" colorScheme="green" leftIcon={<FiUserCheck />} onClick={() => approveRecord(record, 'approved')}>Approve</Button>
-                              <Button size="xs" colorScheme="red" variant="outline" leftIcon={<FiXCircle />} onClick={() => approveRecord(record, 'rejected')}>Reject</Button>
-                            </HStack>
-                          </VStack>
-                        ) : (
-                          <Text fontSize="sm" color={muted}>{record.managerNote || record.approvedByName || '-'}</Text>
-                        )}
-                      </Td>
-                      <Td>
+                      <Td minW="170px">
                         <VStack align="stretch">
-                          <Button size="xs" variant="outline" onClick={() => setSelectedDetailTaskId(record.taskId)}>
+                          <Button size="xs" variant="outline" onClick={() => setSelectedWorkRecordId(record._id || record.id)}>
                             Details
                           </Button>
                           {canDeleteRecord(record) ? (
@@ -1522,10 +1632,184 @@ export default function TicketManagementTab({
               </Tbody>
             </Table>
           </TableContainer>
+          {records.length > 0 && (
+            <Flex
+              justify="space-between"
+              align={{ base: 'stretch', md: 'center' }}
+              direction={{ base: 'column', md: 'row' }}
+              gap={3}
+              pt={4}
+            >
+              <Text fontSize="sm" color={muted}>
+                Showing {(safeRecordsPage - 1) * recordsPageSize + 1}-{Math.min(safeRecordsPage * recordsPageSize, records.length)} of {records.length}
+              </Text>
+              <HStack>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  isDisabled={safeRecordsPage <= 1}
+                  onClick={() => setRecordsPage((page) => Math.max(1, page - 1))}
+                >
+                  Previous
+                </Button>
+                <Badge colorScheme="cyan" borderRadius="full" px={3} py={1}>
+                  Page {safeRecordsPage} / {totalRecordPages}
+                </Badge>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  isDisabled={safeRecordsPage >= totalRecordPages}
+                  onClick={() => setRecordsPage((page) => Math.min(totalRecordPages, page + 1))}
+                >
+                  Next
+                </Button>
+              </HStack>
+            </Flex>
+          )}
         </CardBody>
       </Card>
         </VStack>
       </Collapse>
+
+      <Drawer isOpen={Boolean(selectedWorkRecord)} onClose={() => setSelectedWorkRecordId('')} placement="right" size="lg">
+        <DrawerOverlay bg="blackAlpha.500" backdropFilter="blur(5px)" />
+        <DrawerContent>
+          <DrawerCloseButton />
+          <DrawerHeader borderBottom="1px solid" borderColor={borderColor}>
+            <VStack align="stretch" spacing={2} pr={8}>
+              <HStack spacing={2} wrap="wrap">
+                <Badge colorScheme={getPriorityColor(selectedWorkRecord?.priority)}>
+                  {selectedWorkRecord?.priority || 'normal'} priority
+                </Badge>
+                <Badge colorScheme={selectedWorkRecord?.approvalStatus === 'approved' ? 'green' : selectedWorkRecord?.approvalStatus === 'rejected' ? 'red' : 'orange'}>
+                  {String(selectedWorkRecord?.approvalStatus || 'pending_approval').replace('_', ' ')}
+                </Badge>
+              </HStack>
+              <Box>
+                <Heading size="md">{selectedWorkRecord?.taskTitle || 'Ticket work record'}</Heading>
+                <Text fontSize="sm" color={muted}>
+                  Worker activity, SLA, attachments, and manager review.
+                </Text>
+              </Box>
+            </VStack>
+          </DrawerHeader>
+
+          <DrawerBody py={5}>
+            {selectedWorkRecord && (
+              <VStack align="stretch" spacing={4}>
+                <SimpleGrid columns={{ base: 1, md: 2 }} spacing={3}>
+                  <Box bg={panelBg} p={4} borderRadius="xl" border="1px solid" borderColor={borderColor}>
+                    <Text fontSize="xs" fontWeight="800" color={muted}>WORKER</Text>
+                    <Text fontWeight="800">{selectedWorkRecord.staffName || 'Unknown'}</Text>
+                    <Text fontSize="xs" color={muted}>{selectedWorkRecord.staff || 'Recorded by staff'}</Text>
+                  </Box>
+                  <Box bg={panelBg} p={4} borderRadius="xl" border="1px solid" borderColor={borderColor}>
+                    <Text fontSize="xs" fontWeight="800" color={muted}>SUPPORT STAGE</Text>
+                    <Badge mt={1} colorScheme={selectedWorkRecord.supportStatus === 'approved' ? 'green' : selectedWorkRecord.supportStatus === 'reported' ? 'purple' : 'blue'}>
+                      {String(selectedWorkRecord.supportStatus || 'assigned').replace('_', ' ')}
+                    </Badge>
+                  </Box>
+                  <Box bg={panelBg} p={4} borderRadius="xl" border="1px solid" borderColor={borderColor}>
+                    <Text fontSize="xs" fontWeight="800" color={muted}>CATEGORY</Text>
+                    <Text fontWeight="700">{selectedWorkRecord.taskCategory || '-'}</Text>
+                  </Box>
+                  <Box bg={panelBg} p={4} borderRadius="xl" border="1px solid" borderColor={borderColor}>
+                    <Text fontSize="xs" fontWeight="800" color={muted}>COMPLETED DATE</Text>
+                    <Text fontWeight="700">{formatDateTime(selectedWorkRecord.completedAt)}</Text>
+                  </Box>
+                </SimpleGrid>
+
+                <Box bg={panelBg} p={4} borderRadius="xl" border="1px solid" borderColor={borderColor}>
+                  <Text fontSize="xs" fontWeight="800" color={muted} mb={2}>WORK SUMMARY</Text>
+                  <Badge mb={2}>{selectedWorkRecord.workType || 'support'}</Badge>
+                  <Text whiteSpace="pre-wrap">{selectedWorkRecord.summary || '-'}</Text>
+                </Box>
+
+                <Box bg={panelBg} p={4} borderRadius="xl" border="1px solid" borderColor={borderColor}>
+                  <Text fontSize="xs" fontWeight="800" color={muted} mb={2}>OUTSTANDING WORK</Text>
+                  <Text color={selectedWorkRecord.outstandingTasks ? 'orange.500' : muted} whiteSpace="pre-wrap">
+                    {selectedWorkRecord.outstandingTasks || 'No outstanding work recorded.'}
+                  </Text>
+                </Box>
+
+                <SimpleGrid columns={{ base: 1, md: 2 }} spacing={3}>
+                  <Box bg={panelBg} p={4} borderRadius="xl" border="1px solid" borderColor={borderColor}>
+                    <Text fontSize="xs" fontWeight="800" color={muted}>SLA</Text>
+                    <Badge mt={1} colorScheme={getSlaState(selectedWorkRecord).color}>
+                      {getSlaState(selectedWorkRecord).label}
+                    </Badge>
+                    <Text mt={2} fontSize="xs" color={muted}>Response: {formatDateTime(getSlaState(selectedWorkRecord).responseDueAt)}</Text>
+                    <Text fontSize="xs" color={muted}>Resolution: {formatDateTime(getSlaState(selectedWorkRecord).resolutionDueAt)}</Text>
+                  </Box>
+                  <Box bg={panelBg} p={4} borderRadius="xl" border="1px solid" borderColor={borderColor}>
+                    <Text fontSize="xs" fontWeight="800" color={muted}>ASSIGNED WORKERS</Text>
+                    <Text mt={1}>{(selectedWorkRecord.assignedWorkers || []).join(', ') || '-'}</Text>
+                    <Text mt={2} fontSize="xs" color={muted}>Leader: {selectedWorkRecord.taskLeader || '-'}</Text>
+                  </Box>
+                </SimpleGrid>
+
+                <Box bg={panelBg} p={4} borderRadius="xl" border="1px solid" borderColor={borderColor}>
+                  <HStack mb={2}>
+                    <Icon as={FiPaperclip} color="purple.500" />
+                    <Text fontSize="xs" fontWeight="800" color={muted}>ATTACHMENTS OR REFERENCES</Text>
+                  </HStack>
+                  {(selectedWorkRecord.attachments || []).length > 0 ? (
+                    <VStack align="stretch" spacing={1}>
+                      {(selectedWorkRecord.attachments || []).map((attachment, index) => (
+                        <Text key={`${attachment}-${index}`} fontSize="sm">{attachment}</Text>
+                      ))}
+                    </VStack>
+                  ) : (
+                    <Text color={muted}>No attachments recorded.</Text>
+                  )}
+                </Box>
+
+                <Box bg={panelBg} p={4} borderRadius="xl" border="1px solid" borderColor={borderColor}>
+                  <Text fontSize="xs" fontWeight="800" color={muted} mb={2}>MANAGER REVIEW</Text>
+                  {canApprove && selectedWorkRecord.approvalStatus === 'pending_approval' ? (
+                    <VStack align="stretch" spacing={3}>
+                      <Input
+                        size="sm"
+                        placeholder="Manager note"
+                        value={managerNotes[selectedWorkRecord._id] || ''}
+                        onChange={(event) => setManagerNotes({ ...managerNotes, [selectedWorkRecord._id]: event.target.value })}
+                      />
+                      <HStack>
+                        <Button size="sm" colorScheme="green" leftIcon={<FiUserCheck />} onClick={() => approveRecord(selectedWorkRecord, 'approved')}>Approve</Button>
+                        <Button size="sm" colorScheme="red" variant="outline" leftIcon={<FiXCircle />} onClick={() => approveRecord(selectedWorkRecord, 'rejected')}>Reject</Button>
+                      </HStack>
+                    </VStack>
+                  ) : (
+                    <Text color={muted}>{selectedWorkRecord.managerNote || selectedWorkRecord.approvedByName || 'No manager review note yet.'}</Text>
+                  )}
+                </Box>
+              </VStack>
+            )}
+          </DrawerBody>
+
+          <DrawerFooter borderTop="1px solid" borderColor={borderColor}>
+            <HStack spacing={2}>
+              <Button variant="ghost" onClick={() => setSelectedWorkRecordId('')}>Close</Button>
+              {selectedWorkRecord && (
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    handleViewDetails(selectedWorkRecord.taskId);
+                    setSelectedWorkRecordId('');
+                  }}
+                >
+                  Open Ticket Detail
+                </Button>
+              )}
+              {selectedWorkRecord && canDeleteRecord(selectedWorkRecord) && (
+                <Button colorScheme="red" variant="ghost" leftIcon={<FiTrash2 />} onClick={() => deleteRecord(selectedWorkRecord)}>
+                  Delete
+                </Button>
+              )}
+            </HStack>
+          </DrawerFooter>
+        </DrawerContent>
+      </Drawer>
 
       <Modal isOpen={rejectModalOpen} onClose={() => setRejectModalOpen(false)} isCentered>
         <ModalOverlay />

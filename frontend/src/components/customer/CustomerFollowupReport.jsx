@@ -7,6 +7,7 @@ import {
   Flex,
   Text,
   Button,
+  ButtonGroup,
   Card,
   CardBody,
   CardHeader,
@@ -29,13 +30,13 @@ import {
   InputLeftElement,
   IconButton,
   useDisclosure,
-  Modal,
-  ModalOverlay,
-  ModalContent,
-  ModalHeader,
-  ModalBody,
-  ModalCloseButton,
-  ModalFooter,
+  Drawer,
+  DrawerOverlay,
+  DrawerContent,
+  DrawerHeader,
+  DrawerBody,
+  DrawerCloseButton,
+  DrawerFooter,
   FormControl,
   FormLabel,
   Textarea,
@@ -69,12 +70,18 @@ import {
 import axiosInstance from "../../services/axiosInstance";
 
 const CustomerFollowupReport = () => {
+  const pageSizeOptions = [5, 10, 15, 20];
   const [followups, setFollowups] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [selectedFollowup, setSelectedFollowup] = useState(null);
+  const [expandedServices, setExpandedServices] = useState({});
+  const [followupPageSize, setFollowupPageSize] = useState(5);
+  const [followupPage, setFollowupPage] = useState(1);
+  const [trainingPageSize, setTrainingPageSize] = useState(5);
+  const [trainingPage, setTrainingPage] = useState(1);
   const [usersMap, setUsersMap] = useState({});
   const [stats, setStats] = useState({
     total: 0,
@@ -286,6 +293,22 @@ const CustomerFollowupReport = () => {
     return matchesSearch && matchesStatus;
   });
 
+  const followupPageCount = Math.max(1, Math.ceil(filteredFollowups.length / followupPageSize));
+  const paginatedFollowups = filteredFollowups.slice(
+    (followupPage - 1) * followupPageSize,
+    followupPage * followupPageSize
+  );
+
+  useEffect(() => {
+    setFollowupPage(1);
+  }, [followupPageSize, searchTerm, statusFilter]);
+
+  useEffect(() => {
+    if (followupPage > followupPageCount) {
+      setFollowupPage(followupPageCount);
+    }
+  }, [followupPage, followupPageCount]);
+
   // Training-specific slice for reporting
   const trainingFollowups = [
     ...trainingFollowupsData,
@@ -296,6 +319,22 @@ const CustomerFollowupReport = () => {
       return typeMatch || hasCourse || hasTrainingDates;
     }),
   ];
+
+  const trainingPageCount = Math.max(1, Math.ceil(trainingFollowups.length / trainingPageSize));
+  const paginatedTrainingFollowups = trainingFollowups.slice(
+    (trainingPage - 1) * trainingPageSize,
+    trainingPage * trainingPageSize
+  );
+
+  useEffect(() => {
+    setTrainingPage(1);
+  }, [trainingFollowupsData, trainingPageSize, searchTerm, statusFilter]);
+
+  useEffect(() => {
+    if (trainingPage > trainingPageCount) {
+      setTrainingPage(trainingPageCount);
+    }
+  }, [trainingPage, trainingPageCount]);
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -331,6 +370,36 @@ const CustomerFollowupReport = () => {
       if (val !== undefined && val !== null && val !== '') return val;
     }
     return fallback;
+  };
+
+  const toggleServiceDetails = (id) => {
+    setExpandedServices((prev) => ({
+      ...prev,
+      [id]: !prev[id],
+    }));
+  };
+
+  const renderServiceSummary = (service, id) => {
+    const serviceText = (service || 'N/A').toString();
+    const isLong = serviceText.length > 90;
+    const isExpanded = Boolean(expandedServices[id]);
+    const visibleText = !isLong || isExpanded ? serviceText : `${serviceText.slice(0, 90)}...`;
+
+    return (
+      <VStack align="start" spacing={1} maxW="280px">
+        <Text whiteSpace="pre-wrap">{visibleText}</Text>
+        {isLong && (
+          <Button
+            size="xs"
+            variant="link"
+            colorScheme="blue"
+            onClick={() => toggleServiceDetails(id)}
+          >
+            {isExpanded ? "Collapse" : "View service details"}
+          </Button>
+        )}
+      </VStack>
+    );
   };
 
   const normalizeIdentifier = (value) => {
@@ -732,9 +801,26 @@ const CustomerFollowupReport = () => {
           p={2}
         >
           <CardHeader py={3}>
-            <Flex justify="space-between" align="center">
+            <Flex justify="space-between" align={{ base: "flex-start", md: "center" }} direction={{ base: "column", md: "row" }} gap={3}>
               <Heading size="md">Follow-up Details</Heading>
-              <HStack spacing={3}>
+              <HStack spacing={3} flexWrap="wrap">
+                <HStack spacing={2}>
+                  <Text color={secondaryTextColor} fontSize="sm">Rows</Text>
+                  <Select
+                    size="sm"
+                    w="84px"
+                    value={followupPageSize}
+                    onChange={(event) => setFollowupPageSize(Number(event.target.value))}
+                    bg={useColorModeValue('white', 'gray.700')}
+                  >
+                    {pageSizeOptions.map((size) => (
+                      <option key={size} value={size}>{size}</option>
+                    ))}
+                  </Select>
+                </HStack>
+                <Text color={secondaryTextColor} fontSize="sm">
+                  Page {followupPage} of {followupPageCount}
+                </Text>
                 <Text color={secondaryTextColor} fontSize="sm">
                   Last updated: {new Date().toLocaleTimeString()}
                 </Text>
@@ -742,29 +828,21 @@ const CustomerFollowupReport = () => {
             </Flex>
           </CardHeader>
           <CardBody p={0}>
-            <Table variant="simple" size="sm" minW="980px">
+            <Table variant="simple" size="sm" minW={{ base: "720px", lg: "auto" }}>
               <Thead bg={useColorModeValue('gray.50', 'gray.700')} fontSize="sm">
                 <Tr>
                   <Th>Customer</Th>
                   <Th>Company</Th>
                   <Th>Package</Th>
-                  <Th>Service</Th>
-                  <Th>Due Date</Th>
-                  <Th>Assigned To</Th>
-                  <Th>Last Updated</Th>
-                  <Th>Actions</Th>
+                  <Th textAlign="right">Actions</Th>
                 </Tr>
               </Thead>
               <Tbody>
-                {filteredFollowups.length > 0 ? (
-                  filteredFollowups.map((followup, idx) => {
+                {paginatedFollowups.length > 0 ? (
+                  paginatedFollowups.map((followup, idx) => {
                     const customer = getValue(followup, ['customerName', 'clientName', 'name'], 'N/A');
                     const company = getValue(followup, ['companyName', 'company', 'organization'], 'N/A');
                     const pkg = getValue(followup, ['packageType', 'package', 'packageNumber', 'packageName'], 'N/A');
-                    const service = getValue(followup, ['service', 'serviceProvided', 'serviceName'], 'N/A');
-                    const dueDate = followup.dueDate ? new Date(followup.dueDate) : null;
-                    const assigned = getAssignedDisplay(followup);
-                    const updated = followup.updatedAt ? new Date(followup.updatedAt) : null;
                     return (
                       <Tr key={followup._id || idx} _hover={{ bg: useColorModeValue('gray.50', 'gray.700') }}>
                         <Td>
@@ -776,44 +854,7 @@ const CustomerFollowupReport = () => {
                         <Td>
                           <Text>{pkg}</Text>
                         </Td>
-                        <Td>
-                          <Text>{service}</Text>
-                        </Td>
-                        <Td>
-                          {dueDate ? (
-                            <>
-                              <Text>{dueDate.toLocaleDateString()}</Text>
-                              <Text fontSize="xs" color={secondaryTextColor}>
-                                {dueDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                              </Text>
-                            </>
-                          ) : (
-                            'Not set'
-                          )}
-                        </Td>
-                        <Td>
-                          <HStack>
-                            <Box
-                              w={3}
-                              h={3}
-                              borderRadius="full"
-                              bg={assigned !== 'Unassigned' ? 'green.500' : 'gray.300'}
-                            />
-                            <Text>{assigned}</Text>
-                          </HStack>
-                        </Td>
-                        <Td>
-                        {updated ? (
-                          <Tooltip label={updated.toLocaleString()}>
-                            <Text>
-                              {updated.toLocaleDateString()}
-                            </Text>
-                          </Tooltip>
-                        ) : (
-                          'N/A'
-                        )}
-                        </Td>
-                        <Td>
+                        <Td textAlign="right">
                           <Button
                             size="sm"
                             leftIcon={<FiEye />}
@@ -821,7 +862,7 @@ const CustomerFollowupReport = () => {
                             colorScheme="blue"
                             variant="ghost"
                           >
-                            View
+                            Detail
                           </Button>
                         </Td>
                       </Tr>
@@ -829,7 +870,7 @@ const CustomerFollowupReport = () => {
                   })
                 ) : (
                   <Tr>
-                    <Td colSpan={8} textAlign="center" py={8}>
+                    <Td colSpan={4} textAlign="center" py={8}>
                       <VStack spacing={2}>
                         <Icon as={FiAlertCircle} boxSize={8} color={secondaryTextColor} />
                         <Text color={secondaryTextColor}>
@@ -841,16 +882,49 @@ const CustomerFollowupReport = () => {
                 )}
               </Tbody>
             </Table>
+            <Flex justify="space-between" align={{ base: "flex-start", md: "center" }} direction={{ base: "column", md: "row" }} gap={3} p={4}>
+              <Text color={secondaryTextColor} fontSize="sm">
+                Showing {paginatedFollowups.length} of {filteredFollowups.length} follow-ups
+              </Text>
+              <ButtonGroup size="sm" variant="outline">
+                <Button
+                  onClick={() => setFollowupPage((page) => Math.max(1, page - 1))}
+                  isDisabled={followupPage <= 1}
+                >
+                  Previous
+                </Button>
+                <Button
+                  onClick={() => setFollowupPage((page) => Math.min(followupPageCount, page + 1))}
+                  isDisabled={followupPage >= followupPageCount}
+                >
+                  Next
+                </Button>
+              </ButtonGroup>
+            </Flex>
           </CardBody>
         </Card>
 
-        {/* Follow-up Details Modal */}
-        <Modal isOpen={isOpen} onClose={onClose} size="xl">
-          <ModalOverlay />
-          <ModalContent bg={cardBg}>
-            <ModalHeader>Follow-up Details</ModalHeader>
-            <ModalCloseButton />
-            <ModalBody pb={6}>
+        {/* Follow-up Details Drawer */}
+        <Drawer isOpen={isOpen} onClose={onClose} placement="right" size="xl">
+          <DrawerOverlay />
+          <DrawerContent bg={cardBg} h="100dvh" maxH="100dvh" maxW={{ base: "100vw", md: "760px", xl: "860px" }}>
+            <DrawerCloseButton />
+            <DrawerHeader borderBottomWidth="1px" borderColor={borderColor} pr={12}>
+              <HStack spacing={3}>
+                <Box p={3} borderRadius="lg" bg={useColorModeValue('blue.50', 'blue.900')} color="blue.500">
+                  <Icon as={FiEye} boxSize={5} />
+                </Box>
+                <Box>
+                  <Text fontSize="sm" color={secondaryTextColor}>Follow-up Details</Text>
+                  <Heading size="md">
+                    {selectedFollowup
+                      ? getValue(selectedFollowup, ['customerName', 'clientName', 'name'], 'Unnamed Customer')
+                      : 'Loading details'}
+                  </Heading>
+                </Box>
+              </HStack>
+            </DrawerHeader>
+            <DrawerBody py={6} overflowY="auto">
               {selectedFollowup ? (
                 <VStack spacing={4} align="stretch">
                   <Box>
@@ -1021,14 +1095,14 @@ const CustomerFollowupReport = () => {
               ) : (
                 <Text>Loading follow-up details...</Text>
               )}
-            </ModalBody>
-            <ModalFooter>
-              <Button colorScheme="blue" mr={3} onClick={onClose}>
+            </DrawerBody>
+            <DrawerFooter borderTopWidth="1px" borderColor={borderColor}>
+              <Button colorScheme="blue" onClick={onClose}>
                 Close
               </Button>
-            </ModalFooter>
-          </ModalContent>
-        </Modal>
+            </DrawerFooter>
+          </DrawerContent>
+        </Drawer>
 
         {/* Training Follow-Up Details (for reporting) */}
         <Card
@@ -1042,9 +1116,28 @@ const CustomerFollowupReport = () => {
           <CardHeader borderBottomWidth="1px" borderColor={borderColor} py={3}>
             <Flex justify="space-between" align="center" wrap="wrap" gap={3}>
               <Heading size="md">Training Follow-Up Details</Heading>
-              <Text color={secondaryTextColor} fontSize="sm">
-                Showing {trainingFollowups.length} training follow-ups
-              </Text>
+              <HStack spacing={3} flexWrap="wrap">
+                <HStack spacing={2}>
+                  <Text color={secondaryTextColor} fontSize="sm">Rows</Text>
+                  <Select
+                    size="sm"
+                    w="84px"
+                    value={trainingPageSize}
+                    onChange={(event) => setTrainingPageSize(Number(event.target.value))}
+                    bg={useColorModeValue('white', 'gray.700')}
+                  >
+                    {pageSizeOptions.map((size) => (
+                      <option key={size} value={size}>{size}</option>
+                    ))}
+                  </Select>
+                </HStack>
+                <Text color={secondaryTextColor} fontSize="sm">
+                  Page {trainingPage} of {trainingPageCount}
+                </Text>
+                <Text color={secondaryTextColor} fontSize="sm">
+                  Showing {paginatedTrainingFollowups.length} of {trainingFollowups.length} training follow-ups
+                </Text>
+              </HStack>
             </Flex>
           </CardHeader>
           <CardBody p={3}>
@@ -1064,14 +1157,14 @@ const CustomerFollowupReport = () => {
                   </Tr>
                 </Thead>
                 <Tbody>
-                  {trainingFollowups.length === 0 && (
+                  {paginatedTrainingFollowups.length === 0 && (
                     <Tr>
                       <Td colSpan={9} textAlign="center" color={secondaryTextColor}>
                         No training follow-ups available.
                       </Td>
                     </Tr>
                   )}
-                  {trainingFollowups.map((item, idx) => {
+                  {paginatedTrainingFollowups.map((item, idx) => {
                     const customer = getValue(item, ['customerName', 'clientName', 'name']);
                     const course = getValue(item, ['course', 'Course', 'trainingCourse', 'trainingType', 'program'], 'N/A');
                     const schedule = getValue(item, ['schedule', 'shift', 'scheduleShift'], 'N/A');
@@ -1108,6 +1201,25 @@ const CustomerFollowupReport = () => {
                 </Tbody>
               </Table>
             </Box>
+            <Flex justify="space-between" align={{ base: "flex-start", md: "center" }} direction={{ base: "column", md: "row" }} gap={3} mt={4}>
+              <Text color={secondaryTextColor} fontSize="sm">
+                Showing {paginatedTrainingFollowups.length} of {trainingFollowups.length} training follow-ups
+              </Text>
+              <ButtonGroup size="sm" variant="outline">
+                <Button
+                  onClick={() => setTrainingPage((page) => Math.max(1, page - 1))}
+                  isDisabled={trainingPage <= 1}
+                >
+                  Previous
+                </Button>
+                <Button
+                  onClick={() => setTrainingPage((page) => Math.min(trainingPageCount, page + 1))}
+                  isDisabled={trainingPage >= trainingPageCount}
+                >
+                  Next
+                </Button>
+              </ButtonGroup>
+            </Flex>
 
             <Box
               mt={6}

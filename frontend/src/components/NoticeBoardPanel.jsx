@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertDialog,
   AlertDialogBody,
@@ -13,7 +13,13 @@ import {
   CardBody,
   CardFooter,
   CardHeader,
-  Divider,
+  Drawer,
+  DrawerBody,
+  DrawerCloseButton,
+  DrawerContent,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerOverlay,
   Flex,
   FormControl,
   FormLabel,
@@ -262,6 +268,8 @@ const NoticeBoardPanel = ({
   const highlightBg = useColorModeValue('blue.50', 'rgba(49, 130, 206, 0.12)');
   const pinnedBorder = useColorModeValue('blue.400', 'blue.300');
   const toolbarBg = useColorModeValue('gray.50', 'gray.700');
+  const readerRowBg = useColorModeValue('gray.50', 'gray.700');
+  const noticeContentColor = useColorModeValue('gray.800', 'gray.100');
 
   // Handle File Selection
   const handleFileSelect = (e) => {
@@ -620,20 +628,28 @@ const NoticeBoardPanel = ({
         <CardBody py={4} px={4}>
           <Flex direction={{ base: 'column', lg: 'row' }} gap={4} justify="space-between" align={{ base: 'stretch', lg: 'center' }}>
             {/* Category Filter Chips */}
-            <HStack spacing={2} overflowX="auto" pb={{ base: 2, lg: 0 }} maxW={{ base: '100%', lg: '60%' }}>
+            <Wrap spacing={2} rowGap={2} maxW={{ base: '100%', lg: '62%' }} align="center">
               {IT_CATEGORIES.map((cat) => (
+                <WrapItem key={cat.value}>
                 <Button
-                  key={cat.value}
                   size="xs"
                   variant={selectedCategory === cat.value ? 'solid' : 'outline'}
                   colorScheme={cat.color}
                   onClick={() => setSelectedCategory(cat.value)}
-                  whiteSpace="nowrap"
+                  whiteSpace="normal"
+                  h="auto"
+                  minH="30px"
+                  px={2.5}
+                  py={1}
+                  lineHeight="1.15"
+                  textAlign="left"
+                  maxW={{ base: '100%', sm: '220px' }}
                 >
                   {cat.label}
                 </Button>
+                </WrapItem>
               ))}
-            </HStack>
+            </Wrap>
 
             {/* Date Filters & Search */}
             <HStack spacing={3} flexWrap="wrap" justify={{ base: 'flex-start', lg: 'flex-end' }}>
@@ -857,7 +873,7 @@ const NoticeBoardPanel = ({
                     fontSize="sm"
                     whiteSpace="pre-wrap"
                     wordBreak="break-word"
-                    color={useColorModeValue('gray.800', 'gray.100')}
+                    color={noticeContentColor}
                     dangerouslySetInnerHTML={{ __html: typeof notice.content === 'string' ? notice.content : String(notice.content || '') }}
                   />
                 </CardBody>
@@ -913,19 +929,19 @@ const NoticeBoardPanel = ({
         </VStack>
       )}
 
-      {/* Post Notice Modal (Create) */}
-      <Modal isOpen={isCreateOpen} onClose={onCreateClose} size="xl" isCentered>
-        <ModalOverlay backdropFilter="blur(2px)" />
-        <ModalContent borderRadius="2xl">
+      {/* Post Notice Drawer (Create) */}
+      <Drawer isOpen={isCreateOpen} onClose={onCreateClose} placement="right" size="xl">
+        <DrawerOverlay backdropFilter="blur(3px)" />
+        <DrawerContent maxW={{ base: '100vw', lg: '760px' }}>
           <form onSubmit={handleCreateSubmit}>
-            <ModalHeader>
+            <DrawerHeader borderBottom="1px solid" borderColor={borderColor}>
               <HStack spacing={2}>
                 <FiPlus color="#3182CE" />
                 <Text>Post Notice to {department} Team</Text>
               </HStack>
-            </ModalHeader>
-            <ModalCloseButton />
-            <ModalBody>
+            </DrawerHeader>
+            <DrawerCloseButton />
+            <DrawerBody>
               <VStack spacing={4} align="stretch">
                 <FormControl isRequired>
                   <FormLabel fontSize="sm" fontWeight="semibold">Notice Title</FormLabel>
@@ -1040,28 +1056,28 @@ const NoticeBoardPanel = ({
                   )}
                 </FormControl>
               </VStack>
-            </ModalBody>
-            <ModalFooter gap={2}>
+            </DrawerBody>
+            <DrawerFooter gap={2} borderTop="1px solid" borderColor={borderColor}>
               <Button variant="ghost" onClick={onCreateClose}>Cancel</Button>
               <Button colorScheme="blue" type="submit" isLoading={submitting}>Post Notice</Button>
-            </ModalFooter>
+            </DrawerFooter>
           </form>
-        </ModalContent>
-      </Modal>
+        </DrawerContent>
+      </Drawer>
 
-      {/* Edit Modal */}
-      <Modal isOpen={isEditOpen} onClose={onEditClose} size="xl" isCentered>
-        <ModalOverlay backdropFilter="blur(2px)" />
-        <ModalContent borderRadius="2xl">
+      {/* Edit Drawer */}
+      <Drawer isOpen={isEditOpen} onClose={onEditClose} placement="right" size="xl">
+        <DrawerOverlay backdropFilter="blur(3px)" />
+        <DrawerContent maxW={{ base: '100vw', lg: '760px' }}>
           <form onSubmit={handleEditSubmit}>
-            <ModalHeader>
+            <DrawerHeader borderBottom="1px solid" borderColor={borderColor}>
               <HStack spacing={2}>
                 <FiEdit2 color="#3182CE" />
                 <Text>Edit Notice</Text>
               </HStack>
-            </ModalHeader>
-            <ModalCloseButton />
-            <ModalBody>
+            </DrawerHeader>
+            <DrawerCloseButton />
+            <DrawerBody>
               <VStack spacing={4} align="stretch">
                 <FormControl isRequired>
                   <FormLabel fontSize="sm" fontWeight="semibold">Notice Title</FormLabel>
@@ -1175,14 +1191,14 @@ const NoticeBoardPanel = ({
                   )}
                 </FormControl>
               </VStack>
-            </ModalBody>
-            <ModalFooter gap={2}>
+            </DrawerBody>
+            <DrawerFooter gap={2} borderTop="1px solid" borderColor={borderColor}>
               <Button variant="ghost" onClick={onEditClose}>Cancel</Button>
               <Button colorScheme="blue" type="submit" isLoading={submitting}>Update Notice</Button>
-            </ModalFooter>
+            </DrawerFooter>
           </form>
-        </ModalContent>
-      </Modal>
+        </DrawerContent>
+      </Drawer>
 
       {/* Delete Confirmation Alert */}
       <AlertDialog isOpen={isDeleteOpen} leastDestructiveRef={cancelDeleteRef} onClose={onDeleteClose} isCentered>
@@ -1190,7 +1206,7 @@ const NoticeBoardPanel = ({
           <AlertDialogContent borderRadius="2xl">
             <AlertDialogHeader fontSize="lg" fontWeight="bold">Delete Notice</AlertDialogHeader>
             <AlertDialogBody>
-              Are you sure you want to delete notice <strong>"{deletingNotice?.title}"</strong>? This will remove it for all team members.
+              Are you sure you want to delete notice <strong>{deletingNotice?.title}</strong>? This will remove it for all team members.
             </AlertDialogBody>
             <AlertDialogFooter gap={2}>
               <Button ref={cancelDeleteRef} onClick={onDeleteClose}>Cancel</Button>
@@ -1217,7 +1233,7 @@ const NoticeBoardPanel = ({
             ) : (
               <VStack spacing={3} align="stretch">
                 {activeReadersNotice.views.map((v, idx) => (
-                  <Flex key={idx} justify="space-between" align="center" p={2} borderRadius="lg" bg={useColorModeValue('gray.50', 'gray.700')}>
+                  <Flex key={idx} justify="space-between" align="center" p={2} borderRadius="lg" bg={readerRowBg}>
                     <Box>
                       <Text fontWeight="semibold" fontSize="sm">{v.userName || 'Staff Member'}</Text>
                       <Text fontSize="xs" color="gray.400">{v.userRole || 'Team Member'}</Text>

@@ -5,6 +5,13 @@ import {
   Button,
   Card,
   CardBody,
+  Drawer,
+  DrawerBody,
+  DrawerCloseButton,
+  DrawerContent,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerOverlay,
   Flex,
   FormControl,
   FormLabel,
@@ -25,9 +32,8 @@ import {
   useToast,
 } from "@chakra-ui/react";
 import {
-  FiChevronDown,
-  FiChevronRight,
   FiClock,
+  FiEye,
   FiMessageSquare,
   FiPaperclip,
   FiRefreshCw,
@@ -156,6 +162,7 @@ export default function CSExternalITRequestsPanel({ focusedTaskId = "", focusedC
   const [priorityFilter, setPriorityFilter] = useState("all");
   const [assignmentFilter, setAssignmentFilter] = useState("all");
   const [quickView, setQuickView] = useState("all");
+  const [selectedProjectId, setSelectedProjectId] = useState("");
   const [form, setForm] = useState({
     taskName: "",
     ticketCategory: "software",
@@ -219,6 +226,7 @@ export default function CSExternalITRequestsPanel({ focusedTaskId = "", focusedC
     setPriorityFilter("all");
     setAssignmentFilter("all");
     setQuickView("all");
+    setSelectedProjectId(focusedTaskId);
     setExpandedProjectIds((prev) => ({
       ...prev,
       [focusedTaskId]: true,
@@ -391,13 +399,6 @@ export default function CSExternalITRequestsPanel({ focusedTaskId = "", focusedC
     }
   };
 
-  const toggleProject = (taskId) => {
-    setExpandedProjectIds((prev) => ({
-      ...prev,
-      [taskId]: !prev[taskId],
-    }));
-  };
-
   const displayedProjects = useMemo(() => {
     const query = projectSearch.trim().toLowerCase();
     const priorityRank = { critical: 0, high: 1, normal: 2, low: 3 };
@@ -444,6 +445,12 @@ export default function CSExternalITRequestsPanel({ focusedTaskId = "", focusedC
       ? projects.find((task) => String(task._id || task.id) === String(focusedTaskId))
       : null
   ), [focusedTaskId, projects]);
+
+  const selectedProject = useMemo(() => (
+    selectedProjectId
+      ? projects.find((task) => String(task._id || task.id) === String(selectedProjectId))
+      : null
+  ), [projects, selectedProjectId]);
 
   useEffect(() => {
     if (!focusedTaskId || loadingProjects) return undefined;
@@ -767,16 +774,6 @@ export default function CSExternalITRequestsPanel({ focusedTaskId = "", focusedC
                     >
                       <Flex justify="space-between" align="center" gap={3}>
                         <HStack minW={0} spacing={3}>
-                          <Button
-                            aria-label={isExpanded ? "Collapse external project details" : "Expand external project details"}
-                            size="xs"
-                            variant="ghost"
-                            minW="28px"
-                            px={0}
-                            onClick={() => toggleProject(taskId)}
-                          >
-                            <Icon as={isExpanded ? FiChevronDown : FiChevronRight} />
-                          </Button>
                           <Box minW={0}>
                             <Badge mb={2} colorScheme="purple" variant="subtle">External project request</Badge>
                             <Text fontWeight="800">{getTaskTitle(task)}</Text>
@@ -787,6 +784,15 @@ export default function CSExternalITRequestsPanel({ focusedTaskId = "", focusedC
                           <Badge colorScheme={getStatusColor(task)}>
                             {String(task.workflowStatus || task.status || "pending").replace("_", " ")}
                           </Badge>
+                          <Button
+                            size="xs"
+                            variant="outline"
+                            colorScheme="blue"
+                            leftIcon={<FiEye />}
+                            onClick={() => setSelectedProjectId(taskId)}
+                          >
+                            Detail
+                          </Button>
                           {canUserDeleteProject(task) && (
                             <Tooltip label="Delete External Project (Sender & Manager only)" hasArrow>
                               <IconButton
@@ -806,7 +812,7 @@ export default function CSExternalITRequestsPanel({ focusedTaskId = "", focusedC
                         </HStack>
                       </Flex>
 
-                      {isExpanded && (
+                      {isExpanded && Boolean(selectedProjectId === "__inline_disabled__") && (
                         <Box mt={3}>
                           <Text fontSize="sm" color={muted}>{String(task.description || "").replace("[CS External IT Request]", "").trim()}</Text>
                           <SimpleGrid columns={{ base: 1, md: 2 }} spacing={2} mt={3} fontSize="sm">
@@ -992,6 +998,178 @@ export default function CSExternalITRequestsPanel({ focusedTaskId = "", focusedC
             </CardBody>
           </Card>
         </SimpleGrid>
+
+        <Drawer isOpen={Boolean(selectedProject)} placement="right" onClose={() => setSelectedProjectId("")} size="md">
+          <DrawerOverlay backdropFilter="blur(3px)" />
+          <DrawerContent maxW={{ base: "100vw", md: "540px" }} bg={cardBg}>
+            <DrawerCloseButton />
+            <DrawerHeader borderBottom="1px solid" borderColor={borderColor} px={4} py={3}>
+              <VStack align="stretch" spacing={2} pr={8}>
+                <HStack spacing={2} wrap="wrap">
+                  <Badge colorScheme="purple" fontSize="2xs" borderRadius="full">External Project</Badge>
+                  <Badge colorScheme={getStatusColor(selectedProject || {})} fontSize="2xs" borderRadius="full">
+                    {String(selectedProject?.workflowStatus || selectedProject?.status || "pending").replace("_", " ")}
+                  </Badge>
+                </HStack>
+                <Heading size="sm" noOfLines={2}>{getTaskTitle(selectedProject || {})}</Heading>
+                <Text fontSize="xs" color={muted}>
+                  {selectedProject?.client || selectedProject?.category || "Customer Service external request"}
+                </Text>
+              </VStack>
+            </DrawerHeader>
+
+            <DrawerBody px={4} py={3}>
+              {selectedProject && (() => {
+                const taskId = selectedProject._id || selectedProject.id;
+                const latestRecord = getLatestWorkRecord(selectedProject);
+                const canGiveFeedback = canCurrentUserGiveFeedback(selectedProject, userAliases);
+                const feedbackOpen = isFeedbackOpen(selectedProject);
+                const accepted = hasManagerAcceptedProject(selectedProject);
+                const progress = getProgressValue(selectedProject);
+                return (
+                  <VStack align="stretch" spacing={3}>
+                    <Box p={3} borderRadius="lg" bg={panelBg} border="1px solid" borderColor={borderColor}>
+                      <Text fontSize="xs" fontWeight="800" color={muted} mb={1}>REQUEST DETAILS</Text>
+                      <Text fontSize="sm" color={muted} whiteSpace="pre-wrap">
+                        {String(selectedProject.description || "").replace("[CS External IT Request]", "").trim() || "No request detail provided."}
+                      </Text>
+                    </Box>
+
+                    <SimpleGrid columns={{ base: 1, md: 2 }} spacing={2}>
+                      <Box p={3} borderRadius="lg" bg={panelBg}>
+                        <Text fontSize="2xs" fontWeight="800" color={muted}>SUBMITTED</Text>
+                        <Text fontSize="xs">{selectedProject.createdAt ? new Date(selectedProject.createdAt).toLocaleString() : "Recently"}</Text>
+                      </Box>
+                      <Box p={3} borderRadius="lg" bg={panelBg}>
+                        <Text fontSize="2xs" fontWeight="800" color={muted}>ASSIGNED IT</Text>
+                        <Text fontSize="xs">{(Array.isArray(selectedProject.assignedTo) ? selectedProject.assignedTo : [selectedProject.assignedTo].filter(Boolean)).join(", ") || "Waiting manager assignment"}</Text>
+                      </Box>
+                      <Box p={3} borderRadius="lg" bg={panelBg}>
+                        <Text fontSize="2xs" fontWeight="800" color={muted}>LEADER</Text>
+                        <Text fontSize="xs">{selectedProject.taskLeader || "Waiting assignment"}</Text>
+                      </Box>
+                      <Box p={3} borderRadius="lg" bg={panelBg}>
+                        <Text fontSize="2xs" fontWeight="800" color={muted}>PRIORITY</Text>
+                        <Badge colorScheme={selectedProject.priority === "critical" ? "red" : selectedProject.priority === "high" ? "orange" : "blue"} size="sm">
+                          {selectedProject.priority || "normal"}
+                        </Badge>
+                      </Box>
+                    </SimpleGrid>
+
+                    {accepted ? (
+                      <Box p={3} borderRadius="lg" bg={panelBg}>
+                        <HStack justify="space-between" mb={1}>
+                          <Text fontSize="xs" color={muted}>Current IT project progress</Text>
+                          <Text fontSize="xs" fontWeight="800">{progress}%</Text>
+                        </HStack>
+                        <Box h="8px" bg="gray.200" borderRadius="full" overflow="hidden">
+                          <Box h="100%" w={`${progress}%`} bg="teal.400" transition="width 0.3s ease" />
+                        </Box>
+                      </Box>
+                    ) : (
+                      <Box p={3} borderRadius="lg" bg={panelBg}>
+                        <Text fontSize="sm" color={muted}>Progress appears after the IT manager accepts and assigns this external project.</Text>
+                      </Box>
+                    )}
+
+                    <Box p={3} borderRadius="lg" bg={panelBg}>
+                      <HStack justify="space-between" mb={2}>
+                        <HStack>
+                          <Icon as={FiMessageSquare} color="purple.500" />
+                          <Text fontSize="sm" fontWeight="800">Project Discussion</Text>
+                        </HStack>
+                        <Badge colorScheme="purple" fontSize="2xs">Sender Channel</Badge>
+                      </HStack>
+                      {canCurrentUserGiveFeedback(selectedProject, userAliases) ? (
+                        <>
+                          <VStack align="stretch" spacing={2} mb={3} maxH="180px" overflowY="auto">
+                            {(selectedProject.comments || []).filter((c) => (c.audience || "general") !== "staff_manager").length === 0 ? (
+                              <Text fontSize="sm" color={muted}>No discussion yet.</Text>
+                            ) : (selectedProject.comments || []).filter((c) => (c.audience || "general") !== "staff_manager").map((comment) => (
+                              <Box key={comment._id || comment.createdAt || comment.body} bg={cardBg} border="1px solid" borderColor={borderColor} borderRadius="md" p={2}>
+                                <HStack justify="space-between" align="start">
+                                  <Text fontSize="xs" fontWeight="800">{comment.authorName || "User"}</Text>
+                                  <Text fontSize="2xs" color={muted}>{comment.createdAt ? new Date(comment.createdAt).toLocaleString() : ""}</Text>
+                                </HStack>
+                                <Text fontSize="xs" mt={1}>{comment.body}</Text>
+                              </Box>
+                            ))}
+                          </VStack>
+                          <Textarea
+                            size="sm"
+                            placeholder="Message the IT Manager about this external project..."
+                            value={commentDrafts[taskId] || ""}
+                            onChange={(event) => setCommentDrafts({ ...commentDrafts, [taskId]: event.target.value })}
+                          />
+                          <Button mt={2} size="sm" colorScheme="purple" leftIcon={<FiMessageSquare />} onClick={() => submitProjectComment(selectedProject)} isLoading={commentSavingId === taskId} isDisabled={!String(commentDrafts[taskId] || "").trim()}>
+                            Send Comment
+                          </Button>
+                        </>
+                      ) : (
+                        <Text fontSize="xs" color={muted}>Only the original CS sender can view or post discussion comments.</Text>
+                      )}
+                    </Box>
+
+                    {latestRecord ? (
+                      <Box p={3} borderRadius="lg" bg={panelBg}>
+                        <HStack justify="space-between" align="start">
+                          <Box>
+                            <Text fontSize="sm" fontWeight="800">Latest work done by {latestRecord.staffName || "IT staff"}</Text>
+                            <Text fontSize="xs" color={muted}>{latestRecord.summary}</Text>
+                          </Box>
+                          <Badge colorScheme={latestRecord.approvalStatus === "approved" ? "green" : latestRecord.approvalStatus === "rejected" ? "red" : "orange"}>
+                            {String(latestRecord.approvalStatus || "pending approval").replace("_", " ")}
+                          </Badge>
+                        </HStack>
+                        <Text fontSize="2xs" color={muted} mt={2}>
+                          Completed: {latestRecord.completedAt ? new Date(latestRecord.completedAt).toLocaleString() : "No date"} | Manager feedback: {latestRecord.managerNote || latestRecord.approvedByName || "No feedback yet"}
+                        </Text>
+                        {latestRecord.outstandingTasks && (
+                          <Text fontSize="xs" color="orange.500" mt={1}>Outstanding: {latestRecord.outstandingTasks}</Text>
+                        )}
+                      </Box>
+                    ) : (
+                      <Text fontSize="sm" color={muted}>No IT work report has been submitted yet.</Text>
+                    )}
+
+                    <Box p={3} borderRadius="lg" bg={panelBg}>
+                      <HStack mb={2}>
+                        <Icon as={FiStar} color="yellow.500" />
+                        <Text fontSize="sm" fontWeight="800">Customer Service Sender Feedback</Text>
+                      </HStack>
+                      {selectedProject.requesterFeedback?.submittedAt && (
+                        <Box mb={3}>
+                          <Badge colorScheme="yellow">{selectedProject.requesterFeedback.rating} / 5 rating</Badge>
+                          <Text mt={2} fontSize="sm">{selectedProject.requesterFeedback.comment || "No feedback comment."}</Text>
+                          <Text fontSize="2xs" color={muted}>Submitted {new Date(selectedProject.requesterFeedback.submittedAt).toLocaleString()} by {selectedProject.requesterFeedback.submittedBy || "requester"}</Text>
+                        </Box>
+                      )}
+                      {canGiveFeedback && feedbackOpen ? (
+                        <VStack align="stretch" spacing={2}>
+                          <SimpleGrid columns={{ base: 1, md: 2 }} spacing={2}>
+                            <Select size="sm" placeholder="Rating" value={feedbackDrafts[taskId]?.rating ?? selectedProject.requesterFeedback?.rating ?? ""} onChange={(event) => setFeedbackDrafts({ ...feedbackDrafts, [taskId]: { ...(feedbackDrafts[taskId] || {}), rating: event.target.value } })}>
+                              {[5, 4, 3, 2, 1].map((rating) => <option key={rating} value={rating}>{rating} / 5</option>)}
+                            </Select>
+                            <Button size="sm" colorScheme="yellow" onClick={() => submitProjectFeedback(selectedProject)} isLoading={feedbackSavingId === taskId}>
+                              {selectedProject.requesterFeedback?.submittedAt ? "Update Feedback" : "Send Feedback"}
+                            </Button>
+                          </SimpleGrid>
+                          <Textarea size="sm" placeholder="Feedback for the completed external project" value={feedbackDrafts[taskId]?.comment ?? selectedProject.requesterFeedback?.comment ?? ""} onChange={(event) => setFeedbackDrafts({ ...feedbackDrafts, [taskId]: { ...(feedbackDrafts[taskId] || {}), comment: event.target.value } })} />
+                        </VStack>
+                      ) : (
+                        <Text fontSize="sm" color={muted}>{feedbackOpen ? "Only the original CS sender/request owner can provide feedback." : "Feedback opens after IT completes or approves this external project."}</Text>
+                      )}
+                    </Box>
+                  </VStack>
+                );
+              })()}
+            </DrawerBody>
+
+            <DrawerFooter borderTop="1px solid" borderColor={borderColor} px={4} py={3}>
+              <Button size="sm" onClick={() => setSelectedProjectId("")}>Close</Button>
+            </DrawerFooter>
+          </DrawerContent>
+        </Drawer>
       </CardBody>
     </Card>
   );

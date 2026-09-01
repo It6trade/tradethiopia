@@ -1,26 +1,23 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
-  Box,
   FormControl,
   FormLabel,
   Input,
   Select,
-  Textarea,
   Button,
   Stack,
   RadioGroup,
   Radio,
   useColorModeValue,
-  Modal,
-  ModalOverlay,
-  ModalContent,
-  ModalHeader,
-  ModalCloseButton,
-  ModalBody,
-  ModalFooter,
+  Drawer,
+  DrawerOverlay,
+  DrawerContent,
+  DrawerHeader,
+  DrawerCloseButton,
+  DrawerBody,
+  DrawerFooter,
   Heading,
   Text,
-  Divider,
   HStack,
   VStack,
   Card,
@@ -29,15 +26,12 @@ import {
   SimpleGrid,
   Switch,
   FormHelperText,
-  Icon,
-  Tooltip,
   useToast,
   Checkbox,
   CheckboxGroup,
   Wrap,
   WrapItem
 } from '@chakra-ui/react';
-import { FiInfo } from 'react-icons/fi';
 import axios from 'axios';
 import { useUserStore } from '../../../store/user'; // Adjusted relative path
 
@@ -175,12 +169,12 @@ const AddTaskForm = ({ isOpen, onClose, onDone, onLocalCreate, defaultProjectTyp
     return itUsers;
   }, [itUsers]);
   
-  const bg = useColorModeValue('white', 'gray.800');
   const borderColor = useColorModeValue('gray.200', 'gray.600');
   const modalBg = useColorModeValue('white', 'gray.900');
   const headerBg = useColorModeValue('linear-gradient(135deg, #eff6ff, #ecfeff)', 'linear-gradient(135deg, rgba(14,165,233,0.18), rgba(15,23,42,0.92))');
   const sectionBg = useColorModeValue('gray.50', 'whiteAlpha.50');
   const muted = useColorModeValue('gray.600', 'gray.400');
+  const headingColor = useColorModeValue('gray.800', 'white');
 
   const submit = async () => {
     if (!token) {
@@ -462,25 +456,25 @@ const AddTaskForm = ({ isOpen, onClose, onDone, onLocalCreate, defaultProjectTyp
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} size="5xl" scrollBehavior="inside">
-      <ModalOverlay bg="blackAlpha.500" backdropFilter="blur(5px)" />
-      <ModalContent bg={modalBg} borderRadius="22px" maxW={{ base: '94vw', lg: '980px' }} maxH="92vh" overflow="hidden">
-        <ModalHeader pb={4} bg={headerBg} borderBottom="1px solid" borderColor={borderColor}>
+    <Drawer isOpen={isOpen} onClose={onClose} placement="right" size="xl">
+      <DrawerOverlay bg="blackAlpha.500" backdropFilter="blur(5px)" />
+      <DrawerContent bg={modalBg} maxW={{ base: '100vw', lg: '980px' }} overflow="hidden">
+        <DrawerHeader pb={4} bg={headerBg} borderBottom="1px solid" borderColor={borderColor}>
           <VStack align="stretch" spacing={1}>
-            <Heading size={{ base: 'md', md: 'lg' }} color={useColorModeValue('gray.800', 'white')}>
+            <Heading size={{ base: 'md', md: 'lg' }} color={headingColor}>
               Create New Task
             </Heading>
             <Text fontSize="sm" color={muted}>
               Create a scoped IT task with ownership, timeline, and delivery context.
             </Text>
           </VStack>
-        </ModalHeader>
-        <ModalCloseButton 
+        </DrawerHeader>
+        <DrawerCloseButton 
           borderRadius="full" 
           _focus={{ boxShadow: 'none' }}
         />
         
-        <ModalBody py={5}>
+        <DrawerBody py={5}>
           <VStack spacing={4} align="stretch">
             <Card variant="outline" borderRadius="18px" borderColor={borderColor} bg={sectionBg}>
               <CardHeader pb={2}>
@@ -702,9 +696,9 @@ const AddTaskForm = ({ isOpen, onClose, onDone, onLocalCreate, defaultProjectTyp
               </CardBody>
             </Card>
           </VStack>
-        </ModalBody>
+        </DrawerBody>
 
-        <ModalFooter pt={4} pb={5} borderTop="1px solid" borderColor={borderColor}>
+        <DrawerFooter pt={4} pb={5} borderTop="1px solid" borderColor={borderColor}>
           <HStack spacing={3}>
             <Button 
               variant="ghost" 
@@ -722,9 +716,9 @@ const AddTaskForm = ({ isOpen, onClose, onDone, onLocalCreate, defaultProjectTyp
               Create Task
             </Button>
           </HStack>
-        </ModalFooter>
-      </ModalContent>
-    </Modal>
+        </DrawerFooter>
+      </DrawerContent>
+    </Drawer>
   );
 };
 

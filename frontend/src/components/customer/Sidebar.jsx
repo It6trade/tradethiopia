@@ -1,31 +1,26 @@
-import React, { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   Avatar,
   Badge,
   Box,
-  Button,
   Collapse,
   Divider,
   Flex,
   HStack,
   Icon,
   IconButton,
-  Link,
   Text,
   Tooltip,
-  useColorModeValue,
   VStack,
   Menu,
   MenuButton,
   MenuList,
   MenuItem,
-  MenuDivider,
   Portal,
 } from "@chakra-ui/react";
 import { useLocation, useNavigate, Link as RouterLink } from "react-router-dom";
 import {
   FiActivity,
-  FiAward,
   FiBarChart2,
   FiBookOpen,
   FiChevronDown,
@@ -35,14 +30,13 @@ import {
   FiClipboard,
   FiGlobe,
   FiHome,
-  FiLayers,
   FiLogOut,
   FiMessageSquare,
-  FiPackage,
   FiSettings,
   FiTool,
   FiTrendingUp,
   FiUser,
+  FiUserPlus,
   FiUsers,
 } from "react-icons/fi";
 import { getNotifications } from "../../services/notificationService";
@@ -125,7 +119,9 @@ const SSidebar = ({ isCollapsed: collapsedProp, toggleCollapse: toggleProp, acti
     activeSection === "dashboard" ||
     (location.pathname === "/Cdashboard" && !["notice-board", "requests", "it-requests"].includes(activeSection));
   const isNoticeBoardActive = activeSection === "notice-board" || isActive("/customer/messages");
-  const isRequestsActive = activeSection === "requests" || isActive("/requests");
+  const isRequestsActive = activeSection === "requests" || (
+    isActive("/Cdashboard") && new URLSearchParams(location.search).get("section") === "requests"
+  );
   const isItRequestsActive = activeSection === "it-requests";
 
   // HR Color tokens (#1a2e22 dark forest green theme)
@@ -135,9 +131,6 @@ const SSidebar = ({ isCollapsed: collapsedProp, toggleCollapse: toggleProp, acti
   const subtextColor = "rgba(255, 255, 255, 0.40)";
   const iconColor = "rgba(255, 255, 255, 0.65)";
   const sidebarBorderColor = "rgba(255, 255, 255, 0.08)";
-  const cardBorderColor = "rgba(255, 255, 255, 0.08)";
-  const userCardBg = "#142319";
-
   // Active item styles (HR Emerald #2d6a4f)
   const activeBg = "#2d6a4f";
   const activeTextColor = "#ffffff";
@@ -374,6 +367,7 @@ const SSidebar = ({ isCollapsed: collapsedProp, toggleCollapse: toggleProp, acti
                 e.preventDefault();
                 if (typeof onSelectSection === "function") {
                   onSelectSection("notice-board");
+                  navigate("/Cdashboard?section=notice-board");
                 } else {
                   navigate("/customer/messages");
                 }
@@ -382,7 +376,7 @@ const SSidebar = ({ isCollapsed: collapsedProp, toggleCollapse: toggleProp, acti
             />
             <SidebarLink
               isCollapsed={isCollapsed}
-              to="/requests"
+              to="/Cdashboard?section=requests"
               icon={<FiClipboard size={17} />}
               label="Internal Requests"
               active={isRequestsActive}
@@ -395,6 +389,7 @@ const SSidebar = ({ isCollapsed: collapsedProp, toggleCollapse: toggleProp, acti
                 if (typeof onSelectSection === "function") {
                   e.preventDefault();
                   onSelectSection("requests");
+                  navigate("/Cdashboard?section=requests");
                 }
               }}
             />
@@ -414,6 +409,7 @@ const SSidebar = ({ isCollapsed: collapsedProp, toggleCollapse: toggleProp, acti
                 if (typeof onSelectSection === "function") {
                   onSelectSection("it-requests");
                 }
+                navigate("/Cdashboard?section=it-requests");
               }}
             />
             <SidebarLink
@@ -422,6 +418,18 @@ const SSidebar = ({ isCollapsed: collapsedProp, toggleCollapse: toggleProp, acti
               icon={<FiBookOpen size={17} />}
               label="Training Academy"
               active={isActive("/training")}
+              iconColor={iconColor}
+              activeIconColor={activeIconColor}
+              textColor={textColor}
+              activeTextColor={activeTextColor}
+              activeBg={activeBg}
+            />
+            <SidebarLink
+              isCollapsed={isCollapsed}
+              to="/customer/student-registration"
+              icon={<FiUserPlus size={17} />}
+              label="Student Registration"
+              active={isActive("/customer/student-registration")}
               iconColor={iconColor}
               activeIconColor={activeIconColor}
               textColor={textColor}
@@ -468,6 +476,18 @@ const SSidebar = ({ isCollapsed: collapsedProp, toggleCollapse: toggleProp, acti
                 icon={<FiActivity size={17} />}
                 label="Follow-up Report"
                 active={isActive("/followup-report")}
+                iconColor={iconColor}
+                activeIconColor={activeIconColor}
+                textColor={textColor}
+                activeTextColor={activeTextColor}
+                activeBg={activeBg}
+              />
+              <SidebarLink
+                isCollapsed={isCollapsed}
+                to="/customer/manager-tasks"
+                icon={<FiClipboard size={17} />}
+                label="Task Oversight"
+                active={isActive("/customer/manager-tasks")}
                 iconColor={iconColor}
                 activeIconColor={activeIconColor}
                 textColor={textColor}
