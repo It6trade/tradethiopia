@@ -75,6 +75,7 @@ const actionItemRoutes = require('./routes/actionItemRoutes.js');
 const commissionApprovalRoutes = require('./routes/commissionApprovalRoutes.js');
 const salesOnboardingCourseRoutes = require('./routes/salesOnboardingCourseRoutes.js');
 const socialAccountCredentialRoutes = require('./routes/socialAccountCredentialRoutes.js');
+const studentRegistrationRoutes = require('./routes/studentRegistrationRoutes.js');
 // Load environment variables
 
 // Initialize Express app
@@ -154,25 +155,29 @@ const allowedOrigins = [
   'https://main.d21vr1wgzmn1c2.amplifyapp.com',
   'https://tradethiopia-pied.vercel.app',
   'https://tradethiopia.vercel.app',
-  'http://localhost:5173',
-  'http://localhost:3000',
-  'http://localhost:3001',
-  'http://localhost:3002',
-  'http://localhost:3003',
-  'http://localhost:3004'
 ].filter(Boolean);
+
+// Dynamically allow any localhost or 127.0.0.1 port for local development
+const isLocalDevOrigin = (origin) => {
+  if (!origin) return false;
+  try {
+    const url = new URL(origin);
+    return url.hostname === 'localhost' || url.hostname === '127.0.0.1';
+  } catch {
+    return false;
+  }
+};
 
 const corsOptions = {
   origin: (origin, callback) => {
-    console.log('CORS check - Origin:', origin);
-    console.log('Allowed origins:', allowedOrigins);
-
-    // Allow requests with no origin (Postman, curl, mobile apps)
+    // Allow requests with no origin (Postman, curl, server-to-server)
     if (!origin) return callback(null, true);
 
-    if (allowedOrigins.includes(origin)) {
-      return callback(null, true);
-    }
+    // Allow any localhost / 127.0.0.1 port (e.g. 3010, 5173, 3000, etc.)
+    if (isLocalDevOrigin(origin)) return callback(null, true);
+
+    // Allow whitelisted production origins
+    if (allowedOrigins.includes(origin)) return callback(null, true);
 
     console.warn('CORS blocked origin:', origin);
     return callback(new Error('Not allowed by CORS'));
@@ -350,6 +355,7 @@ app.use('/api/payments', paymentRoutes);
 app.use('/api/requests', requestRoutes);
 app.use('/api/social-requests', requestRoutes);
 app.use('/api/social-account-credentials', socialAccountCredentialRoutes);
+app.use('/api/student-registrations', studentRegistrationRoutes);
 app.use('/api/action-items', actionItemRoutes);
 app.use('/api/content-tracker', contentTrackerRoutes);
 app.use('/api/candidate-pool', candidatePoolRoutes);

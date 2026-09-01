@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   Box,
   Heading,
@@ -29,7 +29,6 @@ import {
   ModalOverlay,
   ModalContent,
   ModalHeader,
-  ModalFooter,
   ModalBody,
   ModalCloseButton,
   AlertDialog,
@@ -48,6 +47,8 @@ import {
   Tooltip,
   useToast,
   useColorModeValue,
+  Wrap,
+  WrapItem,
 } from '@chakra-ui/react';
 import {
   FiPlus,
@@ -55,7 +56,6 @@ import {
   FiTrash2,
   FiEye,
   FiSearch,
-  FiCalendar,
   FiFilter,
   FiCheckCircle,
   FiAlertTriangle,
@@ -139,9 +139,8 @@ const CustomerMessagesPage = ({ embedded = false }) => {
   const [filterYear, setFilterYear] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Modal States
-  const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [isEditOpen, setIsEditOpen] = useState(false);
+  // Drawer States
+  const [noticeDrawerMode, setNoticeDrawerMode] = useState(null);
   const [editingNotice, setEditingNotice] = useState(null);
   const [formData, setFormData] = useState({
     title: '',
@@ -203,6 +202,15 @@ const CustomerMessagesPage = ({ embedded = false }) => {
   const panelBg = useColorModeValue('gray.50', 'gray.900');
   const mutedText = useColorModeValue('gray.600', 'gray.400');
   const highlightBg = useColorModeValue('teal.50', 'rgba(49, 151, 149, 0.12)');
+  const noticeTitleColor = useColorModeValue('gray.800', 'white');
+  const noticeContentColor = useColorModeValue('gray.700', 'gray.200');
+  const isCreateOpen = noticeDrawerMode === 'create';
+  const isNoticeDrawerOpen = Boolean(noticeDrawerMode);
+
+  const closeNoticeDrawer = () => {
+    setNoticeDrawerMode(null);
+    setEditingNotice(null);
+  };
 
   // Fetch Notices and Stats
   const fetchNoticeData = useCallback(async () => {
@@ -291,6 +299,7 @@ const CustomerMessagesPage = ({ embedded = false }) => {
 
   // Open Create Modal
   const openCreateModal = () => {
+    setEditingNotice(null);
     setFormData({
       title: '',
       content: '',
@@ -300,7 +309,7 @@ const CustomerMessagesPage = ({ embedded = false }) => {
       isPinned: false,
       effectiveDate: new Date().toISOString().split('T')[0],
     });
-    setIsCreateOpen(true);
+    setNoticeDrawerMode('create');
   };
 
   // Open Edit Modal
@@ -315,7 +324,7 @@ const CustomerMessagesPage = ({ embedded = false }) => {
       isPinned: Boolean(notice.isPinned),
       effectiveDate: notice.effectiveDate ? new Date(notice.effectiveDate).toISOString().split('T')[0] : '',
     });
-    setIsEditOpen(true);
+    setNoticeDrawerMode('edit');
   };
 
   // Submit Create Notice
@@ -328,7 +337,7 @@ const CustomerMessagesPage = ({ embedded = false }) => {
     try {
       setSubmitting(true);
       await createNotice(formData);
-      setIsCreateOpen(false);
+      closeNoticeDrawer();
       await fetchNoticeData();
       toast({
         title: 'Notice posted successfully',
@@ -353,8 +362,7 @@ const CustomerMessagesPage = ({ embedded = false }) => {
     try {
       setSubmitting(true);
       await updateNotice(editingNotice._id, formData);
-      setIsEditOpen(false);
-      setEditingNotice(null);
+      closeNoticeDrawer();
       await fetchNoticeData();
       toast({ title: 'Notice updated successfully', status: 'success' });
     } catch (err) {
@@ -468,8 +476,8 @@ const CustomerMessagesPage = ({ embedded = false }) => {
                 isLoading={loading}
               />
               {isManager && (
-                <Button colorScheme="teal" leftIcon={<FiPlus />} size="sm" onClick={openCreateModal}>
-                  Post New Notice
+                <Button type="button" colorScheme="teal" leftIcon={<FiPlus />} size="sm" onClick={openCreateModal}>
+                  Create Customer Service Notice
                 </Button>
               )}
             </HStack>
@@ -512,20 +520,28 @@ const CustomerMessagesPage = ({ embedded = false }) => {
         <CardBody py={4} px={4}>
           <Flex direction={{ base: 'column', lg: 'row' }} gap={4} justify="space-between" align={{ base: 'stretch', lg: 'center' }}>
             {/* Category Filter Chips */}
-            <HStack spacing={2} overflowX="auto" pb={{ base: 2, lg: 0 }} maxW={{ base: '100%', lg: '60%' }}>
+            <Wrap spacing={2} rowGap={2} maxW={{ base: '100%', lg: '62%' }} align="center">
               {CATEGORIES.map((cat) => (
+                <WrapItem key={cat.value}>
                 <Button
-                  key={cat.value}
                   size="xs"
                   variant={selectedCategory === cat.value ? 'solid' : 'outline'}
                   colorScheme={cat.color}
                   onClick={() => setSelectedCategory(cat.value)}
-                  whiteSpace="nowrap"
+                  whiteSpace="normal"
+                  h="auto"
+                  minH="30px"
+                  px={2.5}
+                  py={1}
+                  lineHeight="1.15"
+                  textAlign="left"
+                  maxW={{ base: '100%', sm: '220px' }}
                 >
                   {cat.label}
                 </Button>
+                </WrapItem>
               ))}
-            </HStack>
+            </Wrap>
 
             {/* Date Filters & Search */}
             <HStack spacing={3} flexWrap="wrap" justify={{ base: 'flex-start', lg: 'flex-end' }}>
@@ -618,8 +634,8 @@ const CustomerMessagesPage = ({ embedded = false }) => {
               {isManager && ' Use the button above to post the first update for your team.'}
             </Text>
             {isManager && (
-              <Button colorScheme="teal" size="sm" leftIcon={<FiPlus />} onClick={openCreateModal}>
-                Post Notice
+              <Button type="button" colorScheme="teal" size="sm" leftIcon={<FiPlus />} onClick={openCreateModal}>
+                Create Customer Service Notice
               </Button>
             )}
           </CardBody>
@@ -694,6 +710,7 @@ const CustomerMessagesPage = ({ embedded = false }) => {
                           </Tooltip>
                           <Tooltip label="Edit Notice">
                             <IconButton
+                              type="button"
                               aria-label="Edit Notice"
                               icon={<FiEdit2 />}
                               size="xs"
@@ -724,7 +741,7 @@ const CustomerMessagesPage = ({ embedded = false }) => {
                     </HStack>
                   </Flex>
 
-                  <Heading size="md" mt={2} color={useColorModeValue('gray.800', 'white')}>
+                  <Heading size="md" mt={2} color={noticeTitleColor}>
                     {notice.title}
                   </Heading>
                   <HStack spacing={3} mt={1} fontSize="xs" color={mutedText}>
@@ -745,7 +762,7 @@ const CustomerMessagesPage = ({ embedded = false }) => {
                 <Divider borderColor={borderColor} />
 
                 <CardBody pt={3} pb={4} px={{ base: 4, md: 5 }}>
-                  <Text whiteSpace="pre-wrap" fontSize="sm" lineHeight="1.7" color={useColorModeValue('gray.700', 'gray.200')}>
+                  <Text whiteSpace="pre-wrap" fontSize="sm" lineHeight="1.7" color={noticeContentColor}>
                     {notice.content}
                   </Text>
                 </CardBody>
@@ -755,13 +772,45 @@ const CustomerMessagesPage = ({ embedded = false }) => {
         </VStack>
       )}
 
-      {/* Create / Edit Notice Modal */}
-      <Modal isOpen={isCreateOpen || isEditOpen} onClose={() => { setIsCreateOpen(false); setIsEditOpen(false); }} size="xl" isCentered>
-        <ModalOverlay />
-        <ModalContent as="form" onSubmit={isCreateOpen ? handleCreateSubmit : handleEditSubmit}>
-          <ModalHeader>{isCreateOpen ? 'Create Customer Service Notice' : 'Edit Notice'}</ModalHeader>
-          <ModalCloseButton />
-          <ModalBody>
+      {/* Create / Edit Notice Right Drawer */}
+      {isNoticeDrawerOpen && (
+        <Box position="fixed" inset={0} zIndex={3000}>
+          <Box
+            position="absolute"
+            inset={0}
+            bg="blackAlpha.500"
+            backdropFilter="blur(3px)"
+            onClick={closeNoticeDrawer}
+          />
+          <Box
+            as="form"
+            onSubmit={isCreateOpen ? handleCreateSubmit : handleEditSubmit}
+            position="absolute"
+            top={0}
+            right={0}
+            h="100vh"
+            w={{ base: '100vw', md: '720px' }}
+            maxW="100vw"
+            bg={cardBg}
+            boxShadow="2xl"
+            display="flex"
+            flexDirection="column"
+            onClick={(e) => e.stopPropagation()}
+          >
+          <Flex px={{ base: 4, md: 6 }} py={4} align="center" justify="space-between" borderBottom="1px solid" borderColor={borderColor}>
+            <Heading size="md" color={headerColor}>
+              {isCreateOpen ? 'Create Customer Service Notice' : 'Edit Notice'}
+            </Heading>
+          <IconButton
+            type="button"
+            aria-label="Close notice drawer"
+            variant="ghost"
+            size="sm"
+            icon={<Text fontSize="xl">x</Text>}
+            onClick={closeNoticeDrawer}
+          />
+          </Flex>
+          <Box flex="1" overflowY="auto" px={{ base: 4, md: 6 }} py={5}>
             <VStack spacing={4} align="stretch">
               <FormControl isRequired>
                 <FormLabel fontSize="sm" fontWeight="700">Notice Title</FormLabel>
@@ -842,18 +891,19 @@ const CustomerMessagesPage = ({ embedded = false }) => {
                 </Alert>
               )}
             </VStack>
-          </ModalBody>
+          </Box>
 
-          <ModalFooter>
-            <Button variant="ghost" mr={3} onClick={() => { setIsCreateOpen(false); setIsEditOpen(false); }}>
+          <Flex justify="flex-end" gap={3} px={{ base: 4, md: 6 }} py={4} borderTop="1px solid" borderColor={borderColor} bg={cardBg}>
+            <Button type="button" variant="ghost" onClick={closeNoticeDrawer}>
               Cancel
             </Button>
             <Button colorScheme="teal" type="submit" isLoading={submitting}>
               {isCreateOpen ? 'Publish Notice' : 'Save Changes'}
             </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
+          </Flex>
+          </Box>
+        </Box>
+      )}
 
       {/* Reader Tracking Modal (Manager & Stats) */}
       <Modal isOpen={isReadersOpen} onClose={() => setIsReadersOpen(false)} size="lg" isCentered>

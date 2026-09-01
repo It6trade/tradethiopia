@@ -21,88 +21,91 @@ const Layout = ({ children, hideSidebar = false, activeSection, onSelectSection 
     }
   });
 
-  const pageBg = useColorModeValue("#f2f6ff", "#0b1224");
-
-  const sidebarWidth = isSidebarCollapsed ? "78px" : "260px";
+  const pageBg = useColorModeValue("#f8fafc", "#090d1a");
+  const sidebarWidth = isSidebarCollapsed ? "78px" : "250px";
 
   useEffect(() => {
     try {
       localStorage.setItem("customerSidebarCollapsed", String(isSidebarCollapsed));
     } catch (error) {
-      // Ignore storage errors; the sidebar still works during the session.
+      // Ignore storage errors
     }
   }, [isSidebarCollapsed]);
 
   return (
-    <Box height="100vh" overflow="hidden">
+    <Box height="100vh" width="100vw" overflow="hidden" display="flex" bg={pageBg}>
+      {/* 1. DESKTOP FULL-HEIGHT SIDEBAR */}
+      {!hideSidebar && (
+        <Box
+          width={sidebarWidth}
+          minWidth={sidebarWidth}
+          height="100vh"
+          transition="width 0.25s cubic-bezier(0.4, 0, 0.2, 1), min-width 0.25s cubic-bezier(0.4, 0, 0.2, 1)"
+          display={{ base: "none", md: "block" }}
+          zIndex="1000"
+          flexShrink={0}
+        >
+          <Sidebar
+            isCollapsed={isSidebarCollapsed}
+            toggleCollapse={() => setSidebarCollapsed((prev) => !prev)}
+            activeSection={activeSection}
+            onSelectSection={onSelectSection}
+          />
+        </Box>
+      )}
 
-      {/* NAVBAR */}
-      <Box position="fixed" top={0} left={0} w="100%" zIndex="1100">
-        <Cnavbar onToggleSidebar={onOpen} />
-      </Box>
-
-      <Box pt="64px" height="100%">
-        {/* DESKTOP SIDEBAR */}
-        {!hideSidebar && (
-          <Box
-            position="fixed"
-            top="64px"
-            left={0}
-            height="calc(100vh - 64px)"
-            width={sidebarWidth}
-            transition="width .25s ease"
-            display={{ base: "none", md: "block" }}
-            zIndex="1000"
-            overflow="visible"
-          >
+      {/* 2. MOBILE DRAWER SIDEBAR */}
+      {!hideSidebar && (
+        <Drawer isOpen={isOpen} placement="left" onClose={onClose} size="xs">
+          <DrawerOverlay />
+          <DrawerContent p={0}>
             <Sidebar
-              isCollapsed={isSidebarCollapsed}
-              toggleCollapse={() =>
-                setSidebarCollapsed((prev) => !prev)
-              }
+              isCollapsed={false}
+              toggleCollapse={onClose}
               activeSection={activeSection}
-              onSelectSection={onSelectSection}
-            />
-          </Box>
-        )}
-
-        {/* MOBILE DRAWER SIDEBAR */}
-        {!hideSidebar && (
-          <Drawer isOpen={isOpen} placement="left" onClose={onClose}>
-            <DrawerOverlay />
-            <DrawerContent>
-              <Sidebar
-                isCollapsed={false} // mobile always expanded
-                toggleCollapse={() => {}}
-                activeSection={activeSection}
-                onSelectSection={onSelectSection}
-              />
-            </DrawerContent>
-          </Drawer>
-        )}
-
-               {/* MAIN CONTENT */}
-            <Box
-              ml={{
-                base: 0,
-                md: hideSidebar
-                  ? 0
-                  : isSidebarCollapsed
-                  ? "78px"        // SIDEBAR COLLAPSED WIDTH
-                  : "260px",      // SIDEBAR FULL WIDTH
+              onSelectSection={(section) => {
+                if (typeof onSelectSection === "function") {
+                  onSelectSection(section);
+                }
+                onClose();
               }}
-              transition="all .25s ease"
-              bg={pageBg}
-              height="calc(100vh - 64px)"
-              overflowY="auto"
-              p={5}
-            >
-              {children}
-            </Box>
+            />
+          </DrawerContent>
+        </Drawer>
+      )}
 
+      {/* 3. RIGHT COLUMN: TOP NAVBAR + SCROLLABLE MAIN CONTENT */}
+      <Box
+        flex="1"
+        display="flex"
+        flexDirection="column"
+        height="100vh"
+        minWidth={0}
+        overflow="hidden"
+      >
+        {/* Top Navbar */}
+        <Cnavbar
+          onToggleSidebar={onOpen}
+          activeSectionTitle={activeSection}
+        />
+
+        {/* Scrollable Content View */}
+        <Box
+          flex="1"
+          overflowY="auto"
+          bg={pageBg}
+          css={{
+            "&::-webkit-scrollbar": { width: "6px" },
+            "&::-webkit-scrollbar-track": { background: "transparent" },
+            "&::-webkit-scrollbar-thumb": { background: "rgba(148, 163, 184, 0.25)", borderRadius: "4px" },
+          }}
+        >
+          {children}
+        </Box>
       </Box>
     </Box>
   );
 };
 
 export default Layout;
+

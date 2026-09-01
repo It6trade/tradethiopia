@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertDialog,
   AlertDialogBody,
@@ -14,8 +14,13 @@ import {
   Card,
   CardBody,
   CardHeader,
-  Collapse,
-  Divider,
+  Drawer,
+  DrawerBody,
+  DrawerCloseButton,
+  DrawerContent,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerOverlay,
   Flex,
   Heading,
   HStack,
@@ -28,7 +33,6 @@ import {
   Select,
   SimpleGrid,
   Spinner,
-  Stack,
   Table,
   TableContainer,
   Tbody,
@@ -43,8 +47,8 @@ import {
   useToast,
   VStack,
 } from "@chakra-ui/react";
-import { AddIcon, CheckIcon, CloseIcon, DeleteIcon, EditIcon } from "@chakra-ui/icons";
-import { FiChevronDown, FiChevronRight, FiGrid, FiKey, FiList, FiLock, FiPower, FiRefreshCw, FiSearch, FiShield, FiUserCheck, FiUserPlus, FiUsers, FiX } from "react-icons/fi";
+import { AddIcon, CheckIcon, DeleteIcon, EditIcon } from "@chakra-ui/icons";
+import { FiEye, FiGrid, FiList, FiRefreshCw, FiSearch, FiUserPlus, FiUsers, FiX } from "react-icons/fi";
 import axiosInstance from "../../services/axiosInstance";
 import Layout from "./Layout";
 
@@ -85,9 +89,11 @@ const CustomerUserManagement = () => {
   const [accountSearch, setAccountSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [viewMode, setViewMode] = useState("grid");
-  const [isFormOpen, setIsFormOpen] = useState(true);
-  const formCardRef = useRef(null);
+  const [viewMode, setViewMode] = useState("table");
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [pageSize, setPageSize] = useState(5);
+  const [page, setPage] = useState(1);
+  const [selectedUserId, setSelectedUserId] = useState("");
 
   // Delete User Dialog
   const [deletingUser, setDeletingUser] = useState(null);
@@ -137,6 +143,20 @@ const CustomerUserManagement = () => {
       return matchesSearch && matchesRole && matchesStatus;
     });
   }, [accountSearch, roleFilter, statusFilter, users]);
+
+  const pageCount = Math.max(1, Math.ceil(filteredUsers.length / pageSize));
+  const currentPage = Math.min(page, pageCount);
+  const pagedUsers = filteredUsers.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  const selectedUser = useMemo(() => (
+    selectedUserId
+      ? users.find((user) => String(user._id || user.id) === String(selectedUserId))
+      : null
+  ), [selectedUserId, users]);
+  const selectedUserKey = selectedUser?._id || selectedUser?.id || "";
+
+  useEffect(() => {
+    setPage(1);
+  }, [accountSearch, roleFilter, statusFilter, pageSize]);
 
   const normalizeUsersResponse = (payload) => {
     const raw =
@@ -190,9 +210,21 @@ const CustomerUserManagement = () => {
     setEditingUserId(null);
   };
 
-  const startUserEdit = (user) => {
-    setEditingUserId(user._id);
+  const openCreateDrawer = () => {
+    resetUserForm();
     setIsFormOpen(true);
+  };
+
+  const closeFormDrawer = () => {
+    resetUserForm();
+    setIsFormOpen(false);
+  };
+
+  const startUserEdit = (user) => {
+    const userId = user._id || user.id;
+    setEditingUserId(userId);
+    setIsFormOpen(true);
+    setSelectedUserId("");
     setUserForm({
       username: user.username || "",
       fullName: user.fullName || "",
@@ -201,12 +233,9 @@ const CustomerUserManagement = () => {
       role:
         normalizeRoleValue(user.role) === "customersuccessmanager"
           ? "CustomerSuccessManager"
-          : "customerservice",
+        : "customerservice",
       status: user.status || "active",
     });
-    window.setTimeout(() => {
-      formCardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }, 50);
     toast({
       title: "Edit mode opened",
       description: `Updating ${user.fullName || user.username || user.email}.`,
@@ -259,6 +288,7 @@ const CustomerUserManagement = () => {
         });
       }
       resetUserForm();
+      setIsFormOpen(false);
       await fetchUsers();
     } catch (err) {
       toast({
@@ -272,8 +302,10 @@ const CustomerUserManagement = () => {
   };
 
   const updateUserInline = async (user, updates) => {
+    const userId = user._id || user.id;
+    if (!userId) return;
     try {
-      await axiosInstance.put(`/users/${user._id}`, updates);
+      await axiosInstance.put(`/users/${userId}`, updates);
       await fetchUsers();
       toast({ title: "Account updated", status: "success", duration: 2000 });
     } catch (error) {
@@ -286,14 +318,16 @@ const CustomerUserManagement = () => {
   };
 
   const handleResetPassword = async (user) => {
-    const newPassword = passwordDrafts[user._id];
+    const userId = user._id || user.id;
+    const newPassword = passwordDrafts[userId];
+    if (!userId) return;
     if (!newPassword || newPassword.trim().length < 4) {
       toast({ title: "Password must be at least 4 characters", status: "warning", duration: 2500 });
       return;
     }
     try {
-      await axiosInstance.put(`/users/${user._id}`, { password: newPassword });
-      setPasswordDrafts((prev) => ({ ...prev, [user._id]: "" }));
+      await axiosInstance.put(`/users/${userId}`, { password: newPassword });
+      setPasswordDrafts((prev) => ({ ...prev, [userId]: "" }));
       toast({
         title: "Password updated",
         description: `New password set for ${user.username || user.email}`,
@@ -310,7 +344,8 @@ const CustomerUserManagement = () => {
   };
 
   const openDeleteDialog = (user) => {
-    if (String(user._id) === String(currentUserId)) {
+    const userId = user._id || user.id;
+    if (String(userId) === String(currentUserId)) {
       toast({
         title: "Action restricted",
         description: "You cannot delete your own signed-in account.",
@@ -323,9 +358,10 @@ const CustomerUserManagement = () => {
   };
 
   const confirmDeleteUser = async () => {
-    if (!deletingUser?._id) return;
+    const userId = deletingUser?._id || deletingUser?.id;
+    if (!userId) return;
     try {
-      await axiosInstance.delete(`/users/${deletingUser._id}`);
+      await axiosInstance.delete(`/users/${userId}`);
       onDeleteClose();
       setDeletingUser(null);
       await fetchUsers();
@@ -365,13 +401,7 @@ const CustomerUserManagement = () => {
                 size="sm"
                 colorScheme="blue"
                 leftIcon={<FiUserPlus />}
-                onClick={() => {
-                  resetUserForm();
-                  setIsFormOpen(true);
-                  window.setTimeout(() => {
-                    formCardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-                  }, 50);
-                }}
+                onClick={openCreateDrawer}
               >
                 New Account
               </Button>
@@ -386,121 +416,6 @@ const CustomerUserManagement = () => {
             </HStack>
           </Flex>
 
-          {/* Account Creation / Edit Form */}
-          <Card ref={formCardRef} bg={cardBg} borderColor={borderColor} borderWidth="1px" borderRadius="2xl" boxShadow="sm" w="100%">
-            <CardHeader pb={2} pt={4} px={5}>
-              <Flex justify="space-between" align="center">
-                <HStack spacing={2}>
-                  <Icon as={editingUserId ? EditIcon : FiUserPlus} color="blue.500" />
-                  <Heading size="md">
-                    {editingUserId ? "Edit Customer Service Account" : "Register Customer Service Account"}
-                  </Heading>
-                </HStack>
-                <HStack spacing={2}>
-                  {editingUserId && (
-                    <Button size="xs" variant="ghost" onClick={resetUserForm} leftIcon={<CloseIcon />}>
-                      Cancel Edit
-                    </Button>
-                  )}
-                  <IconButton
-                    size="xs"
-                    variant="ghost"
-                    icon={isFormOpen ? <FiChevronDown /> : <FiChevronRight />}
-                    aria-label="Toggle form"
-                    onClick={() => setIsFormOpen(!isFormOpen)}
-                  />
-                </HStack>
-              </Flex>
-            </CardHeader>
-            <Collapse in={isFormOpen} animateOpacity>
-              <CardBody px={5} pt={2} pb={5}>
-                <form onSubmit={saveCustomerUser} autoComplete="off">
-                  <SimpleGrid columns={{ base: 1, sm: 2, md: 3, xl: 6 }} spacing={3}>
-                    <Box>
-                      <Text fontSize="xs" fontWeight="bold" mb={1} color={mutedColor}>USERNAME *</Text>
-                      <Input
-                        size="sm"
-                        placeholder="Username"
-                        name="cs_new_username_input"
-                        autoComplete="off"
-                        value={userForm.username}
-                        onChange={(e) => handleUserFormChange("username", e.target.value)}
-                        required
-                      />
-                    </Box>
-
-                    <Box>
-                      <Text fontSize="xs" fontWeight="bold" mb={1} color={mutedColor}>FULL NAME</Text>
-                      <Input
-                        size="sm"
-                        placeholder="Full Name"
-                        name="cs_new_fullname_input"
-                        autoComplete="off"
-                        value={userForm.fullName}
-                        onChange={(e) => handleUserFormChange("fullName", e.target.value)}
-                      />
-                    </Box>
-
-                    <Box>
-                      <Text fontSize="xs" fontWeight="bold" mb={1} color={mutedColor}>EMAIL *</Text>
-                      <Input
-                        size="sm"
-                        type="email"
-                        placeholder="Email address"
-                        name="cs_new_email_input"
-                        autoComplete="off"
-                        value={userForm.email}
-                        onChange={(e) => handleUserFormChange("email", e.target.value)}
-                        required
-                      />
-                    </Box>
-
-                    <Box>
-                      <Text fontSize="xs" fontWeight="bold" mb={1} color={mutedColor}>
-                        {editingUserId ? "PASSWORD (OPTIONAL)" : "PASSWORD *"}
-                      </Text>
-                      <Input
-                        size="sm"
-                        type="password"
-                        placeholder={editingUserId ? "Leave blank to keep" : "Temporary password"}
-                        name="cs_new_password_input"
-                        autoComplete="new-password"
-                        value={userForm.password}
-                        onChange={(e) => handleUserFormChange("password", e.target.value)}
-                        required={!editingUserId}
-                      />
-                    </Box>
-
-                    <Box>
-                      <Text fontSize="xs" fontWeight="bold" mb={1} color={mutedColor}>ROLE</Text>
-                      <Select
-                        size="sm"
-                        value={userForm.role}
-                        onChange={(e) => handleUserFormChange("role", e.target.value)}
-                      >
-                        <option value="customerservice">Customer Service</option>
-                        <option value="CustomerSuccessManager">Customer Success Manager</option>
-                      </Select>
-                    </Box>
-
-                    <Box display="flex" alignItems="flex-end">
-                      <Button
-                        size="sm"
-                        colorScheme="blue"
-                        type="submit"
-                        w="100%"
-                        isLoading={savingUser}
-                        leftIcon={editingUserId ? <CheckIcon /> : <AddIcon />}
-                      >
-                        {editingUserId ? "Update User" : "Add Account"}
-                      </Button>
-                    </Box>
-                  </SimpleGrid>
-                </form>
-              </CardBody>
-            </Collapse>
-          </Card>
-
           {/* Directory & Management Card - Grid and Table Views */}
           <Card bg={cardBg} borderColor={borderColor} borderWidth="1px" borderRadius="2xl" boxShadow="sm" w="100%">
             <CardHeader pb={3} pt={4} px={5}>
@@ -513,6 +428,18 @@ const CustomerUserManagement = () => {
                 </HStack>
 
                 <HStack spacing={2} flexWrap="wrap">
+                  <Select
+                    size="sm"
+                    w="110px"
+                    value={pageSize}
+                    onChange={(e) => setPageSize(Number(e.target.value))}
+                  >
+                    <option value={5}>5 users</option>
+                    <option value={10}>10 users</option>
+                    <option value={15}>15 users</option>
+                    <option value={20}>20 users</option>
+                  </Select>
+
                   <ButtonGroup size="sm" isAttached variant="outline">
                     <IconButton
                       aria-label="Grid View"
@@ -596,7 +523,7 @@ const CustomerUserManagement = () => {
               ) : viewMode === "grid" ? (
                 /* Multi-Column Responsive Grid View */
                 <SimpleGrid columns={{ base: 1, md: 2, xl: 3 }} spacing={4}>
-                  {filteredUsers.map((user) => {
+                  {pagedUsers.map((user) => {
                     const isCSM = normalizeRoleValue(user.role || user.roleName) === "customersuccessmanager";
                     const isActive = user.status === "active";
                     const displayName = user.fullName || user.username || "Staff Member";
@@ -719,6 +646,15 @@ const CustomerUserManagement = () => {
                             <Button
                               size="xs"
                               variant="ghost"
+                              colorScheme="teal"
+                              leftIcon={<FiEye />}
+                              onClick={() => setSelectedUserId(user._id || user.id)}
+                            >
+                              Detail
+                            </Button>
+                            <Button
+                              size="xs"
+                              variant="ghost"
                               colorScheme="blue"
                               leftIcon={<EditIcon />}
                               onClick={() => startUserEdit(user)}
@@ -754,7 +690,7 @@ const CustomerUserManagement = () => {
                       </Tr>
                     </Thead>
                     <Tbody>
-                      {filteredUsers.map((user) => (
+                      {pagedUsers.map((user) => (
                         <Tr key={user._id || user.email} _hover={{ bg: tableHoverBg }}>
                           <Td>
                             <HStack spacing={2}>
@@ -820,6 +756,17 @@ const CustomerUserManagement = () => {
 
                           <Td textAlign="right">
                             <HStack justify="flex-end" spacing={1}>
+                              <Tooltip label="View Account Details">
+                                <IconButton
+                                  aria-label="View user details"
+                                  icon={<FiEye />}
+                                  size="xs"
+                                  variant="ghost"
+                                  colorScheme="teal"
+                                  onClick={() => setSelectedUserId(user._id || user.id)}
+                                />
+                              </Tooltip>
+
                               <Tooltip label="Edit Details">
                                 <IconButton
                                   aria-label="Edit user"
@@ -849,10 +796,193 @@ const CustomerUserManagement = () => {
                   </Table>
                 </TableContainer>
               )}
+              {!loading && filteredUsers.length > 0 && (
+                <Flex
+                  justify="space-between"
+                  align={{ base: "flex-start", sm: "center" }}
+                  gap={3}
+                  flexWrap="wrap"
+                  px={viewMode === "grid" ? 0 : 5}
+                  py={4}
+                  mt={viewMode === "grid" ? 4 : 0}
+                  borderTop={viewMode === "grid" ? "0" : "1px solid"}
+                  borderColor={borderColor}
+                >
+                  <Text fontSize="xs" color={mutedColor}>
+                    Showing {(currentPage - 1) * pageSize + 1} - {Math.min(currentPage * pageSize, filteredUsers.length)} of {filteredUsers.length} accounts
+                  </Text>
+                  <HStack spacing={2}>
+                    <Button size="xs" variant="outline" isDisabled={currentPage === 1} onClick={() => setPage((prev) => Math.max(1, prev - 1))}>
+                      Previous
+                    </Button>
+                    <Badge colorScheme="blue" borderRadius="full" px={2.5}>
+                      {currentPage} / {pageCount}
+                    </Badge>
+                    <Button size="xs" variant="outline" isDisabled={currentPage === pageCount} onClick={() => setPage((prev) => Math.min(pageCount, prev + 1))}>
+                      Next
+                    </Button>
+                  </HStack>
+                </Flex>
+              )}
             </CardBody>
           </Card>
         </VStack>
       </Box>
+
+      <Drawer isOpen={isFormOpen} placement="right" onClose={closeFormDrawer} size="md">
+        <DrawerOverlay backdropFilter="blur(3px)" />
+        <DrawerContent maxW={{ base: "100vw", md: "540px" }} bg={cardBg}>
+          <DrawerCloseButton />
+          <DrawerHeader borderBottom="1px solid" borderColor={borderColor} px={4} py={3}>
+            <HStack spacing={3} pr={8}>
+              <Box p={2} bg="blue.500" color="white" borderRadius="lg">
+                <Icon as={editingUserId ? EditIcon : FiUserPlus} boxSize={5} />
+              </Box>
+              <Box>
+                <Heading size="sm">
+                  {editingUserId ? "Edit Customer Service Account" : "Register Customer Service Account"}
+                </Heading>
+                <Text fontSize="xs" color={mutedColor}>
+                  Manage account role, status, and login credentials.
+                </Text>
+              </Box>
+            </HStack>
+          </DrawerHeader>
+
+          <DrawerBody px={4} py={3}>
+            <form id="customer-user-form" onSubmit={saveCustomerUser} autoComplete="off">
+              <VStack align="stretch" spacing={4}>
+                <SimpleGrid columns={{ base: 1, md: 2 }} spacing={3}>
+                  <Box>
+                    <Text fontSize="xs" fontWeight="bold" mb={1} color={mutedColor}>USERNAME *</Text>
+                    <Input size="sm" placeholder="Username" name="cs_new_username_input" autoComplete="off" value={userForm.username} onChange={(e) => handleUserFormChange("username", e.target.value)} required />
+                  </Box>
+
+                  <Box>
+                    <Text fontSize="xs" fontWeight="bold" mb={1} color={mutedColor}>FULL NAME</Text>
+                    <Input size="sm" placeholder="Full Name" name="cs_new_fullname_input" autoComplete="off" value={userForm.fullName} onChange={(e) => handleUserFormChange("fullName", e.target.value)} />
+                  </Box>
+
+                  <Box>
+                    <Text fontSize="xs" fontWeight="bold" mb={1} color={mutedColor}>EMAIL *</Text>
+                    <Input size="sm" type="email" placeholder="Email address" name="cs_new_email_input" autoComplete="off" value={userForm.email} onChange={(e) => handleUserFormChange("email", e.target.value)} required />
+                  </Box>
+
+                  <Box>
+                    <Text fontSize="xs" fontWeight="bold" mb={1} color={mutedColor}>
+                      {editingUserId ? "PASSWORD (OPTIONAL)" : "PASSWORD *"}
+                    </Text>
+                    <Input size="sm" type="password" placeholder={editingUserId ? "Leave blank to keep" : "Temporary password"} name="cs_new_password_input" autoComplete="new-password" value={userForm.password} onChange={(e) => handleUserFormChange("password", e.target.value)} required={!editingUserId} />
+                  </Box>
+
+                  <Box>
+                    <Text fontSize="xs" fontWeight="bold" mb={1} color={mutedColor}>ROLE</Text>
+                    <Select size="sm" value={userForm.role} onChange={(e) => handleUserFormChange("role", e.target.value)}>
+                      <option value="customerservice">Customer Service</option>
+                      <option value="CustomerSuccessManager">Customer Success Manager</option>
+                    </Select>
+                  </Box>
+
+                  <Box>
+                    <Text fontSize="xs" fontWeight="bold" mb={1} color={mutedColor}>STATUS</Text>
+                    <Select size="sm" value={userForm.status} onChange={(e) => handleUserFormChange("status", e.target.value)}>
+                      <option value="active">Active</option>
+                      <option value="inactive">Inactive</option>
+                    </Select>
+                  </Box>
+                </SimpleGrid>
+              </VStack>
+            </form>
+          </DrawerBody>
+
+          <DrawerFooter borderTop="1px solid" borderColor={borderColor} px={4} py={3}>
+            <HStack spacing={2}>
+              <Button size="sm" variant="ghost" onClick={closeFormDrawer}>
+                Cancel
+              </Button>
+              <Button size="sm" colorScheme="blue" type="submit" form="customer-user-form" isLoading={savingUser} leftIcon={editingUserId ? <CheckIcon /> : <AddIcon />}>
+                {editingUserId ? "Update User" : "Add Account"}
+              </Button>
+            </HStack>
+          </DrawerFooter>
+        </DrawerContent>
+      </Drawer>
+
+      <Drawer isOpen={Boolean(selectedUser)} placement="right" onClose={() => setSelectedUserId("")} size="sm">
+        <DrawerOverlay backdropFilter="blur(3px)" />
+        <DrawerContent maxW={{ base: "100vw", md: "420px" }} bg={cardBg}>
+          <DrawerCloseButton />
+          <DrawerHeader borderBottom="1px solid" borderColor={borderColor} px={4} py={3}>
+            <HStack spacing={3} pr={8}>
+              <Avatar size="sm" name={selectedUser?.fullName || selectedUser?.username} bg={normalizeRoleValue(selectedUser?.role || selectedUser?.roleName) === "customersuccessmanager" ? "purple.500" : "blue.500"} color="white" />
+              <Box minW={0}>
+                <Heading size="sm" noOfLines={1}>{selectedUser?.fullName || selectedUser?.username || "Customer account"}</Heading>
+                <Text fontSize="xs" color={mutedColor} noOfLines={1}>{selectedUser?.email || "No email"}</Text>
+              </Box>
+            </HStack>
+          </DrawerHeader>
+
+          <DrawerBody px={4} py={3}>
+            {selectedUser && (
+              <VStack align="stretch" spacing={3}>
+                <SimpleGrid columns={2} spacing={2}>
+                  <Box p={3} borderRadius="lg" bg={sidebarBg} border="1px solid" borderColor={borderColor}>
+                    <Text fontSize="2xs" fontWeight="800" color={mutedColor}>ROLE</Text>
+                    <Badge colorScheme={normalizeRoleValue(selectedUser.role || selectedUser.roleName) === "customersuccessmanager" ? "purple" : "blue"} mt={1}>
+                      {getCustomerRoleLabel(selectedUser.role || selectedUser.roleName)}
+                    </Badge>
+                  </Box>
+                  <Box p={3} borderRadius="lg" bg={sidebarBg} border="1px solid" borderColor={borderColor}>
+                    <Text fontSize="2xs" fontWeight="800" color={mutedColor}>STATUS</Text>
+                    <Badge colorScheme={selectedUser.status === "active" ? "green" : "red"} mt={1}>
+                      {selectedUser.status || "inactive"}
+                    </Badge>
+                  </Box>
+                  <Box p={3} borderRadius="lg" bg={sidebarBg} border="1px solid" borderColor={borderColor}>
+                    <Text fontSize="2xs" fontWeight="800" color={mutedColor}>USERNAME</Text>
+                    <Text fontSize="xs" fontWeight="700">{selectedUser.username || "-"}</Text>
+                  </Box>
+                  <Box p={3} borderRadius="lg" bg={sidebarBg} border="1px solid" borderColor={borderColor}>
+                    <Text fontSize="2xs" fontWeight="800" color={mutedColor}>DEPARTMENT</Text>
+                    <Text fontSize="xs" fontWeight="700">{selectedUser.department || "Customer Success"}</Text>
+                  </Box>
+                </SimpleGrid>
+
+                <Box p={3} borderRadius="lg" bg={sidebarBg} border="1px solid" borderColor={borderColor}>
+                  <Text fontSize="2xs" fontWeight="800" color={mutedColor} mb={1}>ACCOUNT EMAIL</Text>
+                  <Text fontSize="sm">{selectedUser.email || "-"}</Text>
+                </Box>
+
+                <Box p={3} borderRadius="lg" bg={sidebarBg} border="1px solid" borderColor={borderColor}>
+                  <Text fontSize="2xs" fontWeight="800" color={mutedColor} mb={2}>RESET PASSWORD</Text>
+                  <HStack spacing={2}>
+                    <Input size="sm" type="password" placeholder="New password..." autoComplete="new-password" value={passwordDrafts[selectedUserKey] || ""} onChange={(e) => setPasswordDrafts({ ...passwordDrafts, [selectedUserKey]: e.target.value })} />
+                    <Button size="sm" colorScheme="blue" onClick={() => handleResetPassword(selectedUser)} isDisabled={!passwordDrafts[selectedUserKey]}>
+                      Set
+                    </Button>
+                  </HStack>
+                </Box>
+              </VStack>
+            )}
+          </DrawerBody>
+
+          <DrawerFooter borderTop="1px solid" borderColor={borderColor} px={4} py={3} justifyContent="space-between">
+            <Button size="sm" variant="ghost" onClick={() => setSelectedUserId("")}>
+              Close
+            </Button>
+            {selectedUser && (
+              <HStack spacing={2}>
+                <Button size="sm" colorScheme="blue" leftIcon={<EditIcon />} onClick={() => startUserEdit(selectedUser)}>
+                  Edit
+                </Button>
+                <Button size="sm" colorScheme="red" variant="ghost" leftIcon={<DeleteIcon />} onClick={() => openDeleteDialog(selectedUser)}>
+                  Delete
+                </Button>
+              </HStack>
+            )}
+          </DrawerFooter>
+        </DrawerContent>
+      </Drawer>
 
       {/* Delete User Confirmation Dialog */}
       <AlertDialog isOpen={isDeleteOpen} leastDestructiveRef={cancelDeleteRef} onClose={onDeleteClose} isCentered>
@@ -862,7 +992,7 @@ const CustomerUserManagement = () => {
               Permanently Delete Account
             </AlertDialogHeader>
             <AlertDialogBody>
-              Are you sure you want to delete customer service account <strong>"{deletingUser?.fullName || deletingUser?.username || deletingUser?.email}"</strong>? This will revoke all system access.
+              Are you sure you want to delete customer service account <strong>{deletingUser?.fullName || deletingUser?.username || deletingUser?.email}</strong>? This will revoke all system access.
             </AlertDialogBody>
             <AlertDialogFooter gap={2}>
               <Button ref={cancelDeleteRef} onClick={onDeleteClose}>Cancel</Button>

@@ -1,25 +1,26 @@
-import React, { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   Avatar,
   Badge,
   Box,
-  Button,
   Collapse,
   Divider,
   Flex,
   HStack,
   Icon,
   IconButton,
-  Link,
   Text,
   Tooltip,
-  useColorModeValue,
   VStack,
+  Menu,
+  MenuButton,
+  MenuList,
+  MenuItem,
+  Portal,
 } from "@chakra-ui/react";
 import { useLocation, useNavigate, Link as RouterLink } from "react-router-dom";
 import {
   FiActivity,
-  FiAward,
   FiBarChart2,
   FiBookOpen,
   FiChevronDown,
@@ -29,14 +30,13 @@ import {
   FiClipboard,
   FiGlobe,
   FiHome,
-  FiLayers,
   FiLogOut,
   FiMessageSquare,
-  FiPackage,
   FiSettings,
   FiTool,
   FiTrendingUp,
   FiUser,
+  FiUserPlus,
   FiUsers,
 } from "react-icons/fi";
 import { getNotifications } from "../../services/notificationService";
@@ -119,20 +119,22 @@ const SSidebar = ({ isCollapsed: collapsedProp, toggleCollapse: toggleProp, acti
     activeSection === "dashboard" ||
     (location.pathname === "/Cdashboard" && !["notice-board", "requests", "it-requests"].includes(activeSection));
   const isNoticeBoardActive = activeSection === "notice-board" || isActive("/customer/messages");
-  const isRequestsActive = activeSection === "requests" || isActive("/requests");
+  const isRequestsActive = activeSection === "requests" || (
+    isActive("/Cdashboard") && new URLSearchParams(location.search).get("section") === "requests"
+  );
   const isItRequestsActive = activeSection === "it-requests";
 
-  const sidebarBg = useColorModeValue(
-    "linear-gradient(180deg, #f8fbff 0%, #edf3fe 100%)",
-    "linear-gradient(180deg, #090f1d 0%, #0d162b 100%)"
-  );
-  const textColor = useColorModeValue("gray.750", "gray.200");
-  const iconColor = useColorModeValue("gray.500", "gray.400");
-  const activeIconColor = useColorModeValue("blue.600", "blue.300");
-  const activeTextColor = useColorModeValue("blue.700", "white");
-  const sidebarBorderColor = useColorModeValue("blue.100", "whiteAlpha.100");
-  const userCardBg = useColorModeValue("whiteAlpha.900", "whiteAlpha.100");
-  const userMetaColor = useColorModeValue("gray.500", "gray.400");
+  // HR Color tokens (#1a2e22 dark forest green theme)
+  const sidebarBg = "#1a2e22";
+  const textColor = "rgba(255, 255, 255, 0.65)";
+  const headingColor = "#ffffff";
+  const subtextColor = "rgba(255, 255, 255, 0.40)";
+  const iconColor = "rgba(255, 255, 255, 0.65)";
+  const sidebarBorderColor = "rgba(255, 255, 255, 0.08)";
+  // Active item styles (HR Emerald #2d6a4f)
+  const activeBg = "#2d6a4f";
+  const activeTextColor = "#ffffff";
+  const activeIconColor = "#ffffff";
 
   const isCSM = (() => {
     try {
@@ -158,15 +160,45 @@ const SSidebar = ({ isCollapsed: collapsedProp, toggleCollapse: toggleProp, acti
     }
   })();
 
+  // Extract real user details
+  const userDisplayName =
+    currentUser?.fullName ||
+    currentUser?.name ||
+    (currentUser?.firstName && currentUser?.lastName ? `${currentUser.firstName} ${currentUser.lastName}` : null) ||
+    localStorage.getItem("userName") ||
+    "Sara Alemu";
+
+  const rawRole = (currentUser?.displayRole || currentUser?.role || localStorage.getItem("userRole") || "CS Manager")
+    .toString()
+    .toLowerCase();
+
+  const userRoleDisplay = rawRole.includes("manager") || rawRole.includes("admin")
+    ? "CS Manager"
+    : rawRole.includes("agent") || rawRole.includes("success") || rawRole.includes("customer")
+    ? "CS Specialist"
+    : "Customer Success";
+
+  const userEmailDisplay =
+    currentUser?.email ||
+    localStorage.getItem("userEmail") ||
+    "sara.alemu@tradethiopia.com";
+
+  const userAvatarSrc =
+    currentUser?.profileImage ||
+    currentUser?.avatar ||
+    currentUser?.photo ||
+    currentUser?.avatarUrl ||
+    "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?q=80&w=256&auto=format&fit=crop";
+
   return (
     <Box
       as="nav"
       width="100%"
       height="100%"
-      minHeight="100%"
-      maxHeight="100%"
+      minHeight="100vh"
+      maxHeight="100vh"
       position="relative"
-      bgGradient={sidebarBg}
+      bg={sidebarBg}
       color={textColor}
       transition="all 0.25s cubic-bezier(0.4, 0, 0.2, 1)"
       zIndex="1000"
@@ -175,88 +207,104 @@ const SSidebar = ({ isCollapsed: collapsedProp, toggleCollapse: toggleProp, acti
       overflow="hidden"
       borderRight="1px solid"
       borderColor={sidebarBorderColor}
-      boxShadow="sm"
+      boxShadow="4px 0 20px rgba(0, 0, 0, 0.2)"
     >
-      {/* Brand Header */}
+      {/* 1. Brand Header */}
       <Flex
         justify={isCollapsed ? "center" : "space-between"}
         align="center"
         px={isCollapsed ? 2 : 4}
-        py={4}
+        py={3.5}
         flexShrink={0}
+        borderBottom="1px solid"
+        borderColor="rgba(255, 255, 255, 0.06)"
       >
-        <Flex align="center" gap={3}>
+        <HStack spacing={3} align="center">
+          {/* Circular HR Emerald Brand Logo */}
           <Flex
-            boxSize={isCollapsed ? "40px" : "36px"}
-            borderRadius="xl"
-            bgGradient="linear(to-br, blue.500, blue.600)"
-            color="white"
+            boxSize={isCollapsed ? "38px" : "36px"}
+            borderRadius="full"
+            bg="#2d6a4f"
+            border="2px solid"
+            borderColor="#52b788"
+            color="#ffffff"
             align="center"
             justify="center"
-            fontWeight="900"
-            fontSize="sm"
-            boxShadow="0 6px 14px rgba(37, 99, 235, 0.3)"
+            fontWeight="800"
+            fontSize="lg"
+            position="relative"
+            boxShadow="0 0 12px rgba(45, 106, 79, 0.35)"
           >
-            CS
+            <Text as="span" fontFamily="system-ui" lineHeight="1" transform="translateY(-1px)">
+              C
+            </Text>
+            <Box
+              position="absolute"
+              bottom="1px"
+              right="1px"
+              boxSize="6px"
+              borderRadius="full"
+              bg="#52b788"
+              boxShadow="0 0 6px #52b788"
+            />
           </Flex>
+
           {!isCollapsed && (
             <Box>
-              <Text fontWeight="800" fontSize="sm" color={textColor} letterSpacing="-0.2px">
-                Customer Service
+              <Text fontWeight="800" fontSize="md" color={headingColor} lineHeight="1.2" letterSpacing="-0.3px">
+                Customer Success
               </Text>
-              <Text fontSize="2xs" color={userMetaColor} fontWeight="medium">
-                Operations Hub
+              <Text fontSize="2xs" color={subtextColor} fontWeight="500" mt={0.5}>
+                Follow-up & Engagement
               </Text>
             </Box>
           )}
-        </Flex>
+        </HStack>
 
-        {!isCollapsed && (
+        {!isCollapsed ? (
           <IconButton
-            icon={<FiChevronsLeft />}
+            icon={<FiChevronsLeft size={16} />}
             variant="ghost"
             size="xs"
-            colorScheme="blue"
+            color="rgba(255, 255, 255, 0.5)"
+            _hover={{ color: "#ffffff", bg: "rgba(255, 255, 255, 0.08)" }}
             aria-label="Collapse sidebar"
             onClick={toggleCollapse}
-            borderRadius="lg"
+            borderRadius="md"
           />
+        ) : (
+          <Tooltip label="Expand sidebar" placement="right" hasArrow>
+            <IconButton
+              icon={<FiChevronsRight size={16} />}
+              variant="ghost"
+              size="xs"
+              color="rgba(255, 255, 255, 0.5)"
+              _hover={{ color: "#ffffff", bg: "rgba(255, 255, 255, 0.08)" }}
+              aria-label="Expand sidebar"
+              onClick={toggleCollapse}
+              borderRadius="md"
+            />
+          </Tooltip>
         )}
       </Flex>
 
-      {isCollapsed && (
-        <Flex justify="center" pb={2}>
-          <IconButton
-            icon={<FiChevronsRight />}
-            variant="ghost"
-            size="xs"
-            colorScheme="blue"
-            aria-label="Expand sidebar"
-            onClick={toggleCollapse}
-            borderRadius="lg"
-          />
-        </Flex>
-      )}
-
-      <Divider borderColor={sidebarBorderColor} opacity={0.6} />
-
-      {/* Navigation Scrollable Body */}
+      {/* 2. Scrollable Navigation List */}
       <Box
-        flex="1 1 auto"
-        overflowY="auto"
-        minHeight={0}
         ref={scrollBoxRef}
+        flex="1"
+        overflowY="auto"
+        overflowX="hidden"
+        px={isCollapsed ? 1.5 : 2.5}
+        py={3}
         css={{
           "&::-webkit-scrollbar": { width: "4px" },
-          "&::-webkit-scrollbar-track": { background: "transparent" },
-          "&::-webkit-scrollbar-thumb": { background: "rgba(0,0,0,0.1)", borderRadius: "4px" },
+          "&::-webkit-scrollbar-thumb": { background: "rgba(255, 255, 255, 0.1)", borderRadius: "4px" },
         }}
-        py={3}
       >
-        <VStack align="stretch" spacing={3} px={2}>
+        <VStack spacing={3} align="stretch">
           {/* Workspace Group */}
           <SidebarGroup
-            title="Workspace"
+            title="WORKSPACE"
             isCollapsed={isCollapsed}
             isOpen={openGroups.workspace}
             onToggle={() => toggleGroup("workspace")}
@@ -264,15 +312,17 @@ const SSidebar = ({ isCollapsed: collapsedProp, toggleCollapse: toggleProp, acti
             <SidebarLink
               isCollapsed={isCollapsed}
               to="/Cdashboard"
-              icon={<FiHome />}
-              label="Dashboard"
+              icon={<FiHome size={17} />}
+              label="Overview"
               active={isDashboardActive}
               iconColor={iconColor}
               activeIconColor={activeIconColor}
               textColor={textColor}
               activeTextColor={activeTextColor}
-              onClick={() => {
+              activeBg={activeBg}
+              onClick={(e) => {
                 if (typeof onSelectSection === "function") {
+                  e.preventDefault();
                   onSelectSection("dashboard");
                 }
               }}
@@ -280,40 +330,44 @@ const SSidebar = ({ isCollapsed: collapsedProp, toggleCollapse: toggleProp, acti
             <SidebarLink
               isCollapsed={isCollapsed}
               to="/b2b-dashboard"
-              icon={<FiGlobe />}
+              icon={<FiGlobe size={17} />}
               label="B2B Marketplace"
               active={isActive("/b2b-dashboard")}
               iconColor={iconColor}
               activeIconColor={activeIconColor}
               textColor={textColor}
               activeTextColor={activeTextColor}
+              activeBg={activeBg}
             />
             <SidebarLink
               isCollapsed={isCollapsed}
               to="/customerfollowup"
-              icon={<FiUsers />}
+              icon={<FiUsers size={17} />}
               label="Customer Follow-up"
               active={isActive("/customerfollowup")}
               iconColor={iconColor}
               activeIconColor={activeIconColor}
               textColor={textColor}
               activeTextColor={activeTextColor}
+              activeBg={activeBg}
             />
             <SidebarLink
               isCollapsed={isCollapsed}
               to="/customer/messages"
-              icon={<FiMessageSquare />}
+              icon={<FiMessageSquare size={17} />}
               label="Notice Board"
               active={isNoticeBoardActive}
               iconColor={iconColor}
               activeIconColor={activeIconColor}
               textColor={textColor}
               activeTextColor={activeTextColor}
+              activeBg={activeBg}
               unreadCount={unreadCount}
               onClick={(e) => {
                 e.preventDefault();
                 if (typeof onSelectSection === "function") {
                   onSelectSection("notice-board");
+                  navigate("/Cdashboard?section=notice-board");
                 } else {
                   navigate("/customer/messages");
                 }
@@ -322,56 +376,72 @@ const SSidebar = ({ isCollapsed: collapsedProp, toggleCollapse: toggleProp, acti
             />
             <SidebarLink
               isCollapsed={isCollapsed}
-              to="/requests"
-              icon={<FiClipboard />}
+              to="/Cdashboard?section=requests"
+              icon={<FiClipboard size={17} />}
               label="Internal Requests"
               active={isRequestsActive}
               iconColor={iconColor}
               activeIconColor={activeIconColor}
               textColor={textColor}
               activeTextColor={activeTextColor}
+              activeBg={activeBg}
               onClick={(e) => {
                 if (typeof onSelectSection === "function") {
                   e.preventDefault();
                   onSelectSection("requests");
+                  navigate("/Cdashboard?section=requests");
                 }
               }}
             />
             <SidebarLink
               isCollapsed={isCollapsed}
               to="/Cdashboard"
-              icon={<FiTool />}
+              icon={<FiTool size={17} />}
               label="IT Requests"
               active={isItRequestsActive}
               iconColor={iconColor}
               activeIconColor={activeIconColor}
               textColor={textColor}
               activeTextColor={activeTextColor}
+              activeBg={activeBg}
               onClick={(e) => {
                 e.preventDefault();
                 if (typeof onSelectSection === "function") {
                   onSelectSection("it-requests");
                 }
+                navigate("/Cdashboard?section=it-requests");
               }}
             />
             <SidebarLink
               isCollapsed={isCollapsed}
               to="/training"
-              icon={<FiBookOpen />}
+              icon={<FiBookOpen size={17} />}
               label="Training Academy"
               active={isActive("/training")}
               iconColor={iconColor}
               activeIconColor={activeIconColor}
               textColor={textColor}
               activeTextColor={activeTextColor}
+              activeBg={activeBg}
+            />
+            <SidebarLink
+              isCollapsed={isCollapsed}
+              to="/customer/student-registration"
+              icon={<FiUserPlus size={17} />}
+              label="Student Registration"
+              active={isActive("/customer/student-registration")}
+              iconColor={iconColor}
+              activeIconColor={activeIconColor}
+              textColor={textColor}
+              activeTextColor={activeTextColor}
+              activeBg={activeBg}
             />
           </SidebarGroup>
 
-          {/* Management & Analytics Group */}
-          {/* Management & Analytics Group (Accessible & Visible to Managers Only) */}
+          {/* Management Group */}
           {isCSM && (
             <SidebarGroup
-              title="Management"
+              title="MANAGEMENT"
               isCollapsed={isCollapsed}
               isOpen={openGroups.management}
               onToggle={() => toggleGroup("management")}
@@ -379,176 +449,205 @@ const SSidebar = ({ isCollapsed: collapsedProp, toggleCollapse: toggleProp, acti
               <SidebarLink
                 isCollapsed={isCollapsed}
                 to="/customerreport"
-                icon={<FiBarChart2 />}
+                icon={<FiBarChart2 size={17} />}
                 label="Executive Report"
                 active={isActive("/customerreport")}
                 iconColor={iconColor}
                 activeIconColor={activeIconColor}
                 textColor={textColor}
                 activeTextColor={activeTextColor}
+                activeBg={activeBg}
               />
               <SidebarLink
                 isCollapsed={isCollapsed}
                 to="/customer/kpi"
-                icon={<FiTrendingUp />}
+                icon={<FiTrendingUp size={17} />}
                 label="KPI Dashboard"
                 active={isActive("/customer/kpi")}
                 iconColor={iconColor}
                 activeIconColor={activeIconColor}
                 textColor={textColor}
                 activeTextColor={activeTextColor}
+                activeBg={activeBg}
               />
               <SidebarLink
                 isCollapsed={isCollapsed}
                 to="/followup-report"
-                icon={<FiActivity />}
+                icon={<FiActivity size={17} />}
                 label="Follow-up Report"
                 active={isActive("/followup-report")}
                 iconColor={iconColor}
                 activeIconColor={activeIconColor}
                 textColor={textColor}
                 activeTextColor={activeTextColor}
+                activeBg={activeBg}
+              />
+              <SidebarLink
+                isCollapsed={isCollapsed}
+                to="/customer/manager-tasks"
+                icon={<FiClipboard size={17} />}
+                label="Task Oversight"
+                active={isActive("/customer/manager-tasks")}
+                iconColor={iconColor}
+                activeIconColor={activeIconColor}
+                textColor={textColor}
+                activeTextColor={activeTextColor}
+                activeBg={activeBg}
               />
               <SidebarLink
                 isCollapsed={isCollapsed}
                 to="/customer-settings"
-                icon={<FiSettings />}
+                icon={<FiSettings size={17} />}
                 label="Service Settings"
                 active={isActive("/customer-settings")}
                 iconColor={iconColor}
                 activeIconColor={activeIconColor}
                 textColor={textColor}
                 activeTextColor={activeTextColor}
-              />
-              <SidebarLink
-                isCollapsed={isCollapsed}
-                to="/customer/manager-tasks"
-                icon={<FiLayers />}
-                label="Task Oversight"
-                active={isActive("/customer/manager-tasks") || isActive("/customer-manager-tasks")}
-                iconColor={iconColor}
-                activeIconColor={activeIconColor}
-                textColor={textColor}
-                activeTextColor={activeTextColor}
+                activeBg={activeBg}
               />
               <SidebarLink
                 isCollapsed={isCollapsed}
                 to="/customer-user-management"
-                icon={<FiUser />}
+                icon={<FiUser size={17} />}
                 label="User Management"
                 active={isActive("/customer-user-management")}
                 iconColor={iconColor}
                 activeIconColor={activeIconColor}
                 textColor={textColor}
                 activeTextColor={activeTextColor}
+                activeBg={activeBg}
               />
             </SidebarGroup>
           )}
         </VStack>
       </Box>
 
-      {/* Maximized & Tall User Footer Profile Area - Elevated */}
-      <Box
-        p={4.5}
-        mx={3}
-        mb={{ base: 14, md: 16 }}
-        mt={3}
-        border="1px solid"
-        borderColor={sidebarBorderColor}
-        borderRadius="2xl"
-        bg={userCardBg}
-        boxShadow="lg"
-        flexShrink={0}
-        transition="all 0.2s ease"
-        _hover={{
-          transform: "translateY(-3px)",
-          boxShadow: "xl",
-        }}
-      >
+      {/* 3. Bottom User Profile Section with Clear Logout Option */}
+      <Box p={3} flexShrink={0} borderTop="1px solid" borderColor={sidebarBorderColor}>
         {isCollapsed ? (
-          <VStack spacing={3} align="center" py={1}>
-            <Tooltip label={currentUser?.fullName || currentUser?.username || "My Profile"} placement="right" hasArrow>
-              <Avatar
-                as={RouterLink}
-                to="/employee-info"
-                size="md"
-                name={currentUser?.fullName || currentUser?.username || "CS"}
-                bg="blue.500"
+          <VStack spacing={2} align="center">
+            <Menu placement="right-end">
+              <MenuButton
+                as={Avatar}
+                size="sm"
+                src={userAvatarSrc}
+                name={userDisplayName}
+                bg="#2d6a4f"
                 color="white"
                 cursor="pointer"
+                border="2px solid #52b788"
               />
-            </Tooltip>
-            <Tooltip label="Sign Out" placement="right" hasArrow>
+              <Portal>
+                <MenuList
+                  zIndex="1600"
+                  shadow="2xl"
+                  borderRadius="xl"
+                  bg="#142319"
+                  borderColor="rgba(255, 255, 255, 0.1)"
+                  color="#ffffff"
+                >
+                  <Box px={3.5} py={2}>
+                    <Text fontWeight="700" fontSize="xs">{userDisplayName}</Text>
+                    <Badge fontSize="9px" px={2} py={0.5} borderRadius="full" bg="rgba(45, 106, 79, 0.45)" color="#95d5b2" border="1px solid rgba(82, 183, 136, 0.3)">
+                      {userRoleDisplay}
+                    </Badge>
+                    <Text fontSize="2xs" color="rgba(255, 255, 255, 0.5)" mt={1}>{userEmailDisplay}</Text>
+                  </Box>
+                  <Divider my={1} borderColor="rgba(255, 255, 255, 0.08)" />
+                  <MenuItem as={RouterLink} to="/employee-info" icon={<FiUser />} bg="transparent" _hover={{ bg: "rgba(255,255,255,0.08)", color: "#95d5b2" }}>Profile</MenuItem>
+                  <MenuItem onClick={handleLogout} color="#f87171" icon={<FiLogOut />} bg="transparent" _hover={{ bg: "rgba(239, 68, 68, 0.15)", color: "#ef4444" }}>Sign out</MenuItem>
+                </MenuList>
+              </Portal>
+            </Menu>
+            <Tooltip label="Sign out" placement="right" hasArrow>
               <IconButton
-                size="sm"
+                aria-label="Sign out"
+                icon={<FiLogOut size={14} />}
+                size="xs"
                 variant="ghost"
-                colorScheme="red"
-                icon={<FiLogOut size={18} />}
-                aria-label="Logout"
+                color="rgba(255, 255, 255, 0.6)"
+                _hover={{ bg: "rgba(239, 68, 68, 0.15)", color: "#ef4444" }}
                 onClick={handleLogout}
+                borderRadius="md"
               />
             </Tooltip>
           </VStack>
         ) : (
-          <VStack spacing={3.5} align="stretch">
-            <Flex align="center" gap={3}>
+          <Flex
+            align="center"
+            justify="space-between"
+            p={2}
+            borderRadius="xl"
+            border="1px solid"
+            borderColor="rgba(255, 255, 255, 0.08)"
+            bg="#142319"
+            _hover={{ borderColor: "rgba(82, 183, 136, 0.35)", bg: "#172b1e" }}
+            transition="all 0.15s ease"
+            gap={2}
+          >
+            {/* User Details Link to Profile */}
+            <HStack
+              as={RouterLink}
+              to="/employee-info"
+              spacing={2.5}
+              overflow="hidden"
+              flex={1}
+              _hover={{ textDecoration: "none" }}
+            >
               <Avatar
-                size="md"
-                name={currentUser?.fullName || currentUser?.username || "CS"}
-                bg="blue.500"
+                size="sm"
+                src={userAvatarSrc}
+                name={userDisplayName}
+                bg="#2d6a4f"
                 color="white"
+                fontWeight="bold"
+                border="2px solid #52b788"
+                boxSize="36px"
+                flexShrink={0}
               />
-              <Box overflow="hidden" flex={1}>
-                <Text fontSize="sm" fontWeight="extrabold" noOfLines={1} color={textColor}>
-                  {currentUser?.fullName || currentUser?.username || "Customer Service"}
-                </Text>
-                <HStack spacing={1.5} mt={1}>
-                  <Badge colorScheme="blue" fontSize="2xs" px={2} py={0.5} borderRadius="full">
-                    {currentUser?.displayRole || currentUser?.jobTitle || "CS Officer"}
-                  </Badge>
-                  <Text fontSize="2xs" color="green.500" fontWeight="bold">
-                    🟢 Online
+              <Box overflow="hidden" flex={1} textAlign="left">
+                <HStack spacing={1.5} align="center">
+                  <Text fontSize="12px" fontWeight="700" color="#ffffff" noOfLines={1} lineHeight="1.2">
+                    {userDisplayName}
                   </Text>
+                  <Badge
+                    fontSize="9px"
+                    px={2}
+                    py={0.2}
+                    borderRadius="full"
+                    bg="rgba(45, 106, 79, 0.45)"
+                    color="#95d5b2"
+                    fontWeight="700"
+                    border="1px solid rgba(82, 183, 136, 0.3)"
+                    textTransform="none"
+                  >
+                    {userRoleDisplay}
+                  </Badge>
                 </HStack>
+                <Text fontSize="10px" color="rgba(255, 255, 255, 0.45)" noOfLines={1} mt={0.5}>
+                  {userEmailDisplay}
+                </Text>
               </Box>
-            </Flex>
+            </HStack>
 
-            <Text fontSize="xs" color={userMetaColor} noOfLines={1} px={0.5}>
-              {currentUser?.email || "customer.service@tradethiopia.com"}
-            </Text>
-
-            <VStack spacing={2} pt={1}>
-              <Button
-                as={RouterLink}
-                to="/employee-info"
+            {/* Clear, Dedicated Quick Logout Button */}
+            <Tooltip label="Sign out" hasArrow placement="top">
+              <IconButton
+                aria-label="Sign out"
+                icon={<FiLogOut size={15} />}
                 size="sm"
-                variant="outline"
-                colorScheme="blue"
-                w="100%"
-                h="36px"
-                leftIcon={<FiUser />}
-                borderRadius="xl"
-                fontSize="xs"
-                fontWeight="bold"
-              >
-                My Profile
-              </Button>
-              <Button
-                size="sm"
-                variant="solid"
-                colorScheme="red"
-                w="100%"
-                h="36px"
-                leftIcon={<FiLogOut />}
+                variant="ghost"
+                color="rgba(255, 255, 255, 0.55)"
+                _hover={{ color: "#f87171", bg: "rgba(239, 68, 68, 0.15)" }}
                 onClick={handleLogout}
-                borderRadius="xl"
-                fontSize="xs"
-                fontWeight="bold"
-              >
-                Sign Out
-              </Button>
-            </VStack>
-          </VStack>
+                borderRadius="lg"
+                flexShrink={0}
+                h="32px"
+                w="32px"
+              />
+            </Tooltip>
+          </Flex>
         )}
       </Box>
     </Box>
@@ -558,24 +657,24 @@ const SSidebar = ({ isCollapsed: collapsedProp, toggleCollapse: toggleProp, acti
 const SidebarGroup = ({ title, isCollapsed, isOpen, onToggle, children }) => (
   <Box w="100%">
     {!isCollapsed && (
-      <Button
+      <Flex
         onClick={onToggle}
-        variant="ghost"
-        size="xs"
-        w="100%"
-        justifyContent="space-between"
+        align="center"
+        justify="space-between"
         px={2.5}
         py={1.5}
-        color="gray.400"
-        fontSize="2xs"
+        cursor="pointer"
+        color="rgba(255, 255, 255, 0.35)"
+        fontSize="10px"
         fontWeight="800"
         textTransform="uppercase"
         letterSpacing="0.8px"
-        _hover={{ bg: "transparent", color: "blue.500" }}
-        rightIcon={isOpen ? <FiChevronDown size={12} /> : <FiChevronRight size={12} />}
+        _hover={{ color: "rgba(255, 255, 255, 0.65)" }}
+        transition="color 0.15s ease"
       >
-        {title}
-      </Button>
+        <Text>{title}</Text>
+        <Icon as={isOpen ? FiChevronDown : FiChevronRight} boxSize="12px" />
+      </Flex>
     )}
     <Collapse in={isCollapsed || isOpen} animateOpacity>
       <VStack align="stretch" spacing={1} pt={isCollapsed ? 0 : 0.5}>
@@ -595,11 +694,12 @@ const SidebarLink = ({
   activeIconColor,
   textColor,
   activeTextColor,
+  activeBg,
   unreadCount = 0,
   onClick,
 }) => (
   <Tooltip label={label} isDisabled={!isCollapsed} placement="right" hasArrow>
-    <Link
+    <Box
       as={RouterLink}
       to={to}
       _hover={{ textDecoration: "none" }}
@@ -610,27 +710,22 @@ const SidebarLink = ({
     >
       <HStack
         align="center"
-        px={2.5}
+        px={3}
         py={2}
         w="100%"
         justify={isCollapsed ? "center" : "flex-start"}
         borderRadius="lg"
-        bg={active ? "blue.50" : "transparent"}
-        border="1px solid"
-        borderColor={active ? "blue.200" : "transparent"}
-        _dark={{
-          bg: active ? "rgba(59, 130, 246, 0.15)" : "transparent",
-          borderColor: active ? "rgba(59, 130, 246, 0.3)" : "transparent",
-        }}
+        bg={active ? activeBg : "transparent"}
+        border={active ? "1px solid rgba(82, 183, 136, 0.3)" : "1px solid transparent"}
+        boxShadow={active ? "0 2px 8px rgba(45, 106, 79, 0.3)" : "none"}
         _hover={{
-          bg: active ? "blue.50" : "rgba(37, 99, 235, 0.05)",
+          bg: active ? activeBg : "rgba(255, 255, 255, 0.08)",
           transform: "translateX(2px)",
         }}
         transition="all 0.15s ease"
-        position="relative"
-        spacing={2.5}
+        spacing={3}
       >
-        <Box color={active ? activeIconColor : iconColor} fontSize="16px">
+        <Box color={active ? activeIconColor : iconColor} display="flex" alignItems="center">
           {icon}
         </Box>
         {!isCollapsed && (
@@ -638,18 +733,20 @@ const SidebarLink = ({
             <Text
               whiteSpace="nowrap"
               fontSize="xs"
-              fontWeight={active ? "bold" : "medium"}
+              fontWeight={active ? "700" : "500"}
               color={active ? activeTextColor : textColor}
+              letterSpacing="-0.1px"
             >
               {label}
             </Text>
             {unreadCount > 0 && label === "Notice Board" && (
               <Badge
-                colorScheme="red"
+                bg="#ef4444"
+                color="white"
                 borderRadius="full"
-                fontSize="2xs"
+                fontSize="9px"
                 px={1.5}
-                py={0.5}
+                py={0.2}
               >
                 {unreadCount}
               </Badge>
@@ -657,7 +754,7 @@ const SidebarLink = ({
           </Flex>
         )}
       </HStack>
-    </Link>
+    </Box>
   </Tooltip>
 );
 

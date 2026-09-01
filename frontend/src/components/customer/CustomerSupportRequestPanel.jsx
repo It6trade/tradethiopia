@@ -1,10 +1,17 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Badge,
   Box,
   Button,
   Card,
   CardBody,
+  Drawer,
+  DrawerBody,
+  DrawerCloseButton,
+  DrawerContent,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerOverlay,
   Flex,
   FormControl,
   FormLabel,
@@ -23,9 +30,8 @@ import {
   useToast,
 } from "@chakra-ui/react";
 import {
-  FiChevronDown,
-  FiChevronRight,
   FiClock,
+  FiEye,
   FiPaperclip,
   FiRefreshCw,
   FiSend,
@@ -111,7 +117,8 @@ export default function CustomerSupportRequestPanel() {
   const [managerTickets, setManagerTickets] = useState([]);
   const [feedbackSavingId, setFeedbackSavingId] = useState("");
   const [feedbackDrafts, setFeedbackDrafts] = useState({});
-  const [expandedManagerTicketIds, setExpandedManagerTicketIds] = useState({});
+  const [expandedManagerTicketIds] = useState({});
+  const [selectedTicketId, setSelectedTicketId] = useState("");
   const [form, setForm] = useState({
     taskName: "",
     ticketCategory: "software",
@@ -123,6 +130,11 @@ export default function CustomerSupportRequestPanel() {
   });
 
   const userAliases = useMemo(() => getUserTaskAliases(currentUser || {}), [currentUser]);
+  const selectedTicket = useMemo(() => (
+    selectedTicketId
+      ? managerTickets.find((ticket) => String(ticket._id || ticket.id) === String(selectedTicketId))
+      : null
+  ), [managerTickets, selectedTicketId]);
 
   useEffect(() => {
     setForm((prev) => ({
@@ -305,13 +317,6 @@ export default function CustomerSupportRequestPanel() {
     }
   };
 
-  const toggleManagerTicket = (ticketId) => {
-    setExpandedManagerTicketIds((prev) => ({
-      ...prev,
-      [ticketId]: !prev[ticketId],
-    }));
-  };
-
   return (
     <Card bg={cardBg} borderColor={borderColor} borderWidth="1px" borderRadius="2xl">
       <CardBody>
@@ -445,16 +450,6 @@ export default function CustomerSupportRequestPanel() {
                     <Box key={ticketId} bg={cardBg} border="1px solid" borderColor={borderColor} borderRadius="xl" p={4}>
                       <Flex justify="space-between" align="center" gap={3}>
                         <HStack minW={0} spacing={3}>
-                          <Button
-                            aria-label={isExpanded ? "Collapse support request details" : "Expand support request details"}
-                            size="xs"
-                            variant="ghost"
-                            minW="28px"
-                            px={0}
-                            onClick={() => toggleManagerTicket(ticketId)}
-                          >
-                            <Icon as={isExpanded ? FiChevronDown : FiChevronRight} />
-                          </Button>
                           <Box minW={0}>
                             <Badge mb={2} colorScheme="blue" variant="subtle">Support Request to Manager Record</Badge>
                             <Text fontWeight="800">{getTaskTitle(ticket)}</Text>
@@ -465,6 +460,15 @@ export default function CustomerSupportRequestPanel() {
                           <Badge colorScheme={getStatusColor(ticket.supportStatus)}>
                             {String(ticket.supportStatus || "requested").replace("_", " ")}
                           </Badge>
+                          <Button
+                            size="xs"
+                            variant="outline"
+                            colorScheme="blue"
+                            leftIcon={<FiEye />}
+                            onClick={() => setSelectedTicketId(ticketId)}
+                          >
+                            Detail
+                          </Button>
                           {canUserDeleteSupportTicket(ticket) && (
                             <Tooltip label="Delete Support Request (Sender & Manager only)" hasArrow>
                               <IconButton
@@ -484,7 +488,7 @@ export default function CustomerSupportRequestPanel() {
                         </HStack>
                       </Flex>
 
-                      {isExpanded && (
+                      {isExpanded && Boolean(selectedTicketId === "__inline_disabled__") && (
                         <Box mt={3}>
                           <Text fontSize="sm" color={muted}>{ticket.supportRequestNote || ticket.description}</Text>
                           <SimpleGrid columns={{ base: 1, md: 2 }} spacing={2} mt={3} fontSize="sm">
@@ -578,6 +582,125 @@ export default function CustomerSupportRequestPanel() {
             </CardBody>
           </Card>
         </SimpleGrid>
+
+        <Drawer isOpen={Boolean(selectedTicket)} placement="right" onClose={() => setSelectedTicketId("")} size="md">
+          <DrawerOverlay backdropFilter="blur(3px)" />
+          <DrawerContent maxW={{ base: "100vw", md: "540px" }} bg={cardBg}>
+            <DrawerCloseButton />
+            <DrawerHeader borderBottom="1px solid" borderColor={borderColor} px={4} py={3}>
+              <VStack align="stretch" spacing={2} pr={8}>
+                <HStack spacing={2} wrap="wrap">
+                  <Badge colorScheme="blue" fontSize="2xs" borderRadius="full">Support Request</Badge>
+                  <Badge colorScheme={getStatusColor(selectedTicket?.supportStatus)} fontSize="2xs" borderRadius="full">
+                    {String(selectedTicket?.supportStatus || "requested").replace("_", " ")}
+                  </Badge>
+                </HStack>
+                <Heading size="sm" noOfLines={2}>{getTaskTitle(selectedTicket || {})}</Heading>
+                <Text fontSize="xs" color={muted}>
+                  {selectedTicket?.requestedDepartment || "Customer Service"}
+                </Text>
+              </VStack>
+            </DrawerHeader>
+
+            <DrawerBody px={4} py={3}>
+              {selectedTicket && (() => {
+                const ticketId = selectedTicket._id || selectedTicket.id;
+                const latestRecord = getLatestWorkRecord(selectedTicket);
+                const canGiveFeedback = canCurrentUserGiveFeedback(selectedTicket, userAliases);
+                const feedbackOpen = isFeedbackOpen(selectedTicket);
+                return (
+                  <VStack align="stretch" spacing={3}>
+                    <Box p={3} borderRadius="lg" bg={panelBg} border="1px solid" borderColor={borderColor}>
+                      <Text fontSize="xs" fontWeight="800" color={muted} mb={1}>REQUEST DETAILS</Text>
+                      <Text fontSize="sm" color={muted} whiteSpace="pre-wrap">
+                        {selectedTicket.supportRequestNote || selectedTicket.description || "No request detail provided."}
+                      </Text>
+                    </Box>
+
+                    <SimpleGrid columns={{ base: 1, md: 2 }} spacing={2}>
+                      <Box p={3} borderRadius="lg" bg={panelBg}>
+                        <Text fontSize="2xs" fontWeight="800" color={muted}>SENT</Text>
+                        <Text fontSize="xs">{selectedTicket.requestedAt ? new Date(selectedTicket.requestedAt).toLocaleString() : "Recently"}</Text>
+                      </Box>
+                      <Box p={3} borderRadius="lg" bg={panelBg}>
+                        <Text fontSize="2xs" fontWeight="800" color={muted}>ASSIGNED IT</Text>
+                        <Text fontSize="xs">{(selectedTicket.assignedTo || []).join(", ") || "Waiting manager assignment"}</Text>
+                      </Box>
+                      <Box p={3} borderRadius="lg" bg={panelBg}>
+                        <Text fontSize="2xs" fontWeight="800" color={muted}>MANAGER ACCEPTED</Text>
+                        <Text fontSize="xs">{selectedTicket.managerAcceptedAt ? new Date(selectedTicket.managerAcceptedAt).toLocaleString() : "Pending"}</Text>
+                      </Box>
+                      <Box p={3} borderRadius="lg" bg={panelBg}>
+                        <Text fontSize="2xs" fontWeight="800" color={muted}>PRIORITY</Text>
+                        <Badge colorScheme={selectedTicket.priority === "critical" ? "red" : selectedTicket.priority === "high" ? "orange" : "blue"} size="sm">
+                          {selectedTicket.priority || "normal"}
+                        </Badge>
+                      </Box>
+                    </SimpleGrid>
+
+                    {latestRecord ? (
+                      <Box p={3} borderRadius="lg" bg={panelBg}>
+                        <HStack justify="space-between" align="start">
+                          <Box>
+                            <Text fontSize="sm" fontWeight="800">Latest work done by {latestRecord.staffName || "IT staff"}</Text>
+                            <Text fontSize="xs" color={muted}>{latestRecord.summary}</Text>
+                          </Box>
+                          <Badge colorScheme={latestRecord.approvalStatus === "approved" ? "green" : latestRecord.approvalStatus === "rejected" ? "red" : "orange"}>
+                            {String(latestRecord.approvalStatus || "pending approval").replace("_", " ")}
+                          </Badge>
+                        </HStack>
+                        <Text fontSize="2xs" color={muted} mt={2}>
+                          Completed: {latestRecord.completedAt ? new Date(latestRecord.completedAt).toLocaleString() : "No date"} | Manager feedback: {latestRecord.managerNote || latestRecord.approvedByName || "No feedback yet"}
+                        </Text>
+                        {latestRecord.outstandingTasks && (
+                          <Text fontSize="xs" color="orange.500" mt={1}>Outstanding: {latestRecord.outstandingTasks}</Text>
+                        )}
+                      </Box>
+                    ) : (
+                      <Text fontSize="sm" color={muted}>No staff work report has been submitted yet.</Text>
+                    )}
+
+                    <Box p={3} borderRadius="lg" bg={panelBg}>
+                      <HStack mb={2}>
+                        <Icon as={FiStar} color="yellow.500" />
+                        <Text fontSize="sm" fontWeight="800">Customer Service Sender Feedback</Text>
+                      </HStack>
+                      {selectedTicket.requesterFeedback?.submittedAt && (
+                        <Box mb={3}>
+                          <Badge colorScheme="yellow">{selectedTicket.requesterFeedback.rating} / 5 rating</Badge>
+                          <Text mt={2} fontSize="sm">{selectedTicket.requesterFeedback.comment || "No feedback comment."}</Text>
+                          <Text fontSize="2xs" color={muted}>Submitted {new Date(selectedTicket.requesterFeedback.submittedAt).toLocaleString()} by {selectedTicket.requesterFeedback.submittedBy || "requester"}</Text>
+                        </Box>
+                      )}
+
+                      {canGiveFeedback && feedbackOpen ? (
+                        <VStack align="stretch" spacing={2}>
+                          <SimpleGrid columns={{ base: 1, md: 2 }} spacing={2}>
+                            <Select size="sm" placeholder="Rating" value={feedbackDrafts[ticketId]?.rating ?? selectedTicket.requesterFeedback?.rating ?? ""} onChange={(event) => setFeedbackDrafts({ ...feedbackDrafts, [ticketId]: { ...(feedbackDrafts[ticketId] || {}), rating: event.target.value } })}>
+                              {[5, 4, 3, 2, 1].map((rating) => <option key={rating} value={rating}>{rating} / 5</option>)}
+                            </Select>
+                            <Button size="sm" colorScheme="yellow" onClick={() => submitTicketFeedback(selectedTicket)} isLoading={feedbackSavingId === ticketId}>
+                              {selectedTicket.requesterFeedback?.submittedAt ? "Update Feedback" : "Send Feedback"}
+                            </Button>
+                          </SimpleGrid>
+                          <Textarea size="sm" placeholder="Feedback for the completed support work" value={feedbackDrafts[ticketId]?.comment ?? selectedTicket.requesterFeedback?.comment ?? ""} onChange={(event) => setFeedbackDrafts({ ...feedbackDrafts, [ticketId]: { ...(feedbackDrafts[ticketId] || {}), comment: event.target.value } })} />
+                        </VStack>
+                      ) : (
+                        <Text fontSize="sm" color={muted}>
+                          {feedbackOpen ? "Only the original sender/request owner can provide feedback." : "Feedback opens after manager approval or approved IT work."}
+                        </Text>
+                      )}
+                    </Box>
+                  </VStack>
+                );
+              })()}
+            </DrawerBody>
+
+            <DrawerFooter borderTop="1px solid" borderColor={borderColor} px={4} py={3}>
+              <Button size="sm" onClick={() => setSelectedTicketId("")}>Close</Button>
+            </DrawerFooter>
+          </DrawerContent>
+        </Drawer>
       </CardBody>
     </Card>
   );

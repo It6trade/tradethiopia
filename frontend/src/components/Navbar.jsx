@@ -21,12 +21,13 @@ import {
     InputRightElement,
     Icon,
     Kbd,
+    Link,
 } from "@chakra-ui/react";
 import { BsBell, BsChat } from "react-icons/bs";
 import { IoMoon } from "react-icons/io5";
 import { SunIcon } from "@chakra-ui/icons";
 import { FiSearch, FiUser, FiLogOut } from "react-icons/fi";
-import { Link, useNavigate, useLocation } from "react-router-dom";
+import { Link as RouterLink, useNavigate, useLocation } from "react-router-dom";
 import { useUserStore } from "../store/user";
 import { useEffect, useState, useMemo } from "react";
 import axios from "axios";
@@ -147,13 +148,16 @@ const NavbarPage = ({ sidebarWidth = "0px" }) => {
             >
                 {/* Left: Breadcrumb */}
                 <HStack spacing={2} flexShrink={0}>
-                    <Text
+                    <Link
+                        as={RouterLink}
+                        to="/dashboard"
                         fontSize="13px"
                         fontWeight="500"
                         color={useColorModeValue("gray.400", "gray.500")}
+                        _hover={{ color: "green.500", textDecoration: "none" }}
                     >
                         HR Workspace
-                    </Text>
+                    </Link>
                     <Text fontSize="13px" color={useColorModeValue("gray.300", "gray.600")}>/</Text>
                     <Text
                         fontSize="13px"
@@ -200,7 +204,7 @@ const NavbarPage = ({ sidebarWidth = "0px" }) => {
                     <Menu>
                         <MenuButton cursor="pointer">
                             <HStack spacing={2}>
-                                <Avatar size="sm" name={currentUser?.fullName || currentUser?.username} src={safeNavPhoto} ignoreFallback={!safeNavPhoto} />
+                                <Avatar size="sm" name={currentUser?.fullName || currentUser?.username} src={safeNavPhoto} ignoreFallback={Boolean(safeNavPhoto)} />
                                 <Box display={{ base: "none", lg: "block" }}>
                                     <Text fontSize="xs" fontWeight="700" lineHeight="short" color={useColorModeValue("gray.800", "white")}>
                                         {currentUser?.fullName || currentUser?.username}
@@ -213,7 +217,7 @@ const NavbarPage = ({ sidebarWidth = "0px" }) => {
                         </MenuButton>
                         <MenuList borderRadius="xl" boxShadow="lg" border="1px solid" borderColor={useColorModeValue("gray.100", "gray.700")} p={2}>
                             <Box p={3} textAlign="center">
-                                <Avatar size="lg" name={currentUser?.fullName || currentUser?.username} src={safeNavPhoto} ignoreFallback={!safeNavPhoto} mb={2} />
+                                <Avatar size="lg" name={currentUser?.fullName || currentUser?.username} src={safeNavPhoto} ignoreFallback={Boolean(safeNavPhoto)} mb={2} />
                                 <Text fontSize="sm" fontWeight="bold">{currentUser?.fullName || currentUser?.username}</Text>
                                 <Text fontSize="xs" color="gray.500">{currentUser?.jobTitle || currentUser?.role}</Text>
                             </Box>

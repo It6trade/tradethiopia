@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Badge,
   Box,
@@ -13,13 +13,13 @@ import {
   HStack,
   Heading,
   Input,
-  Modal,
-  ModalBody,
-  ModalCloseButton,
-  ModalContent,
-  ModalFooter,
-  ModalHeader,
-  ModalOverlay,
+  Drawer,
+  DrawerBody,
+  DrawerCloseButton,
+  DrawerContent,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerOverlay,
   Select,
   SimpleGrid,
   Stack,
@@ -245,10 +245,10 @@ export default function ITTaskEditModal({ isOpen, task, onClose, onDone }) {
   const isExternal = form.projectType === 'external';
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} size="5xl" scrollBehavior="inside">
-      <ModalOverlay bg="blackAlpha.500" backdropFilter="blur(5px)" />
-      <ModalContent borderRadius="22px" bg={modalBg} maxW={{ base: '94vw', lg: '980px' }} maxH="92vh" overflow="hidden">
-        <ModalHeader bg={headerBg} borderBottom="1px solid" borderColor={borderColor}>
+    <Drawer isOpen={isOpen} onClose={onClose} placement="right" size="xl">
+      <DrawerOverlay bg="blackAlpha.500" backdropFilter="blur(5px)" />
+      <DrawerContent bg={modalBg} maxW={{ base: '100vw', lg: '980px' }} overflow="hidden">
+        <DrawerHeader bg={headerBg} borderBottom="1px solid" borderColor={borderColor}>
           <VStack align="stretch" spacing={2}>
             <HStack spacing={2} wrap="wrap">
               <Badge colorScheme={isExternal ? 'purple' : 'blue'}>{isExternal ? 'External' : 'Internal'}</Badge>
@@ -259,9 +259,9 @@ export default function ITTaskEditModal({ isOpen, task, onClose, onDone }) {
               <Text fontSize="sm" color={muted}>Update task ownership, timeline, workflow, and delivery details.</Text>
             </Box>
           </VStack>
-        </ModalHeader>
-        <ModalCloseButton />
-        <ModalBody py={5}>
+        </DrawerHeader>
+        <DrawerCloseButton />
+        <DrawerBody py={5}>
           <Stack spacing={4}>
             <Card borderRadius="18px" border="1px solid" borderColor={borderColor} bg={sectionBg}>
               <CardBody>
@@ -405,12 +405,12 @@ export default function ITTaskEditModal({ isOpen, task, onClose, onDone }) {
               </CardBody>
             </Card>
           </Stack>
-        </ModalBody>
-        <ModalFooter borderTop="1px solid" borderColor={borderColor}>
+        </DrawerBody>
+        <DrawerFooter borderTop="1px solid" borderColor={borderColor}>
           <Button variant="ghost" mr={3} onClick={onClose}>Cancel</Button>
           <Button colorScheme="blue" onClick={submit}>Update Task</Button>
-        </ModalFooter>
-      </ModalContent>
-    </Modal>
+        </DrawerFooter>
+      </DrawerContent>
+    </Drawer>
   );
 }

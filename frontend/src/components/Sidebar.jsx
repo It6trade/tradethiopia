@@ -260,7 +260,7 @@ const Sidebar = ({ isCollapsed: controlledIsCollapsed, onToggleCollapse }) => {
             size="sm"
             name={currentUser?.fullName || currentUser?.username || "Trade Ethiopia"}
             src={safeSidebarPhoto}
-            ignoreFallback={!safeSidebarPhoto}
+            ignoreFallback={Boolean(safeSidebarPhoto)}
             bg={LOGO_BADGE_BG}
             color="white"
             borderRadius="lg"
