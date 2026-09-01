@@ -45,7 +45,7 @@ import CustomerSettings from "./components/customer/CustomerSettings";
 import CustomerUserManagement from "./components/customer/CustomerUserManagement";
 import StudentRegistrationPage from "./components/customer/StudentRegistrationPage";
 import ReceptionDashboard from './pages/ReceptionDashboard';
-
+import CooTwoDashboard from "./pages/coo2/CooTwoDashboard";
 import HRTrainingPage from './pages/HRTrainingPage.jsx';
 import ENISRALayout from "./components/ENSRA/ENSRALayout";
 import ENISRAEnhancedDashboard from "./components/ENSRA/ENISRAEnhancedDashboard";
@@ -486,6 +486,13 @@ function App() {
       <Route path="/ceo-dashboard" element={<COODashboard />} />
       <Route path="/tradextv-dashboard" element={<DashboardPermitRoute><TradexTVDashboard /></DashboardPermitRoute>} />
       <Route path="/reception-dashboard" element={<DashboardPermitRoute><LayoutWrapper><ReceptionDashboard /></LayoutWrapper></DashboardPermitRoute>} />
+      {['/coo', '/coo/dashboard', '/2-coo', '/coo-2', '/coo2', '/2coo', '/coo-v2', '/coo2-dashboard', '/coo2/dashboard'].map((path) => (
+        <Route
+          key={path}
+          path={path}
+          element={<DashboardPermitRoute><CooTwoDashboard /></DashboardPermitRoute>}
+        />
+      ))}
       <Route
         path="/customer-settings"
         element={

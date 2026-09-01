@@ -166,7 +166,9 @@ const createuser = async (req, res) => {
         }
 
         // Set default status if not provided
-        const userStatus = status || (role === "admin" || role === "HR" ? "active" : "inactive");
+        const normalizedRole = String(role || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+        const activeRoles = new Set(['admin', 'hr', 'coo', 'coo2', '2coo', 'ceo']);
+        const userStatus = status || (activeRoles.has(normalizedRole) ? "active" : "inactive");
 
         const newUser = new User({ 
             username: normalizedUsername,

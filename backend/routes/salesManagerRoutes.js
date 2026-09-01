@@ -26,6 +26,8 @@ router.route('/all-sales')
       'admin',
       'coo',
       'COO',
+      'coo2',
+      'COO2',
       'ceo',
       'CEO',
       'customerservice',
@@ -44,12 +46,12 @@ router.route('/sales/:id/supervisor-comment')
 router.route('/agents')
   .get(
     protect,
-    authorize('salesmanager', 'hr', 'HR', 'finance', 'Finance', 'admin', 'coo', 'COO', 'ceo', 'CEO'),
+    authorize('salesmanager', 'hr', 'HR', 'finance', 'Finance', 'admin', 'coo', 'COO', 'coo2', 'COO2', 'ceo', 'CEO'),
     getAllAgents
   );
 
 router.route('/team-performance')
-  .get(protect, authorize('salesmanager', 'coo'), getTeamPerformance);
+  .get(protect, authorize('salesmanager', 'coo', 'COO', 'coo2', 'COO2'), getTeamPerformance);
 
 router.route('/dashboard-stats')
   .get(protect, authorize('salesmanager'), getDashboardStats);
