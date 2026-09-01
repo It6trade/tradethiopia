@@ -76,8 +76,9 @@ import {
   FiUsers,
   FiCalendar,
   FiExternalLink,
+  FiArrowLeft,
 } from 'react-icons/fi';
-import { Link as RouterLink } from 'react-router-dom';
+import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import { useUserStore, normalizeRole } from '../store/user';
 import axiosInstance from '../services/axiosInstance';
 
@@ -165,6 +166,7 @@ const AVATAR_PRESETS = [
 export default function HRProfilePage() {
   const toast = useToast();
   const fileInputRef = useRef(null);
+  const navigate = useNavigate();
 
   // User state from store
   const currentUser = useUserStore((state) => state.currentUser);
@@ -609,6 +611,19 @@ export default function HRProfilePage() {
         mb={6}
       >
         <Box>
+          <HStack spacing={2} mb={1.5} fontSize="xs" fontWeight="600">
+            <Link
+              as={RouterLink}
+              to="/dashboard"
+              color={useColorModeValue('gray.500', 'gray.400')}
+              _hover={{ color: 'green.500', textDecoration: 'none' }}
+            >
+              HR Workspace
+            </Link>
+            <Text color={useColorModeValue('gray.300', 'gray.600')}>/</Text>
+            <Text color={textColor}>HR Profile</Text>
+          </HStack>
+
           <HStack spacing={2} mb={1}>
             <Heading size="lg" fontWeight="800" letterSpacing="tight" color={textColor}>
               {formData.fullName || 'HR Profile'}
@@ -622,7 +637,17 @@ export default function HRProfilePage() {
           </Text>
         </Box>
 
-        <HStack spacing={3}>
+        <HStack spacing={2.5} wrap="wrap">
+          <Button
+            leftIcon={<Icon as={FiArrowLeft} />}
+            variant="ghost"
+            size="sm"
+            borderRadius="lg"
+            onClick={() => navigate('/dashboard')}
+            _hover={{ bg: useColorModeValue('gray.100', 'gray.700') }}
+          >
+            Dashboard
+          </Button>
           <Button
             leftIcon={<Icon as={FiRefreshCw} />}
             variant="outline"
@@ -670,7 +695,7 @@ export default function HRProfilePage() {
                     size="2xl"
                     name={formData.fullName || formData.username}
                     src={safePhotoUrl}
-                    ignoreFallback={!safePhotoUrl}
+                    ignoreFallback={Boolean(safePhotoUrl)}
                     border="4px solid"
                     borderColor={cardBg}
                     boxShadow="lg"
@@ -981,7 +1006,7 @@ export default function HRProfilePage() {
                         size="sm"
                         name={formData.fullName || formData.username}
                         src={safePhotoUrl}
-                        ignoreFallback={!safePhotoUrl}
+                        ignoreFallback={Boolean(safePhotoUrl)}
                       />
                       <VStack flex="1" spacing={2} align="stretch">
                         <Input
@@ -1117,7 +1142,7 @@ export default function HRProfilePage() {
                                       "{item.quote}"
                                     </Text>
                                     <HStack spacing={2}>
-                                      <Avatar size="2xs" name={item.author} src={formData.photoUrl} />
+                                      <Avatar size="2xs" name={item.author} src={safePhotoUrl} ignoreFallback={Boolean(safePhotoUrl)} />
                                       <Text fontSize="11px" fontWeight="700" color={mutedText}>
                                         {item.signature || item.author}
                                       </Text>
@@ -1151,7 +1176,7 @@ export default function HRProfilePage() {
                             size="xl"
                             name={formData.fullName || formData.username}
                             src={safePhotoUrl}
-                            ignoreFallback={!safePhotoUrl}
+                            ignoreFallback={Boolean(safePhotoUrl)}
                             border="3px solid #2d6a4f"
                           />
                           <Box flex="1">
@@ -1904,7 +1929,7 @@ export default function HRProfilePage() {
                   size="xl"
                   name={formData.fullName || formData.username}
                   src={safePhotoUrl}
-                  ignoreFallback={!safePhotoUrl}
+                  ignoreFallback={Boolean(safePhotoUrl)}
                   mb={3}
                   border="3px solid #2d6a4f"
                   boxShadow="md"
@@ -1966,6 +1991,7 @@ export default function HRProfilePage() {
                         key={idx}
                         size="md"
                         src={preset}
+                        ignoreFallback={true}
                         cursor="pointer"
                         border={isSelected ? '3px solid #2d6a4f' : '2px solid transparent'}
                         boxShadow={isSelected ? '0 0 0 2px rgba(45, 106, 79, 0.4)' : 'sm'}
