@@ -339,7 +339,7 @@ const CDashboard = ({ initialTab = 'dashboard' }) => {
   };
 
   const handleAddFollowup = () => {
-    navigate('/customerfollowup');
+    navigate('/customerfollowup?openAddPending=1');
   };
 
   const layoutProps = {

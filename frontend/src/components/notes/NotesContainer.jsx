@@ -1,165 +1,151 @@
-import React, { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
+  Badge,
   Box,
   Button,
-  Text,
   Flex,
+  HStack,
+  Icon,
   IconButton,
-  useDisclosure,
-  AlertDialog,
-  AlertDialogOverlay,
-  AlertDialogContent,
-  AlertDialogHeader,
-  AlertDialogBody,
-  AlertDialogFooter,
   Input,
-  Table,
-  Thead,
-  Tbody,
-  Tr,
-  Th,
-  Td,
-  Modal,
-  ModalOverlay,
-  ModalContent,
-  ModalHeader,
-  ModalCloseButton,
-  ModalBody,
-  ModalFooter,
-  useToast
+  SimpleGrid,
+  Text,
+  Tooltip,
+  VStack,
+  useColorModeValue,
 } from '@chakra-ui/react';
-import { FaTrashAlt } from 'react-icons/fa';
+import { FiEdit3, FiEye, FiFileText, FiSearch, FiTrash2 } from 'react-icons/fi';
 
-const NotesContainer = ({ notes, handleEdit, handleDelete }) => {
-  const { isOpen, onOpen, onClose } = useDisclosure();
-  const [selectedNoteId, setSelectedNoteId] = useState(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedNote, setSelectedNote] = useState(null);
+const stripHtml = (value = '') => value.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+
+const formatDate = (value) => {
+  if (!value) return 'No date';
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return 'No date';
+  return parsed.toLocaleString();
+};
+
+const NotesContainer = ({
+  notes = [],
+  handleEdit,
+  onRequestDelete,
+  onViewNote,
+  activeNoteId,
+  deletingNoteId,
+}) => {
   const [searchQuery, setSearchQuery] = useState('');
-  const toast = useToast();
+  const cardBg = useColorModeValue('white', 'gray.800');
+  const panelBg = useColorModeValue('gray.50', 'whiteAlpha.100');
+  const borderColor = useColorModeValue('gray.200', 'whiteAlpha.200');
+  const muted = useColorModeValue('gray.600', 'gray.400');
 
-  const handleConfirmDelete = () => {
-    if (selectedNoteId) {
-      handleDelete(selectedNoteId);
-      toast({
-        title: 'Note deleted.',
-        description: 'Your note was deleted successfully.',
-        status: 'success',
-        duration: 5000,
-        isClosable: true,
-      });
-      onClose();
-    }
-  };
-
-  const openNoteContentModal = (note) => {
-    setSelectedNote(note);
-    setIsModalOpen(true);
-  };
-
-  const filteredNotes = notes.filter((note) =>
-    note.title.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredNotes = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) return notes;
+    return notes.filter((note) => (
+      String(note.title || '').toLowerCase().includes(query)
+      || stripHtml(note.content || '').toLowerCase().includes(query)
+    ));
+  }, [notes, searchQuery]);
 
   return (
-    <Box mt={4} p={4} borderRadius="md" boxShadow="md" bg="white">
-      <Input
-        value={searchQuery}
-        onChange={(e) => setSearchQuery(e.target.value)}
-        placeholder="Search notes by title"
-        mb={2}
-        size="md"
-        borderColor="gray.300"
-        _focus={{ borderColor: 'teal.500' }}
-        bg="gray.50"
-        p={2}
-      />
+    <Box>
+      <Flex justify="space-between" align={{ base: 'stretch', sm: 'center' }} direction={{ base: 'column', sm: 'row' }} gap={3} mb={3}>
+        <Box>
+          <HStack spacing={2}>
+            <Icon as={FiFileText} color="teal.500" />
+            <Text fontWeight="900">Saved Notes</Text>
+            <Badge colorScheme="teal" borderRadius="full">{notes.length}</Badge>
+          </HStack>
+          <Text fontSize="sm" color={muted}>Search, open, edit, or delete your scratchpad notes.</Text>
+        </Box>
+        <HStack
+          bg={cardBg}
+          border="1px solid"
+          borderColor={borderColor}
+          borderRadius="xl"
+          px={3}
+          w={{ base: '100%', sm: '260px' }}
+        >
+          <Icon as={FiSearch} color={muted} />
+          <Input
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value)}
+            placeholder="Search notes"
+            variant="unstyled"
+            size="sm"
+          />
+        </HStack>
+      </Flex>
 
-      <Box overflowX="auto" borderRadius="md" border="1px" borderColor="gray.200">
-        <Table variant="striped" colorScheme="teal" size="sm">
-          <Thead>
-            <Tr>
-              <Th fontSize="sm">Title</Th>
-              <Th fontSize="sm">Actions</Th>
-            </Tr>
-          </Thead>
-          <Tbody>
-            {filteredNotes.length > 0 ? (
-              filteredNotes.map((note) => (
-                <Tr key={note._id} onClick={() => openNoteContentModal(note)} _hover={{ cursor: 'pointer' }}>
-                  <Td fontSize="sm" p={2}>{note.title}</Td>
-                  <Td p={2}>
-                    <Flex justify="space-between" align="center" gap={2}>
-                      <Button
-                        colorScheme="yellow"
-                        size="xs"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleEdit(note._id);
-                        }}
-                      >
-                        Edit
-                      </Button>
-                      <IconButton
-                        icon={<FaTrashAlt />}
-                        aria-label="Delete Note"
-                        colorScheme="red"
-                        size="xs"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSelectedNoteId(note._id);
-                          onOpen();
-                        }}
-                      />
-                    </Flex>
-                  </Td>
-                </Tr>
-              ))
-            ) : (
-              <Tr>
-                <Td colSpan="2" textAlign="center" p={2}>No notes available.</Td>
-              </Tr>
-            )}
-          </Tbody>
-        </Table>
-      </Box>
-
-      <AlertDialog isOpen={isOpen} onClose={onClose}>
-        <AlertDialogOverlay>
-          <AlertDialogContent>
-            <AlertDialogHeader fontSize="lg" fontWeight="bold">
-              Delete Note
-            </AlertDialogHeader>
-
-            <AlertDialogBody>
-              Are you sure you want to delete this note? This action cannot be undone.
-            </AlertDialogBody>
-
-            <AlertDialogFooter>
-              <Button onClick={onClose}>Cancel</Button>
-              <Button colorScheme="red" onClick={handleConfirmDelete} ml={3}>
-                Delete
-              </Button>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialogOverlay>
-      </AlertDialog>
-
-      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} size="xl">
-        <ModalOverlay />
-        <ModalContent>
-          <ModalHeader>{selectedNote?.title}</ModalHeader>
-          <ModalCloseButton />
-          <ModalBody>
-            <Box dangerouslySetInnerHTML={{ __html: selectedNote?.content }} />
-          </ModalBody>
-          <ModalFooter>
-            <Button colorScheme="blue" onClick={() => setIsModalOpen(false)}>
-              Close
-            </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
+      {filteredNotes.length === 0 ? (
+        <Box bg={panelBg} border="1px dashed" borderColor={borderColor} borderRadius="2xl" p={5} textAlign="center">
+          <Icon as={FiFileText} color={muted} boxSize={6} mb={2} />
+          <Text fontWeight="800">No notes found</Text>
+          <Text fontSize="sm" color={muted}>Create a new note or adjust your search.</Text>
+        </Box>
+      ) : (
+        <SimpleGrid columns={{ base: 1, md: 2 }} spacing={3}>
+          {filteredNotes.map((note) => {
+            const noteId = note._id || note.id;
+            const isActive = String(activeNoteId || '') === String(noteId || '');
+            return (
+              <Box
+                key={noteId}
+                bg={cardBg}
+                border="1px solid"
+                borderColor={isActive ? 'teal.300' : borderColor}
+                borderRadius="2xl"
+                p={4}
+                boxShadow={isActive ? '0 0 0 3px rgba(20, 184, 166, 0.16)' : '0 10px 28px rgba(15, 23, 42, 0.06)'}
+                transition="box-shadow 0.2s ease, transform 0.2s ease"
+                _hover={{ transform: 'translateY(-2px)', boxShadow: '0 16px 34px rgba(15, 23, 42, 0.1)' }}
+              >
+                <VStack align="stretch" spacing={3}>
+                  <Box>
+                    <HStack justify="space-between" align="start" gap={2}>
+                      <Text fontWeight="900" noOfLines={1}>{note.title || 'Untitled note'}</Text>
+                      {isActive && <Badge colorScheme="teal">Editing</Badge>}
+                    </HStack>
+                    <Text fontSize="xs" color={muted}>{formatDate(note.updatedAt || note.createdAt)}</Text>
+                  </Box>
+                  <Text fontSize="sm" color={muted} noOfLines={3}>
+                    {stripHtml(note.content || '') || 'No note content.'}
+                  </Text>
+                  <Flex justify="space-between" align="center" gap={2}>
+                    <Button size="xs" variant="outline" colorScheme="blue" leftIcon={<FiEye />} onClick={() => onViewNote?.(note)}>
+                      Detail
+                    </Button>
+                    <HStack spacing={1}>
+                      <Tooltip label="Edit note" hasArrow>
+                        <IconButton
+                          aria-label="Edit note"
+                          size="xs"
+                          colorScheme="yellow"
+                          variant="ghost"
+                          icon={<FiEdit3 />}
+                          onClick={() => handleEdit?.(noteId)}
+                        />
+                      </Tooltip>
+                      <Tooltip label="Delete note" hasArrow>
+                        <IconButton
+                          aria-label="Delete note"
+                          size="xs"
+                          colorScheme="red"
+                          variant="ghost"
+                          icon={<FiTrash2 />}
+                          isLoading={String(deletingNoteId || '') === String(noteId || '')}
+                          onClick={() => onRequestDelete?.(note)}
+                        />
+                      </Tooltip>
+                    </HStack>
+                  </Flex>
+                </VStack>
+              </Box>
+            );
+          })}
+        </SimpleGrid>
+      )}
     </Box>
   );
 };

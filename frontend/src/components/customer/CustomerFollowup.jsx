@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import axios from "axios";
+import { useLocation, useNavigate } from "react-router-dom";
 import Layout from "./Layout";
 import FollowupTabPage from "./tabs/FollowupTabPage";
 import TrainingTabPage from "./tabs/TrainingTabPage";
@@ -522,6 +523,8 @@ const CustomerFollowup = ({ embedLayout = false, ensraOnly = false }) => {
   const rowHoverBg = useColorModeValue("gray.50", "gray.700");
 
   const [isMobile] = useMediaQuery("(max-width: 768px)");
+  const location = useLocation();
+  const navigate = useNavigate();
   const {
     isOpen: isEditOpen,
     onOpen: onEditOpen,
@@ -681,6 +684,20 @@ const CustomerFollowup = ({ embedLayout = false, ensraOnly = false }) => {
     resetPendingForm();
   };
 
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get("openAddPending") !== "1") return;
+    setIsAddPendingOpen(true);
+    params.delete("openAddPending");
+    navigate(
+      {
+        pathname: location.pathname,
+        search: params.toString() ? `?${params.toString()}` : "",
+      },
+      { replace: true }
+    );
+  }, [location.pathname, location.search, navigate]);
+
   const handleAddPendingSubmit = async (e) => {
     e.preventDefault();
     setIsSavingPending(true);
@@ -689,17 +706,23 @@ const CustomerFollowup = ({ embedLayout = false, ensraOnly = false }) => {
     const followupEndpoint = `${import.meta.env.VITE_API_URL}/api/followups`;
     const defaultDeadline = new Date();
     defaultDeadline.setDate(defaultDeadline.getDate() + 7);
+    const productsList = pendingForm.products
+      .split(",")
+      .map((product) => product.trim())
+      .filter(Boolean);
+    const normalizedCountry = pendingForm.country.trim() || "Not specified";
+    const normalizedIndustry = pendingForm.industry.trim() || "Not specified";
     const payload = {
       companyName: pendingForm.companyName,
       contactPerson: pendingForm.contactPerson,
       email: pendingForm.email,
       phoneNumber: pendingForm.phoneNumber,
-      country: pendingForm.country,
-      industry: pendingForm.industry,
-      products: pendingForm.products,
+      country: normalizedCountry,
+      industry: normalizedIndustry,
+      products: productsList,
       packageScope: pendingForm.packageScope,
       packageType: pendingForm.packageType,
-      ...(isBuyer ? { requirements: pendingForm.notes } : { certifications: pendingForm.notes }),
+      ...(isBuyer ? { requirements: pendingForm.notes } : { certifications: pendingForm.notes ? [pendingForm.notes] : [] }),
       agentId: currentUserId,
     };
     const followupPayload = {
@@ -709,7 +732,7 @@ const CustomerFollowup = ({ embedLayout = false, ensraOnly = false }) => {
       phoneNumber: pendingForm.phoneNumber,
       email: pendingForm.email,
       packageType: pendingForm.packageType || `${pendingForm.packageScope} B2B`,
-      country: pendingForm.country,
+      country: normalizedCountry,
       packageScope: pendingForm.packageScope,
       serviceProvided: "Pending follow-up",
       serviceNotProvided: pendingForm.notes || pendingForm.products || "Pending service review",
@@ -3747,7 +3770,7 @@ const CustomerFollowup = ({ embedLayout = false, ensraOnly = false }) => {
           </Box>
         ) : (
           <Box w="100%">
-            <Tabs variant="unstyled" colorScheme="teal" defaultIndex={0}>
+            <Tabs variant="unstyled" colorScheme="teal" defaultIndex={0} isLazy lazyBehavior="keepMounted">
               {/* Tab Navigation Pill Bar */}
               <Box
                 borderBottom="1px solid"
@@ -4410,13 +4433,42 @@ const CustomerFollowup = ({ embedLayout = false, ensraOnly = false }) => {
         </SimpleGrid>
       </VStack>
 
-      {/* Add Pending B2B Modal */}
-      <Modal isOpen={isAddPendingOpen} onClose={closeAddPendingModal} size="lg">
-        <ModalOverlay />
-        <ModalContent as="form" onSubmit={handleAddPendingSubmit}>
-          <ModalHeader>Add Pending B2B Customer</ModalHeader>
-          <ModalCloseButton />
-          <ModalBody>
+      {/* Add Pending B2B Drawer */}
+      {isAddPendingOpen && (
+        <Box position="fixed" inset={0} zIndex={3000}>
+          <Box position="absolute" inset={0} bg="blackAlpha.500" backdropFilter="blur(3px)" onClick={closeAddPendingModal} />
+          <Box
+            as="form"
+            onSubmit={handleAddPendingSubmit}
+            position="fixed"
+            top={0}
+            right={0}
+            h="100vh"
+            w={{ base: "100vw", md: "680px" }}
+            maxW="100vw"
+            bg={cardBg}
+            borderLeft="1px solid"
+            borderColor={borderColor}
+            boxShadow="-24px 0 60px rgba(15, 23, 42, 0.24)"
+            display="flex"
+            flexDirection="column"
+          >
+            <Flex align="center" justify="space-between" px={6} py={4} borderBottom="1px solid" borderColor={borderColor}>
+              <Box>
+                <Text fontSize="xs" fontWeight="800" color={headerBg} textTransform="uppercase">
+                  Customer Follow-up
+                </Text>
+                <Heading size="md">Add Pending B2B Customer</Heading>
+              </Box>
+              <IconButton
+                type="button"
+                aria-label="Close Add Pending B2B Customer"
+                icon={<SmallCloseIcon />}
+                variant="ghost"
+                onClick={closeAddPendingModal}
+              />
+            </Flex>
+            <Box flex="1" overflowY="auto" px={6} py={5}>
             <VStack spacing={3} align="stretch">
               <Select
                 value={pendingForm.type}
@@ -4522,9 +4574,9 @@ const CustomerFollowup = ({ embedLayout = false, ensraOnly = false }) => {
                 }
               />
             </VStack>
-          </ModalBody>
-          <ModalFooter>
-            <Button mr={3} onClick={closeAddPendingModal}>
+            </Box>
+            <Flex justify="flex-end" gap={3} px={6} py={4} borderTop="1px solid" borderColor={borderColor} bg={tableBg}>
+            <Button type="button" onClick={closeAddPendingModal}>
               Cancel
             </Button>
             <Button
@@ -4540,9 +4592,10 @@ const CustomerFollowup = ({ embedLayout = false, ensraOnly = false }) => {
             >
               Save
             </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
+            </Flex>
+          </Box>
+        </Box>
+      )}
 
       {/* Drawer for EditCustomerInfo */}
       <Drawer isOpen={isEditOpen} placement="right" onClose={onEditClose} size="md">

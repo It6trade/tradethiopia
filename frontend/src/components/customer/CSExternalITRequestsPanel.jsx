@@ -32,6 +32,8 @@ import {
   useToast,
 } from "@chakra-ui/react";
 import {
+  FiAlertTriangle,
+  FiCheckCircle,
   FiClock,
   FiEye,
   FiMessageSquare,
@@ -148,6 +150,52 @@ export default function CSExternalITRequestsPanel({ focusedTaskId = "", focusedC
   const panelBg = useColorModeValue("gray.50", "whiteAlpha.100");
   const borderColor = useColorModeValue("gray.200", "whiteAlpha.200");
   const muted = useColorModeValue("gray.600", "gray.400");
+  const headingColor = useColorModeValue("gray.900", "white");
+  const shellBg = useColorModeValue(
+    "linear-gradient(135deg, #f8fafc 0%, #eefdf8 46%, #eef2ff 100%)",
+    "linear-gradient(135deg, #111827 0%, #0f172a 52%, #172554 100%)"
+  );
+  const formPanelBg = useColorModeValue("rgba(255,255,255,0.92)", "rgba(17,24,39,0.92)");
+  const listPanelBg = useColorModeValue("rgba(255,255,255,0.86)", "rgba(15,23,42,0.86)");
+
+  const showRequestToast = useCallback(({ title, description, status = "info" }) => {
+    const tone = {
+      success: { color: "green.500", bg: "green.50", icon: FiCheckCircle },
+      error: { color: "red.500", bg: "red.50", icon: FiAlertTriangle },
+      warning: { color: "orange.500", bg: "orange.50", icon: FiAlertTriangle },
+      info: { color: "blue.500", bg: "blue.50", icon: FiShield },
+    }[status] || { color: "blue.500", bg: "blue.50", icon: FiShield };
+
+    toast({
+      position: "top",
+      duration: status === "error" ? 5000 : 3500,
+      isClosable: true,
+      render: ({ onClose }) => (
+        <Box
+          bg={cardBg}
+          border="1px solid"
+          borderColor={tone.color}
+          borderLeftWidth="5px"
+          borderRadius="xl"
+          boxShadow="0 18px 45px rgba(15, 23, 42, 0.18)"
+          p={3}
+          w={{ base: "calc(100vw - 32px)", sm: "420px" }}
+          mx="auto"
+        >
+          <HStack align="start" spacing={3}>
+            <Flex boxSize="34px" borderRadius="lg" bg={tone.bg} color={tone.color} align="center" justify="center" flexShrink={0}>
+              <Icon as={tone.icon} />
+            </Flex>
+            <Box flex="1" minW={0}>
+              <Text fontSize="sm" fontWeight="900">{title}</Text>
+              {description && <Text fontSize="xs" color={muted} mt={0.5}>{description}</Text>}
+            </Box>
+            <IconButton type="button" aria-label="Close alert" size="xs" variant="ghost" icon={<Text fontSize="md">x</Text>} onClick={onClose} />
+          </HStack>
+        </Box>
+      ),
+    });
+  }, [cardBg, muted, toast]);
 
   const [submitting, setSubmitting] = useState(false);
   const [loadingProjects, setLoadingProjects] = useState(false);
@@ -163,6 +211,7 @@ export default function CSExternalITRequestsPanel({ focusedTaskId = "", focusedC
   const [assignmentFilter, setAssignmentFilter] = useState("all");
   const [quickView, setQuickView] = useState("all");
   const [selectedProjectId, setSelectedProjectId] = useState("");
+  const [projectPendingDelete, setProjectPendingDelete] = useState(null);
   const [form, setForm] = useState({
     taskName: "",
     ticketCategory: "software",
@@ -235,7 +284,7 @@ export default function CSExternalITRequestsPanel({ focusedTaskId = "", focusedC
 
   const submitExternalProjectRequest = async () => {
     if (!form.taskName.trim() || !form.summary.trim()) {
-      toast({
+      showRequestToast({
         title: "External project title and details are required",
         status: "warning",
       });
@@ -276,13 +325,13 @@ export default function CSExternalITRequestsPanel({ focusedTaskId = "", focusedC
         attachments: "",
       }));
       if (fileInputRef.current) fileInputRef.current.value = "";
-      toast({
+      showRequestToast({
         title: "External project request sent to IT manager",
         description: "The manager can review, assign, and track it as an external IT project.",
         status: "success",
       });
     } catch (error) {
-      toast({
+      showRequestToast({
         title: "External project request failed",
         description: error.response?.data?.message || error.message,
         status: "error",
@@ -297,7 +346,7 @@ export default function CSExternalITRequestsPanel({ focusedTaskId = "", focusedC
     const draft = feedbackDrafts[taskId] || {};
     const rating = Number(draft.rating || task.requesterFeedback?.rating || 0);
     if (!rating) {
-      toast({ title: "Please select a rating", status: "warning" });
+      showRequestToast({ title: "Please select a rating", status: "warning" });
       return;
     }
 
@@ -314,9 +363,9 @@ export default function CSExternalITRequestsPanel({ focusedTaskId = "", focusedC
           String(item._id || item.id) === String(taskId) ? updated : item
         )));
       }
-      toast({ title: "External project feedback saved", status: "success" });
+      showRequestToast({ title: "External project feedback saved", status: "success" });
     } catch (error) {
-      toast({
+      showRequestToast({
         title: "Feedback failed",
         description: error.response?.data?.message || error.message,
         status: "error",
@@ -341,9 +390,9 @@ export default function CSExternalITRequestsPanel({ focusedTaskId = "", focusedC
         )));
       }
       setCommentDrafts((prev) => ({ ...prev, [taskId]: "" }));
-      toast({ title: "Comment sent to IT", status: "success" });
+      showRequestToast({ title: "Comment sent to IT", status: "success" });
     } catch (error) {
-      toast({
+      showRequestToast({
         title: "Comment failed",
         description: error.response?.data?.message || error.message,
         status: "error",
@@ -371,28 +420,21 @@ export default function CSExternalITRequestsPanel({ focusedTaskId = "", focusedC
 
   const handleDeleteProject = async (task) => {
     const taskId = task._id || task.id;
-    const title = getTaskTitle(task);
-    if (!window.confirm(`Are you sure you want to delete "${title}"? Only the sender and managers can delete this external project.`)) {
-      return;
-    }
-
     setDeletingProjectId(taskId);
     try {
       await axiosInstance.delete(`/it/${taskId}`);
       setProjects((prev) => prev.filter((item) => (item._id || item.id) !== taskId));
-      toast({
+      setProjectPendingDelete(null);
+      showRequestToast({
         title: "External project deleted",
+        description: `${getTaskTitle(task)} was removed successfully.`,
         status: "success",
-        duration: 3000,
-        isClosable: true,
       });
     } catch (error) {
-      toast({
+      showRequestToast({
         title: "Failed to delete project",
         description: error.response?.data?.message || error.message,
         status: "error",
-        duration: 4000,
-        isClosable: true,
       });
     } finally {
       setDeletingProjectId("");
@@ -472,18 +514,24 @@ export default function CSExternalITRequestsPanel({ focusedTaskId = "", focusedC
   };
 
   return (
-    <Card bg={cardBg} borderColor={borderColor} borderWidth="1px" borderRadius="2xl">
-      <CardBody>
-        <Flex justify="space-between" align={{ base: "stretch", md: "center" }} direction={{ base: "column", md: "row" }} gap={3} mb={4}>
-          <Box>
-            <HStack mb={1}>
-              <Icon as={FiTool} color="teal.500" />
-              <Heading size="lg">CS External IT Requests</Heading>
-            </HStack>
-            <Text color={muted}>Submit external Customer Service task requests to IT, track manager assignment, chat with IT, and send completion feedback.</Text>
-          </Box>
-          <HStack alignSelf={{ base: "flex-start", md: "center" }}>
-            <Badge colorScheme="purple">External Project Workflow</Badge>
+    <Card bg={shellBg} borderColor="whiteAlpha.700" borderWidth="1px" borderRadius="2xl" boxShadow="0 24px 70px rgba(15, 23, 42, 0.12)" overflow="hidden">
+      <CardBody p={{ base: 4, md: 6 }}>
+        <Flex justify="space-between" align={{ base: "stretch", md: "center" }} direction={{ base: "column", md: "row" }} gap={4} mb={5}>
+          <HStack align="center" spacing={4}>
+            <Flex boxSize="52px" borderRadius="2xl" bg="teal.400" color="white" align="center" justify="center" boxShadow="0 16px 34px rgba(20, 184, 166, 0.28)">
+              <Icon as={FiTool} boxSize={6} />
+            </Flex>
+            <Box>
+              <HStack mb={1} wrap="wrap">
+                <Badge colorScheme="teal" borderRadius="full" px={3}>CS to IT</Badge>
+                <Badge colorScheme="purple" borderRadius="full" px={3}>External Project</Badge>
+              </HStack>
+              <Heading size="lg" color={headingColor}>CS External IT Requests</Heading>
+              <Text color={muted} maxW="760px">Submit external Customer Service task requests to IT, track manager assignment, chat with IT, and send completion feedback.</Text>
+            </Box>
+          </HStack>
+          <HStack alignSelf={{ base: "flex-start", md: "center" }} bg={cardBg} border="1px solid" borderColor={borderColor} borderRadius="2xl" p={2} boxShadow="sm">
+            <Badge colorScheme="purple" borderRadius="full" px={3}>Workflow Live</Badge>
             <ChatLauncher
               icon={<FiMessageSquare size={18} />}
               ariaLabel="Chat with IT manager or assigned IT staff"
@@ -494,10 +542,12 @@ export default function CSExternalITRequestsPanel({ focusedTaskId = "", focusedC
         </Flex>
 
         <SimpleGrid columns={{ base: 1, xl: 2 }} spacing={5} alignItems="start">
-          <Card bg={panelBg} border="1px solid" borderColor={borderColor} borderRadius="2xl" boxShadow="sm">
-            <CardBody>
-              <HStack mb={3}>
-                <Icon as={FiTool} color="teal.500" />
+          <Card bg={formPanelBg} border="1px solid" borderColor={borderColor} borderRadius="2xl" boxShadow="0 18px 45px rgba(15, 23, 42, 0.08)" backdropFilter="blur(12px)">
+            <CardBody p={{ base: 4, md: 5 }}>
+              <HStack mb={4} spacing={3} align="start">
+                <Flex boxSize="40px" borderRadius="xl" bg="teal.50" color="teal.500" align="center" justify="center" flexShrink={0}>
+                  <Icon as={FiTool} />
+                </Flex>
                 <Box>
                   <Heading size="md">Submit External Task Request</Heading>
                   <Text fontSize="sm" color={muted}>Create an external IT project request for manager review and assignment.</Text>
@@ -508,11 +558,11 @@ export default function CSExternalITRequestsPanel({ focusedTaskId = "", focusedC
                 <SimpleGrid columns={{ base: 1, md: 2 }} spacing={3}>
                   <FormControl>
                     <FormLabel>Requester</FormLabel>
-                    <Input value={form.requestedBy} onChange={(event) => setForm({ ...form, requestedBy: event.target.value })} />
+                    <Input bg={cardBg} value={form.requestedBy} onChange={(event) => setForm({ ...form, requestedBy: event.target.value })} />
                   </FormControl>
                   <FormControl>
                     <FormLabel>Department</FormLabel>
-                    <Input value={form.requestedDepartment} onChange={(event) => setForm({ ...form, requestedDepartment: event.target.value })} />
+                    <Input bg={cardBg} value={form.requestedDepartment} onChange={(event) => setForm({ ...form, requestedDepartment: event.target.value })} />
                   </FormControl>
                 </SimpleGrid>
 
@@ -522,6 +572,7 @@ export default function CSExternalITRequestsPanel({ focusedTaskId = "", focusedC
                     value={form.taskName}
                     onChange={(event) => setForm({ ...form, taskName: event.target.value })}
                     placeholder="Example: Customer portal quotation bug"
+                    bg={cardBg}
                   />
                 </FormControl>
 
@@ -532,6 +583,7 @@ export default function CSExternalITRequestsPanel({ focusedTaskId = "", focusedC
                       value={form.client}
                       onChange={(event) => setForm({ ...form, client: event.target.value })}
                       placeholder="Customer, company, or external project"
+                      bg={cardBg}
                     />
                   </FormControl>
                   <FormControl>
@@ -540,6 +592,7 @@ export default function CSExternalITRequestsPanel({ focusedTaskId = "", focusedC
                       value={form.category}
                       onChange={(event) => setForm({ ...form, category: event.target.value })}
                       placeholder="Portal, CRM, sales system, website..."
+                      bg={cardBg}
                     />
                   </FormControl>
                 </SimpleGrid>
@@ -547,13 +600,13 @@ export default function CSExternalITRequestsPanel({ focusedTaskId = "", focusedC
                 <SimpleGrid columns={{ base: 1, md: 2 }} spacing={3}>
                   <FormControl>
                     <FormLabel>Work type</FormLabel>
-                    <Select value={form.ticketCategory} onChange={(event) => setForm({ ...form, ticketCategory: event.target.value })}>
+                    <Select bg={cardBg} value={form.ticketCategory} onChange={(event) => setForm({ ...form, ticketCategory: event.target.value })}>
                       {EXTERNAL_TYPES.map((type) => <option key={type.value} value={type.value}>{type.label}</option>)}
                     </Select>
                   </FormControl>
                   <FormControl>
                     <FormLabel>Priority</FormLabel>
-                    <Select value={form.priority} onChange={(event) => setForm({ ...form, priority: event.target.value })}>
+                    <Select bg={cardBg} value={form.priority} onChange={(event) => setForm({ ...form, priority: event.target.value })}>
                       {PRIORITIES.map((priority) => <option key={priority.value} value={priority.value}>{priority.label}</option>)}
                     </Select>
                   </FormControl>
@@ -566,6 +619,7 @@ export default function CSExternalITRequestsPanel({ focusedTaskId = "", focusedC
                     value={form.summary}
                     onChange={(event) => setForm({ ...form, summary: event.target.value })}
                     placeholder="Describe the external customer need, expected IT work, affected workflow, urgency, and any deadline."
+                    bg={cardBg}
                   />
                 </FormControl>
 
@@ -577,8 +631,9 @@ export default function CSExternalITRequestsPanel({ focusedTaskId = "", focusedC
                       value={form.attachments}
                       onChange={(event) => setForm({ ...form, attachments: event.target.value })}
                       placeholder="Paste links or select files from your folder. Separate each item by comma or new line."
+                      bg={cardBg}
                     />
-                    <Button as="label" size="sm" variant="outline" leftIcon={<FiPaperclip />} alignSelf="flex-start" cursor="pointer">
+                    <Button as="label" size="sm" variant="outline" colorScheme="teal" leftIcon={<FiPaperclip />} alignSelf="flex-start" cursor="pointer">
                       Select from Folder
                       <Input
                         ref={fileInputRef}
@@ -594,24 +649,26 @@ export default function CSExternalITRequestsPanel({ focusedTaskId = "", focusedC
                   </VStack>
                 </FormControl>
 
-                <Button colorScheme="teal" leftIcon={<FiSend />} onClick={submitExternalProjectRequest} isLoading={submitting}>
+                <Button colorScheme="teal" leftIcon={<FiSend />} onClick={submitExternalProjectRequest} isLoading={submitting} h="46px" borderRadius="xl" boxShadow="0 14px 28px rgba(20, 184, 166, 0.24)">
                   Send External Project to IT Manager
                 </Button>
               </VStack>
             </CardBody>
           </Card>
 
-          <Card bg={panelBg} border="1px solid" borderColor={borderColor} borderRadius="2xl" boxShadow="sm">
-            <CardBody>
+          <Card bg={listPanelBg} border="1px solid" borderColor={borderColor} borderRadius="2xl" boxShadow="0 18px 45px rgba(15, 23, 42, 0.08)" backdropFilter="blur(12px)">
+            <CardBody p={{ base: 4, md: 5 }}>
               <Flex justify="space-between" align="start" gap={3} mb={3}>
                 <HStack align="start">
-                  <Icon as={FiShield} color="blue.500" mt={1} />
+                  <Flex boxSize="40px" borderRadius="xl" bg="blue.50" color="blue.500" align="center" justify="center" flexShrink={0}>
+                    <Icon as={FiShield} />
+                  </Flex>
                   <Box>
                     <Heading size="md">Assigned External Projects</Heading>
                     <Text fontSize="sm" color={muted}>Track manager review, responsible IT members, project progress, work reports, and CS feedback.</Text>
                   </Box>
                 </HStack>
-                <Button size="sm" leftIcon={<FiRefreshCw />} variant="outline" onClick={fetchExternalProjects} isLoading={loadingProjects}>
+                <Button size="sm" leftIcon={<FiRefreshCw />} variant="outline" colorScheme="blue" borderRadius="xl" onClick={fetchExternalProjects} isLoading={loadingProjects}>
                   Refresh
                 </Button>
               </Flex>
@@ -769,8 +826,9 @@ export default function CSExternalITRequestsPanel({ focusedTaskId = "", focusedC
                       borderColor={isFocused ? "blue.300" : borderColor}
                       borderRadius="xl"
                       p={4}
-                      boxShadow={isFocused ? "0 0 0 3px rgba(49, 130, 206, 0.18)" : "none"}
-                      transition="background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease"
+                      boxShadow={isFocused ? "0 0 0 3px rgba(49, 130, 206, 0.18)" : "0 10px 30px rgba(15, 23, 42, 0.06)"}
+                      transition="background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease"
+                      _hover={{ transform: "translateY(-2px)", boxShadow: "0 16px 36px rgba(15, 23, 42, 0.1)" }}
                     >
                       <Flex justify="space-between" align="center" gap={3}>
                         <HStack minW={0} spacing={3}>
@@ -804,7 +862,7 @@ export default function CSExternalITRequestsPanel({ focusedTaskId = "", focusedC
                                 isLoading={deletingProjectId === taskId}
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  handleDeleteProject(task);
+                                  setProjectPendingDelete(task);
                                 }}
                               />
                             </Tooltip>
@@ -998,6 +1056,33 @@ export default function CSExternalITRequestsPanel({ focusedTaskId = "", focusedC
             </CardBody>
           </Card>
         </SimpleGrid>
+
+        {projectPendingDelete && (
+          <Flex position="fixed" inset={0} zIndex={3200} align="center" justify="center" p={4}>
+            <Box position="absolute" inset={0} bg="blackAlpha.500" backdropFilter="blur(4px)" onClick={() => setProjectPendingDelete(null)} />
+            <Box position="relative" bg={cardBg} border="1px solid" borderColor="red.200" borderRadius="2xl" boxShadow="0 24px 70px rgba(15, 23, 42, 0.28)" p={5} w={{ base: "100%", sm: "430px" }}>
+              <HStack align="start" spacing={3}>
+                <Flex boxSize="42px" borderRadius="xl" bg="red.50" color="red.500" align="center" justify="center" flexShrink={0}>
+                  <Icon as={FiAlertTriangle} boxSize={5} />
+                </Flex>
+                <Box flex="1">
+                  <Heading size="sm">Delete external project?</Heading>
+                  <Text fontSize="sm" color={muted} mt={1}>
+                    {getTaskTitle(projectPendingDelete)} will be removed from the CS external IT request list.
+                  </Text>
+                  <HStack justify="flex-end" mt={5} spacing={3}>
+                    <Button size="sm" variant="ghost" onClick={() => setProjectPendingDelete(null)}>
+                      Cancel
+                    </Button>
+                    <Button size="sm" colorScheme="red" leftIcon={<FiTrash2 />} isLoading={deletingProjectId === (projectPendingDelete._id || projectPendingDelete.id)} onClick={() => handleDeleteProject(projectPendingDelete)}>
+                      Delete
+                    </Button>
+                  </HStack>
+                </Box>
+              </HStack>
+            </Box>
+          </Flex>
+        )}
 
         <Drawer isOpen={Boolean(selectedProject)} placement="right" onClose={() => setSelectedProjectId("")} size="md">
           <DrawerOverlay backdropFilter="blur(3px)" />

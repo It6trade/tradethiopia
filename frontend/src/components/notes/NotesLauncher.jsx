@@ -1,4 +1,3 @@
-import React from 'react';
 import { IconButton, Tooltip, useDisclosure } from '@chakra-ui/react';
 import { FiFileText } from 'react-icons/fi';
 import NotesDrawer from './NotesDrawer';

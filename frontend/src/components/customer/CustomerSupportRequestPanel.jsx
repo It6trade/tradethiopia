@@ -30,6 +30,8 @@ import {
   useToast,
 } from "@chakra-ui/react";
 import {
+  FiAlertTriangle,
+  FiCheckCircle,
   FiClock,
   FiEye,
   FiPaperclip,
@@ -111,6 +113,52 @@ export default function CustomerSupportRequestPanel() {
   const panelBg = useColorModeValue("gray.50", "whiteAlpha.100");
   const borderColor = useColorModeValue("gray.200", "whiteAlpha.200");
   const muted = useColorModeValue("gray.600", "gray.400");
+  const headingColor = useColorModeValue("gray.900", "white");
+  const shellBg = useColorModeValue(
+    "linear-gradient(135deg, #f8fafc 0%, #eff6ff 45%, #ecfeff 100%)",
+    "linear-gradient(135deg, #111827 0%, #0f172a 52%, #164e63 100%)"
+  );
+  const formPanelBg = useColorModeValue("rgba(255,255,255,0.92)", "rgba(17,24,39,0.92)");
+  const listPanelBg = useColorModeValue("rgba(255,255,255,0.86)", "rgba(15,23,42,0.86)");
+
+  const showRequestToast = useCallback(({ title, description, status = "info" }) => {
+    const tone = {
+      success: { color: "green.500", bg: "green.50", icon: FiCheckCircle },
+      error: { color: "red.500", bg: "red.50", icon: FiAlertTriangle },
+      warning: { color: "orange.500", bg: "orange.50", icon: FiAlertTriangle },
+      info: { color: "blue.500", bg: "blue.50", icon: FiShield },
+    }[status] || { color: "blue.500", bg: "blue.50", icon: FiShield };
+
+    toast({
+      position: "top",
+      duration: status === "error" ? 5000 : 3500,
+      isClosable: true,
+      render: ({ onClose }) => (
+        <Box
+          bg={cardBg}
+          border="1px solid"
+          borderColor={tone.color}
+          borderLeftWidth="5px"
+          borderRadius="xl"
+          boxShadow="0 18px 45px rgba(15, 23, 42, 0.18)"
+          p={3}
+          w={{ base: "calc(100vw - 32px)", sm: "420px" }}
+          mx="auto"
+        >
+          <HStack align="start" spacing={3}>
+            <Flex boxSize="34px" borderRadius="lg" bg={tone.bg} color={tone.color} align="center" justify="center" flexShrink={0}>
+              <Icon as={tone.icon} />
+            </Flex>
+            <Box flex="1" minW={0}>
+              <Text fontSize="sm" fontWeight="900">{title}</Text>
+              {description && <Text fontSize="xs" color={muted} mt={0.5}>{description}</Text>}
+            </Box>
+            <IconButton type="button" aria-label="Close alert" size="xs" variant="ghost" icon={<Text fontSize="md">x</Text>} onClick={onClose} />
+          </HStack>
+        </Box>
+      ),
+    });
+  }, [cardBg, muted, toast]);
 
   const [submitting, setSubmitting] = useState(false);
   const [loadingTickets, setLoadingTickets] = useState(false);
@@ -119,6 +167,7 @@ export default function CustomerSupportRequestPanel() {
   const [feedbackDrafts, setFeedbackDrafts] = useState({});
   const [expandedManagerTicketIds] = useState({});
   const [selectedTicketId, setSelectedTicketId] = useState("");
+  const [ticketPendingDelete, setTicketPendingDelete] = useState(null);
   const [form, setForm] = useState({
     taskName: "",
     ticketCategory: "software",
@@ -175,7 +224,7 @@ export default function CustomerSupportRequestPanel() {
 
   const submitSupportTicket = async () => {
     if (!form.taskName.trim() || !form.summary.trim()) {
-      toast({
+      showRequestToast({
         title: "Ticket title and details are required",
         status: "warning",
       });
@@ -206,13 +255,13 @@ export default function CustomerSupportRequestPanel() {
         attachments: "",
       }));
       if (fileInputRef.current) fileInputRef.current.value = "";
-      toast({
+      showRequestToast({
         title: "Support ticket sent to IT manager",
         description: "The manager can now approve and assign it from the Manager Support Queue.",
         status: "success",
       });
     } catch (error) {
-      toast({
+      showRequestToast({
         title: "Support request failed",
         description: error.response?.data?.message || error.message,
         status: "error",
@@ -227,7 +276,7 @@ export default function CustomerSupportRequestPanel() {
     const draft = feedbackDrafts[ticketId] || {};
     const rating = Number(draft.rating || ticket.requesterFeedback?.rating || 0);
     if (!rating) {
-      toast({ title: "Please select a rating", status: "warning" });
+      showRequestToast({ title: "Please select a rating", status: "warning" });
       return;
     }
 
@@ -244,9 +293,9 @@ export default function CustomerSupportRequestPanel() {
           String(item._id || item.id) === String(ticketId) ? updated : item
         )));
       }
-      toast({ title: "Ticket feedback saved", status: "success" });
+      showRequestToast({ title: "Ticket feedback saved", status: "success" });
     } catch (error) {
-      toast({
+      showRequestToast({
         title: "Feedback failed",
         description: error.response?.data?.message || error.message,
         status: "error",
@@ -289,28 +338,21 @@ export default function CustomerSupportRequestPanel() {
 
   const handleDeleteSupportTicket = async (ticket) => {
     const ticketId = ticket._id || ticket.id;
-    const title = getTaskTitle(ticket);
-    if (!window.confirm(`Are you sure you want to delete "${title}"? Only the sender and managers can delete this request.`)) {
-      return;
-    }
-
     setDeletingTicketId(ticketId);
     try {
       await axiosInstance.delete(`/it/${ticketId}`);
       setManagerTickets((prev) => prev.filter((t) => (t._id || t.id) !== ticketId));
-      toast({
+      setTicketPendingDelete(null);
+      showRequestToast({
         title: "Support request deleted",
+        description: `${getTaskTitle(ticket)} was removed successfully.`,
         status: "success",
-        duration: 3000,
-        isClosable: true,
       });
     } catch (error) {
-      toast({
+      showRequestToast({
         title: "Failed to delete support request",
         description: error.response?.data?.message || error.message,
         status: "error",
-        duration: 4000,
-        isClosable: true,
       });
     } finally {
       setDeletingTicketId("");
@@ -318,24 +360,32 @@ export default function CustomerSupportRequestPanel() {
   };
 
   return (
-    <Card bg={cardBg} borderColor={borderColor} borderWidth="1px" borderRadius="2xl">
-      <CardBody>
-        <Flex justify="space-between" align={{ base: "stretch", md: "center" }} direction={{ base: "column", md: "row" }} gap={3} mb={4}>
-          <Box>
-            <HStack mb={1}>
-              <Icon as={FiTool} color="teal.500" />
-              <Heading size="lg">Customer Service to IT Support</Heading>
-            </HStack>
-            <Text color={muted}>Use this section only when Customer Service needs IT manager approval and IT staff assignment.</Text>
-          </Box>
-          <Badge colorScheme="blue" alignSelf={{ base: "flex-start", md: "center" }}>IT Manager Queue</Badge>
+    <Card bg={shellBg} borderColor="whiteAlpha.700" borderWidth="1px" borderRadius="2xl" boxShadow="0 24px 70px rgba(15, 23, 42, 0.12)" overflow="hidden">
+      <CardBody p={{ base: 4, md: 6 }}>
+        <Flex justify="space-between" align={{ base: "stretch", md: "center" }} direction={{ base: "column", md: "row" }} gap={4} mb={5}>
+          <HStack align="center" spacing={4}>
+            <Flex boxSize="52px" borderRadius="2xl" bg="blue.400" color="white" align="center" justify="center" boxShadow="0 16px 34px rgba(59, 130, 246, 0.28)">
+              <Icon as={FiShield} boxSize={6} />
+            </Flex>
+            <Box>
+              <HStack mb={1} wrap="wrap">
+                <Badge colorScheme="blue" borderRadius="full" px={3}>Support Desk</Badge>
+                <Badge colorScheme="teal" borderRadius="full" px={3}>Manager Queue</Badge>
+              </HStack>
+              <Heading size="lg" color={headingColor}>Customer Service to IT Support</Heading>
+              <Text color={muted} maxW="760px">Use this section only when Customer Service needs IT manager approval and IT staff assignment.</Text>
+            </Box>
+          </HStack>
+          <Badge colorScheme="blue" alignSelf={{ base: "flex-start", md: "center" }} bg={cardBg} border="1px solid" borderColor={borderColor} borderRadius="full" px={4} py={2} boxShadow="sm">IT Manager Queue</Badge>
         </Flex>
 
         <SimpleGrid columns={{ base: 1, xl: 2 }} spacing={5} alignItems="start">
-          <Card bg={panelBg} border="1px solid" borderColor={borderColor} borderRadius="2xl" boxShadow="sm">
-            <CardBody>
-              <HStack mb={3}>
-                <Icon as={FiTool} color="teal.500" />
+          <Card bg={formPanelBg} border="1px solid" borderColor={borderColor} borderRadius="2xl" boxShadow="0 18px 45px rgba(15, 23, 42, 0.08)" backdropFilter="blur(12px)">
+            <CardBody p={{ base: 4, md: 5 }}>
+              <HStack mb={4} spacing={3} align="start">
+                <Flex boxSize="40px" borderRadius="xl" bg="teal.50" color="teal.500" align="center" justify="center" flexShrink={0}>
+                  <Icon as={FiTool} />
+                </Flex>
                 <Box>
                   <Heading size="md">Contact the IT Support Department</Heading>
                   <Text fontSize="sm" color={muted}>Create a new IT ticket for manager approval and staff assignment.</Text>
@@ -346,11 +396,11 @@ export default function CustomerSupportRequestPanel() {
                 <SimpleGrid columns={{ base: 1, md: 2 }} spacing={3}>
                   <FormControl>
                     <FormLabel>Requester</FormLabel>
-                    <Input value={form.requestedBy} onChange={(event) => setForm({ ...form, requestedBy: event.target.value })} />
+                    <Input bg={cardBg} value={form.requestedBy} onChange={(event) => setForm({ ...form, requestedBy: event.target.value })} />
                   </FormControl>
                   <FormControl>
                     <FormLabel>Department</FormLabel>
-                    <Input value={form.requestedDepartment} onChange={(event) => setForm({ ...form, requestedDepartment: event.target.value })} />
+                    <Input bg={cardBg} value={form.requestedDepartment} onChange={(event) => setForm({ ...form, requestedDepartment: event.target.value })} />
                   </FormControl>
                 </SimpleGrid>
 
@@ -360,19 +410,20 @@ export default function CustomerSupportRequestPanel() {
                     value={form.taskName}
                     onChange={(event) => setForm({ ...form, taskName: event.target.value })}
                     placeholder="Example: CRM follow-up page not loading"
+                    bg={cardBg}
                   />
                 </FormControl>
 
                 <SimpleGrid columns={{ base: 1, md: 2 }} spacing={3}>
                   <FormControl>
                     <FormLabel>Support type</FormLabel>
-                    <Select value={form.ticketCategory} onChange={(event) => setForm({ ...form, ticketCategory: event.target.value })}>
+                    <Select bg={cardBg} value={form.ticketCategory} onChange={(event) => setForm({ ...form, ticketCategory: event.target.value })}>
                       {SUPPORT_TYPES.map((type) => <option key={type.value} value={type.value}>{type.label}</option>)}
                     </Select>
                   </FormControl>
                   <FormControl>
                     <FormLabel>Priority</FormLabel>
-                    <Select value={form.priority} onChange={(event) => setForm({ ...form, priority: event.target.value })}>
+                    <Select bg={cardBg} value={form.priority} onChange={(event) => setForm({ ...form, priority: event.target.value })}>
                       {PRIORITIES.map((priority) => <option key={priority.value} value={priority.value}>{priority.label}</option>)}
                     </Select>
                   </FormControl>
@@ -385,6 +436,7 @@ export default function CustomerSupportRequestPanel() {
                     value={form.summary}
                     onChange={(event) => setForm({ ...form, summary: event.target.value })}
                     placeholder="Describe the issue, affected customer/workflow, urgency, and what you already tried."
+                    bg={cardBg}
                   />
                 </FormControl>
 
@@ -396,8 +448,9 @@ export default function CustomerSupportRequestPanel() {
                       value={form.attachments}
                       onChange={(event) => setForm({ ...form, attachments: event.target.value })}
                       placeholder="Paste links or select files from your folder. Separate each item by comma or new line."
+                      bg={cardBg}
                     />
-                    <Button as="label" size="sm" variant="outline" leftIcon={<FiPaperclip />} alignSelf="flex-start" cursor="pointer">
+                    <Button as="label" size="sm" variant="outline" colorScheme="teal" leftIcon={<FiPaperclip />} alignSelf="flex-start" cursor="pointer">
                       Select from Folder
                       <Input
                         ref={fileInputRef}
@@ -413,24 +466,26 @@ export default function CustomerSupportRequestPanel() {
                   </VStack>
                 </FormControl>
 
-                <Button colorScheme="teal" leftIcon={<FiSend />} onClick={submitSupportTicket} isLoading={submitting}>
+                <Button colorScheme="teal" leftIcon={<FiSend />} onClick={submitSupportTicket} isLoading={submitting} h="46px" borderRadius="xl" boxShadow="0 14px 28px rgba(20, 184, 166, 0.24)">
                   Create IT Ticket
                 </Button>
               </VStack>
             </CardBody>
           </Card>
 
-          <Card bg={panelBg} border="1px solid" borderColor={borderColor} borderRadius="2xl" boxShadow="sm">
-            <CardBody>
+          <Card bg={listPanelBg} border="1px solid" borderColor={borderColor} borderRadius="2xl" boxShadow="0 18px 45px rgba(15, 23, 42, 0.08)" backdropFilter="blur(12px)">
+            <CardBody p={{ base: 4, md: 5 }}>
               <Flex justify="space-between" align="start" gap={3} mb={3}>
                 <HStack align="start">
-                  <Icon as={FiShield} color="blue.500" mt={1} />
+                  <Flex boxSize="40px" borderRadius="xl" bg="blue.50" color="blue.500" align="center" justify="center" flexShrink={0}>
+                    <Icon as={FiShield} />
+                  </Flex>
                   <Box>
                     <Heading size="md">Support Request to the Manager</Heading>
                     <Text fontSize="sm" color={muted}>Track submitted tickets, manager approval, assigned staff work, dates, and feedback.</Text>
                   </Box>
                 </HStack>
-                <Button size="sm" leftIcon={<FiRefreshCw />} variant="outline" onClick={fetchManagerRequests} isLoading={loadingTickets}>
+                <Button size="sm" leftIcon={<FiRefreshCw />} variant="outline" colorScheme="blue" borderRadius="xl" onClick={fetchManagerRequests} isLoading={loadingTickets}>
                   Refresh
                 </Button>
               </Flex>
@@ -447,7 +502,17 @@ export default function CustomerSupportRequestPanel() {
                   const feedbackOpen = isFeedbackOpen(ticket);
                   const isExpanded = Boolean(expandedManagerTicketIds[ticketId]);
                   return (
-                    <Box key={ticketId} bg={cardBg} border="1px solid" borderColor={borderColor} borderRadius="xl" p={4}>
+                    <Box
+                      key={ticketId}
+                      bg={cardBg}
+                      border="1px solid"
+                      borderColor={borderColor}
+                      borderRadius="xl"
+                      p={4}
+                      boxShadow="0 10px 30px rgba(15, 23, 42, 0.06)"
+                      transition="box-shadow 0.2s ease, transform 0.2s ease"
+                      _hover={{ transform: "translateY(-2px)", boxShadow: "0 16px 36px rgba(15, 23, 42, 0.1)" }}
+                    >
                       <Flex justify="space-between" align="center" gap={3}>
                         <HStack minW={0} spacing={3}>
                           <Box minW={0}>
@@ -480,7 +545,7 @@ export default function CustomerSupportRequestPanel() {
                                 isLoading={deletingTicketId === ticketId}
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  handleDeleteSupportTicket(ticket);
+                                  setTicketPendingDelete(ticket);
                                 }}
                               />
                             </Tooltip>
@@ -582,6 +647,33 @@ export default function CustomerSupportRequestPanel() {
             </CardBody>
           </Card>
         </SimpleGrid>
+
+        {ticketPendingDelete && (
+          <Flex position="fixed" inset={0} zIndex={3200} align="center" justify="center" p={4}>
+            <Box position="absolute" inset={0} bg="blackAlpha.500" backdropFilter="blur(4px)" onClick={() => setTicketPendingDelete(null)} />
+            <Box position="relative" bg={cardBg} border="1px solid" borderColor="red.200" borderRadius="2xl" boxShadow="0 24px 70px rgba(15, 23, 42, 0.28)" p={5} w={{ base: "100%", sm: "430px" }}>
+              <HStack align="start" spacing={3}>
+                <Flex boxSize="42px" borderRadius="xl" bg="red.50" color="red.500" align="center" justify="center" flexShrink={0}>
+                  <Icon as={FiAlertTriangle} boxSize={5} />
+                </Flex>
+                <Box flex="1">
+                  <Heading size="sm">Delete support request?</Heading>
+                  <Text fontSize="sm" color={muted} mt={1}>
+                    {getTaskTitle(ticketPendingDelete)} will be removed from the support requests sent to the manager.
+                  </Text>
+                  <HStack justify="flex-end" mt={5} spacing={3}>
+                    <Button size="sm" variant="ghost" onClick={() => setTicketPendingDelete(null)}>
+                      Cancel
+                    </Button>
+                    <Button size="sm" colorScheme="red" leftIcon={<FiTrash2 />} isLoading={deletingTicketId === (ticketPendingDelete._id || ticketPendingDelete.id)} onClick={() => handleDeleteSupportTicket(ticketPendingDelete)}>
+                      Delete
+                    </Button>
+                  </HStack>
+                </Box>
+              </HStack>
+            </Box>
+          </Flex>
+        )}
 
         <Drawer isOpen={Boolean(selectedTicket)} placement="right" onClose={() => setSelectedTicketId("")} size="md">
           <DrawerOverlay backdropFilter="blur(3px)" />
